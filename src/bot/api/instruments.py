@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
-CACHE_FILE: Path = Path("data/instrument_map.json")
+CACHE_FILE: Path = Path(__file__).resolve().parent.parent.parent.parent / "data" / "instrument_map.json"
 CACHE_TTL_HOURS: int = 24
 
 _LEGACY_DB_PATH: Path = Path(
