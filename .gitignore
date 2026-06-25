@@ -31,3 +31,4 @@ backups/
 .idea/
 *.swp
 *.swo
+data/instrument_map.json
