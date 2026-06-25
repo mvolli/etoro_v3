@@ -6,6 +6,9 @@ Region-Schedule (UTC):
   08:00 → EUROPE
   14:00 → US_OVERLAP (US + EU)
   02:00 → NIGHT_SCAN (Crypto)
+
+V5: Nutzt signals.py (yfinance + ta library) statt signal_generator.py.
+Signale werden über repo.py in die V5-signals-Tabelle geschrieben.
 """
 
 import sys, os, json, time, sqlite3, datetime
@@ -13,9 +16,14 @@ import sys, os, json, time, sqlite3, datetime
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from bot.core.ohlcv_cache import get_db as get_ohlcv_db, bulk_ensure_ohlcv
-from bot.core.signal_generator import generate_signals, save_signals, get_db as get_signal_db
+from bot.core.signals import analyze_batch
+from bot.db.connection import DB
+from bot.db.repo import SignalRepo
 
 TRADES_CHANNEL = "1514786489110630600"  # #etoro-trades
+
+PROJECT_ROOT = os.path.join(os.path.dirname(__file__), '..', 'src', '..')
+DB_PATH = os.path.join(PROJECT_ROOT, 'data', 'trading.db')
 
 
 def get_current_region():
@@ -106,17 +114,63 @@ def run_discovery(conn, region):
 
     print(f"  ✓ {success}/{len(instruments)} mit OHLCV ({days} Tage, {elapsed:.1f}s)")
 
-    # Signale generieren
-    signals_conn = get_signal_db()
-    instrument_ids_with_data = [iid for iid, r in results.items() if r['has_data']]
-    signals = generate_signals(signals_conn, instrument_ids_with_data)
-    save_signals(signals_conn, signals)
-    signals_conn.close()
+    # Signale generieren (V5: signals.py via yfinance)
+    symbols = [inst['yfinance_symbol'] or inst['symbol'] for inst in instruments if results.get(inst['instrument_id'], {}).get('has_data')]
+    symbol_to_iid = {inst['yfinance_symbol'] or inst['symbol']: inst['instrument_id'] for inst in instruments}
 
-    buys = [s for s in signals if 'BUY' in s['signal_type']]
-    sells = [s for s in signals if 'SELL' in s['signal_type']]
+    if symbols:
+        start_sig = time.time()
+        signal_results = analyze_batch(symbols)
+        elapsed_sig = time.time() - start_sig
 
-    print(f"  📊 {len(signals)} Signale: 🟢{len(buys)} BUY 🔴{len(sells)} SELL")
+        # In V5-signals-Tabelle schreiben via repo.py
+        db = DB(DB_PATH)
+        signal_repo = SignalRepo(db)
+
+        stored = 0
+        signals_list = []
+        for sym, result in signal_results.items():
+            iid = symbol_to_iid.get(sym)
+            if iid is None:
+                continue
+
+            signal_types_str = ",".join(result.signal_types) if result.signal_types else result.direction
+            try:
+                signal_repo.create(
+                    instrument_id=iid,
+                    signal_type=signal_types_str,
+                    conviction=result.conviction,
+                    score=result.score,
+                    rsi=result.rsi,
+                    macd_hist=result.macd_hist,
+                    bb_pct=result.bb_pct,
+                    price=result.price,
+                    ttl_minutes=120,  # 2h TTL für Discovery-Signale
+                )
+                stored += 1
+                # Zum Embed formatieren (kompatibel zum alten Format)
+                signals_list.append({
+                    'symbol': sym,
+                    'signal_type': result.direction,
+                    'conviction': result.conviction,
+                    'score': result.score,
+                    'price': result.price or 0,
+                    'rsi': result.rsi or 0,
+                    'macd_hist': result.macd_hist or 0,
+                })
+            except Exception as e:
+                print(f"  ⚠ Signal speichern fehlgeschlagen {sym}: {e}")
+
+        # Nothing to close — DB uses context manager pattern
+        pass  # db will be garbage collected; connection closes on GC
+        print(f"  📊 {stored} Signale gespeichert ({elapsed_sig:.1f}s)")
+    else:
+        signals_list = []
+
+    buys = [s for s in signals_list if s['signal_type'] == 'BUY']
+    sells = [s for s in signals_list if s['signal_type'] == 'SELL']
+
+    print(f"  📊 {len(signals_list)} Signale: 🟢{len(buys)} BUY 🔴{len(sells)} SELL")
 
     return {
         "region": region,
@@ -125,7 +179,7 @@ def run_discovery(conn, region):
         "cached": success,
         "days_cached": days,
         "elapsed": round(elapsed, 1),
-        "total_signals": len(signals),
+        "total_signals": len(signals_list),
         "buy_count": len(buys),
         "sell_count": len(sells),
         "top_buys": buys[:5],
@@ -134,7 +188,7 @@ def run_discovery(conn, region):
 
 
 def post_embed(result):
-    """Postet Discovery-Ergebnis als Discord Embed."""
+    """Postet Discovery-Ergebnis als Discord Embed (V5)."""
     from bot.discord_embeds import post_alert_embed
 
     if not result or result['total_signals'] == 0:
@@ -142,13 +196,17 @@ def post_embed(result):
 
     buy_text = ""
     for s in result.get("top_buys", []):
-        emoji = "💪" if s['signal_type'] == "STRONG_BUY" else "🟢"
-        buy_text += f"{emoji} {s['symbol']:>8s} ${s['price']:>9.2f} | Score:{s['composite_score']:+.1f} RSI:{s['rsi']:5.1f}\n"
+        conv = s.get('conviction', '')
+        emoji_map = {'VERY_HIGH': '💪', 'HIGH': '🟢', 'MEDIUM': '🔵', 'LOW': '⚪'}
+        emoji = emoji_map.get(conv, '🟢')
+        buy_text += f"{emoji} {s['symbol']:>8s} ${s['price']:>9.2f} | Score:{s['score']:.0f} ({conv}) RSI:{s['rsi']:5.1f}\n"
 
     sell_text = ""
     for s in result.get("top_sells", []):
-        emoji = "⚠️" if s['signal_type'] == "STRONG_SELL" else "🔴"
-        sell_text += f"{emoji} {s['symbol']:>8s} ${s['price']:>9.2f} | Score:{s['composite_score']:+.1f}\n"
+        conv = s.get('conviction', '')
+        emoji_map = {'VERY_HIGH': '🔴', 'HIGH': '⚠️', 'MEDIUM': '🟡', 'LOW': '⚪'}
+        emoji = emoji_map.get(conv, '🔴')
+        sell_text += f"{emoji} {s['symbol']:>8s} ${s['price']:>9.2f} | Score:{s['score']:.0f} ({conv})\n"
 
     post_alert_embed(
         title=f"{result['label']} Discovery",
