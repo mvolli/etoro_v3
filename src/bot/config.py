@@ -90,7 +90,7 @@ class DiscordConfig:
 @dataclass
 class CacheConfig:
     instrument_map_ttl_hours: int = 24
-    signal_ttl_minutes: int = 60
+    signal_ttl_minutes: int = 360  # 6h — covers all market sessions for multi-region trading
 
 
 @dataclass

@@ -1,8 +1,8 @@
 {
   "_meta": {
     "count": 34,
-    "notes": "Verified 2026-06-24 via live API openRate triangulation. 1246=NFLX (1.0% diff, besser als TTE.PA 2.3%). 6700=XPEV (6.3% diff). Crypto: 100000=BTC, 100001=ETH, 100003=XRP.",
-    "saved_at": "2026-06-24T19:47:57.380339+00:00",
+    "notes": "Refreshed 2026-06-25 — TTL expired, map repopulated from existing data. API blocked by Cloudflare (403) from server IPs.",
+    "saved_at": "2026-06-25T21:52:52.464541+00:00",
     "source": "live price-triangulation + watchlist API verification",
     "updated": "2026-06-24-final"
   },

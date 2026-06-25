@@ -167,6 +167,8 @@ def main() -> None:
 
     evaluated_count = 0
     approved_count = 0
+    blocked_reasons: list[str] = []
+    skipped_closed: list[str] = []
 
     # Fetch open positions once for asset-class gate (list of {symbol, amount_usd})
     open_positions_raw = portfolio_repo.get_all()
@@ -176,8 +178,6 @@ def main() -> None:
     ]
 
     for signal in candidates:
-        evaluated_count += 1
-
         instrument_id = signal["instrument_id"]
         conviction = signal.get("conviction", "MEDIUM")
         score = float(signal.get("score", 0))
@@ -205,7 +205,7 @@ def main() -> None:
         # Market hours check (Crypto = always open)
         if not is_market_open(symbol):
             logger.info('SignalWorker: %s market closed — skipping signal', symbol)
-            evaluated_count += 1
+            skipped_closed.append(f'{symbol} (market closed)')
             continue
 
         # a. Current amount + fragment count for pyramiding check
@@ -245,6 +245,7 @@ def main() -> None:
         )
 
         if gate.allowed:
+            evaluated_count += 1
             # e. Create trade PENDING_APPROVAL → immediately APPROVED
             trade_id = trade_repo.create(
                 instrument_id=instrument_id,
@@ -285,7 +286,9 @@ def main() -> None:
                 },
             )
         else:
+            evaluated_count += 1
             reason = gate.summary()
+            blocked_reasons.append(f'{symbol}: {reason}')
             logger.info(
                 "SignalWorker: BLOCKED %s $%.2f — %s",
                 symbol, buy_amount, reason,
@@ -319,6 +322,32 @@ def main() -> None:
                 f'Regime: **{regime}** | scalar={risk_scalar:.2f}\n'
                 f'Evaluated: {evaluated_count} | Approved: {approved_count}\n'
                 f'Equity: ${equity:,.0f} | Cash: ${cash_estimate:,.0f} ({cash_estimate/equity*100:.1f}%)'
+            ),
+            severity='INFO',
+            dry_run=False
+        )
+    elif evaluated_count == 0 and skipped_closed:
+        # All candidates had closed markets — post with context
+        _post('post_alert_embed',
+            title=f'🔴 Signal Worker: All markets closed ({regime})',
+            description=(
+                f'Regime: **{regime}** | scalar={risk_scalar:.2f}\n'
+                f'Signals available: {len(buy_signals)} BUY signals (top 3 evaluated)\n'
+                f'Markets closed: {", ".join(skipped_closed[:5])}\n'
+                f'No trades — waiting for market open.'
+            ),
+            severity='INFO',
+            dry_run=False
+        )
+    elif evaluated_count > 0 and approved_count == 0:
+        # Signals evaluated but all blocked by risk gates
+        _post('post_alert_embed',
+            title=f'🟡 Signal Worker: All signals blocked ({regime})',
+            description=(
+                f'Regime: **{regime}** | scalar={risk_scalar:.2f}\n'
+                f'Evaluated: {evaluated_count} | Approved: 0\n'
+                f'Equity: ${equity:,.0f} | Cash: ${cash_estimate:,.0f} ({cash_estimate/equity*100:.1f}%)\n'
+                f'Blocked reasons:\n' + "\n".join(f'• {r}' for r in blocked_reasons[:5])
             ),
             severity='INFO',
             dry_run=False
