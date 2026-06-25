@@ -1,0 +1,436 @@
+#!/usr/bin/env python3
+"""Risk enforcement — Trading Bible V5 gates.
+
+ALL buy/sell decisions pass through here before execution.
+No DB, no API — pure logic, fully unit-testable.
+
+V5 changes from V4:
+  - Regime gate now uses 4-state regime (NORMAL/CAUTION/DEFENSIVE/CRITICAL)
+  - risk_scalar applied to position sizing
+  - Pyramiding check: blocked in DEFENSIVE/CRITICAL
+  - Min conviction check: regime-dependent minimum signal strength
+  - SL quality gate: SL >50% from entry = meaningless SL → blocked
+  - Crypto SL: always calculated as relative % (never absolute price)
+  - Already-over-limit check: blocks new buys when already at/over limit
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+# ─── Constants (overridden by config) ────────────────────────────────────────
+
+INSTRUMENT_LIMITS: dict[str, float] = {
+    "NVDA": 25.0, "QQQ": 25.0, "SPY": 20.0,
+    "META": 15.0, "MSFT": 15.0, "GLD": 15.0, "TLT": 15.0,
+    "AMZN": 12.0, "CPER": 10.0,
+    "BTC": 5.0, "ETH": 5.0, "TSLA": 5.0,
+    "XRP": 3.0,
+}
+DEFAULT_INSTRUMENT_LIMIT = 10.0
+
+ASSET_CLASS_LIMITS: dict[str, float] = {
+    "US_TECH":      40.0,
+    "BROAD_ETF":    25.0,
+    "COMMODITY":    20.0,
+    "CRYPTO":       10.0,
+    "BOND":         20.0,
+    "INTL":         20.0,
+}
+
+# V5: Explicit crypto symbols for SL relative-calculation enforcement
+CRYPTO_SYMBOLS: frozenset[str] = frozenset({
+    "BTC", "BTC-USD", "ETH", "ETH-USD", "XRP", "XRP-USD",
+    "DOGE", "DOGE-USD", "SOL", "SOL-USD", "BNB", "BNB-USD",
+    "ADA", "ADA-USD", "DOT", "DOT-USD",
+})
+
+ASSET_CLASS_MAP: dict[str, str] = {
+    "NVDA": "US_TECH", "META": "US_TECH", "MSFT": "US_TECH",
+    "AMZN": "US_TECH", "AAPL": "US_TECH", "GOOGL": "US_TECH",
+    "NFLX": "US_TECH", "AMD": "US_TECH", "INTC": "US_TECH",
+    "ADBE": "US_TECH", "CRM": "US_TECH", "TSLA": "US_TECH",
+    "QQQ": "BROAD_ETF", "SPY": "BROAD_ETF", "IWM": "BROAD_ETF", "VTI": "BROAD_ETF",
+    "GLD": "COMMODITY", "SLV": "COMMODITY", "CPER": "COMMODITY",
+    "BTC": "CRYPTO", "BTC-USD": "CRYPTO",
+    "ETH": "CRYPTO", "ETH-USD": "CRYPTO",
+    "XRP": "CRYPTO", "XRP-USD": "CRYPTO",
+    "DOGE": "CRYPTO", "SOL-USD": "CRYPTO", "BNB-USD": "CRYPTO",
+    "TLT": "BOND",
+    "ENI.MI": "INTL", "BP": "INTL", "TSM": "INTL",
+    "JPM": "FINANCIAL", "BAC": "FINANCIAL", "GS": "FINANCIAL",
+    "V": "FINANCIAL", "MA": "FINANCIAL",
+}
+
+MAX_POSITIONS = 21
+MIN_BUY_USD = 50.0
+CASH_TARGET_MIN_PCT = 15.0
+CASH_TARGET_MAX_PCT = 30.0
+MAX_TOTAL_EXPOSURE_PCT = 75.0
+MAX_CORRELATION = 0.85
+
+SL_HARD_CLOSE_PCT = -3.0
+SL_EMERGENCY_PCT = -4.0
+SL_WARNING_PCT = -2.0
+
+# V5: SL quality threshold — SL further than this % from entry = meaningless
+SL_MAX_DISTANCE_PCT = 50.0
+# V5: Default SL percentage for crypto (always relative)
+CRYPTO_DEFAULT_SL_PCT = 3.0
+
+# ─── Result dataclass ─────────────────────────────────────────────────────────
+
+@dataclass
+class GateResult:
+    allowed: bool
+    reasons: list[str]
+
+    def __bool__(self) -> bool:
+        return self.allowed
+
+    def summary(self) -> str:
+        return " | ".join(self.reasons)
+
+
+# ─── Individual Gates ─────────────────────────────────────────────────────────
+
+def check_regime_gate(regime: str) -> GateResult:
+    """Rule 3 V5: Regime-based BUY gate with 4 levels.
+
+    V4: Binary DRAWDOWN=block / other=allow
+    V5: 4 levels — CRITICAL allows only VERY_HIGH, DEFENSIVE allows HIGH+,
+        CAUTION allows MEDIUM+, NORMAL allows all.
+        This gate only checks if the regime itself allows ANY buys.
+        Conviction filtering happens in check_conviction_gate().
+    """
+    if regime == "CRITICAL":
+        # Still allows VERY_HIGH signals — signal_worker filters conviction
+        return GateResult(True, [f"REGIME {regime}: nur VERY_HIGH Signale (Quarter-Kelly)"])
+    if regime == "DEFENSIVE":
+        return GateResult(True, [f"REGIME {regime}: nur HIGH+ Signale (Half-Kelly)"])
+    if regime == "CAUTION":
+        return GateResult(True, [f"REGIME {regime}: nur MEDIUM+ Signale (75% Sizing)"])
+    if regime == "NORMAL":
+        return GateResult(True, ["REGIME NORMAL: alle Signale erlaubt (100% Sizing)"])
+    # Legacy V4 compatibility
+    if regime == "DRAWDOWN":
+        return GateResult(False, ["🛑 DRAWDOWN-Regime: BUYs blockiert (Legacy V4)"])
+    return GateResult(True, [f"REGIME OK: {regime}"])
+
+
+def check_conviction_gate(conviction: str, regime: str) -> GateResult:
+    """V5 NEW: Minimum conviction required for current regime.
+
+    NORMAL:    all (LOW, MEDIUM, HIGH, VERY_HIGH)
+    CAUTION:   MEDIUM, HIGH, VERY_HIGH
+    DEFENSIVE: HIGH, VERY_HIGH
+    CRITICAL:  VERY_HIGH only
+    """
+    from bot.core.regime import get_min_conviction
+    min_conv = get_min_conviction(regime)
+    order = {"VERY_HIGH": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
+    min_idx = order.get(min_conv, 3)
+    our_idx = order.get(conviction.upper(), 3)
+    if our_idx > min_idx:
+        return GateResult(False, [
+            f"Conviction-Gate: {conviction} nicht ausreichend im {regime}-Regime "
+            f"(Minimum: {min_conv})"
+        ])
+    return GateResult(True, [f"Conviction OK: {conviction} ≥ {min_conv} ({regime})"])
+
+
+def check_pyramiding_gate(
+    symbol: str,
+    regime: str,
+    existing_fragments: int,
+) -> GateResult:
+    """V5 NEW: Pyramiding forbidden in DEFENSIVE and CRITICAL regimes.
+
+    Prevents 'good money after bad' — no adding to positions when system
+    is already under stress.
+    """
+    from bot.core.regime import is_pyramiding_allowed
+    if existing_fragments > 0 and not is_pyramiding_allowed(regime):
+        return GateResult(False, [
+            f"Pyramiding-Gate: {symbol} hat bereits {existing_fragments} Fragment(e) — "
+            f"kein Pyramiding im {regime}-Regime erlaubt"
+        ])
+    return GateResult(True, [
+        f"Pyramiding OK: {existing_fragments} Fragment(e) (Regime: {regime})"
+    ])
+
+
+def check_sl_quality_gate(
+    entry_price: float,
+    sl_price: float,
+    symbol: str = "",
+) -> GateResult:
+    """V5 NEW: SL quality check — SL >50% from entry = meaningless.
+
+    Catches the XRP $0.01 SL bug and similar issues.
+    A stop-loss that is more than SL_MAX_DISTANCE_PCT away from entry
+    provides no meaningful risk management.
+
+    For crypto symbols: always validate SL is relative (not near-zero absolute).
+    """
+    if entry_price <= 0:
+        return GateResult(True, ["SL-Quality: skipped (no entry price)"])
+    if sl_price <= 0:
+        # No SL set at all — check_sl_gate handles this separately
+        return GateResult(True, ["SL-Quality: no SL price to validate"])
+
+    distance_pct = abs(entry_price - sl_price) / entry_price * 100
+
+    # Extra check for crypto: SL should never be below 0.1% of entry
+    if symbol.upper() in CRYPTO_SYMBOLS and sl_price < entry_price * 0.001:
+        return GateResult(False, [
+            f"SL-Quality CRYPTO: SL ${sl_price:.4f} ist nahe 0 "
+            f"(Entry ${entry_price:.4f}) — faktisch kein SL. "
+            f"Verwende relativen SL: entry × (1 - {CRYPTO_DEFAULT_SL_PCT}%)"
+        ])
+
+    if distance_pct > SL_MAX_DISTANCE_PCT:
+        return GateResult(False, [
+            f"SL-Quality: SL {distance_pct:.1f}% vom Entry entfernt "
+            f"(Max: {SL_MAX_DISTANCE_PCT:.0f}%) — bedeutungsloser Stop-Loss"
+        ])
+
+    return GateResult(True, [
+        f"SL-Quality OK: {distance_pct:.1f}% vom Entry (Max: {SL_MAX_DISTANCE_PCT:.0f}%)"
+    ])
+
+
+def calculate_sl_price(
+    entry_price: float,
+    symbol: str,
+    sl_pct: float = 3.0,
+) -> float:
+    """V5 NEW: Calculate SL price — always relative for crypto.
+
+    For crypto symbols, ALWAYS use relative percentage (never absolute).
+    This prevents the $0.01 SL issue on high-unit-price crypto.
+
+    Returns: stop_loss_rate as a price level
+    """
+    is_crypto = symbol.upper() in CRYPTO_SYMBOLS
+    if is_crypto and sl_pct > SL_MAX_DISTANCE_PCT:
+        sl_pct = CRYPTO_DEFAULT_SL_PCT  # Force default for crypto
+
+    return round(entry_price * (1.0 - sl_pct / 100.0), 6)
+
+
+def check_cash_gate(cash: float, equity: float) -> GateResult:
+    """Rule: Cash must be ≥ CASH_TARGET_MIN_PCT of equity."""
+    if equity <= 0:
+        return GateResult(False, ["Cash-Gate: Equity = 0"])
+    cash_pct = (cash / equity) * 100
+    if cash_pct < CASH_TARGET_MIN_PCT:
+        return GateResult(False, [
+            f"Cash-Gate: {cash_pct:.1f}% < {CASH_TARGET_MIN_PCT:.0f}% Minimum "
+            f"(${cash:.2f} / ${equity:.2f})"
+        ])
+    return GateResult(True, [f"Cash OK: {cash_pct:.1f}% (${cash:.2f})"])
+
+
+def check_max_positions_gate(open_count: int) -> GateResult:
+    """Rule: Max open positions."""
+    if open_count >= MAX_POSITIONS:
+        return GateResult(False, [
+            f"Positions-Gate: {open_count}/{MAX_POSITIONS} — Limit erreicht"
+        ])
+    return GateResult(True, [f"Positions OK: {open_count}/{MAX_POSITIONS}"])
+
+
+def check_instrument_limit_gate(
+    symbol: str,
+    buy_amount: float,
+    current_amount: float,
+    equity: float,
+) -> GateResult:
+    """Rule 2: Per-instrument concentration limit.
+
+    Two checks:
+    1. If current_amount alone already exceeds the limit → block immediately.
+    2. If adding buy_amount would exceed the limit → block.
+    """
+    if equity <= 0:
+        return GateResult(False, ["Instrument-Gate: Equity = 0"])
+    limit_pct = INSTRUMENT_LIMITS.get(symbol.upper(), DEFAULT_INSTRUMENT_LIMIT)
+
+    # ── NEW: guard against already-over-limit positions ────────────────────
+    current_pct = (current_amount / equity) * 100
+    if current_pct > limit_pct:
+        return GateResult(False, [
+            f"Already over limit: {symbol} at {current_pct:.1f}% "
+            f"(Limit: {limit_pct:.0f}%)"
+        ])
+
+    new_total = current_amount + buy_amount
+    new_pct = (new_total / equity) * 100
+    if new_pct > limit_pct:
+        return GateResult(False, [
+            f"Instrument-Gate: {symbol} würde {new_pct:.1f}% erreichen "
+            f"(Limit: {limit_pct:.0f}%)"
+        ])
+    return GateResult(True, [
+        f"Instrument OK: {symbol} {new_pct:.1f}% / {limit_pct:.0f}%"
+    ])
+
+
+def check_min_buy_gate(buy_amount: float) -> GateResult:
+    """Rule: Minimum buy amount to avoid micro-fragments."""
+    if buy_amount < MIN_BUY_USD:
+        return GateResult(False, [
+            f"Min-Buy-Gate: ${buy_amount:.2f} < ${MIN_BUY_USD:.0f} Minimum"
+        ])
+    return GateResult(True, [f"Min-Buy OK: ${buy_amount:.2f}"])
+
+
+def check_exposure_gate(total_exposed: float, equity: float, buy_amount: float) -> GateResult:
+    """Rule: Total portfolio exposure ≤ MAX_TOTAL_EXPOSURE_PCT."""
+    if equity <= 0:
+        return GateResult(True, ["Exposure-Gate: skipped (equity=0)"])
+    new_exposure_pct = ((total_exposed + buy_amount) / equity) * 100
+    if new_exposure_pct > MAX_TOTAL_EXPOSURE_PCT:
+        return GateResult(False, [
+            f"Exposure-Gate: {new_exposure_pct:.1f}% > {MAX_TOTAL_EXPOSURE_PCT:.0f}% Max"
+        ])
+    return GateResult(True, [
+        f"Exposure OK: {new_exposure_pct:.1f}% / {MAX_TOTAL_EXPOSURE_PCT:.0f}%"
+    ])
+
+
+def check_sl_gate(has_stop_loss: bool) -> GateResult:
+    """Rule 1: Every BUY must have a stop-loss."""
+    if not has_stop_loss:
+        return GateResult(False, ["SL-Gate: Stop-Loss ist Pflicht (Trading Bible Rule 1)"])
+    return GateResult(True, ["SL OK: Stop-Loss gesetzt"])
+
+
+def check_asset_class_gate(
+    symbol: str,
+    buy_amount: float,
+    equity: float,
+    open_positions: list[dict],  # [{symbol, amount_usd}]
+) -> GateResult:
+    """Rule 2: Asset-class concentration limits."""
+    if equity <= 0:
+        return GateResult(True, ["Asset-Class-Gate: skipped (equity=0)"])
+    asset_class = ASSET_CLASS_MAP.get(symbol.upper())
+    if not asset_class:
+        return GateResult(True, [f"Asset-Class OK: {symbol} (kein Mapping)"])
+
+    limit_pct = ASSET_CLASS_LIMITS.get(asset_class, 100.0)
+    current_class_total = sum(
+        p["amount_usd"] for p in open_positions
+        if ASSET_CLASS_MAP.get(p.get("symbol", "").upper()) == asset_class
+    )
+    new_total = current_class_total + buy_amount
+    new_pct = (new_total / equity) * 100
+
+    if new_pct > limit_pct:
+        return GateResult(False, [
+            f"Asset-Class-Gate: {asset_class} würde {new_pct:.1f}% erreichen "
+            f"(Limit: {limit_pct:.0f}%)"
+        ])
+    return GateResult(True, [
+        f"Asset-Class OK: {asset_class} {new_pct:.1f}% / {limit_pct:.0f}%"
+    ])
+
+
+def check_correlation_gate_risk(
+    symbol: str,
+    open_positions: list[dict],
+) -> GateResult:
+    """Rule 9 V5: Correlation blocking.
+
+    Blocks BUY if new symbol has r >= 0.80 with any existing position (30-day returns).
+    Fails open (allows trade) if yfinance data unavailable.
+    """
+    try:
+        from bot.core.correlation import check_correlation_gate
+        allowed, reason = check_correlation_gate(symbol, open_positions)
+        return GateResult(allowed, [reason])
+    except Exception as e:
+        # Fail-open: correlation check failed, don't block trading
+        return GateResult(True, [f'Correlation check skipped: {e}'])
+
+
+# ─── Master BUY Gate ──────────────────────────────────────────────────────────
+
+def check_buy_gate(
+    symbol: str,
+    buy_amount: float,
+    equity: float,
+    cash: float,
+    regime: str,
+    open_count: int = 0,
+    current_symbol_amount: float = 0.0,
+    total_exposed: float = 0.0,
+    has_stop_loss: bool = True,
+    open_positions: list[dict] | None = None,
+    # V5 new parameters
+    conviction: str = "MEDIUM",
+    existing_fragments: int = 0,
+    entry_price: float = 0.0,
+    sl_price: float = 0.0,
+) -> GateResult:
+    """Master gate V5 — all rules in sequence. Returns on first block.
+
+    V5 additions:
+    - check_conviction_gate: regime-dependent minimum signal strength
+    - check_pyramiding_gate: no adding to positions in DEFENSIVE/CRITICAL
+    - check_sl_quality_gate: SL >50% from entry = meaningless (blocks order)
+
+    Order: cheapest/most-likely-to-block first.
+    """
+    open_positions = open_positions or []
+
+    checks = [
+        check_regime_gate(regime),
+        check_conviction_gate(conviction, regime),           # V5: conviction filter
+        check_pyramiding_gate(symbol, regime, existing_fragments),  # V5: no pyramiding
+        check_cash_gate(cash, equity),
+        check_max_positions_gate(open_count),
+        check_instrument_limit_gate(symbol, buy_amount, current_symbol_amount, equity),
+        check_min_buy_gate(buy_amount),
+        check_exposure_gate(total_exposed, equity, buy_amount),
+        check_sl_gate(has_stop_loss),
+        check_sl_quality_gate(entry_price, sl_price, symbol),  # V5: SL quality
+        check_asset_class_gate(symbol, buy_amount, equity, open_positions),
+        check_correlation_gate_risk(symbol, open_positions),  # V5: correlation — last (slowest)
+    ]
+
+    all_reasons: list[str] = []
+    for result in checks:
+        if not result.allowed:
+            return GateResult(False, result.reasons)
+        all_reasons.extend(result.reasons)
+
+    return GateResult(True, all_reasons)
+
+
+# ─── SL Enforcement ──────────────────────────────────────────────────────────
+
+@dataclass
+class SLAction:
+    action: str   # 'CLOSE' | 'WARNING' | 'OK'
+    reason: str
+    pnl_pct: float
+
+
+def evaluate_sl(pnl_pct: float) -> SLAction:
+    """Trading Bible Rule 1: Evaluate stop-loss action for a position.
+
+    Args:
+        pnl_pct: Current unrealized PnL in percent (negative = loss)
+
+    Returns:
+        SLAction with action and reason
+    """
+    if pnl_pct <= SL_EMERGENCY_PCT:
+        return SLAction("CLOSE", f"EMERGENCY-SL: {pnl_pct:.2f}% ≤ {SL_EMERGENCY_PCT:.0f}%", pnl_pct)
+    if pnl_pct <= SL_HARD_CLOSE_PCT:
+        return SLAction("CLOSE", f"HARD-SL: {pnl_pct:.2f}% ≤ {SL_HARD_CLOSE_PCT:.0f}%", pnl_pct)
+    if pnl_pct <= SL_WARNING_PCT:
+        return SLAction("WARNING", f"SL-WARNING: {pnl_pct:.2f}% ≤ {SL_WARNING_PCT:.0f}%", pnl_pct)
+    return SLAction("OK", f"SL OK: {pnl_pct:.2f}%", pnl_pct)

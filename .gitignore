@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# pytest
+.pytest_cache/
+
+# Data / SQLite (runtime state — not versioned)
+data/*.db
+data/*.db-journal
+data/*.db-wal
+backups/
+
+# Environment / secrets
+.env
+.env.*
+*.key
+*.secret
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

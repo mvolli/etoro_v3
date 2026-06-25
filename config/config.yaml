@@ -1,0 +1,71 @@
+# eToro Trading Bot V3 — Configuration (Trading Bible V4)
+# ─────────────────────────────────────────────────────────────────────────────
+# All percentage values are expressed as floats (e.g. 3.0 = 3.0%)
+# All monetary values are in USD unless otherwise noted
+# ─────────────────────────────────────────────────────────────────────────────
+
+api:
+  base_url: "https://public-api.etoro.com/api/v1"
+  timeout_connect: 5          # seconds — TCP connection timeout
+  timeout_read: 10            # seconds — response read timeout
+  retry_attempts: 3           # max retry attempts on transient errors
+  retry_wait_min: 2           # seconds — minimum exponential backoff
+  retry_wait_max: 10          # seconds — maximum exponential backoff
+
+db:
+  path: "data/trading.db"     # SQLite database path (relative to project root)
+  wal_mode: true              # Enable WAL journal mode for concurrent reads
+  busy_timeout_ms: 5000       # SQLite busy_timeout in milliseconds
+
+trading:
+  max_positions: 21           # Maximum total open positions across all instruments
+  max_fragments_per_instrument: 3  # Maximum partial fills / DCA entries per ticker
+  min_buy_usd: 50.0           # Minimum order size in USD
+  cash_target_min_pct: 15.0   # Minimum idle cash as % of portfolio equity
+  cash_target_max_pct: 30.0   # Maximum idle cash as % of portfolio equity (soft ceiling)
+  cash_emergency_pct: 10.0    # Hard floor — no new buys below this cash level
+
+regime:
+  drawdown_soft_cb_pct: 4.0   # Intraday drawdown % → triggers soft circuit-breaker (reduce sizing)
+  drawdown_recovery_pct: 2.0  # Drawdown must recover to this % before resuming normal ops
+  normal_upper_pct: 3.5       # Daily P&L % above which regime is tagged "euphoric" (size down)
+
+sl:                           # Stop-loss configuration
+  default_pct: 3.0            # Default stop-loss distance from entry (%)
+  emergency_pct: 4.0          # Widened SL used in high-volatility / emergency mode
+  warning_pct: 2.0            # SL proximity warning threshold (% from current price)
+
+sizing:                       # Position size as % of portfolio equity
+  very_high_pct: 8.0          # Conviction tier: VERY HIGH
+  high_pct: 7.0               # Conviction tier: HIGH
+  medium_pct: 6.0             # Conviction tier: MEDIUM
+  low_pct: 2.0                # Conviction tier: LOW / speculative
+
+instrument_limits:            # Maximum allocation per instrument as % of portfolio equity
+  NVDA: 25.0
+  QQQ:  25.0
+  SPY:  20.0
+  META: 15.0
+  MSFT: 15.0
+  TSLA:  5.0
+  BTC:   5.0
+  ETH:   5.0
+  XRP:   3.0
+
+sector_limits:
+  max_per_sector_pct: 20.0    # Maximum combined exposure to any single GICS sector (%)
+  max_active_sectors: 3       # Maximum number of sectors with open positions simultaneously
+
+discord:
+  main_channel: 1513971015108263957    # General bot status / heartbeat channel
+  trades_channel: 1514786489110630600  # Trade execution notifications channel
+
+cache:
+  instrument_map_ttl_hours: 24   # How long the instrument_id ↔ symbol map file is considered fresh
+  signal_ttl_minutes: 60         # How long a generated signal is valid before re-computation
+
+market_hours:
+  NYSE:
+    open: "15:30"            # NYSE open in local timezone below (Europe/Berlin = CET/CEST)
+    close: "22:00"           # NYSE close in local timezone
+  timezone: "Europe/Berlin"  # All market_hours times are expressed in this timezone
