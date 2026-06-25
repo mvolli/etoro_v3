@@ -94,6 +94,42 @@ MIN_SIGNAL_SCORE = 20.0
 # Signal TTL in minutes
 SIGNAL_TTL_MINUTES = 60
 
+# ── Rate Limiting & Retry ─────────────────────────────────────────────────────
+
+BATCH_SIZE = 40              # symbols per yf.download() call
+BATCH_PAUSE_S = 1.5          # seconds between batches (rate limiting)
+MAX_BATCH_RETRIES = 2        # retry count for failed batches
+RETRY_BACKOFF_BASE = 2.0     # exponential backoff: 2^attempt seconds
+MAX_DOWNLOAD_TIMEOUT = 60    # per-batch timeout in seconds
+
+# Failed symbol tracking: symbols that consistently fail are cached to avoid
+# repeated yf.download() calls on known-bad tickers (eToro CFDs Yahoo doesn't know).
+_FAILED_SYMBOLS_CACHE: set[str] = set()
+_MAX_FAILED_CACHE = 200      # cap the cache size
+
+def _is_known_bad_symbol(sym: str) -> bool:
+    """Check if a symbol is in the failed-cache (persisted across runs in-memory)."""
+    return sym in _FAILED_SYMBOLS_CACHE
+
+def _cache_failed_symbol(sym: str) -> None:
+    """Add a symbol to the failed cache after it has consistently failed."""
+    if len(_FAILED_SYMBOLS_CACHE) < _MAX_FAILED_CACHE:
+        _FAILED_SYMBOLS_CACHE.add(sym)
+
+def _filter_known_bad(symbols: list[str]) -> tuple[list[str], int]:
+    """Remove symbols that are known to fail from the fetch list.
+
+    Returns (filtered_symbols, skipped_count).
+    """
+    filtered = [s for s in symbols if not _is_known_bad_symbol(s)]
+    skipped = len(symbols) - len(filtered)
+    if skipped:
+        logger.debug(
+            "[%s] Skipping %d known-bad symbols (cache size: %d)",
+            WORKER_NAME, skipped, len(_FAILED_SYMBOLS_CACHE),
+        )
+    return filtered, skipped
+
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -113,12 +149,15 @@ def _apply_alias(symbol: str) -> str:
     return SYMBOL_ALIAS_MAP.get(symbol, symbol)
 
 
-def _batch_fetch(symbols: list[str], batch_size: int = 40) -> dict[str, Any]:
+def _batch_fetch(symbols: list[str], batch_size: int = BATCH_SIZE) -> dict[str, Any]:
     """
     Download 3 months of OHLCV data for all symbols via yf.download().
 
-    Splits large symbol lists into batches of `batch_size` to avoid timeouts.
-    Uses incremental approach: only fetches new data since last download.
+    Features:
+    - Batches of `batch_size` to avoid timeouts
+    - Exponential backoff retry on failed batches (up to MAX_BATCH_RETRIES)
+    - Failed-symbol cache to skip known-bad tickers on subsequent runs
+    - Rate limiting between batches (BATCH_PAUSE_S)
 
     Returns:
         {symbol: DataFrame(Open, High, Low, Close, Volume)} for symbols
@@ -130,7 +169,17 @@ def _batch_fetch(symbols: list[str], batch_size: int = 40) -> dict[str, Any]:
     if not symbols:
         return {}
 
-    logger.info("[%s] Fetching %d symbols in batches of %d…", WORKER_NAME, len(symbols), batch_size)
+    # Filter out known-bad symbols (eToro CFDs Yahoo doesn't know)
+    symbols, skipped_bad = _filter_known_bad(symbols)
+    if not symbols:
+        logger.info("[%s] All %d symbols are known-bad — skipping fetch", WORKER_NAME, len(symbols))
+        return {}
+
+    total_requested = len(symbols) + skipped_bad
+    logger.info(
+        "[%s] Fetching %d symbols in batches of %d (%d skipped from failed-cache)…",
+        WORKER_NAME, len(symbols), batch_size, skipped_bad,
+    )
 
     result: dict[str, pd.DataFrame] = {}
     total_batches = (len(symbols) + batch_size - 1) // batch_size
@@ -143,17 +192,37 @@ def _batch_fetch(symbols: list[str], batch_size: int = 40) -> dict[str, Any]:
             WORKER_NAME, batch_idx + 1, total_batches, len(batch_symbols),
         )
 
-        try:
-            raw = yf.download(
-                batch_symbols,
-                period="3mo",
-                auto_adjust=True,
-                progress=False,
-                threads=True,
+        batch_success = False
+        failed_in_batch: list[str] = []
+
+        for attempt in range(MAX_BATCH_RETRIES + 1):
+            try:
+                raw = yf.download(
+                    batch_symbols,
+                    period="3mo",
+                    auto_adjust=True,
+                    progress=False,
+                    threads=True,
+                )
+                batch_success = True
+                break
+
+            except Exception as exc:
+                wait_time = RETRY_BACKOFF_BASE ** (attempt + 1)
+                logger.warning(
+                    "[%s] Batch %d attempt %d/%d failed: %s — retrying in %.1fs",
+                    WORKER_NAME, batch_idx + 1, attempt + 1, MAX_BATCH_RETRIES + 1, exc, wait_time,
+                )
+                time.sleep(wait_time)
+
+        if not batch_success:
+            # All retries exhausted — cache every symbol in this batch as failed
+            for sym in batch_symbols:
+                _cache_failed_symbol(sym)
+            logger.warning(
+                "[%s] Batch %d: all retries exhausted — cached %d symbols as failed",
+                WORKER_NAME, batch_idx + 1, len(batch_symbols),
             )
-        except Exception as exc:
-            logger.warning("[%s] Batch %d download failed: %s", WORKER_NAME, batch_idx + 1, exc)
-            time.sleep(2)  # Rate limit pause between batches
             continue
 
         if raw is None or raw.empty:
@@ -186,17 +255,26 @@ def _batch_fetch(symbols: list[str], batch_size: int = 40) -> dict[str, Any]:
                     else:
                         logger.debug("[%s] %s: only %d rows — skipped", WORKER_NAME, sym, len(df))
                 except KeyError:
-                    logger.debug("[%s] %s: not found in batch response", WORKER_NAME, sym)
+                    # Symbol not in response — likely invalid ticker (eToro CFD)
+                    _cache_failed_symbol(sym)
+                    logger.debug("[%s] %s: not found in batch response → cached as failed", WORKER_NAME, sym)
                 except Exception as exc:
                     logger.warning("[%s] %s: extraction failed — %s", WORKER_NAME, sym, exc)
 
         # Rate limiting: pause between batches (not after last one)
         if batch_idx < total_batches - 1:
-            time.sleep(1.5)
+            time.sleep(BATCH_PAUSE_S)
+
+    # Report cache stats
+    if _FAILED_SYMBOLS_CACHE:
+        logger.info(
+            "[%s] Failed-symbol cache: %d symbols (will be skipped on next run)",
+            WORKER_NAME, len(_FAILED_SYMBOLS_CACHE),
+        )
 
     logger.info(
         "[%s] Batch fetch complete: %d/%d symbols with sufficient data (%d batches)",
-        WORKER_NAME, len(result), len(symbols), total_batches,
+        WORKER_NAME, len(result), total_requested, total_batches,
     )
     return result
 
@@ -420,6 +498,7 @@ def run(project_root: Path | None = None) -> dict:
         category = watch_item['category'] if watch_item else 'stocks'
         instrument_id_from_db = watch_item.get('instrument_id') if watch_item else None
 
+        t_sym_start = time.monotonic()
         try:
             # 5. Compute indicators
             indicators = compute_indicators(df)
@@ -493,9 +572,16 @@ def run(project_root: Path | None = None) -> dict:
             )
 
         except Exception as exc:
+            elapsed = time.monotonic() - t_sym_start
+            if elapsed > 5.0:
+                logger.warning(
+                    "[%s] %s: processing took %.1fs → cached as failed",
+                    WORKER_NAME, original_sym, elapsed,
+                )
+                _cache_failed_symbol(yf_sym)
             logger.error(
-                "[%s] Error processing %s: %s",
-                WORKER_NAME, original_sym, exc, exc_info=True,
+                "[%s] Error processing %s (%.1fs): %s",
+                WORKER_NAME, original_sym, elapsed, exc, exc_info=True,
             )
             # Per-symbol error: continue with remaining symbols
 
@@ -514,7 +600,7 @@ def run(project_root: Path | None = None) -> dict:
     elapsed = time.monotonic() - t_start
     print(
         f"DataWorker: {n_fetched} symbols fetched, "
-        f"{n_signals} signals written (market_open={is_market_open()})"
+        f"{n_signals} signals written ({elapsed:.1f}s, failed_cache={len(_FAILED_SYMBOLS_CACHE)})"
     )
 
     # Discord: data worker summary (only if interesting)
@@ -523,8 +609,11 @@ def run(project_root: Path | None = None) -> dict:
         _post('post_alert_embed',
             title=f'📊 Data Worker: {n_signals} Signal(s) generated',
             description=(
-                f'Symbole: {n_fetched} | Signale: {n_signals}\n'
-                f'Offene Märkte: {open_regions}'
+                f'Symbole: {n_fetched}/{len(all_yf_symbols)} | '
+                f'Signale: {n_signals} | '
+                f'Dauer: {elapsed:.1f}s\n'
+                f'Offene Märkte: {open_regions}\n'
+                f'Failed-Cache: {len(_FAILED_SYMBOLS_CACHE)} Symbole (abgesprungen)'
             ),
             severity='INFO',
             dry_run=False
