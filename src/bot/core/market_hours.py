@@ -19,8 +19,18 @@ from datetime import datetime, time, timezone
 #                        (e.g. Sydney 21:00–05:00 UTC spans midnight)
 
 MARKET_DEFINITIONS: dict[str, tuple] = {
-    # Crypto — always open
+    # Crypto — always open (24/7)
     'CRYPTO': (time(0, 0), time(23, 59, 59), True),
+
+    # Forex — 24/5 (Sunday 22:00 UTC → Friday 22:00 UTC)
+    'FOREX': (time(0, 0), time(23, 59, 59), True),
+
+    # Commodities (CFDs on eToro) — ~24/5 like forex
+    'COMMODITIES': (time(0, 0), time(23, 59, 59), True),
+
+    # Indices — follows US market hours (most are US indices)
+    # Individual index markets handled below for non-US
+    'INDICES_US': (time(13, 30), time(20, 0)),
 
     # Europe (Xetra, SIX, LSE, Euronext, Borsa Italiana)
     'EU': (time(6, 0), time(17, 0)),
@@ -97,6 +107,60 @@ MARKET_GROUPS: dict[str, list[str]] = {
 }
 
 
+# ─── Category → Market Key Mapping ──────────────────────────────────────────
+# Fallback: when symbol suffix doesn't match, use the watchlist category.
+
+CATEGORY_TO_MARKET: dict[str, str] = {
+    'crypto': 'CRYPTO',
+    'forex': 'FOREX',
+    'commodities': 'COMMODITIES',
+    'indices': 'INDICES_US',  # default to US indices; override per-symbol if needed
+    'stocks': 'US',
+    'etfs': 'US',
+    'eu.stocks': 'EU',
+    'eu.etfs': 'EU',
+    'asia.T': 'APAC_JP_GROUP',
+    'asia.HK': 'APAC_HK_GROUP',
+    'asia.AX': 'APAC_AU',
+    'asia.NS': 'APAC_IN',
+    'asia.KS': 'APAC_KR_TW_SG',
+    'asia.TW': 'APAC_KR_TW_SG',
+}
+
+
+# ─── yf Symbol → Market Key (direct override) ────────────────────────────────
+# For instruments that don't follow suffix patterns (forex pairs, commodities, indices).
+
+YF_SYMBOL_MARKET_OVERRIDE: dict[str, str] = {
+    # Forex pairs (=X suffix from yfinance)
+    'EURUSD=X': 'FOREX', 'GBPUSD=X': 'FOREX', 'NZDUSD=X': 'FOREX',
+    'USDCAD=X': 'FOREX', 'USDJPY=X': 'FOREX', 'USDCHF=X': 'FOREX',
+    'AUDUSD=X': 'FOREX', 'EURGBP=X': 'FOREX', 'EURCHF=X': 'FOREX',
+    'EURJPY=X': 'FOREX', 'GBPAUD=X': 'FOREX', 'GBPJPY=X': 'FOREX',
+    'AUDCAD=X': 'FOREX', 'AUDCHF=X': 'FOREX', 'AUDJPY=X': 'FOREX',
+    'CADCHF=X': 'FOREX', 'CADJPY=X': 'FOREX', 'CHFJPY=X': 'FOREX',
+    'EURAUD=X': 'FOREX', 'EURCAD=X': 'FOREX', 'GBPCAD=X': 'FOREX',
+    'GBPCHF=X': 'FOREX', 'NZDCAD=X': 'FOREX', 'NZDCHF=X': 'FOREX',
+    'NZDJPY=X': 'FOREX', 'USDCNY=X': 'FOREX', 'USDHKD=X': 'FOREX',
+    'USDSGD=X': 'FOREX',
+
+    # Commodities (yfinance patterns)
+    'GC=F': 'COMMODITIES',   # Gold futures
+    'SI=F': 'COMMODITIES',   # Silver futures
+    'CL=F': 'COMMODITIES',   # Crude Oil
+    'NG=F': 'COMMODITIES',   # Natural Gas
+    'PL=F': 'COMMODITIES',   # Platinum
+
+    # Indices (^ prefix or known tickers)
+    '^GSPC': 'INDICES_US',   # S&P 500
+    '^DJI': 'INDICES_US',    # Dow Jones
+    '^IXIC': 'INDICES_US',   # NASDAQ Composite
+    '^RUT': 'INDICES_US',    # Russell 2000
+    '^NDX': 'INDICES_US',    # NASDAQ 100
+    '^VIX': 'INDICES_US',    # VIX
+}
+
+
 # ─── Crypto Detection ────────────────────────────────────────────────────────
 
 CRYPTO_SYMBOLS = {
@@ -108,25 +172,53 @@ CRYPTO_SYMBOLS = {
 
 # ─── Public API ──────────────────────────────────────────────────────────────
 
-def _get_market_key(symbol: str) -> str:
-    """Determine the market key for a symbol based on its suffix."""
+def _get_market_key(symbol: str, yf_symbol: str = '', category: str = '') -> str:
+    """Determine the market key for a symbol using 3-tier lookup.
+
+    Tier 1: Direct yf_symbol override (forex pairs, commodities, indices)
+    Tier 2: Suffix-based lookup (.DE, .T, .HK, etc.)
+    Tier 3: Category-based fallback (from watchlist category)
+    Default: US market
+    """
     sym_upper = symbol.upper().strip()
 
-    # Crypto check
-    if sym_upper in CRYPTO_SYMBOLS or sym_upper.endswith('-USD'):
+    # ── Tier 1: Direct yf_symbol override ────────────────────────────────
+    if yf_symbol and yf_symbol in YF_SYMBOL_MARKET_OVERRIDE:
+        return YF_SYMBOL_MARKET_OVERRIDE[yf_symbol]
+
+    # Also check common forex/commodity patterns in yf_symbol
+    yf_upper = yf_symbol.upper().strip() if yf_symbol else ''
+    if yf_upper.endswith('=X'):
+        return 'FOREX'  # yfinance forex pattern: EURUSD=X
+    if yf_upper.endswith('=F'):
+        return 'COMMODITIES'  # yfinance futures pattern: GC=F
+    if yf_upper.startswith('^'):
+        return 'INDICES_US'  # yfinance index pattern: ^GSPC
+
+    # Commodities detection (eToro CFD patterns like "GOLD (NO-USD", "OIL (NON-USD")
+    commodity_keywords = ['GOLD', 'OIL', 'SILVER', 'NATURAL', 'PLATINUM', 'BRENT', 'COTTON']
+    if any(kw in yf_upper for kw in commodity_keywords):
+        return 'COMMODITIES'
+
+    # Crypto check (before suffix lookup) — must be AFTER commodities check
+    if sym_upper in CRYPTO_SYMBOLS or sym_upper.endswith('-USD') or yf_upper.endswith('-USD'):
         return 'CRYPTO'
 
-    # Suffix-based lookup
+    # ── Tier 2: Suffix-based lookup ──────────────────────────────────────
     if '.' in symbol:
         suffix = '.' + sym_upper.split('.')[-1]
         if suffix in SUFFIX_TO_MARKET:
             return SUFFIX_TO_MARKET[suffix]
 
+    # ── Tier 3: Category-based fallback ──────────────────────────────────
+    if category and category.lower() in CATEGORY_TO_MARKET:
+        return CATEGORY_TO_MARKET[category.lower()]
+
     # Default: US market (no suffix = US stock/ETF)
     return 'US'
 
 
-def is_market_open(symbol: str = '') -> bool:
+def is_market_open(symbol: str = '', yf_symbol: str = '', category: str = '') -> bool:
     """Returns True if the market for this symbol is currently open.
 
     Single Source of Truth — used by data_worker, signal_worker, execution_worker.
@@ -137,16 +229,14 @@ def is_market_open(symbol: str = '') -> bool:
     Args:
         symbol: Ticker symbol (e.g. 'AAPL', 'VOW3.DE', '7203.T', 'BTC-USD').
                 Empty string → check if ANY market is open.
+        yf_symbol: yfinance ticker for 3-tier lookup (optional).
+        category: Watchlist category for fallback (optional).
 
     Returns:
         True if the relevant market is currently trading.
     """
     now = datetime.now(timezone.utc)
     weekday = now.weekday()  # 0=Mon, 6=Sun
-
-    # Weekend: all non-crypto closed
-    if weekday >= 5:
-        return symbol.upper().strip() in CRYPTO_SYMBOLS or symbol.upper().strip().endswith('-USD')
 
     # No symbol provided — check if ANY market is open (data_worker gate)
     if not symbol.strip():
@@ -156,7 +246,18 @@ def is_market_open(symbol: str = '') -> bool:
         return False
 
     # Symbol-specific check
-    market_key = _get_market_key(symbol)
+    market_key = _get_market_key(symbol, yf_symbol, category)
+
+    # Weekend: 24/5 and 24/7 markets still work on weekends
+    if weekday >= 5:
+        # Crypto is 24/7
+        if market_key == 'CRYPTO':
+            return True
+        # Forex/Commodities are 24/5 — closed on weekend
+        if market_key in ('FOREX', 'COMMODITIES'):
+            return False
+        # All others closed on weekend
+        return False
 
     # Handle GROUP keys (markets with lunch breaks: Tokyo, HK, China)
     if market_key in MARKET_GROUPS:
@@ -174,6 +275,11 @@ def is_market_open(symbol: str = '') -> bool:
         return True
 
     return _check_time_slot(now.time(), market_info)
+
+
+def get_instrument_market_key(symbol: str, yf_symbol: str = '', category: str = '') -> str:
+    """Public wrapper for _get_market_key — returns the resolved market key."""
+    return _get_market_key(symbol, yf_symbol, category)
 
 
 

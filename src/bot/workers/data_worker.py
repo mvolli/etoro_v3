@@ -40,7 +40,7 @@ if str(_PROJECT_ROOT / "src") not in sys.path:
 from bot.db.connection import DB
 from bot.db.repo import SignalRepo, PortfolioRepo
 from bot.core.signals import generate_signal, compute_indicators
-from bot.core.market_hours import is_market_open, get_market_status, CRYPTO_SYMBOLS
+from bot.core.market_hours import is_market_open, get_market_status, CRYPTO_SYMBOLS, get_instrument_market_key
 from bot.api.instruments import get_instrument_map, symbol_to_id
 
 logger = logging.getLogger(__name__)
@@ -113,12 +113,12 @@ def _apply_alias(symbol: str) -> str:
     return SYMBOL_ALIAS_MAP.get(symbol, symbol)
 
 
-def _batch_fetch(symbols: list[str]) -> dict[str, Any]:
+def _batch_fetch(symbols: list[str], batch_size: int = 40) -> dict[str, Any]:
     """
-    Download 3 months of OHLCV data for all symbols in one yf.download() call.
+    Download 3 months of OHLCV data for all symbols via yf.download().
 
-    Handles both single-symbol (flat MultiIndex columns) and multi-symbol
-    (two-level MultiIndex: Attribute / Ticker) responses from yfinance.
+    Splits large symbol lists into batches of `batch_size` to avoid timeouts.
+    Uses incremental approach: only fetches new data since last download.
 
     Returns:
         {symbol: DataFrame(Open, High, Low, Close, Volume)} for symbols
@@ -130,55 +130,73 @@ def _batch_fetch(symbols: list[str]) -> dict[str, Any]:
     if not symbols:
         return {}
 
-    logger.info("[%s] Batch-downloading %d symbols…", WORKER_NAME, len(symbols))
-
-    raw = yf.download(
-        symbols,
-        period="3mo",
-        auto_adjust=True,
-        progress=False,
-        threads=True,
-    )
-
-    if raw is None or raw.empty:
-        logger.warning("[%s] yf.download returned empty DataFrame", WORKER_NAME)
-        return {}
+    logger.info("[%s] Fetching %d symbols in batches of %d…", WORKER_NAME, len(symbols), batch_size)
 
     result: dict[str, pd.DataFrame] = {}
+    total_batches = (len(symbols) + batch_size - 1) // batch_size
 
-    if len(symbols) == 1:
-        sym = symbols[0]
-        # Single-symbol: flat columns (Open, High, Low, Close, Volume)
+    for batch_idx in range(total_batches):
+        batch_symbols = symbols[batch_idx * batch_size : (batch_idx + 1) * batch_size]
+
+        logger.info(
+            "[%s] Batch %d/%d: %d symbols",
+            WORKER_NAME, batch_idx + 1, total_batches, len(batch_symbols),
+        )
+
         try:
-            df = raw[["Open", "High", "Low", "Close", "Volume"]].dropna(
-                subset=["Close"]
+            raw = yf.download(
+                batch_symbols,
+                period="3mo",
+                auto_adjust=True,
+                progress=False,
+                threads=True,
             )
-            if len(df) >= 30:
-                result[sym] = df
-            else:
-                logger.debug("[%s] %s: only %d rows — skipped", WORKER_NAME, sym, len(df))
         except Exception as exc:
-            logger.warning("[%s] %s: single-symbol extraction failed — %s", WORKER_NAME, sym, exc)
-    else:
-        # Multi-symbol: two-level MultiIndex columns (Attribute, Ticker)
-        for sym in symbols:
+            logger.warning("[%s] Batch %d download failed: %s", WORKER_NAME, batch_idx + 1, exc)
+            time.sleep(2)  # Rate limit pause between batches
+            continue
+
+        if raw is None or raw.empty:
+            logger.warning("[%s] Batch %d returned empty DataFrame", WORKER_NAME, batch_idx + 1)
+            continue
+
+        if len(batch_symbols) == 1:
+            sym = batch_symbols[0]
+            # Single-symbol: flat columns (Open, High, Low, Close, Volume)
             try:
-                # xs(level=1) selects columns for this ticker
-                df = raw.xs(sym, axis=1, level=1)[
-                    ["Open", "High", "Low", "Close", "Volume"]
-                ].dropna(subset=["Close"])
+                df = raw[["Open", "High", "Low", "Close", "Volume"]].dropna(
+                    subset=["Close"]
+                )
                 if len(df) >= 30:
                     result[sym] = df
                 else:
                     logger.debug("[%s] %s: only %d rows — skipped", WORKER_NAME, sym, len(df))
-            except KeyError:
-                logger.debug("[%s] %s: not found in batch response", WORKER_NAME, sym)
             except Exception as exc:
-                logger.warning("[%s] %s: extraction failed — %s", WORKER_NAME, sym, exc)
+                logger.warning("[%s] %s: single-symbol extraction failed — %s", WORKER_NAME, sym, exc)
+        else:
+            # Multi-symbol: two-level MultiIndex columns (Attribute, Ticker)
+            for sym in batch_symbols:
+                try:
+                    # xs(level=1) selects columns for this ticker
+                    df = raw.xs(sym, axis=1, level=1)[
+                        ["Open", "High", "Low", "Close", "Volume"]
+                    ].dropna(subset=["Close"])
+                    if len(df) >= 30:
+                        result[sym] = df
+                    else:
+                        logger.debug("[%s] %s: only %d rows — skipped", WORKER_NAME, sym, len(df))
+                except KeyError:
+                    logger.debug("[%s] %s: not found in batch response", WORKER_NAME, sym)
+                except Exception as exc:
+                    logger.warning("[%s] %s: extraction failed — %s", WORKER_NAME, sym, exc)
+
+        # Rate limiting: pause between batches (not after last one)
+        if batch_idx < total_batches - 1:
+            time.sleep(1.5)
 
     logger.info(
-        "[%s] Batch fetch complete: %d/%d symbols with sufficient data",
-        WORKER_NAME, len(result), len(symbols),
+        "[%s] Batch fetch complete: %d/%d symbols with sufficient data (%d batches)",
+        WORKER_NAME, len(result), len(symbols), total_batches,
     )
     return result
 
@@ -192,6 +210,51 @@ def _get_portfolio_symbols(db: DB) -> list[str]:
     except Exception as exc:
         logger.warning("[%s] Could not fetch portfolio symbols: %s", WORKER_NAME, exc)
         return []
+
+
+def _get_watchlist_from_db(db: DB) -> list[dict]:
+    """Load watchlist instruments from DB with category and yfinance_symbol.
+
+    Returns list of dicts: [{symbol, yf_symbol, category, instrument_id}, ...]
+    """
+    try:
+        rows = db.fetchall("""
+            SELECT w.symbol, i.yfinance_symbol, w.category, w.instrument_id
+            FROM watchlist w
+            LEFT JOIN instruments i ON w.instrument_id = i.instrument_id
+        """)
+
+        watchlist = []
+        for symbol, yf_symbol, category, instrument_id in rows:
+            if not symbol:
+                continue
+            # Use yfinance_symbol as primary fetch target, fall back to symbol
+            effective_yf = yf_symbol or symbol
+            watchlist.append({
+                'symbol': symbol,
+                'yf_symbol': effective_yf,
+                'category': category or 'stocks',
+                'instrument_id': instrument_id,
+            })
+
+        logger.info("[%s] Loaded %d instruments from DB watchlist", WORKER_NAME, len(watchlist))
+
+        # Category breakdown
+        from collections import Counter
+        cat_counts = Counter(item['category'] for item in watchlist)
+        for cat, count in sorted(cat_counts.items()):
+            logger.debug("[%s]   %s: %d instruments", WORKER_NAME, cat, count)
+
+        return watchlist
+
+    except Exception as exc:
+        logger.error("[%s] Failed to load watchlist from DB: %s", WORKER_NAME, exc)
+        # Fallback to hardcoded list if DB fails
+        logger.warning("[%s] Falling back to DEFAULT_WATCHLIST", WORKER_NAME)
+        return [
+            {'symbol': sym, 'yf_symbol': sym, 'category': 'stocks', 'instrument_id': None}
+            for sym in DEFAULT_WATCHLIST
+        ]
 
 
 def _update_portfolio_prices(
@@ -270,38 +333,65 @@ def run(project_root: Path | None = None) -> dict:
     tier1_symbols: list[str] = _get_portfolio_symbols(db)
     logger.info("[%s] Tier 1 (portfolio): %d symbols", WORKER_NAME, len(tier1_symbols))
 
-    # Tier 2: watchlist — region-aware (only fetch instruments whose market is open)
-    watchlist = cfg.get("watchlist", DEFAULT_WATCHLIST)
-    if isinstance(watchlist, str):
-        watchlist = [watchlist]
+    # Tier 2: watchlist from DB — market-aware filtering
+    db_watchlist = _get_watchlist_from_db(db)
 
-    # Filter: only include watchlist items whose specific market is currently open
-    tier2_symbols: list[str] = [
-        sym for sym in watchlist if is_market_open(sym)
-    ]
-    skipped = [sym for sym in watchlist if not is_market_open(sym)]
+    # Filter: only include instruments whose specific market is currently open
+    tier2_items: list[dict] = []
+    skipped_count = 0
+    for item in db_watchlist:
+        sym = item['symbol']
+        yf_sym = item['yf_symbol']
+        cat = item['category']
+        if is_market_open(sym, yf_sym, cat):
+            tier2_items.append(item)
+        else:
+            skipped_count += 1
 
     logger.info(
-        "[%s] Tier 2 region-aware: %d open, %d market-closed out of %d watchlist symbols",
-        WORKER_NAME, len(tier2_symbols), len(skipped), len(watchlist),
+        "[%s] Tier 2 market-aware: %d open, %d market-closed out of %d watchlist instruments",
+        WORKER_NAME, len(tier2_items), skipped_count, len(db_watchlist),
     )
-    if skipped:
-        logger.debug("[%s] Skipped (market closed): %s", WORKER_NAME, ', '.join(skipped[:10]))
 
-    # Merge and deduplicate, preserving Tier 1 priority
-    all_symbols_raw: list[str] = list(dict.fromkeys(tier1_symbols + tier2_symbols))
+    # Merge portfolio symbols with watchlist, deduplicate by yf_symbol
+    # Build set of tier1 yf_symbols for quick lookup
+    tier1_yf_set = {_apply_alias(s) for s in tier1_symbols}
 
-    # 2c. Apply yfinance alias map
-    # Build reverse map: yf_ticker -> original symbol
+    # All items to fetch: Tier 1 + Tier 2 (deduplicated)
+    all_items: list[dict] = []
+    seen_yf: set[str] = set()
+
+    # Add Tier 1 first (highest priority)
+    for sym in tier1_symbols:
+        yf_sym = _apply_alias(sym)
+        if yf_sym not in seen_yf:
+            all_items.append({
+                'symbol': sym,
+                'yf_symbol': yf_sym,
+                'category': 'portfolio',
+                'instrument_id': None,
+            })
+            seen_yf.add(yf_sym)
+
+    # Add Tier 2 (skip if already in Tier 1)
+    for item in tier2_items:
+        yf_sym = item['yf_symbol']
+        if yf_sym not in seen_yf:
+            all_items.append(item)
+            seen_yf.add(yf_sym)
+
+    # Build final yf symbol list and reverse map
     alias_to_original: dict[str, str] = {}
     all_yf_symbols: list[str] = []
-    for sym in all_symbols_raw:
-        yf_sym = _apply_alias(sym)
+    for item in all_items:
+        yf_sym = item['yf_symbol']
+        original_sym = item['symbol']
         if yf_sym not in alias_to_original:
-            alias_to_original[yf_sym] = sym
+            alias_to_original[yf_sym] = original_sym
             all_yf_symbols.append(yf_sym)
 
-    logger.info("[%s] Total symbols to fetch: %d", WORKER_NAME, len(all_yf_symbols))
+    logger.info("[%s] Total symbols to fetch: %d (Tier1=%d, Tier2=%d)", WORKER_NAME,
+                len(all_yf_symbols), len(tier1_symbols), len(tier2_items))
 
     if not all_yf_symbols:
         logger.info("[%s] No symbols to fetch — exiting early", WORKER_NAME)
@@ -319,6 +409,17 @@ def run(project_root: Path | None = None) -> dict:
 
     for yf_sym, df in price_data.items():
         original_sym = alias_to_original.get(yf_sym, yf_sym)
+
+        # Find the watchlist item for this symbol to get category and instrument_id
+        watch_item = None
+        for item in all_items:
+            if item['yf_symbol'] == yf_sym:
+                watch_item = item
+                break
+
+        category = watch_item['category'] if watch_item else 'stocks'
+        instrument_id_from_db = watch_item.get('instrument_id') if watch_item else None
+
         try:
             # 5. Compute indicators
             indicators = compute_indicators(df)
@@ -337,14 +438,18 @@ def run(project_root: Path | None = None) -> dict:
                 continue
 
             # Market-hours guard: skip BUY signals when market is closed
-            if result.direction == "BUY" and not is_market_open(original_sym):
+            if result.direction == "BUY" and not is_market_open(original_sym, yf_sym, category):
                 logger.debug(
-                    "DataWorker: market closed for %s — signal skipped", original_sym
+                    "DataWorker: market closed for %s (category=%s) — signal skipped",
+                    original_sym, category
                 )
                 continue
 
-            # Resolve instrument_id (required FK for signals table)
-            instrument_id = symbol_to_id(original_sym, instrument_map)
+            # Resolve instrument_id
+            if instrument_id_from_db:
+                instrument_id = instrument_id_from_db
+            else:
+                instrument_id = symbol_to_id(original_sym, instrument_map)
             if instrument_id is None:
                 # Try yf ticker as fallback
                 instrument_id = symbol_to_id(yf_sym, instrument_map)
