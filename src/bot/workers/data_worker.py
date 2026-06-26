@@ -102,19 +102,78 @@ MAX_BATCH_RETRIES = 2        # retry count for failed batches
 RETRY_BACKOFF_BASE = 2.0     # exponential backoff: 2^attempt seconds
 MAX_DOWNLOAD_TIMEOUT = 60    # per-batch timeout in seconds
 
-# Failed symbol tracking: symbols that consistently fail are cached to avoid
-# repeated yf.download() calls on known-bad tickers (eToro CFDs Yahoo doesn't know).
-_FAILED_SYMBOLS_CACHE: set[str] = set()
-_MAX_FAILED_CACHE = 200      # cap the cache size
+# Failed symbol tracking: persistent SQLite-based cache to avoid repeated
+# yf.download() calls on known-bad tickers (eToro CFDs Yahoo doesn't know).
+# Symbols are auto-retried after COOLDOWN_DAYS and purged after CLEANUP_DAYS.
+_FAILED_SYMBOLS_CACHE: set[str] = set()   # in-memory mirror for fast lookups within a session
+_MAX_FAILED_CACHE = 200                   # soft cap for logging
+_COOLDOWN_DAYS = 7                        # retry a failed symbol after N days
+_CLEANUP_DAYS = 90                        # purge entries older than N days
+
+def _ensure_failed_symbols_table(db: "DB") -> None:
+    """Create the failed_symbols table if it doesn't exist."""
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS failed_symbols (
+            symbol TEXT PRIMARY KEY,
+            first_failed_at DATETIME NOT NULL,
+            last_failed_at DATETIME NOT NULL,
+            failure_count INTEGER NOT NULL DEFAULT 1
+        )
+    """)
+
+def _load_failed_cache(db: "DB") -> None:
+    """Load failed symbols from DB into in-memory cache (only those still in cooldown)."""
+    rows = db.fetchall("""
+        SELECT symbol FROM failed_symbols
+        WHERE last_failed_at > datetime('now', ? || ' days')
+    """, (f"-{_COOLDOWN_DAYS}",))
+    _FAILED_SYMBOLS_CACHE.clear()
+    for row in rows:
+        _FAILED_SYMBOLS_CACHE.add(row[0])
+    if _FAILED_SYMBOLS_CACHE:
+        logger.info(
+            "[%s] Loaded %d failed symbols from persistent cache (cooldown: %d days)",
+            WORKER_NAME, len(_FAILED_SYMBOLS_CACHE), _COOLDOWN_DAYS,
+        )
 
 def _is_known_bad_symbol(sym: str) -> bool:
-    """Check if a symbol is in the failed-cache (persisted across runs in-memory)."""
+    """Check if a symbol is in the failed-cache (in-memory mirror)."""
     return sym in _FAILED_SYMBOLS_CACHE
 
-def _cache_failed_symbol(sym: str) -> None:
-    """Add a symbol to the failed cache after it has consistently failed."""
-    if len(_FAILED_SYMBOLS_CACHE) < _MAX_FAILED_CACHE:
-        _FAILED_SYMBOLS_CACHE.add(sym)
+def _cache_failed_symbol(sym: str, db: "DB") -> None:
+    """Add/update a symbol in the persistent failed cache (DB + in-memory)."""
+    now = datetime.now().isoformat(sep=' ', timespec='seconds')
+    existing = db.fetchone(
+        "SELECT first_failed_at, failure_count FROM failed_symbols WHERE symbol = ?",
+        (sym,)
+    )
+    if existing:
+        db.execute("""
+            INSERT OR REPLACE INTO failed_symbols (symbol, first_failed_at, last_failed_at, failure_count)
+            VALUES (?, ?, ?, ?)
+        """, (sym, existing[0], now, existing[1] + 1))
+    else:
+        db.execute("""
+            INSERT INTO failed_symbols (symbol, first_failed_at, last_failed_at, failure_count)
+            VALUES (?, ?, ?, ?)
+        """, (sym, now, now, 1))
+    _FAILED_SYMBOLS_CACHE.add(sym)
+
+def _cleanup_old_failed_symbols(db: "DB") -> int:
+    """Remove failed symbol entries older than CLEANUP_DAYS. Returns count deleted."""
+    cur = db.execute("""
+        DELETE FROM failed_symbols
+        WHERE last_failed_at < datetime('now', ? || ' days')
+    """, (f"-{_CLEANUP_DAYS}",))
+    deleted = cur.rowcount
+    if deleted:
+        logger.info("[%s] Cleaned up %d stale failed-symbol entries (>=%d days)", WORKER_NAME, deleted, _CLEANUP_DAYS)
+        # Also remove from in-memory cache
+        for sym in list(_FAILED_SYMBOLS_CACHE):
+            row = db.fetchone("SELECT symbol FROM failed_symbols WHERE symbol = ?", (sym,))
+            if row is None:
+                _FAILED_SYMBOLS_CACHE.discard(sym)
+    return deleted
 
 def _filter_known_bad(symbols: list[str]) -> tuple[list[str], int]:
     """Remove symbols that are known to fail from the fetch list.
@@ -125,8 +184,8 @@ def _filter_known_bad(symbols: list[str]) -> tuple[list[str], int]:
     skipped = len(symbols) - len(filtered)
     if skipped:
         logger.debug(
-            "[%s] Skipping %d known-bad symbols (cache size: %d)",
-            WORKER_NAME, skipped, len(_FAILED_SYMBOLS_CACHE),
+            "[%s] Skipping %d known-bad symbols (cache size: %d, cooldown: %d days)",
+            WORKER_NAME, skipped, len(_FAILED_SYMBOLS_CACHE), _COOLDOWN_DAYS,
         )
     return filtered, skipped
 
@@ -216,9 +275,9 @@ def _batch_fetch(symbols: list[str], batch_size: int = BATCH_SIZE) -> dict[str, 
                 time.sleep(wait_time)
 
         if not batch_success:
-            # All retries exhausted — cache every symbol in this batch as failed
+            # All retries exhausted — cache every symbol in this batch as failed (in-memory only, persisted at end of run)
             for sym in batch_symbols:
-                _cache_failed_symbol(sym)
+                _FAILED_SYMBOLS_CACHE.add(sym)
             logger.warning(
                 "[%s] Batch %d: all retries exhausted — cached %d symbols as failed",
                 WORKER_NAME, batch_idx + 1, len(batch_symbols),
@@ -253,10 +312,16 @@ def _batch_fetch(symbols: list[str], batch_size: int = BATCH_SIZE) -> dict[str, 
                     if len(df) >= 30:
                         result[sym] = df
                     else:
-                        logger.debug("[%s] %s: only %d rows — skipped", WORKER_NAME, sym, len(df))
+                        # Symbol in response but no valid data (all NaN / delisted)
+                        # → cache as failed to avoid repeated yfinance ERROR logs
+                        _FAILED_SYMBOLS_CACHE.add(sym)
+                        logger.debug(
+                            "[%s] %s: %d rows after dropna (delisted/no-data) → cached as failed",
+                            WORKER_NAME, sym, len(df),
+                        )
                 except KeyError:
                     # Symbol not in response — likely invalid ticker (eToro CFD)
-                    _cache_failed_symbol(sym)
+                    _FAILED_SYMBOLS_CACHE.add(sym)
                     logger.debug("[%s] %s: not found in batch response → cached as failed", WORKER_NAME, sym)
                 except Exception as exc:
                     logger.warning("[%s] %s: extraction failed — %s", WORKER_NAME, sym, exc)
@@ -362,12 +427,13 @@ def _update_portfolio_prices(
 
         try:
             current_price = float(df["Close"].iloc[-1])
-            # Direct SQL update (PortfolioRepo.upsert would overwrite all cols)
+            # Direct SQL update — only touch current_price, NEVER last_synced.
+            # last_synced is the Reconciler's domain (orphan detection).
+            # Updating it here would resurrect orphan positions and prevent cleanup.
             db.execute(
                 """
                 UPDATE portfolio_snapshot
-                   SET current_price = ?,
-                       last_synced   = datetime('now','utc')
+                   SET current_price = ?
                  WHERE api_position_id = ?
                 """,
                 (current_price, pos["api_position_id"]),
@@ -404,6 +470,10 @@ def run(project_root: Path | None = None) -> dict:
     signal_ttl = int(cfg.get("cache", {}).get("signal_ttl_minutes", SIGNAL_TTL_MINUTES))
 
     db = DB(db_path=db_path, busy_timeout_ms=busy_timeout_ms)
+
+    # 0. Initialize persistent failed-symbol cache ----------------------------
+    _ensure_failed_symbols_table(db)
+    _load_failed_cache(db)
 
     # 2. Determine symbol lists -----------------------------------------------
 
@@ -578,7 +648,7 @@ def run(project_root: Path | None = None) -> dict:
                     "[%s] %s: processing took %.1fs → cached as failed",
                     WORKER_NAME, original_sym, elapsed,
                 )
-                _cache_failed_symbol(yf_sym)
+                _FAILED_SYMBOLS_CACHE.add(yf_sym)
             logger.error(
                 "[%s] Error processing %s (%.1fs): %s",
                 WORKER_NAME, original_sym, elapsed, exc, exc_info=True,
@@ -596,7 +666,12 @@ def run(project_root: Path | None = None) -> dict:
     # 9. Update portfolio current_price ---------------------------------------
     _update_portfolio_prices(db, price_data, alias_to_original)
 
-    # 10. Summary -------------------------------------------------------------
+    # 10. Persist failed symbols to DB & cleanup stale entries -----------------
+    for sym in _FAILED_SYMBOLS_CACHE:
+        _cache_failed_symbol(sym, db)
+    _cleanup_old_failed_symbols(db)
+
+    # 11. Summary -------------------------------------------------------------
     elapsed = time.monotonic() - t_start
     print(
         f"DataWorker: {n_fetched} symbols fetched, "
