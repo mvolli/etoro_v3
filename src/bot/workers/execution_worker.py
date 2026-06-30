@@ -136,22 +136,22 @@ def main() -> None:
         processed_count += 1
         trade_repo.update_status(trade_id, "SUBMITTING", submitted_at=_utcnow())
 
-        # b. Double-safety regime check
+        # b. Double-safety regime check (V5: NORMAL / CAUTION / DEFENSIVE / CRITICAL)
         regime = state_repo.get_regime()
-        if regime == "DRAWDOWN":
+        if regime in ("DEFENSIVE", "CRITICAL"):
             logger.warning(
-                "ExecutionWorker: DRAWDOWN detected at execution time — rejecting trade #%d (%s)",
-                trade_id, symbol,
+                "ExecutionWorker: %s regime at execution time — rejecting trade #%d (%s)",
+                regime, trade_id, symbol,
             )
             trade_repo.update_status(
                 trade_id,
                 "REJECTED",
-                rejection_reason="DRAWDOWN at execution time",
+                rejection_reason=f"{regime} regime at execution time",
             )
             log_repo.write(
                 "WARN",
                 "execution_worker",
-                f"Trade #{trade_id} REJECTED — DRAWDOWN at execution time",
+                f"Trade #{trade_id} REJECTED — {regime} regime at execution time",
                 {"symbol": symbol, "amount_usd": amount_usd},
             )
             failed_count += 1
