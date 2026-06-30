@@ -527,6 +527,19 @@ class EToroClient:
                 endpoint="/trading/info/real/eligibility",
             )
 
+        # ─── GHOST ORDER GUARD: Price must be > 0 ──────────────────────────
+        # Instruments with price = 0 are inactive (delisted futures, closed markets).
+        # Without this guard, SL = $0.00 * 0.97 = $0.00 → meaningless order → ghost.
+        if current_price <= 0:
+            logger.warning(
+                "open_position BLOCKED: instrument %s has price %.6f (inactive/delisted)",
+                instrument_id, current_price,
+            )
+            return {
+                "success": False,
+                "error": f"Ghost guard: instrument {instrument_id} price={current_price:.6f} (market inactive)",
+            }
+
         # Resolve symbol: use provided value or fall back to instrument_id string
         _symbol = symbol or str(instrument_id)
 

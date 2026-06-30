@@ -216,20 +216,50 @@ def main() -> None:
                 )
 
             # e. CRITICAL: Verify the order actually materialized as a position
-            # Some instruments (e.g. crypto futures) return orderId but never create
-            # a position — the order stays "pending" or gets silently cancelled.
+            # Use exponential backoff polling instead of fixed 5s sleep.
+            # Futures and some crypto instruments need more time to process.
             import time as _time
-            _time.sleep(5)  # Give eToro time to process
-            portfolio = client.get_portfolio()
-            positions = portfolio.get("clientPortfolio", {}).get("positions", [])
 
-            # Check if a new position appeared for this instrument
+            max_attempts = 6          # Check up to 6 times
+            initial_wait_s = 3        # Start at 3 seconds
+            max_total_wait_s = 120    # Cap total wait at 2 minutes
+
             matching_pos = None
-            for pos in positions:
-                pos_iid = pos.get("instrumentID") or pos.get("instrumentId")
-                if pos_iid == instrument_id:
-                    matching_pos = pos
+            total_waited = 0
+
+            for attempt in range(max_attempts):
+                wait_time = min(initial_wait_s * (2 ** attempt), 30)  # Cap individual wait at 30s
+                if total_waited + wait_time > max_total_wait_s:
+                    logger.info(
+                        "ExecutionWorker: trade #%d reached max total wait (%ds), final check",
+                        trade_id, max_total_wait_s,
+                    )
                     break
+
+                _time.sleep(wait_time)
+                total_waited += wait_time
+
+                portfolio = client.get_portfolio()
+                positions = portfolio.get("clientPortfolio", {}).get("positions", [])
+
+                # Check if a new position appeared for this instrument
+                for pos in positions:
+                    pos_iid = pos.get("instrumentID") or pos.get("instrumentId")
+                    if pos_iid == instrument_id:
+                        matching_pos = pos
+                        break
+
+                if matching_pos:
+                    logger.info(
+                        "ExecutionWorker: trade #%d position verified after %.1fs (%d attempts)",
+                        trade_id, total_waited, attempt + 1,
+                    )
+                    break
+
+                logger.debug(
+                    "ExecutionWorker: trade #%d position not yet visible (attempt %d/%d, waited %.1fs)",
+                    trade_id, attempt + 1, max_attempts, total_waited,
+                )
 
             if not matching_pos and api_position_id:
                 # Ghost order: accepted but no position — record for blacklist tracking
