@@ -187,11 +187,30 @@ class TradeRepo:
 
     # ── Ghost Order Blacklist ──────────────────────────────────────────────────
 
-    GHOST_BLACKLIST_THRESHOLD = 3   # blacklist after N consecutive ghost failures
-    GHOST_BLACKLIST_HOURS = 6       # cooldown duration
+    GHOST_BLACKLIST_THRESHOLD = 3   # first blacklist after N consecutive ghost failures
+    # b) Eskalierende Blacklist-Dauer:
+    #    3-5 failures  → 6h cooldown
+    #    6-8 failures  → 7 Tage cooldown
+    #    9+ failures   → permanent (NULL = bis manueller Reset via reset_ghost_failures())
 
-    def record_ghost_failure(self, instrument_id: int) -> None:
-        """Increment consecutive ghost failure counter. Blacklist after threshold."""
+    def _blacklist_duration_hours(self, count: int) -> float | None:
+        """Return blacklist duration in hours, or None for permanent."""
+        if count >= 9:
+            return None          # permanent — requires manual reset
+        if count >= 6:
+            return 7 * 24       # 7 days = 168 hours
+        if count >= 3:
+            return 6            # 6 hours
+        return 0                # not yet blacklisted
+
+    def record_ghost_failure(self, instrument_id: int) -> tuple[int, str]:
+        """
+        Increment consecutive ghost failure counter. Blacklist after threshold
+        with escalating duration (see _blacklist_duration_hours).
+
+        Returns (new_count, blacklist_status) where blacklist_status is one of:
+            'none', '6h', '7d', 'permanent'
+        """
         from datetime import timedelta
         now = _utcnow()
         row = self.db.fetchone(
@@ -201,11 +220,18 @@ class TradeRepo:
         current = row["consecutive_failures"] if row else 0
         new_count = current + 1
 
+        duration_hours = self._blacklist_duration_hours(new_count)
         blacklisted_until: str | None = None
-        if new_count >= self.GHOST_BLACKLIST_THRESHOLD:
+        status_label = "none"
+        if duration_hours is None:
+            # Permanent blacklist — set to far future (9999-12-31)
+            blacklisted_until = "9999-12-31 23:59:59"
+            status_label = "permanent"
+        elif duration_hours > 0:
             blacklisted_until = (
-                datetime.now(timezone.utc) + timedelta(hours=self.GHOST_BLACKLIST_HOURS)
+                datetime.now(timezone.utc) + timedelta(hours=duration_hours)
             ).strftime("%Y-%m-%d %H:%M:%S")
+            status_label = "7d" if duration_hours >= 168 else "6h"
 
         self.db.execute(
             """
@@ -219,6 +245,7 @@ class TradeRepo:
             """,
             (instrument_id, new_count, now, blacklisted_until),
         )
+        return new_count, status_label
 
     def reset_ghost_failures(self, instrument_id: int) -> None:
         """Clear failure counter after a successful trade confirmation."""

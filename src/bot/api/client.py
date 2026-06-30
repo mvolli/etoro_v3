@@ -378,7 +378,8 @@ class EToroClient:
         dict
             Order confirmation payload from eToro, or a dict with
             ``{"success": False, "error": ...}`` if the SL quality gate
-            blocks the order.
+            blocks the trade **or** if the instrument eligibility check
+            returns ``allowOpenPosition: false``.
 
         Raises
         ------
@@ -390,21 +391,61 @@ class EToroClient:
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
         from bot.core.risk import calculate_sl_price, check_sl_quality_gate
 
-        # Fetch current price from eligibility info (with fallback to DB)
-        try:
-            eligibility = self.get_instrument_eligibility(instrument_id)
-            current_price: float | None = (
-                eligibility.get("lastPrice")
-                or eligibility.get("currentPrice")
-                or eligibility.get("rate")
-            )
-        except APIError as exc:
-            # Eligibility endpoint may return 404 — fall back to DB price
-            logger.warning(
-                "get_instrument_eligibility failed for %s (%s) — falling back to DB price",
-                instrument_id, exc
-            )
+        # a) Eligibility gate — check allowOpenPosition via official endpoint
+        #    POST /api/v1/trading/info/eligibility with {"instrumentIds": [...]}
+        #    Response: { "eligibilities": [{ "instrumentId": X, "allowOpenPosition": bool, ... }] }
+        eligibility_resp = self.post(
+            "/trading/info/eligibility",
+            {"instrumentIds": [instrument_id]},
+        )
+        elig_list = eligibility_resp.get("eligibilities", [])
+        for e in elig_list:
+            if e.get("instrumentId") == instrument_id:
+                if not e.get("allowOpenPosition", True):
+                    logger.warning(
+                        "open_position BLOCKED: instrument %s allowOpenPosition=false",
+                        instrument_id,
+                    )
+                    return {
+                        "success": False,
+                        "error": (
+                            f"Instrument {instrument_id} not eligible for real trading "
+                            f"(allowOpenPosition={e.get('allowOpenPosition')})"
+                        ),
+                    }
+                # Use lastPrice from eligibility response if available
+                current_price = e.get("lastPrice") or e.get("currentPrice")
+                break
+        else:
+            # Instrument not in eligibilities — check notFoundInstrumentIds
+            not_found = eligibility_resp.get("notFoundInstrumentIds", [])
+            if instrument_id in not_found:
+                logger.warning(
+                    "open_position BLOCKED: instrument %s not found by eToro API",
+                    instrument_id,
+                )
+                return {
+                    "success": False,
+                    "error": f"Instrument {instrument_id} not found (not tradable)",
+                }
+            # Fallback to DB price if eligibility endpoint didn't return price
             current_price = None
+
+        # Fetch current price from old eligibility info as fallback (with fallback to DB)
+        if current_price is None:
+            try:
+                eligibility = self.get_instrument_eligibility(instrument_id)
+                current_price = (
+                    eligibility.get("lastPrice")
+                    or eligibility.get("currentPrice")
+                    or eligibility.get("rate")
+                )
+            except APIError as exc:
+                logger.warning(
+                    "get_instrument_eligibility failed for %s (%s) — falling back to DB price",
+                    instrument_id, exc
+                )
+                current_price = None
         
         # If no price from API, try to get it from portfolio_snapshot or signals
         if current_price is None:

@@ -233,33 +233,51 @@ def main() -> None:
 
             if not matching_pos and api_position_id:
                 # Ghost order: accepted but no position — record for blacklist tracking
-                trade_repo.record_ghost_failure(instrument_id)
-                ghost_count = trade_repo.get_ghost_failure_count(instrument_id)
+                ghost_count, bl_status = trade_repo.record_ghost_failure(instrument_id)
 
                 logger.warning(
                     "ExecutionWorker: trade #%d (%s) GHOST ORDER (orderId=%s) — "
-                    "failure #%d for this instrument",
-                    trade_id, symbol, api_position_id, ghost_count,
+                    "failure #%d for this instrument (blacklist: %s)",
+                    trade_id, symbol, api_position_id, ghost_count, bl_status,
                 )
                 trade_repo.update_status(
                     trade_id,
                     "FAILED",
                     rejection_reason=(
                         f"Ghost order: orderId={api_position_id} but position "
-                        f"never materialized (failure #{ghost_count})"
+                        f"never materialized (failure #{ghost_count}, blacklist: {bl_status})"
                     ),
                 )
                 log_repo.write(
                     "WARN",
                     "execution_worker",
-                    f"Trade #{trade_id} GHOST ORDER: {symbol} orderId={api_position_id} no position created (#{ghost_count})",
-                    {"symbol": symbol, "api_position_id": api_position_id, "ghost_count": ghost_count},
+                    f"Trade #{trade_id} GHOST ORDER: {symbol} orderId={api_position_id} no position created (#{ghost_count}, bl={bl_status})",
+                    {"symbol": symbol, "api_position_id": api_position_id, "ghost_count": ghost_count, "blacklist_status": bl_status},
                 )
+
+                # c) Eskalierter Alert ab #5 — separates, lautereres Embed
+                if ghost_count >= 5:
+                    _post(
+                        'post_watchdog_alert_embed',
+                        alert_type='GHOST_ORDER_ESCALATION',
+                        symbol=symbol,
+                        message=(
+                            f"⚠️ {symbol}: {ghost_count}+ konsekutive Ghost-Failures — "
+                            f"vermutlich strukturelles Problem, manuelle Prüfung nötig"
+                        ),
+                        severity='critical' if ghost_count >= 9 else 'high',
+                        details=(
+                            f"Blacklist: {bl_status} | "
+                            f"Last orderId: {api_position_id} | "
+                            f"Instrument ID: {instrument_id}"
+                        ),
+                    )
+
                 _post('post_trade_failed_embed',
                     symbol=symbol,
                     direction='BUY',
                     amount_usd=amount_usd,
-                    error=f"Ghost order: orderId={api_position_id} but no position created (#{ghost_count})",
+                    error=f"Ghost order: orderId={api_position_id} but no position created (#{ghost_count}, blacklist: {bl_status})",
                     dry_run=False,
                 )
                 failed_count += 1

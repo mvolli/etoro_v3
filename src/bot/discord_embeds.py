@@ -1274,17 +1274,60 @@ def post_regime_change_embed(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def post_watchdog_alert_embed(
-    status: str,             # "STALLED" | "MUTEX_STALE" | "HEALTHY" | "MISSING"
+    status: str = "",             # "STALLED" | "MUTEX_STALE" | "HEALTHY" | "MISSING" | "GHOST_ORDER_ESCALATION"
     last_tick_age_s: float = 0.0,
     last_tick: int = 0,
     details: str = "",
     dry_run: bool = False,
+    # c) Ghost-order escalation params (optional — used when status="GHOST_ORDER_ESCALATION")
+    alert_type: str | None = None,
+    symbol: str | None = None,
+    message: str | None = None,
+    severity: str | None = None,
 ) -> bool:
     """Pipeline Watchdog Alert → #etoro-trading.
 
-    Nur bei PROBLEMEN posten (STALLED, MUTEX_STALE, MISSING).
+    Nur bei PROBLEMen posten (STALLED, MUTEX_STALE, MISSING, GHOST_ORDER_ESCALATION).
     Bei HEALTHY → kein Post (oder nur auf explizite Anfrage).
     """
+    # c) Ghost-order escalation path
+    if status == "GHOST_ORDER_ESCALATION" or alert_type == "GHOST_ORDER_ESCALATION":
+        st = severity or "high"
+        color  = COLOR_RED if st == "critical" else COLOR_ORANGE
+        emoji  = "🚨" if st == "critical" else "⚠️"
+        title  = f"{emoji} Ghost-Order Eskalation — {symbol or '?'}"
+        desc   = message or f"{symbol or '?'}: Multiple consecutive ghost failures detected"
+
+        fields = []
+        if symbol:
+            fields.append({"name": "📌 Instrument", "value": f"`{symbol}`", "inline": True})
+        if severity:
+            sev_emoji = "💀" if severity == "critical" else "⚠️"
+            fields.append({"name": "🔥 Severity", "value": f"{sev_emoji} `{severity.upper()}`", "inline": True})
+        if details:
+            fields.append({"name": "📋 Details", "value": f"`{details[:300]}`", "inline": False})
+
+        action_text = (
+            "⚠️ Manuelle Prüfung empfohlen: Check eToro-Instrument-Status, API-Limits, Account-Restriktionen."
+            if severity != "critical"
+            else "💀 PERMANENT BLACKLIST — Instrument dauerhaft gesperrt bis manueller Reset via DB."
+        )
+        fields.append({"name": "🔧 Aktion", "value": action_text, "inline": False})
+
+        embed = {
+            "title":       title,
+            "description": desc,
+            "color":       color,
+            "fields":      fields,
+            "footer":      {"text": "eToro RoBoCop · Ghost-Order Watchdog"},
+            "timestamp":   _ts(),
+        }
+
+        ok = _post_embed(embed, DISCORD_MAIN_CHANNEL, dry_run)
+        if ok:
+            insert_system_log("WARNING", "discord_embeds", f"P13 Watchdog Alert: GHOST_ORDER_ESCALATION {symbol}")
+        return ok
+
     if status == "STALLED":
         color  = COLOR_RED
         emoji  = "🛑"
