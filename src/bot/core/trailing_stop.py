@@ -127,10 +127,12 @@ def execute_trailing_actions(
                     stats['partial_closes'] += 1
                     # Post Discord embed
                     try:
+                        from pathlib import Path as _Path
+                        _embed_file = str(_Path(__file__).resolve().parent.parent / 'discord_embeds.py')
                         import importlib.util
                         spec = importlib.util.spec_from_file_location(
                             'discord_embeds',
-                            '/home/mvolli/.hermes/workspace/etoro_v3/src/bot/discord_embeds.py'
+                            _embed_file
                         )
                         de = importlib.util.module_from_spec(spec)
                         spec.loader.exec_module(de)

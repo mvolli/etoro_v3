@@ -31,8 +31,11 @@ logger = logging.getLogger("signal_worker")
 
 # ── Discord Embeds ─────────────────────────────────────────────────────────
 try:
+    from pathlib import Path as _Path
+    _bot_dir = str(_Path(__file__).resolve().parent.parent)
     import sys as _sys
-    _sys.path.insert(0, '/home/mvolli/.hermes/workspace/etoro_v3/src/bot')
+    if _bot_dir not in _sys.path:
+        _sys.path.insert(0, _bot_dir)
     import discord_embeds as _DE
 except Exception:
     _DE = None

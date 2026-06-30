@@ -8,6 +8,7 @@ import sqlite3
 import logging
 import sys
 import os
+from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -15,7 +16,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = '/home/mvolli/.hermes/workspace/etoro_v3/data/trading.db'
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+DB_PATH = str(PROJECT_ROOT / 'data' / 'trading.db')
 
 # Region-Schedule: 4 Discovery-Läufe pro Tag
 REGION_SCHEDULE = {

@@ -6,7 +6,7 @@ Instrument map — resolves eToro integer instrument IDs ↔ ticker symbols.
 Cache strategy (layered, cheapest-first):
   1. File cache  → data/instrument_map.json  (TTL: 24 h)
   2. Legacy SQLite DB fallback
-     → /home/mvolli/.hermes/workspace/etoro/db/etoro_trading.db
+     → Legacy etoro v2 DB (relative to project root)
        table: instrument_metadata  (symbol, etoro_id columns)
   3. If both fail: returns empty dict and logs a warning.
 
@@ -40,12 +40,11 @@ logger = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
-CACHE_FILE: Path = Path(__file__).resolve().parent.parent.parent.parent / "data" / "instrument_map.json"
+CACHE_FILE: Path = Path(__file__).resolve().parent.parent.parent / "data" / "instrument_map.json"
 CACHE_TTL_HOURS: int = 24
 
-_LEGACY_DB_PATH: Path = Path(
-    "/home/mvolli/.hermes/workspace/etoro/db/etoro_trading.db"
-)
+# Legacy DB path — relative to project root (etoro_v3/)
+_LEGACY_DB_PATH: Path = Path(__file__).resolve().parent.parent.parent.parent / "db" / "etoro_trading.db"
 
 
 # ---------------------------------------------------------------------------

@@ -9,10 +9,12 @@ import sqlite3
 import logging
 from datetime import datetime, timedelta
 from typing import Optional, Any
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = '/home/mvolli/.hermes/workspace/etoro_v3/data/trading.db'
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+DB_PATH = str(PROJECT_ROOT / 'data' / 'trading.db')
 
 
 def get_db():
