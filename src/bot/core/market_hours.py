@@ -7,65 +7,123 @@ Region-aware: classifies instruments by suffix (.DE, .T, .HK, etc.) and checks
 whether that specific market is currently open. Acts as Single Source of Truth
 for all workers.
 
+DST-aware: uses zoneinfo (Python stdlib) for accurate timezone handling — no more
+fixed UTC tables that break during winter/summer time transitions.
+
 Fail-open: unknown suffixes → True (better to miss a trade than skip a signal).
 """
-from datetime import datetime, time, timezone
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 
-# ─── Market Definitions ──────────────────────────────────────────────────────
-# Structure: 'KEY': (start_utc, end_utc)  OR  (start_utc, end_utc, crosses_midnight)
-#
-# crosses_midnight=True → market is open when time >= start OR time < end
-#                        (e.g. Sydney 21:00–05:00 UTC spans midnight)
+# ─── Market Definitions (zoneinfo-based) ────────────────────────────────────────
+# Each market defines:
+#   - tz: IANA timezone string
+#   - open_local / close_local: local trading hours (hour, minute)
+#   - weekends_open: bool (default False). True = 24/5 or 24/7.
 
-MARKET_DEFINITIONS: dict[str, tuple] = {
+MARKET_DEFINITIONS: dict[str, dict] = {
     # Crypto — always open (24/7)
-    'CRYPTO': (time(0, 0), time(23, 59, 59), True),
+    'CRYPTO': {
+        'always_open': True,
+    },
 
-    # Forex — 24/5 (Sunday 22:00 UTC → Friday 22:00 UTC)
-    'FOREX': (time(0, 0), time(23, 59, 59), True),
+    # Forex — 24/5 (Sunday ~22:00 → Friday ~22:00 in respective TZ)
+    'FOREX': {
+        'tz': 'UTC',
+        'weekends_partial': True,  # open Sun evening → Fri evening
+    },
 
     # Commodities (CFDs on eToro) — ~24/5 like forex
-    'COMMODITIES': (time(0, 0), time(23, 59, 59), True),
+    'COMMODITIES': {
+        'tz': 'UTC',
+        'weekends_partial': True,
+    },
 
-    # Indices — follows US market hours (most are US indices)
-    # Individual index markets handled below for non-US
-    'INDICES_US': (time(13, 30), time(20, 0)),
+    # ── Equity Markets ────────────────────────────────────────────────────────
+
+    # USA (NYSE, NASDAQ) — 9:30–16:00 ET
+    'US': {
+        'tz': 'America/New_York',
+        'open_local': (9, 30),
+        'close_local': (16, 0),
+    },
+
+    # Indices follow US market hours (most are US indices)
+    'INDICES_US': {
+        'tz': 'America/New_York',
+        'open_local': (9, 30),
+        'close_local': (16, 0),
+    },
 
     # Europe (Xetra, SIX, LSE, Euronext, Borsa Italiana)
-    'EU': (time(6, 0), time(17, 0)),
-
-    # USA (NYSE, NASDAQ) — 13:30–20:00 UTC (9:30–16:00 ET)
-    'US': (time(13, 30), time(20, 0)),
+    #   Frankfurt: 09:00–17:30 CET/CEST
+    #   London:    08:00–16:30 GMT/BST
+    #   We use a conservative overlap window that covers all major EU exchanges
+    'EU': {
+        'tz': 'Europe/Berlin',
+        'open_local': (9, 0),
+        'close_local': (17, 30),
+    },
 
     # ── Asia-Pacific ────────────────────────────────────────────────────────
+
     # Tokyo (JPX) — two sessions with lunch break:
-    #   Morning: 09:00–11:30 JST = 00:00–02:30 UTC
-    #   Afternoon: 12:30–15:00 JST = 03:30–06:00 UTC
-    'APAC_JP_M': (time(0, 0), time(2, 30)),     # Tokyo morning session
-    'APAC_JP_A': (time(3, 30), time(6, 0)),     # Tokyo afternoon session
+    #   Morning:  09:00–11:30 JST
+    #   Afternoon: 12:30–15:00 JST
+    'APAC_JP_GROUP': {
+        'tz': 'Asia/Tokyo',
+        'sessions': [
+            ((9, 0), (11, 30)),
+            ((12, 30), (15, 0)),
+        ],
+    },
 
     # Hong Kong — two sessions with lunch break:
-    #   Morning: 09:30–12:00 HKT = 01:30–04:00 UTC
-    #   Afternoon: 13:00–16:00 HKT = 05:00–08:00 UTC
-    'APAC_HK_M': (time(1, 30), time(4, 0)),     # HK morning session
-    'APAC_HK_A': (time(5, 0), time(8, 0)),      # HK afternoon session
+    #   Morning:  09:30–12:00 HKT
+    #   Afternoon: 13:00–16:00 HKT
+    'APAC_HK_GROUP': {
+        'tz': 'Asia/Hong_Kong',
+        'sessions': [
+            ((9, 30), (12, 0)),
+            ((13, 0), (16, 0)),
+        ],
+    },
 
     # Shanghai + Shenzhen — two sessions with lunch break:
-    #   Morning: 09:30–11:30 CST = 01:30–03:30 UTC
-    #   Afternoon: 13:00–15:00 CST = 05:00–07:00 UTC
-    'APAC_CN_M': (time(1, 30), time(3, 30)),    # China morning session
-    'APAC_CN_A': (time(5, 0), time(7, 0)),      # China afternoon session
+    #   Morning:  09:30–11:30 CST
+    #   Afternoon: 13:00–15:00 CST
+    'APAC_CN_GROUP': {
+        'tz': 'Asia/Shanghai',
+        'sessions': [
+            ((9, 30), (11, 30)),
+            ((13, 0), (15, 0)),
+        ],
+    },
 
-    # Sydney (ASX) — 10:00–16:00 AEDT = 23:00–05:00 UTC (crosses midnight!)
-    # In winter (AEST): 10:00–16:00 = 22:00–04:00 UTC — we use the wider summer window
-    'APAC_AU': (time(23, 0), time(5, 0), True),
+    # Sydney (ASX) — 10:00–16:00 AEST/AEDT
+    'APAC_AU': {
+        'tz': 'Australia/Sydney',
+        'open_local': (10, 0),
+        'close_local': (16, 0),
+    },
 
-    # India (NSE/BSE) — 09:15–15:30 IST = 03:45–10:00 UTC
-    'APAC_IN': (time(3, 45), time(10, 0)),
+    # India (NSE/BSE) — 09:15–15:30 IST
+    'APAC_IN': {
+        'tz': 'Asia/Kolkata',
+        'open_local': (9, 15),
+        'close_local': (15, 30),
+    },
 
-    # Korea + Taiwan + Singapore — single session ~01:00–08:00 UTC
-    'APAC_KR_TW_SG': (time(1, 0), time(8, 0)),
+    # Korea + Taiwan + Singapore — single session
+    #   Korea (KOSPI):  09:00–15:30 KST
+    #   Taiwan (TWSE):  09:00–13:30 CST
+    #   Singapore (SGX): 09:00–17:00 SGT
+    'APAC_KR_TW_SG': {
+        'tz': 'Asia/Seoul',
+        'open_local': (9, 0),
+        'close_local': (15, 30),
+    },
 }
 
 
@@ -97,13 +155,6 @@ SUFFIX_TO_MARKET: dict[str, str] = {
     '.KQ': 'APAC_KR_TW_SG',      # Korea (KOSDAQ)
     '.TW': 'APAC_KR_TW_SG',      # Taiwan (TWSE)
     '.SI': 'APAC_KR_TW_SG',      # Singapore (SGX)
-}
-
-# Markets with lunch breaks: map GROUP key → [morning_key, afternoon_key]
-MARKET_GROUPS: dict[str, list[str]] = {
-    'APAC_JP_GROUP': ['APAC_JP_M', 'APAC_JP_A'],
-    'APAC_HK_GROUP': ['APAC_HK_M', 'APAC_HK_A'],
-    'APAC_CN_GROUP': ['APAC_CN_M', 'APAC_CN_A'],
 }
 
 
@@ -218,6 +269,73 @@ def _get_market_key(symbol: str, yf_symbol: str = '', category: str = '') -> str
     return 'US'
 
 
+def _is_market_open_now(market_key: str, now_utc: datetime) -> bool:
+    """Check if a specific market is open right now using zoneinfo."""
+    mkt = MARKET_DEFINITIONS.get(market_key)
+
+    if not mkt:
+        # Fail-open: unknown market → assume open
+        return True
+
+    # Always-open markets (Crypto 24/7)
+    if mkt.get('always_open'):
+        return True
+
+    # 24/5 markets (Forex, Commodities) — closed Sat/Sun
+    if mkt.get('weekends_partial'):
+        weekday = now_utc.weekday()  # 0=Mon, 6=Sun
+        return weekday < 5  # Mon–Fri only
+
+    # Standard equity market with single session
+    tz_name = mkt.get('tz')
+    open_h, open_m = mkt['open_local']
+    close_h, close_m = mkt['close_local']
+
+    # Weekend check
+    weekday = now_utc.weekday()
+    if weekday >= 5:
+        return False
+
+    # Convert UTC now to market local time
+    try:
+        tz = ZoneInfo(tz_name)
+        now_local = now_utc.astimezone(tz)
+    except Exception:
+        return True  # Fail-open on TZ error
+
+    open_time = (open_h, open_m)
+    close_time = (close_h, close_m)
+    current_time = (now_local.hour, now_local.minute)
+
+    return open_time <= current_time < close_time
+
+
+def _is_multi_session_open(market_key: str, now_utc: datetime) -> bool:
+    """Check markets with multiple sessions (lunch breaks)."""
+    mkt = MARKET_DEFINITIONS.get(market_key)
+    if not mkt or 'sessions' not in mkt:
+        return False
+
+    weekday = now_utc.weekday()
+    if weekday >= 5:
+        return False
+
+    tz_name = mkt['tz']
+    try:
+        tz = ZoneInfo(tz_name)
+        now_local = now_utc.astimezone(tz)
+    except Exception:
+        return True  # Fail-open
+
+    current_time = (now_local.hour, now_local.minute)
+
+    for open_time, close_time in mkt['sessions']:
+        if open_time <= current_time < close_time:
+            return True
+
+    return False  # Between sessions or outside hours
+
+
 def is_market_open(symbol: str = '', yf_symbol: str = '', category: str = '') -> bool:
     """Returns True if the market for this symbol is currently open.
 
@@ -235,46 +353,37 @@ def is_market_open(symbol: str = '', yf_symbol: str = '', category: str = '') ->
     Returns:
         True if the relevant market is currently trading.
     """
-    now = datetime.now(timezone.utc)
-    weekday = now.weekday()  # 0=Mon, 6=Sun
+    now_utc = datetime.now(timezone.utc)
 
     # No symbol provided — check if ANY market is open (data_worker gate)
     if not symbol.strip():
-        for key, definition in MARKET_DEFINITIONS.items():
-            if _check_time_slot(now.time(), definition):
+        for key in MARKET_DEFINITIONS:
+            if _check_market_open(key, now_utc):
                 return True
         return False
 
     # Symbol-specific check
     market_key = _get_market_key(symbol, yf_symbol, category)
+    return _check_market_open(market_key, now_utc)
 
-    # Weekend: 24/5 and 24/7 markets still work on weekends
-    if weekday >= 5:
-        # Crypto is 24/7
-        if market_key == 'CRYPTO':
-            return True
-        # Forex/Commodities are 24/5 — closed on weekend
-        if market_key in ('FOREX', 'COMMODITIES'):
-            return False
-        # All others closed on weekend
-        return False
 
-    # Handle GROUP keys (markets with lunch breaks: Tokyo, HK, China)
-    if market_key in MARKET_GROUPS:
-        session_keys = MARKET_GROUPS[market_key]
-        for session_key in session_keys:
-            session_info = MARKET_DEFINITIONS.get(session_key)
-            if session_info and _check_time_slot(now.time(), session_info):
-                return True
-        return False  # neither session is open (lunch break or outside hours)
+def _check_market_open(market_key: str, now_utc: datetime) -> bool:
+    """Internal dispatcher for market open checks."""
+    mkt = MARKET_DEFINITIONS.get(market_key)
+    if not mkt:
+        return True  # Fail-open
 
-    market_info = MARKET_DEFINITIONS.get(market_key)
-
-    if not market_info:
-        # Fail-open: unknown market → assume open
+    if mkt.get('always_open'):
         return True
 
-    return _check_time_slot(now.time(), market_info)
+    if mkt.get('weekends_partial'):
+        weekday = now_utc.weekday()
+        return weekday < 5
+
+    if 'sessions' in mkt:
+        return _is_multi_session_open(market_key, now_utc)
+
+    return _is_market_open_now(market_key, now_utc)
 
 
 def get_instrument_market_key(symbol: str, yf_symbol: str = '', category: str = '') -> str:
@@ -282,39 +391,40 @@ def get_instrument_market_key(symbol: str, yf_symbol: str = '', category: str = 
     return _get_market_key(symbol, yf_symbol, category)
 
 
-
-def _check_time_slot(current_time: time, definition: tuple) -> bool:
-    """Check if current_time falls within a market's trading window.
-
-    Handles both normal windows (start < end) and midnight-crossing windows.
-    """
-    start = definition[0]
-    end = definition[1]
-    crosses_midnight = len(definition) > 2 and definition[2]
-
-    if crosses_midnight:
-        # Market spans midnight: open when time >= start OR time < end
-        return current_time >= start or current_time < end
-    else:
-        # Normal window: start <= time < end
-        return start <= current_time < end
-
-
 def get_market_status(symbol: str = '') -> str:
     """Returns human-readable market status string for a symbol."""
     if not symbol.strip():
+        now_utc = datetime.now(timezone.utc)
         open_markets = []
-        now = datetime.now(timezone.utc).time()
-        for key, definition in MARKET_DEFINITIONS.items():
-            if key == 'CRYPTO':
-                continue
-            if _check_time_slot(now, definition):
+        for key in MARKET_DEFINITIONS:
+            if _check_market_open(key, now_utc):
                 open_markets.append(key)
         return ', '.join(open_markets) if open_markets else 'ALL CLOSED'
 
     market_key = _get_market_key(symbol)
-    info = MARKET_DEFINITIONS.get(market_key, ('?', '?'))
-    return f"{market_key} {info[0].strftime('%H:%M')}-{info[1].strftime('%H:%M')} UTC"
+    mkt = MARKET_DEFINITIONS.get(market_key, {})
+    tz_name = mkt.get('tz', 'UTC')
+
+    # Build hours string from local times
+    if 'sessions' in mkt:
+        sessions_str = ' + '.join(
+            f"{oh:02d}:{om}–{ch:02d}:{cm}"
+            for (oh, om), (ch, cm) in mkt['sessions']
+        )
+        return f"{market_key} {sessions_str} {tz_name}"
+
+    if 'open_local' in mkt:
+        oh, om = mkt['open_local']
+        ch, cm = mkt['close_local']
+        return f"{market_key} {oh:02d}:{om}–{ch:02d}:{cm} {tz_name}"
+
+    if mkt.get('always_open'):
+        return f"{market_key} 24/7"
+
+    if mkt.get('weekends_partial'):
+        return f"{market_key} 24/5 (Mon–Fri)"
+
+    return f"{market_key} (unknown schedule)"
 
 
 # ─── Quick Test ──────────────────────────────────────────────────────────────
@@ -322,6 +432,17 @@ def get_market_status(symbol: str = '') -> str:
 if __name__ == "__main__":
     now_utc = datetime.now(timezone.utc)
     print(f"Aktuelle UTC-Zeit: {now_utc.strftime('%Y-%m-%d %H:%M:%S')} (Wochentag: {['Mo','Di','Mi','Do','Fr','Sa','So'][now_utc.weekday()]})")
+
+    # Show DST offsets for key markets
+    print("\nDST-Status:")
+    for tz_name in ['America/New_York', 'Europe/Berlin', 'Asia/Tokyo', 'Australia/Sydney']:
+        tz = ZoneInfo(tz_name)
+        now_local = now_utc.astimezone(tz)
+        utcoffset = now_local.utcoffset()
+        if utcoffset:
+            total_hours = utcoffset.total_seconds() / 3600
+            print(f"  {tz_name:>25s}: UTC{total_hours:+.1f} → {now_local.strftime('%H:%M')} local")
+
     print()
 
     test_symbols = [
@@ -344,15 +465,14 @@ if __name__ == "__main__":
         'UNKNOWN.XX',
     ]
 
-    print(f"{'Symbol':<16} {'Markt':<14} {'Status':<12} {'Öffnungszeiten'}")
-    print("-" * 70)
+    print(f"{'Symbol':<16} {'Markt':<18} {'Status':<12} {'Öffnungszeiten'}")
+    print("-" * 80)
     for sym in test_symbols:
         key = _get_market_key(sym)
         open_ = is_market_open(sym)
         status = "🟢 OFFEN" if open_ else "🔴 ZU"
-        info = MARKET_DEFINITIONS.get(key, ('?', '?'))
-        hours = f"{info[0].strftime('%H:%M')}-{info[1].strftime('%H:%M')} UTC"
-        print(f"{sym:<16} {key:<14} {status:<12} {hours}")
+        hours = get_market_status(sym)
+        print(f"{sym:<16} {key:<18} {status:<12} {hours}")
 
     print()
     print(f"Data Worker Gate (irgendwo offen?): {is_market_open()}")
