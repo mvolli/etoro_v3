@@ -106,6 +106,13 @@ def main() -> None:
 
     logger.info("ExecutionWorker: found %d APPROVED trade(s)", len(approved_trades))
 
+    # Also expire old signals (soft delete)
+    from bot.db.repo import SignalRepo
+    signal_repo = SignalRepo(db)
+    expired_count = signal_repo.expire_old()
+    if expired_count > 0:
+        logger.info("ExecutionWorker: expired %d stale signals", expired_count)
+
     processed_count = 0
     filled_count = 0
     failed_count = 0
@@ -187,24 +194,87 @@ def main() -> None:
             )
 
             # d. Success — extract result fields
+            # eToro v2 /trading/execution/orders returns ONLY the order ID on success.
             api_position_id = str(
                 result.get("positionId")
                 or result.get("position_id")
+                or result.get("orderId")      # v2 API returns orderId
                 or result.get("id")
                 or ""
             )
-            entry_price = float(
-                result.get("openRate")
-                or result.get("open_rate")
-                or result.get("openPrice")
-                or result.get("rate")
-                or 0.0
-            )
+
+            # Store order_id immediately so we can track it even if position verification fails
+            if api_position_id:
+                trade_repo.update_status(
+                    trade_id,
+                    "SUBMITTING",
+                    order_id=api_position_id,
+                    submitted_at=_utcnow(),
+                )
+
+            # e. CRITICAL: Verify the order actually materialized as a position
+            # Some instruments (e.g. crypto futures) return orderId but never create
+            # a position — the order stays "pending" or gets silently cancelled.
+            import time as _time
+            _time.sleep(5)  # Give eToro time to process
+            portfolio = client.get_portfolio()
+            positions = portfolio.get("clientPortfolio", {}).get("positions", [])
+
+            # Check if a new position appeared for this instrument
+            matching_pos = None
+            for pos in positions:
+                pos_iid = pos.get("instrumentID") or pos.get("instrumentId")
+                if pos_iid == instrument_id:
+                    matching_pos = pos
+                    break
+
+            if not matching_pos and api_position_id:
+                # Ghost order: accepted but no position — record for blacklist tracking
+                trade_repo.record_ghost_failure(instrument_id)
+                ghost_count = trade_repo.get_ghost_failure_count(instrument_id)
+
+                logger.warning(
+                    "ExecutionWorker: trade #%d (%s) GHOST ORDER (orderId=%s) — "
+                    "failure #%d for this instrument",
+                    trade_id, symbol, api_position_id, ghost_count,
+                )
+                trade_repo.update_status(
+                    trade_id,
+                    "FAILED",
+                    rejection_reason=(
+                        f"Ghost order: orderId={api_position_id} but position "
+                        f"never materialized (failure #{ghost_count})"
+                    ),
+                )
+                log_repo.write(
+                    "WARN",
+                    "execution_worker",
+                    f"Trade #{trade_id} GHOST ORDER: {symbol} orderId={api_position_id} no position created (#{ghost_count})",
+                    {"symbol": symbol, "api_position_id": api_position_id, "ghost_count": ghost_count},
+                )
+                _post('post_trade_failed_embed',
+                    symbol=symbol,
+                    direction='BUY',
+                    amount_usd=amount_usd,
+                    error=f"Ghost order: orderId={api_position_id} but no position created (#{ghost_count})",
+                    dry_run=False,
+                )
+                failed_count += 1
+                continue
+
+            # Position verified — update trade with real data
+            entry_price = 0.0  # default; will be overwritten if matching_pos exists
+            if matching_pos:
+                entry_price = float(matching_pos.get("openRate", 0) or 0.0)
+                api_position_id = str(matching_pos.get("positionID", matching_pos.get("positionId", api_position_id)))
+                # Reset ghost failure counter on success
+                trade_repo.reset_ghost_failures(instrument_id)
 
             trade_repo.update_status(
                 trade_id,
                 "ACTIVE",
                 api_position_id=api_position_id,
+                order_id=api_position_id,
                 entry_price=entry_price if entry_price else None,
                 confirmed_at=_utcnow(),
             )

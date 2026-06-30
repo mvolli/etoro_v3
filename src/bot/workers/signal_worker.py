@@ -160,10 +160,21 @@ def main() -> None:
     # V5: risk_scalar replaces buy_aggressiveness (never >1.0 — no revenge trading)
     buy_aggressiveness: float = min(risk_scalar, 1.0)
 
-    # ── 5. Evaluate each signal (top 3 by score) ──────────────────────────────
-    # Sort by score descending, take max 3
+    # ── 5. Evaluate each signal (top 3 by score, deduplicated per instrument) ─
+    # Sort by score descending
     sorted_signals = sorted(buy_signals, key=lambda s: float(s.get("score", 0)), reverse=True)
-    candidates = sorted_signals[:3]
+    
+    # Deduplicate: keep only the highest-score signal per instrument_id
+    seen_instruments = set()
+    unique_candidates = []
+    for signal in sorted_signals:
+        inst_id = signal["instrument_id"]
+        if inst_id not in seen_instruments:
+            seen_instruments.add(inst_id)
+            unique_candidates.append(signal)
+    
+    # Take max 3 unique candidates
+    candidates = unique_candidates[:3]
 
     evaluated_count = 0
     approved_count = 0
@@ -183,22 +194,32 @@ def main() -> None:
         score = float(signal.get("score", 0))
         signal_id = signal.get("id")
 
-        # Look up symbol from portfolio or signals table
-        symbol = signal.get("symbol") or ""
+        # ── Ghost blacklist check — skip blacklisted instruments ──────────────
+        if trade_repo.is_instrument_blacklisted(instrument_id):
+            ghost_count = trade_repo.get_ghost_failure_count(instrument_id)
+            logger.info(
+                "SignalWorker: %s BLACKLISTED (%d consecutive ghost failures) — skipping",
+                instrument_id, ghost_count,
+            )
+            signal_repo.update_signal_status(signal_id, "REJECTED")
+            continue
+
+        # Look up symbol — signals table does NOT have a symbol column, so we must look it up
+        symbol = ""
+        # Primary: instruments table (has instrument_id → symbol)
+        try:
+            inst_row = db.fetchone(
+                "SELECT symbol FROM instruments WHERE instrument_id=?",
+                (instrument_id,),
+            )
+            if inst_row:
+                symbol = inst_row["symbol"] if isinstance(inst_row, dict) else inst_row[0]
+        except Exception:
+            pass
+        # Fallback: portfolio_snapshot
         if not symbol:
             snap = portfolio_repo.get_by_instrument(instrument_id)
             symbol = snap[0].get("symbol", "") if snap else ""
-        if not symbol:
-            # Fallback: look up in instruments table
-            try:
-                inst_row = db.fetchone(
-                    "SELECT symbol FROM instruments WHERE instrument_id=?",
-                    (instrument_id,),
-                )
-                if inst_row:
-                    symbol = inst_row["symbol"] if isinstance(inst_row, dict) else inst_row[0]
-            except Exception:
-                pass
         if not symbol:
             symbol = str(instrument_id)  # last resort
 
@@ -246,6 +267,9 @@ def main() -> None:
 
         if gate.allowed:
             evaluated_count += 1
+            # d. Get signal price for execution (yfinance data)
+            signal_price = float(signal.get("price") or 0.0) if signal.get("price") else None
+
             # e. Create trade PENDING_APPROVAL → immediately APPROVED
             trade_id = trade_repo.create(
                 instrument_id=instrument_id,
@@ -254,6 +278,7 @@ def main() -> None:
                 amount_usd=buy_amount,
                 stop_loss_pct=cfg.get("sl", {}).get("default_pct", 3.0),
                 signal_id=signal_id,
+                signal_price=signal_price,
             )
             from datetime import datetime, timezone
             trade_repo.update_status(
@@ -261,6 +286,8 @@ def main() -> None:
                 "APPROVED",
                 approved_at=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
             )
+            # Mark signal as consumed so it won't be re-processed
+            signal_repo.update_signal_status(signal_id, "CONSUMED")
             approved_count += 1
 
             # Update running totals so subsequent signals see projected state
@@ -270,8 +297,8 @@ def main() -> None:
             open_positions.append({"symbol": symbol, "amount_usd": buy_amount})
 
             logger.info(
-                "SignalWorker: APPROVED trade #%d — %s %s $%.2f (conviction=%s score=%.2f)",
-                trade_id, "BUY", symbol, buy_amount, conviction, score,
+                "SignalWorker: APPROVED trade #%d — %s %s $%.2f (conviction=%s score=%.2f signal_price=%.4f)",
+                trade_id, "BUY", symbol, buy_amount, conviction, score, signal_price or 0,
             )
             log_repo.write(
                 "INFO",
@@ -282,6 +309,7 @@ def main() -> None:
                     "instrument_id": instrument_id,
                     "conviction": conviction,
                     "score": score,
+                    "signal_price": signal_price,
                     "gate_reasons": gate.reasons,
                 },
             )
@@ -289,6 +317,8 @@ def main() -> None:
             evaluated_count += 1
             reason = gate.summary()
             blocked_reasons.append(f'{symbol}: {reason}')
+            # Mark signal as rejected so it won't be re-processed
+            signal_repo.update_signal_status(signal_id, "REJECTED")
             logger.info(
                 "SignalWorker: BLOCKED %s $%.2f — %s",
                 symbol, buy_amount, reason,

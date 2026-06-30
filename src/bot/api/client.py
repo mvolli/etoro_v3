@@ -390,18 +390,71 @@ class EToroClient:
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
         from bot.core.risk import calculate_sl_price, check_sl_quality_gate
 
-        # Fetch current price from eligibility info
-        eligibility = self.get_instrument_eligibility(instrument_id)
-        current_price: float | None = (
-            eligibility.get("lastPrice")
-            or eligibility.get("currentPrice")
-            or eligibility.get("rate")
-        )
+        # Fetch current price from eligibility info (with fallback to DB)
+        try:
+            eligibility = self.get_instrument_eligibility(instrument_id)
+            current_price: float | None = (
+                eligibility.get("lastPrice")
+                or eligibility.get("currentPrice")
+                or eligibility.get("rate")
+            )
+        except APIError as exc:
+            # Eligibility endpoint may return 404 — fall back to DB price
+            logger.warning(
+                "get_instrument_eligibility failed for %s (%s) — falling back to DB price",
+                instrument_id, exc
+            )
+            current_price = None
+        
+        # If no price from API, try to get it from portfolio_snapshot or signals
+        if current_price is None:
+            import sqlite3
+            from pathlib import Path
+            
+            # Resolve DB path: client.py is at src/bot/api/client.py, DB is at project_root/data/
+            project_root = Path(__file__).resolve().parent.parent.parent.parent  # → etoro_v3/
+            db_path = project_root / "data" / "trading.db"
+            
+            try:
+                conn = sqlite3.connect(str(db_path))
+                conn.row_factory = sqlite3.Row
+                
+                # Try portfolio_snapshot first (has current_price) — only works for existing positions
+                snapshot_rows = conn.execute(
+                    "SELECT current_price FROM portfolio_snapshot WHERE instrument_id=? AND current_price > 0 ORDER BY last_synced DESC LIMIT 1",
+                    (instrument_id,),
+                ).fetchall()
+                if snapshot_rows:
+                    price = float(snapshot_rows[0]["current_price"])
+                    if price > 0:
+                        current_price = price
+                        logger.info(
+                            "Using portfolio_snapshot price for %s: %.6f",
+                            instrument_id, current_price
+                        )
+                
+                # Fallback to latest signal price
+                if current_price is None:
+                    signal_rows = conn.execute(
+                        "SELECT price FROM signals WHERE instrument_id=? AND price > 0 ORDER BY generated_at DESC LIMIT 1",
+                        (instrument_id,),
+                    ).fetchall()
+                    if signal_rows:
+                        current_price = float(signal_rows[0]["price"])
+                        logger.info(
+                            "Using signal price for %s: %.6f",
+                            instrument_id, current_price
+                        )
+                
+                conn.close()
+            except Exception as db_exc:
+                logger.warning("DB price lookup failed for %s: %s", instrument_id, db_exc)
+        
         if current_price is None:
             raise APIError(
                 message=(
                     f"Cannot determine current price for instrument {instrument_id} "
-                    f"— eligibility response missing lastPrice/currentPrice/rate"
+                    f"— eligibility endpoint failed and no DB fallback available"
                 ),
                 status_code=0,
                 endpoint="/trading/info/real/eligibility",
@@ -428,6 +481,7 @@ class EToroClient:
             return {"success": False, "error": f"SL Quality Gate: {sl_check.summary()}"}
 
         body = {
+            "transaction": "Buy",
             "instrumentId": instrument_id,
             "amount": amount_usd,
             "leverage": 1,
@@ -477,22 +531,34 @@ class EToroClient:
     def get_instrument_eligibility(self, instrument_id: int) -> dict:
         """Return eligibility and pricing info for a single instrument.
 
-        Endpoint: GET /trading/info/real/eligibility?instrumentId={instrument_id}
+        Tries v2 endpoint first (primary), falls back to v1 on 404.
 
-        Parameters
-        ----------
-        instrument_id : int
-            eToro instrument identifier.
-
-        Returns
-        -------
-        dict
-            Eligibility payload including ``lastPrice``, ``canBuy``, etc.
+        Endpoints:
+            GET /api/v2/trading/info/real/eligibility?instrumentId={id}
+            GET /trading/info/real/eligibility?instrumentId={id}  (v1 fallback)
         """
-        return self.get(
-            "/trading/info/real/eligibility",
-            params={"instrumentId": instrument_id},
-        )
+        try:
+            return self.get(
+                "/trading/info/real/eligibility",
+                params={"instrumentId": instrument_id},
+            )
+        except APIError as exc:
+            if exc.status_code == 404:
+                logger.warning(
+                    "v1 eligibility 404 for %d — trying v2 endpoint",
+                    instrument_id,
+                )
+                try:
+                    return self.post(
+                        "/trading/info/real/eligibility",
+                        {"instrumentId": instrument_id},
+                        v2=True,
+                    )
+                except APIError:
+                    pass
+                # Both failed — re-raise original
+                raise exc
+            raise
 
     # ------------------------------------------------------------------
     # Context manager support

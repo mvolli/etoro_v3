@@ -60,7 +60,7 @@ MAX_CANDIDATES = 20     # pre-sector-filter pool size
 MIN_BUY_SCORE = 30.0    # minimum score to qualify
 SIGNAL_TTL_MINUTES = 360  # 6 hours
 
-# Full 80-symbol universe
+# Full 80-symbol universe (stocks/ETFs/crypto)
 FULL_UNIVERSE: list[str] = [
     # US Tech (20)
     "AAPL", "NVDA", "META", "MSFT", "AMZN", "GOOGL", "TSLA", "NFLX",
@@ -83,6 +83,36 @@ FULL_UNIVERSE: list[str] = [
     # International (6)
     "ENI.MI", "BP", "SHEL", "TSM", "BABA",
 ]
+
+
+def _get_multiasset_universe(db: Any) -> list[tuple[str, int]]:
+    """
+    Load Multi-Asset watchlist from DB (Forex, Commodities, Indices).
+    Returns list of (yfinance_symbol, instrument_id) tuples.
+    Skips instruments already covered by FULL_UNIVERSE.
+    """
+    try:
+        rows = db.fetchall("""
+            SELECT i.yfinance_symbol, i.instrument_id
+            FROM watchlist_multiasset w
+            JOIN instruments i ON w.instrument_id = i.instrument_id
+            WHERE w.is_active = 1
+              AND i.yfinance_symbol IS NOT NULL
+              AND i.asset_class IN ('forex', 'commodity', 'index')
+        """)
+        # Deduplicate yfinance symbols (keep first instrument_id)
+        seen: set[str] = set()
+        result: list[tuple[str, int]] = []
+        for row in rows:
+            yf_sym = row["yfinance_symbol"] if isinstance(row, dict) else row[0]
+            inst_id = row["instrument_id"] if isinstance(row, dict) else row[1]
+            if yf_sym and yf_sym not in seen:
+                seen.add(yf_sym)
+                result.append((yf_sym, inst_id))
+        return result
+    except Exception as exc:
+        logger.warning("[%s] Failed to load multi-asset watchlist: %s", WORKER_NAME, exc)
+        return []
 
 SECTOR_MAP: dict[str, str] = {
     "NVDA": "US_TECH", "AAPL": "US_TECH", "META": "US_TECH", "MSFT": "US_TECH",
@@ -342,10 +372,21 @@ def main() -> int:
         "[%s] Loaded %d instruments from map", WORKER_NAME, len(instrument_map)
     )
 
-    # ── 2. Batch-fetch OHLCV ─────────────────────────────────────────────────
-    logger.info("[%s] Starting discovery scan of %d symbols", WORKER_NAME, len(FULL_UNIVERSE))
+    # ── 2. Build combined symbol universe (stocks + multi-asset) ───────────────
+    all_symbols: list[str] = list(FULL_UNIVERSE)
+    symbol_to_inst_id: dict[str, int] = {}  # maps yf_symbol → instrument_id for multi-asset
+
+    # Load multi-asset watchlist from DB
+    multiasset = _get_multiasset_universe(db)
+    logger.info("[%s] Loaded %d multi-asset instruments from watchlist", WORKER_NAME, len(multiasset))
+    for yf_sym, inst_id in multiasset:
+        if yf_sym not in all_symbols:
+            all_symbols.append(yf_sym)
+            symbol_to_inst_id[yf_sym] = inst_id
+
+    logger.info("[%s] Starting discovery scan of %d total symbols", WORKER_NAME, len(all_symbols))
     try:
-        price_data = _batch_fetch(FULL_UNIVERSE)
+        price_data = _batch_fetch(all_symbols)
     except Exception as exc:
         logger.critical("[%s] Batch fetch failed — %s", WORKER_NAME, exc, exc_info=True)
         print(f"DiscoveryWorker: FATAL — batch fetch failed: {exc}")
@@ -418,7 +459,11 @@ def main() -> int:
     for cand in store_candidates:
         symbol = cand["symbol"]
         try:
-            instrument_id = _symbol_to_instrument_id(symbol, instrument_map)
+            # Prefer direct watchlist mapping for multi-asset instruments
+            if symbol in symbol_to_inst_id:
+                instrument_id = symbol_to_inst_id[symbol]
+            else:
+                instrument_id = _symbol_to_instrument_id(symbol, instrument_map)
 
             # Ensure instrument row exists
             _ensure_instrument(symbol, instrument_id, db)

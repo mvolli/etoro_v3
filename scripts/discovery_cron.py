@@ -87,6 +87,7 @@ def run_discovery(conn, region):
         WHERE {where}
           AND is_active = 1
           AND yfinance_symbol IS NOT NULL AND yfinance_symbol != ''
+          AND COALESCE(yahoo_status, 'unknown') != 'delisted'
         ORDER BY
           CASE WHEN yfinance_symbol LIKE '%.DE' OR yfinance_symbol LIKE '%.AS' OR yfinance_symbol LIKE '%.PA' OR yfinance_symbol LIKE '%.SW' OR yfinance_symbol LIKE '%.L' THEN 0 ELSE 1 END,
           LENGTH(name) DESC, name ASC

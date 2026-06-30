@@ -32,8 +32,58 @@ def check_latest_date(conn, instrument_id: int) -> Optional[str]:
     return row['max_date'] if row and row['max_date'] else None
 
 
+def is_delisted_error(yf_symbol: str, error_msg: str) -> bool:
+    """Check ob der Error auf ein delistetes Symbol hindeutet."""
+    delisted_keywords = [
+        'no data found', 'delisted', 'not found', 'quote not found',
+        'possibly delisted', '404'
+    ]
+    error_lower = str(error_msg).lower()
+    return any(kw in error_lower for kw in delisted_keywords)
+
+
+def update_yahoo_status(conn, instrument_id: int, yf_symbol: str, success: bool):
+    """Update yahoo_status + fail_count für ein Instrument.
+    
+    Nach 3+ fehlgeschlagenen Versuchen mit delisted-Error → 'delisted'.
+    Bei Erfolg → zurück auf 'ok', fail_count=0.
+    """
+    c = conn.cursor()
+    
+    if success:
+        c.execute("""
+            UPDATE instruments 
+            SET yahoo_status = 'ok', 
+                yahoo_fail_count = 0,
+                last_updated = CURRENT_TIMESTAMP
+            WHERE instrument_id = ?
+        """, (instrument_id,))
+    else:
+        # Increment fail count
+        c.execute("""
+            UPDATE instruments 
+            SET yahoo_fail_count = COALESCE(yahoo_fail_count, 0) + 1,
+                last_updated = CURRENT_TIMESTAMP
+            WHERE instrument_id = ?
+        """, (instrument_id,))
+        
+        # Nach 3+ Fehlschlägen → delisted
+        c.execute("""
+            UPDATE instruments 
+            SET yahoo_status = 'delisted',
+                last_updated = CURRENT_TIMESTAMP
+            WHERE instrument_id = ? AND COALESCE(yahoo_fail_count, 0) >= 3
+        """, (instrument_id,))
+        
+    conn.commit()
+
+
 def fetch_ohlcv(yf_symbol: str, start_date: str, end_date: str) -> Optional[Any]:
-    """FETCH: Hole OHLCV-Daten via yfinance für den fehlenden Zeitraum."""
+    """FETCH: Hole OHLCV-Daten via yfinance für den fehlenden Zeitraum.
+    
+    Returns tuple: (df_or_None, is_delisted_bool)
+    is_delisted=True wenn der Error klar auf delisted hindeutet.
+    """
     try:
         import pandas as pd
         import yfinance as yf
@@ -43,7 +93,7 @@ def fetch_ohlcv(yf_symbol: str, start_date: str, end_date: str) -> Optional[Any]
         
         if df.empty:
             logger.warning(f"yfinance returned empty for {yf_symbol} ({start_date} to {end_date})")
-            return None
+            return None, False
         
         # Normalize column names
         df.columns = [col.lower() for col in df.columns]
@@ -53,10 +103,13 @@ def fetch_ohlcv(yf_symbol: str, start_date: str, end_date: str) -> Optional[Any]
         # Ensure date is string format
         df['date'] = df['date'].dt.strftime('%Y-%m-%d')
         
-        return df
+        return df, False
     except Exception as e:
-        logger.error(f"yfinance error for {yf_symbol}: {e}")
-        return None
+        error_msg = str(e)
+        delisted = is_delisted_error(yf_symbol, error_msg)
+        level = logger.warning if delisted else logger.error
+        level(f"yfinance error for {yf_symbol}: {e}" + (" [DELISTED]" if delisted else ""))
+        return None, delisted
 
 
 def store_ohlcv(conn, instrument_id: int, df) -> int:
@@ -121,24 +174,27 @@ def ensure_ohlcv(conn, instrument_id: int, yf_symbol: str, required_days: int = 
         
         # Prüfe ob wir genug Daten haben
         c = conn.cursor()
-        c.execute("SELECT COUNT(*) as cnt FROM ohlcv_daily WHERE instrument_id = ?", (instrument_id,))
+        c.execute("SELECT COUNT(*) as cnt FROM ohlcv_daily WHERE instrument_id = ? AND date >= ?", (instrument_id, needed_start))
         existing_count = c.fetchone()['cnt']
         
         if existing_count >= required_days:
+            update_yahoo_status(conn, instrument_id, yf_symbol, success=True)
             return True, existing_count
         
         # Nur fehlende Tage holen
         today = datetime.utcnow().strftime('%Y-%m-%d')
-        df = fetch_ohlcv(yf_symbol, needed_start, today)
+        df, delisted = fetch_ohlcv(yf_symbol, needed_start, today)
     else:
         # Kein Cache – alles holen
         end_date = datetime.utcnow().strftime('%Y-%m-%d')
         start_date = (datetime.utcnow() - timedelta(days=required_days + 10)).strftime('%Y-%m-%d')
-        df = fetch_ohlcv(yf_symbol, start_date, end_date)
+        df, delisted = fetch_ohlcv(yf_symbol, start_date, end_date)
     
+    # Update Yahoo Status
     if df is not None and not df.empty:
         # STORE
         stored = store_ohlcv(conn, instrument_id, df)
+        update_yahoo_status(conn, instrument_id, yf_symbol, success=True)
         
         c = conn.cursor()
         c.execute("SELECT COUNT(*) as cnt FROM ohlcv_daily WHERE instrument_id = ?", (instrument_id,))
@@ -149,6 +205,22 @@ def ensure_ohlcv(conn, instrument_id: int, yf_symbol: str, required_days: int = 
         
         logger.warning(f"{yf_symbol}: only {total} days available after fetch (needed {required_days})")
         return total > 0, total
+    
+    # Kein Daten → fail count erhöhen
+    update_yahoo_status(conn, instrument_id, yf_symbol, success=False)
+    
+    # Wenn delisted, sofort markieren (fail_count auf 3 setzen)
+    if delisted:
+        c = conn.cursor()
+        c.execute("""
+            UPDATE instruments 
+            SET yahoo_fail_count = MAX(COALESCE(yahoo_fail_count, 0), 3),
+                yahoo_status = 'delisted',
+                last_updated = CURRENT_TIMESTAMP
+            WHERE instrument_id = ?
+        """, (instrument_id,))
+        conn.commit()
+        logger.warning(f"{yf_symbol}: marked as DELISTED (Yahoo returns no data)")
     
     return False, 0
 
@@ -168,11 +240,30 @@ def bulk_ensure_ohlcv(conn, instruments: list, required_days: int = 50, batch_si
     results = {}
     total = len(instruments)
     
+    # Skip delisted instrumente
+    c = conn.cursor()
+    delisted_ids = set()
+    for inst in instruments:
+        iid = inst['instrument_id']
+        c.execute("SELECT COALESCE(yahoo_status, 'unknown') FROM instruments WHERE instrument_id = ?", (iid,))
+        row = c.fetchone()
+        if row and row[0] == 'delisted':
+            delisted_ids.add(iid)
+    
+    skipped_delisted = 0
+    
     for i in range(0, total, batch_size):
         batch = instruments[i:i + batch_size]
         
         for inst in batch:
             iid = inst['instrument_id']
+            
+            # Skip delisted
+            if iid in delisted_ids:
+                results[iid] = {'has_data': False, 'days': 0, 'error': 'yahoo_delisted'}
+                skipped_delisted += 1
+                continue
+            
             yf_sym = inst.get('yfinance_symbol', inst.get('symbol'))
             
             if not yf_sym:
@@ -185,5 +276,8 @@ def bulk_ensure_ohlcv(conn, instruments: list, required_days: int = 50, batch_si
             progress = min(i + len(batch), total)
             if progress % 50 == 0 or progress == total:
                 logger.info(f"OHLCV Cache: {progress}/{total} instruments processed")
+    
+    if skipped_delisted > 0:
+        logger.info(f"OHLCV Cache: skipped {skipped_delisted} delisted instruments")
     
     return results

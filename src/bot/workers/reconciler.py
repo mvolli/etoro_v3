@@ -57,7 +57,7 @@ def _discord(fn_name: str, **kwargs) -> None:
 
 # ── constants ─────────────────────────────────────────────────────────────────
 WORKER_NAME = "reconciler"
-ORPHAN_THRESHOLD_MINUTES = 10
+ORPHAN_THRESHOLD_MINUTES = 5
 
 # Hardcoded fallback instrument_id → symbol map (used when data/instrument_map.json absent)
 # VERIFIED via eToro watchlist API on 2026-06-24
@@ -378,6 +378,7 @@ def main() -> int:
             log_repo.write("WARNING", WORKER_NAME, msg)
 
     # ── 9. Trade reconciliation: mark ACTIVE trades CLOSED if no API match ────
+    # ALSO backfill entry_price from portfolio_snapshot for ACTIVE trades that have None
     closed_trade_count = 0
     try:
         active_trades = trade_repo.get_by_status("ACTIVE")
@@ -390,6 +391,27 @@ def main() -> int:
     for trade in active_trades:
         pos_id = trade.get("api_position_id")
         if pos_id and pos_id in live_position_ids:
+            # Position still live — backfill entry_price if missing
+            snap = next(
+                (s for s in all_snapshots if s["api_position_id"] == pos_id),
+                None,
+            )
+            if snap and trade.get("entry_price") is None:
+                open_price = snap.get("open_price")
+                if open_price:
+                    try:
+                        trade_repo.update_status(
+                            trade["id"],
+                            "ACTIVE",
+                            entry_price=float(open_price),
+                        )
+                        msg = f"Trade {trade['id']} ({trade.get('symbol')}) backfilled entry_price={open_price}"
+                        print(f"[{WORKER_NAME}] INFO: {msg}")
+                        log_repo.write("INFO", WORKER_NAME, msg, {"trade_id": trade["id"], "entry_price": open_price})
+                    except Exception as exc:
+                        msg = f"Failed to backfill entry_price for trade {trade['id']}: {exc}"
+                        print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
+                        log_repo.write("WARNING", WORKER_NAME, msg)
             continue  # still live — leave alone
 
         # Trade is ACTIVE in DB but has no matching live position → mark CLOSED

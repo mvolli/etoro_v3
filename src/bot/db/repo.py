@@ -46,6 +46,7 @@ def _utcnow() -> str:
 _TRADE_UPDATE_FIELDS = frozenset(
     {
         "api_position_id",
+        "order_id",
         "entry_price",
         "exit_price",
         "pnl_usd",
@@ -79,19 +80,23 @@ class TradeRepo:
         amount_usd: float,
         stop_loss_pct: float,
         signal_id: int | None = None,
+        signal_price: float | None = None,
     ) -> int:
         """
         Insert a new trade with status='PENDING_APPROVAL'.
         Returns the new trade id.
+
+        `signal_price` stores the price from the signal at approval time
+        (yfinance data) so execution doesn't need to fetch it again.
         """
         cur = self.db.execute(
             """
             INSERT INTO trades
-                (instrument_id, symbol, direction, amount_usd, stop_loss_pct, signal_id, status)
+                (instrument_id, symbol, direction, amount_usd, stop_loss_pct, signal_id, signal_price, status)
             VALUES
-                (?, ?, ?, ?, ?, ?, 'PENDING_APPROVAL')
+                (?, ?, ?, ?, ?, ?, ?, 'PENDING_APPROVAL')
             """,
-            (instrument_id, symbol, direction, amount_usd, stop_loss_pct, signal_id),
+            (instrument_id, symbol, direction, amount_usd, stop_loss_pct, signal_id, signal_price),
         )
         return cur.lastrowid  # type: ignore[return-value]
 
@@ -180,10 +185,71 @@ class TradeRepo:
         )
         return _rows_to_dicts(rows)
 
+    # ── Ghost Order Blacklist ──────────────────────────────────────────────────
+
+    GHOST_BLACKLIST_THRESHOLD = 3   # blacklist after N consecutive ghost failures
+    GHOST_BLACKLIST_HOURS = 6       # cooldown duration
+
+    def record_ghost_failure(self, instrument_id: int) -> None:
+        """Increment consecutive ghost failure counter. Blacklist after threshold."""
+        from datetime import timedelta
+        now = _utcnow()
+        row = self.db.fetchone(
+            "SELECT consecutive_failures FROM instrument_failures WHERE instrument_id = ?",
+            (instrument_id,),
+        )
+        current = row["consecutive_failures"] if row else 0
+        new_count = current + 1
+
+        blacklisted_until: str | None = None
+        if new_count >= self.GHOST_BLACKLIST_THRESHOLD:
+            blacklisted_until = (
+                datetime.now(timezone.utc) + timedelta(hours=self.GHOST_BLACKLIST_HOURS)
+            ).strftime("%Y-%m-%d %H:%M:%S")
+
+        self.db.execute(
+            """
+            INSERT INTO instrument_failures
+                (instrument_id, consecutive_failures, last_failure_at, blacklisted_until)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(instrument_id) DO UPDATE SET
+                consecutive_failures = excluded.consecutive_failures,
+                last_failure_at      = excluded.last_failure_at,
+                blacklisted_until    = excluded.blacklisted_until
+            """,
+            (instrument_id, new_count, now, blacklisted_until),
+        )
+
+    def reset_ghost_failures(self, instrument_id: int) -> None:
+        """Clear failure counter after a successful trade confirmation."""
+        self.db.execute(
+            "DELETE FROM instrument_failures WHERE instrument_id = ?",
+            (instrument_id,),
+        )
+
+    def is_instrument_blacklisted(self, instrument_id: int) -> bool:
+        """Return True if the instrument is currently blacklisted for ghost orders."""
+        row = self.db.fetchone(
+            "SELECT blacklisted_until FROM instrument_failures WHERE instrument_id = ?",
+            (instrument_id,),
+        )
+        if row and row["blacklisted_until"]:
+            return row["blacklisted_until"] > _utcnow()
+        return False
+
+    def get_ghost_failure_count(self, instrument_id: int) -> int:
+        """Return the current consecutive ghost failure count."""
+        row = self.db.fetchone(
+            "SELECT consecutive_failures FROM instrument_failures WHERE instrument_id = ?",
+            (instrument_id,),
+        )
+        return row["consecutive_failures"] if row else 0
+
 
 # ── SignalRepo ────────────────────────────────────────────────────────────────
 
 _CONVICTION_ORDER = {"VERY_HIGH": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}
+_SIGNAL_STATUSES = frozenset({"FRESH", "CONSUMED", "REJECTED", "EXPIRED"})
 
 
 class SignalRepo:
@@ -204,7 +270,7 @@ class SignalRepo:
         price: float | None = None,
         ttl_minutes: int = 60,
     ) -> int:
-        """Insert a new signal with an expiry = now + ttl_minutes. Returns signal id."""
+        """Insert a new signal with status='FRESH' and expiry = now + ttl_minutes. Returns signal id."""
         expires_at = (
             f"datetime('now','+{ttl_minutes} minutes','utc')"
         )
@@ -212,13 +278,22 @@ class SignalRepo:
             f"""
             INSERT INTO signals
                 (instrument_id, signal_type, conviction, score,
-                 rsi, macd_hist, bb_pct, price, expires_at)
+                 rsi, macd_hist, bb_pct, price, expires_at, status)
             VALUES
-                (?, ?, ?, ?, ?, ?, ?, ?, {expires_at})
+                (?, ?, ?, ?, ?, ?, ?, ?, {expires_at}, 'FRESH')
             """,
             (instrument_id, signal_type, conviction, score, rsi, macd_hist, bb_pct, price),
         )
         return cur.lastrowid  # type: ignore[return-value]
+
+    def update_signal_status(self, signal_id: int, new_status: str) -> None:
+        """Update signal status to CONSUMED, REJECTED, or EXPIRED."""
+        if new_status not in _SIGNAL_STATUSES:
+            raise ValueError(f"Invalid signal status: {new_status}")
+        self.db.execute(
+            "UPDATE signals SET status = ? WHERE id = ?",
+            (new_status, signal_id),
+        )
 
     def get_fresh(
         self,
@@ -226,10 +301,13 @@ class SignalRepo:
         min_conviction: str | None = None,
     ) -> list[dict]:
         """
-        Return non-expired signals, optionally filtered by instrument and
+        Return non-expired FRESH signals, optionally filtered by instrument and
         minimum conviction level (LOW < MEDIUM < HIGH < VERY_HIGH).
+
+        EXCLUDES signals with status != 'FRESH' (CONSUMED/REJECTED/EXPIRED).
+        This prevents the same signal from being re-processed every cycle.
         """
-        clauses = ["expires_at > datetime('now','utc')"]
+        clauses = ["expires_at > datetime('now','utc')", "status = 'FRESH'"]
         params: list[Any] = []
 
         if instrument_id is not None:
@@ -246,15 +324,15 @@ class SignalRepo:
 
         where = " AND ".join(clauses)
         rows = self.db.fetchall(
-            f"SELECT * FROM signals WHERE {where} ORDER BY generated_at DESC",
+            f"SELECT * FROM signals WHERE {where} ORDER BY score DESC, generated_at DESC",
             params,
         )
         return _rows_to_dicts(rows)
 
     def expire_old(self) -> int:
-        """Delete expired signals. Returns number of rows deleted."""
+        """Mark expired signals as EXPIRED (soft delete). Returns number of rows updated."""
         cur = self.db.execute(
-            "DELETE FROM signals WHERE expires_at < datetime('now','utc')"
+            "UPDATE signals SET status = 'EXPIRED' WHERE expires_at < datetime('now','utc') AND status = 'FRESH'"
         )
         return cur.rowcount
 

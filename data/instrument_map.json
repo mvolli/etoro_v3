@@ -1,10 +1,6 @@
 {
   "_meta": {
-    "count": 34,
-    "notes": "Refreshed 2026-06-25 — TTL expired, map repopulated from existing data. API blocked by Cloudflare (403) from server IPs.",
-    "saved_at": "2026-06-25T21:52:52.464541+00:00",
-    "source": "live price-triangulation + watchlist API verification",
-    "updated": "2026-06-24-final"
+    "saved_at": "2026-06-29T17:30:55.689856+00:00"
   },
   "map": {
     "100000": "BTC-USD",
