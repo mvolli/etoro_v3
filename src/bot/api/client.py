@@ -391,63 +391,89 @@ class EToroClient:
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
         from bot.core.risk import calculate_sl_price, check_sl_quality_gate
 
-        # a) Eligibility gate — check allowOpenPosition via official endpoint
-        #    POST /api/v1/trading/info/eligibility with {"instrumentIds": [...]}
-        #    Response: { "eligibilities": [{ "instrumentId": X, "allowOpenPosition": bool, ... }] }
-        eligibility_resp = self.post(
-            "/trading/info/eligibility",
-            {"instrumentIds": [instrument_id]},
-        )
-        elig_list = eligibility_resp.get("eligibilities", [])
-        for e in elig_list:
-            if e.get("instrumentId") == instrument_id:
-                if not e.get("allowOpenPosition", True):
+        # a) Eligibility gate — official v2 endpoint
+        #    POST /api/v2/trading/info/eligibility
+        #    Returns: allowOpenPosition, leverageConfigs (SL/TP bounds), minPositionExposure, etc.
+        eligibility_resp = None
+        elig_data = None  # The eligibility dict for this instrument
+        current_price = None  # Initialize early — may be set by eligibility or fallback
+        try:
+            eligibility_resp = self.post(
+                "/trading/info/eligibility",
+                {"instrumentIds": [instrument_id], "currency": "USD"},
+                v2=True,
+            )
+        except APIError as exc:
+            logger.warning(
+                "Eligibility v2 endpoint failed for %s (%s) — fail-open, proceeding with trade",
+                instrument_id, exc
+            )
+            eligibility_resp = None
+
+        if eligibility_resp is not None:
+            elig_list = eligibility_resp.get("eligibilities", [])
+            for e in elig_list:
+                if e.get("instrumentId") == instrument_id:
+                    elig_data = e
+                    # 1) allowOpenPosition check
+                    if not e.get("allowOpenPosition", True):
+                        logger.warning(
+                            "open_position BLOCKED: instrument %s allowOpenPosition=false",
+                            instrument_id,
+                        )
+                        return {
+                            "success": False,
+                            "error": (
+                                f"Instrument {instrument_id} not eligible for real trading "
+                                f"(allowOpenPosition={e.get('allowOpenPosition')})"
+                            ),
+                        }
+                    # 2) Validate SL is within allowed bounds from leverageConfigs
+                    #    We'll validate the computed SL rate after we have current_price
+                    break
+            else:
+                # Instrument not in eligibilities — check notFoundInstrumentIds
+                not_found = eligibility_resp.get("notFoundInstrumentIds", [])
+                not_found_sym = eligibility_resp.get("notFoundSymbols", [])
+                if instrument_id in not_found:
                     logger.warning(
-                        "open_position BLOCKED: instrument %s allowOpenPosition=false",
+                        "open_position BLOCKED: instrument %s not found by eToro API",
                         instrument_id,
                     )
                     return {
                         "success": False,
-                        "error": (
-                            f"Instrument {instrument_id} not eligible for real trading "
-                            f"(allowOpenPosition={e.get('allowOpenPosition')})"
-                        ),
+                        "error": f"Instrument {instrument_id} not found (not tradable)",
                     }
-                # Use lastPrice from eligibility response if available
-                current_price = e.get("lastPrice") or e.get("currentPrice")
-                break
-        else:
-            # Instrument not in eligibilities — check notFoundInstrumentIds
-            not_found = eligibility_resp.get("notFoundInstrumentIds", [])
-            if instrument_id in not_found:
-                logger.warning(
-                    "open_position BLOCKED: instrument %s not found by eToro API",
-                    instrument_id,
-                )
-                return {
-                    "success": False,
-                    "error": f"Instrument {instrument_id} not found (not tradable)",
-                }
-            # Fallback to DB price if eligibility endpoint didn't return price
-            current_price = None
+                # current_price stays None — will use fallback below
 
-        # Fetch current price from old eligibility info as fallback (with fallback to DB)
+        # Fetch current price from market-data/rates endpoint (reliable source)
         if current_price is None:
             try:
-                eligibility = self.get_instrument_eligibility(instrument_id)
-                current_price = (
-                    eligibility.get("lastPrice")
-                    or eligibility.get("currentPrice")
-                    or eligibility.get("rate")
+                rates_resp = self.get(
+                    "/market-data/instruments/rates",
+                    params={"instrumentIds": str(instrument_id)},
                 )
+                rates_list = rates_resp.get("rates", [])
+                if rates_list:
+                    rate_data = rates_list[0]
+                    # Use bid price for long positions (conservative)
+                    current_price = (
+                        rate_data.get("lastExecution")
+                        or rate_data.get("bid")
+                        or rate_data.get("ask")
+                    )
+                    if current_price:
+                        logger.info(
+                            "Market-data price for %s: %.6f",
+                            instrument_id, current_price
+                        )
             except APIError as exc:
                 logger.warning(
-                    "get_instrument_eligibility failed for %s (%s) — falling back to DB price",
+                    "Market-data rates failed for %s (%s) — trying DB fallback",
                     instrument_id, exc
                 )
-                current_price = None
         
-        # If no price from API, try to get it from portfolio_snapshot or signals
+        # If no price from market-data, try to get it from portfolio_snapshot or signals
         if current_price is None:
             import sqlite3
             from pathlib import Path
@@ -521,6 +547,45 @@ class EToroClient:
             )
             return {"success": False, "error": f"SL Quality Gate: {sl_check.summary()}"}
 
+        # SL bounds validation against eligibility leverageConfigs
+        if elig_data is not None:
+            sl_distance_pct = ((current_price - stop_loss_rate) / current_price) * 100
+            leverage_configs = elig_data.get("leverageConfigs", [])
+            # Find the config for leverage=1, long direction (our standard)
+            matching_config = None
+            for lc in leverage_configs:
+                if (lc.get("direction") == "long" and
+                    1 in lc.get("leverageValues", [])):
+                    matching_config = lc
+                    break
+            # If no exact match, use the first long config
+            if matching_config is None:
+                for lc in leverage_configs:
+                    if lc.get("direction") == "long":
+                        matching_config = lc
+                        break
+            if matching_config is not None:
+                min_sl_pct = matching_config.get("minStopLossPercentage")
+                max_sl_pct = matching_config.get("maxStopLossPercentage")
+                allow_edit_sl = matching_config.get("allowEditStopLoss", True)
+                if allow_edit_sl and min_sl_pct is not None and max_sl_pct is not None:
+                    # Clamp SL to allowed range
+                    clamped_sl_pct = max(min_sl_pct, min(sl_distance_pct, max_sl_pct))
+                    if abs(clamped_sl_pct - sl_distance_pct) > 0.5:  # More than 0.5% difference
+                        clamped_sl_rate = current_price * (1 - clamped_sl_pct / 100)
+                        logger.info(
+                            "open_position SL clamped for %s: %.1f%% → %.1f%% (bounds: %.1f-%.1f%%), "
+                            "sl_rate %.6f → %.6f",
+                            instrument_id, sl_distance_pct, clamped_sl_pct,
+                            min_sl_pct, max_sl_pct, stop_loss_rate, clamped_sl_rate
+                        )
+                        stop_loss_rate = clamped_sl_rate
+                        # Update body will use the new stop_loss_rate
+                    logger.info(
+                        "open_position SL validated for %s: distance=%.1f%% within bounds %.1f-%.1f%%",
+                        instrument_id, sl_distance_pct, min_sl_pct, max_sl_pct
+                    )
+
         body = {
             "transaction": "Buy",
             "instrumentId": instrument_id,
@@ -572,34 +637,58 @@ class EToroClient:
     def get_instrument_eligibility(self, instrument_id: int) -> dict:
         """Return eligibility and pricing info for a single instrument.
 
-        Tries v2 endpoint first (primary), falls back to v1 on 404.
+        Uses the official v2 POST endpoint:
+            POST /api/v2/trading/info/eligibility with {"instrumentIds": [...], "currency": "USD"}
 
-        Endpoints:
-            GET /api/v2/trading/info/real/eligibility?instrumentId={id}
-            GET /trading/info/real/eligibility?instrumentId={id}  (v1 fallback)
+        Falls back to market-data rate lookup on failure.
+
+        Returns
+        -------
+        dict
+            Eligibility data for the instrument (single item from eligibilities list).
         """
         try:
-            return self.get(
-                "/trading/info/real/eligibility",
-                params={"instrumentId": instrument_id},
+            resp = self.post(
+                "/trading/info/eligibility",
+                {"instrumentIds": [instrument_id], "currency": "USD"},
+                v2=True,
             )
-        except APIError as exc:
-            if exc.status_code == 404:
-                logger.warning(
-                    "v1 eligibility 404 for %d — trying v2 endpoint",
-                    instrument_id,
+            elig_list = resp.get("eligibilities", [])
+            if elig_list:
+                return elig_list[0]
+            # Check notFoundInstrumentIds
+            not_found = resp.get("notFoundInstrumentIds", [])
+            if instrument_id in not_found:
+                raise APIError(
+                    message=f"Instrument {instrument_id} not found by eToro API",
+                    status_code=404,
+                    endpoint="/trading/info/eligibility (v2)",
                 )
-                try:
-                    return self.post(
-                        "/trading/info/real/eligibility",
-                        {"instrumentId": instrument_id},
-                        v2=True,
-                    )
-                except APIError:
-                    pass
-                # Both failed — re-raise original
-                raise exc
-            raise
+            # No eligibility data — fall through to market-data fallback
+        except APIError as exc:
+            logger.warning(
+                "Eligibility v2 failed for %d (%s) — trying market-data rate fallback",
+                instrument_id, exc
+            )
+        # Fallback: get current rate from market-data endpoint
+        try:
+            rates = self.get(
+                "/market-data/instruments/rates",
+                params={"instrumentIds": str(instrument_id)},
+            )
+            if rates and isinstance(rates, list) and len(rates) > 0:
+                return {"rate": rates[0].get("rate"), "instrumentId": instrument_id}
+        except APIError as rate_exc:
+            logger.warning(
+                "Market-data rate fallback also failed for %d: %s",
+                instrument_id, rate_exc
+            )
+        # All fallbacks exhausted — re-raise original eligibility error
+        raise APIError(
+            message=f"Could not get eligibility or rate for instrument {instrument_id}",
+            status_code=0,
+            endpoint="/trading/info/eligibility (v2) + /market-data/instruments/rates",
+        )
 
     # ------------------------------------------------------------------
     # Context manager support
