@@ -384,15 +384,15 @@ class EToroClient:
 
         items = resp
         if isinstance(resp, dict):
-            items = resp.get("instruments") or resp.get("data") or []
+            # Live API returns 'instrumentDisplayDatas' (verified 2026-07-01)
+            items = resp.get("instrumentDisplayDatas") or resp.get("instruments") or resp.get("data") or []
         if not isinstance(items, list):
             return {}
 
         for item in items:
             iid = (
-                item.get("instrumentId")
-                or item.get("InstrumentID")
-                or item.get("instrumentID")
+                item.get("instrumentID")
+                or item.get("instrumentId")
             )
             try:
                 if iid is not None and int(iid) == int(instrument_id):
@@ -441,8 +441,10 @@ class EToroClient:
                 f"endpoint returned nothing (fail-open)"
             )
 
+        # Live API uses 'symbolFull' (verified 2026-07-01 via /market-data/instruments)
         live_symbol = (
-            meta.get("internalSymbolFull")
+            meta.get("symbolFull")
+            or meta.get("internalSymbolFull")
             or meta.get("symbol")
             or meta.get("ticker")
             or meta.get("displayName")
