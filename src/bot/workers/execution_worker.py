@@ -234,6 +234,7 @@ def main() -> None:
                     instrument_id=instrument_id,
                     amount_usd=amount_usd,
                     stop_loss_pct=stop_loss_pct,
+                    symbol=symbol,
                 )
     
                 # d1. BLOCKED path — open_position() returned a soft-block dict
