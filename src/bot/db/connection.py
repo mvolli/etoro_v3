@@ -133,6 +133,16 @@ class DB:
             return self._conn
         return self.connect()
 
+    def close(self) -> None:
+        """Close the active context-manager connection if open."""
+        if self._conn is not None:
+            try:
+                self._conn.close()
+            except Exception:
+                pass
+            finally:
+                self._conn = None
+
     def __repr__(self) -> str:
         return f"DB({self.db_path})"
 

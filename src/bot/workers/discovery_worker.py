@@ -384,6 +384,10 @@ def main() -> int:
             all_symbols.append(yf_sym)
             symbol_to_inst_id[yf_sym] = inst_id
 
+    # ── Release DB connection before yfinance (prevents lock conflicts with data_worker) ──
+    db.close()
+    logger.info("[%s] DB released — starting yfinance batch fetch", WORKER_NAME)
+
     logger.info("[%s] Starting discovery scan of %d total symbols", WORKER_NAME, len(all_symbols))
     try:
         price_data = _batch_fetch(all_symbols)
