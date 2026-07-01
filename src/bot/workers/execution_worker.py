@@ -236,7 +236,37 @@ def main() -> None:
                     stop_loss_pct=stop_loss_pct,
                 )
     
-                # d. Success — extract result fields
+                # d1. BLOCKED path — open_position() returned a soft-block dict
+                #     (allowOpenPosition=false, market closed, SL gate, price=0, etc.)
+                #     Fast-fail: skip polling entirely, mark FAILED with the specific reason.
+                if result.get("success") is False:
+                    block_error = result.get("error", "Unknown block reason")
+                    logger.warning(
+                        "ExecutionWorker: trade #%d (%s) BLOCKED by open_position(): %s",
+                        trade_id, symbol, block_error,
+                    )
+                    trade_repo.update_status(
+                        trade_id,
+                        "FAILED",
+                        rejection_reason=f"Blocked: {block_error}",
+                    )
+                    log_repo.write(
+                        "WARN",
+                        "execution_worker",
+                        f"Trade #{trade_id} BLOCKED: {symbol} — {block_error}",
+                        {"symbol": symbol, "block_reason": block_error},
+                    )
+                    _post('post_trade_failed_embed',
+                        symbol=symbol,
+                        direction='BUY',
+                        amount_usd=amount_usd,
+                        error=f"Pre-flight block: {block_error}",
+                        dry_run=False,
+                    )
+                    failed_count += 1
+                    continue
+    
+                # d2. Success — extract result fields
                 # eToro v2 /trading/execution/orders returns ONLY the order ID on success.
                 api_position_id = str(
                     result.get("positionId")
@@ -245,6 +275,13 @@ def main() -> None:
                     or result.get("id")
                     or ""
                 )
+    
+                # d3. Empty response guard — catches {} or unexpected API shape
+                if not api_position_id:
+                    logger.warning(
+                        "ExecutionWorker: trade #%d (%s) open_position() returned no order ID (empty/unexpected response)",
+                        trade_id, symbol,
+                    )
     
                 # Store order_id immediately so we can track it even if position verification fails
                 if api_position_id:
