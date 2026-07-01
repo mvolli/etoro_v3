@@ -218,9 +218,66 @@ def _extract_equity(portfolio_payload: dict) -> float:
     return credit + total_amount + unrealized_pnl
 
 
-def _build_snapshot_record(pos: dict, instrument_map: dict[int, str]) -> dict:
+def _resolve_symbol(
+    instr_id: int | None,
+    instrument_map: dict[int, str],
+    client: EToroClient | None = None,
+) -> tuple[str, bool]:
+    """
+    Resolve an instrument_id to a symbol using a 3-tier lookup strategy.
+
+    Tier 1: Local instrument_map (fastest — in-memory cache)
+    Tier 2: Live eToro API via client.get_instrument_metadata()
+    Tier 3: UNKNOWN fallback when both fail
+
+    Returns (symbol, was_resolved_via_api) where was_resolved_via_api is True
+    if we had to call the live API to resolve this ID. Callers can use this
+    to update the persistent cache with newly discovered mappings.
+
+    Fail-open: returns "UNKNOWN_{id}" on any failure — never raises.
+    """
+    if instr_id is None:
+        return ("UNKNOWN", False)
+
+    # Tier 1: Local map (fast path — no network call)
+    symbol = instrument_map.get(instr_id)
+    if symbol:
+        return (symbol, False)
+
+    # Tier 2: Live API lookup for unknown IDs
+    if client is not None:
+        try:
+            meta = client.get_instrument_metadata(instr_id)
+            if meta:
+                live_symbol = (
+                    meta.get("symbolFull")
+                    or meta.get("internalSymbolFull")
+                    or meta.get("symbol")
+                    or meta.get("ticker")
+                    or meta.get("displayName")
+                    or ""
+                )
+                if live_symbol:
+                    # Update the local map for future lookups in this cycle
+                    instrument_map[instr_id] = live_symbol
+                    return (live_symbol, True)
+        except Exception as exc:
+            print(
+                f"[{WORKER_NAME}] DEBUG: API lookup for ID {instr_id} failed: {exc}",
+                file=sys.stderr,
+            )
+
+    # Tier 3: UNKNOWN fallback — fail-open
+    return (f"UNKNOWN_{instr_id}", False)
+
+
+def _build_snapshot_record(pos: dict, instrument_map: dict[int, str], client: EToroClient | None = None) -> tuple[dict, set[int]]:
     """
     Map an eToro API position dict into the portfolio_snapshot schema.
+
+    Now uses a 3-tier symbol resolution (local map → live API → UNKNOWN).
+    Returns (record, api_resolved_ids) where api_resolved_ids contains any
+    instrument IDs that were resolved via the live API and should be persisted.
 
     API fields:
       positionID, instrumentID, amount, openRate,
@@ -251,10 +308,10 @@ def _build_snapshot_record(pos: dict, instrument_map: dict[int, str]) -> dict:
             return None
 
     instr_id = _int(instrument_id)
-    symbol = instrument_map.get(instr_id, f"UNKNOWN_{instr_id}") if instr_id else "UNKNOWN"
+    symbol, api_resolved = _resolve_symbol(instr_id, instrument_map, client)
     open_rate = _float(pos.get("openRate"))
 
-    return {
+    record = {
         "api_position_id":    str(pos.get("positionID") or pos.get("positionId", "")),
         "instrument_id":      instr_id,
         "symbol":             symbol,
@@ -268,6 +325,70 @@ def _build_snapshot_record(pos: dict, instrument_map: dict[int, str]) -> dict:
         "is_no_stop_loss":    1 if pos.get("isNoStopLoss") else 0,
         "last_synced":        _utcnow(),
     }
+
+    api_resolved_ids: set[int] = set()
+    if api_resolved and instr_id is not None:
+        api_resolved_ids.add(instr_id)
+
+    return (record, api_resolved_ids)
+
+
+def _save_instrument_map_update(instrument_map: dict[int, str], new_ids: dict[int, str]) -> None:
+    """
+    Atomically merge newly resolved instrument IDs into the persistent cache file.
+
+    Uses atomic write (write to temp + rename) to avoid partial writes on crash.
+    Also updates the instruments table in trading.db for each new entry.
+    """
+    if not new_ids:
+        return
+
+    # Merge with existing map
+    merged = dict(instrument_map)
+    merged.update(new_ids)
+
+    # Atomic write to cache file
+    cache_file = PROJECT_ROOT / "data" / "instrument_map.json"
+    tmp_file = cache_file.with_suffix(".tmp")
+    try:
+        payload = {
+            "_meta": {"saved_at": datetime.now(timezone.utc).isoformat()},
+            "map": {str(k): v for k, v in merged.items()},
+        }
+        tmp_file.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+        tmp_file.rename(cache_file)  # atomic on same filesystem
+        print(f"[{WORKER_NAME}] INFO: Updated instrument_map.json with {len(new_ids)} new entries")
+    except OSError as exc:
+        print(f"[{WORKER_NAME}] WARNING: Failed to update instrument_map.json: {exc}", file=sys.stderr)
+
+    # Also persist to instruments table in trading.db
+    try:
+        db_cfg_path = PROJECT_ROOT / "config" / "config.yaml"
+        if db_cfg_path.exists():
+            with db_cfg_path.open() as fh:
+                cfg = yaml.safe_load(fh)
+        db_path = PROJECT_ROOT / (cfg.get("db", {}).get("path", "data/trading.db") if db_cfg_path.exists() else "data/trading.db")
+        
+        db = DB(db_path=db_path, busy_timeout_ms=5000)
+        for iid, sym in new_ids.items():
+            # Guess asset class from symbol patterns
+            if any(sym.endswith(suffix) for suffix in ("-USD", "/USD")):
+                asset_class = "CRYPTO"
+            elif "=" in sym:
+                asset_class = "FOREX"
+            else:
+                asset_class = "STOCK"
+            
+            db.execute(
+                """INSERT OR IGNORE INTO instruments (instrument_id, symbol, asset_class, last_updated)
+                   VALUES (?, ?, ?, ?)""",
+                (iid, sym, asset_class, _utcnow()),
+            )
+        print(f"[{WORKER_NAME}] INFO: Upserted {len(new_ids)} instruments into trading.db")
+    except Exception as exc:
+        print(f"[{WORKER_NAME}] WARNING: Failed to update instruments table: {exc}", file=sys.stderr)
 
 
 # ── main reconciliation logic ─────────────────────────────────────────────────
@@ -320,20 +441,21 @@ def main() -> int:
         client = EToroClient(api_key=api_key, user_key=user_key, config=client_config)
     
         # ── 5. Fetch live positions from eToro API ─────────────────────────────────
+        portfolio_payload = None
         try:
             portfolio_payload = client.get_portfolio()
         except APIError as exc:
             msg = f"API call failed: GET /trading/info/real/pnl → {exc}"
             print(f"[{WORKER_NAME}] ERROR: {msg}", file=sys.stderr)
             log_repo.write("ERROR", WORKER_NAME, msg, {"status_code": exc.status_code, "endpoint": exc.endpoint})
+            client.close()
             return 1
         except Exception as exc:
             msg = f"Unexpected error fetching portfolio: {exc}"
             print(f"[{WORKER_NAME}] ERROR: {msg}", file=sys.stderr)
             log_repo.write("ERROR", WORKER_NAME, msg)
-            return 1
-        finally:
             client.close()
+            return 1
     
         # ── 6. Extract positions + equity ─────────────────────────────────────────
         live_positions  = _extract_positions(portfolio_payload)
@@ -359,16 +481,21 @@ def main() -> int:
                 description=msg,
                 severity="CRITICAL",
             )
+            client.close()
             return 1
     
         # ── 7. Upsert each live position into portfolio_snapshot ──────────────────
         synced_count = 0
+        all_api_resolved_ids: dict[int, str] = {}  # id -> symbol for newly resolved
         for pos in live_positions:
-            record = _build_snapshot_record(pos, instrument_map)
+            record, api_resolved_ids = _build_snapshot_record(pos, instrument_map, client)
             pos_id = record["api_position_id"]
             if not pos_id:
                 continue  # skip malformed entries
             live_position_ids.add(pos_id)
+            # Track newly resolved IDs for persistence
+            for rid in api_resolved_ids:
+                all_api_resolved_ids[rid] = record["symbol"]
             try:
                 portfolio_repo.upsert(record)
                 synced_count += 1
@@ -376,7 +503,15 @@ def main() -> int:
                 msg = f"Failed to upsert position {pos_id}: {exc}"
                 print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
                 log_repo.write("WARNING", WORKER_NAME, msg, {"position_id": pos_id})
-    
+
+        # ── 7.5 Persist any newly resolved instrument IDs ────────────────────────
+        if all_api_resolved_ids:
+            _save_instrument_map_update(instrument_map, all_api_resolved_ids)
+            print(f"[{WORKER_NAME}] INFO: Resolved {len(all_api_resolved_ids)} new instrument IDs via API")
+
+        # Close client after all API lookups are done
+        client.close()
+
         # ── 8. Orphan detection: delete stale snapshots not in live API ───────────
         # Any position last_synced > ORPHAN_THRESHOLD_MINUTES ago is an orphan
         orphan_cutoff = _utcnow_minus(ORPHAN_THRESHOLD_MINUTES)
