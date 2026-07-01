@@ -328,8 +328,28 @@ def main() -> None:
             if ts_stats['partial_closes'] > 0:
                 logger.info('RiskWorker: Trailing Stop: %d partial closes, %d break-evens',
                            ts_stats['partial_closes'], ts_stats['break_evens'])
+            if ts_stats.get('errors'):
+                for err in ts_stats['errors']:
+                    logger.warning('RiskWorker: Trailing Stop error: %s', err)
+                log_repo.write(
+                    'WARN',
+                    'risk_worker',
+                    f"Trailing Stop: {len(ts_stats['errors'])} partial-close error(s)",
+                    {'errors': ts_stats['errors']},
+                )
+                _discord(
+                    'post_alert_embed',
+                    title=f"🟠 Trailing Stop: {len(ts_stats['errors'])} Fehler",
+                    description=(
+                        f"Gewinne wurden NICHT teilweise realisiert.\n"
+                        + "\n".join(f'• {e}' for e in ts_stats['errors'][:5])
+                    ),
+                    severity='WARNING',
+                    dry_run=False,
+                )
     except Exception as _ts_exc:
-        logger.debug('RiskWorker: Trailing stop skipped: %s', _ts_exc)
+        logger.error('RiskWorker: Trailing stop failed: %s', _ts_exc)
+        log_repo.write('ERROR', 'risk_worker', f'Trailing stop crashed: {_ts_exc}')
 
     # ── 5. Summary ────────────────────────────────────────────────────────────
     print(f"RiskWorker: checked {checked_count} positions, closed {closed_count}, regime={regime}")

@@ -16,7 +16,7 @@
 #   :03 /15 → Signal Worker     (generates trading signals)
 #   :04 /15 → Execution Worker  (executes approved trades)
 #   */30    → Monitor Worker    (portfolio heartbeat, alerts)
-#   0 6,12,18,0 → Discovery     (scans for new candidates)
+#   0 */2      → Discovery     (scans for new candidates, every 2h)
 #   *5      → Kill Switch Watchdog (emergency stop check)
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -38,8 +38,11 @@
 # Monitor Worker — every 30 minutes
 */30 * * * *   cd /home/mvolli/.hermes/workspace/etoro_v3 && bash scripts/v3_monitor_worker.sh >> logs/monitor_worker.log 2>&1
 
-# Discovery Worker — 4x daily (06:00, 12:00, 18:00, 00:00 CET = UTC)
-0 6,12,18,0 * * * cd /home/mvolli/.hermes/workspace/etoro_v3 && bash scripts/v3_discovery_worker.sh >> logs/discovery_worker.log 2>&1
+# Discovery Worker — every 2 hours (raised from 4x/day — see
+# fix/signal-pool-exhaustion: at 3 signals/15min-cycle, the old 15-signal
+# batch was fully consumed within ~75min, leaving zero fresh signals for
+# hours during open market sessions until the next scheduled run)
+0 */2 * * * cd /home/mvolli/.hermes/workspace/etoro_v3 && bash scripts/v3_discovery_worker.sh >> logs/discovery_worker.log 2>&1
 
 # Kill Switch Watchdog — every 5 minutes
 */5 * * * *    cd /home/mvolli/.hermes/workspace/etoro_v3 && bash scripts/etoro_kill_switch_watchdog.sh >> logs/kill_switch.log 2>&1

@@ -618,11 +618,23 @@ class EToroClient:
         )
         return self.post("/trading/execution/orders", body, v2=True)
 
-    def close_position(self, position_id: str | int, instrument_id: int) -> dict:
-        """Close an existing open position.
+    def close_position(
+        self,
+        position_id: str | int,
+        instrument_id: int,
+        units_to_deduct: float | None = None,
+    ) -> dict:
+        """Close an existing open position, fully or partially.
 
         Endpoint:
             POST /trading/execution/market-close-orders/positions/{position_id}
+
+        Per eToro API docs (api-portal.etoro.com/guides/market-orders):
+          - Full close:    omit ``UnitsToDeduct`` (or leave it ``None``).
+          - Partial close: provide ``UnitsToDeduct`` as an absolute unit
+            count (NOT a percentage) representing how much of the position
+            to liquidate. Callers must convert a target percentage into
+            units themselves (units = amount_usd / open_rate * pct/100).
 
         Parameters
         ----------
@@ -630,20 +642,34 @@ class EToroClient:
             The eToro position identifier.
         instrument_id : int
             The instrument ID (included in the body for audit purposes).
+        units_to_deduct : float | None
+            Absolute number of units to close. ``None`` (default) closes
+            the entire position. Must be > 0 and less than the position's
+            total units for a genuine partial close.
 
         Returns
         -------
         dict
             Close-order confirmation payload.
+
+        Note
+        ----
+        The exact partial-close semantics (unit vs. lot conventions per
+        asset class) have not been verified against eToro's Demo API by
+        this patch. Before relying on this for real partial closes, run
+        one small test against the Demo trading environment.
         """
         endpoint = (
             f"/trading/execution/market-close-orders/positions/{position_id}"
         )
-        body = {"instrumentId": instrument_id}
+        body: dict = {"instrumentId": instrument_id}
+        if units_to_deduct is not None and units_to_deduct > 0:
+            body["UnitsToDeduct"] = units_to_deduct
         logger.debug(
-            "close_position position_id=%s instrument_id=%s",
+            "close_position position_id=%s instrument_id=%s units_to_deduct=%s",
             position_id,
             instrument_id,
+            units_to_deduct,
         )
         return self.post(endpoint, body)
 

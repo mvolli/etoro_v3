@@ -2,12 +2,12 @@
 """eToro Trading Bot V3 — Discovery Worker
 src/bot/workers/discovery_worker.py
 
-Runs 4x daily at 06:00, 12:00, 18:00, 00:00 CET.
+Runs every 2 hours (raised from 4x/day — see fix/signal-pool-exhaustion).
 Scans the full instrument universe (80 symbols) for trading candidates
 and updates the watchlist / signals DB.
 
 Schedule (cron, CET):
-  0 0,6,12,18 * * * cd /path/to/etoro_v3 && python3 -m bot.workers.discovery_worker
+  0 */2 * * * cd /path/to/etoro_v3 && python3 -m bot.workers.discovery_worker
 """
 from __future__ import annotations
 
@@ -55,8 +55,12 @@ logger = logging.getLogger("discovery_worker")
 
 WORKER_NAME = "discovery_worker"
 
-MAX_STORE = 15          # final candidates stored as signals in DB
-MAX_CANDIDATES = 20     # pre-sector-filter pool size
+MAX_STORE = 30          # final candidates stored as signals in DB
+                         # (raised from 15 — see fix/signal-pool-exhaustion:
+                         #  at 3 candidates/15min-cycle, 15 signals lasted only
+                         #  ~75min between 4x/day discovery runs, leaving the
+                         #  pool empty for hours during open market sessions)
+MAX_CANDIDATES = 40     # pre-sector-filter pool size (raised alongside MAX_STORE)
 MIN_BUY_SCORE = 30.0    # minimum score to qualify
 SIGNAL_TTL_MINUTES = 360  # 6 hours
 

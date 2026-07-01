@@ -45,21 +45,102 @@ CRYPTO_SYMBOLS: frozenset[str] = frozenset({
 })
 
 ASSET_CLASS_MAP: dict[str, str] = {
+    # US Tech
     "NVDA": "US_TECH", "META": "US_TECH", "MSFT": "US_TECH",
     "AMZN": "US_TECH", "AAPL": "US_TECH", "GOOGL": "US_TECH",
     "NFLX": "US_TECH", "AMD": "US_TECH", "INTC": "US_TECH",
     "ADBE": "US_TECH", "CRM": "US_TECH", "TSLA": "US_TECH",
-    "QQQ": "BROAD_ETF", "SPY": "BROAD_ETF", "IWM": "BROAD_ETF", "VTI": "BROAD_ETF",
+    "ORCL": "US_TECH", "PYPL": "US_TECH", "UBER": "US_TECH",
+    "LYFT": "US_TECH", "SNAP": "US_TECH", "TWLO": "US_TECH",
+    "ZM": "US_TECH", "DOCU": "US_TECH",
+    # Broad ETF
+    "QQQ": "BROAD_ETF", "SPY": "BROAD_ETF", "IWM": "BROAD_ETF",
+    "VTI": "BROAD_ETF", "EEM": "BROAD_ETF",
+    # Financial
+    "JPM": "FINANCIAL", "BAC": "FINANCIAL", "GS": "FINANCIAL",
+    "V": "FINANCIAL", "MA": "FINANCIAL", "BRK-B": "FINANCIAL",
+    "AXP": "FINANCIAL", "C": "FINANCIAL", "WFC": "FINANCIAL",
+    # Consumer
+    "WMT": "CONSUMER", "HD": "CONSUMER", "PG": "CONSUMER",
+    "KO": "CONSUMER", "PEP": "CONSUMER", "COST": "CONSUMER",
+    "NKE": "CONSUMER", "MCD": "CONSUMER", "SBUX": "CONSUMER",
+    # Healthcare
+    "JNJ": "HEALTHCARE", "UNH": "HEALTHCARE", "PFE": "HEALTHCARE",
+    "ABBV": "HEALTHCARE", "MRK": "HEALTHCARE", "LLY": "HEALTHCARE",
+    "TMO": "HEALTHCARE",
+    # Energy
+    "XOM": "ENERGY", "CVX": "ENERGY", "COP": "ENERGY", "SLB": "ENERGY",
+    # Commodity / Bond
     "GLD": "COMMODITY", "SLV": "COMMODITY", "CPER": "COMMODITY",
+    "USO": "COMMODITY", "TLT": "BOND",
+    # Crypto
     "BTC": "CRYPTO", "BTC-USD": "CRYPTO",
     "ETH": "CRYPTO", "ETH-USD": "CRYPTO",
     "XRP": "CRYPTO", "XRP-USD": "CRYPTO",
-    "DOGE": "CRYPTO", "SOL-USD": "CRYPTO", "BNB-USD": "CRYPTO",
-    "TLT": "BOND",
-    "ENI.MI": "INTL", "BP": "INTL", "TSM": "INTL",
-    "JPM": "FINANCIAL", "BAC": "FINANCIAL", "GS": "FINANCIAL",
-    "V": "FINANCIAL", "MA": "FINANCIAL",
+    "DOGE": "CRYPTO", "DOGE-USD": "CRYPTO",
+    "SOL-USD": "CRYPTO", "BNB-USD": "CRYPTO",
+    "ADA": "CRYPTO", "ADA-USD": "CRYPTO", "DOT": "CRYPTO", "DOT-USD": "CRYPTO",
+    # International
+    "ENI.MI": "INTL", "BP": "INTL", "SHEL": "INTL",
+    "TSM": "INTL", "BABA": "INTL",
 }
+
+# ── V5: Asset-Class Score Boost — prioritize stocks/ETFs during signal ─────
+# ranking. This does NOT change gate/exposure logic (ASSET_CLASS_LIMITS
+# above still caps final exposure) — it only nudges *which* signals win a
+# scarce top-3-per-cycle slot in signal_worker, so equities/ETFs are
+# preferred over indices/commodities/crypto when scores are close.
+# A multiplier of 1.0 is neutral; >1.0 boosts, <1.0 deprioritizes.
+ASSET_CLASS_SCORE_BOOST: dict[str, float] = {
+    "US_TECH":    1.15,
+    "FINANCIAL":  1.15,
+    "CONSUMER":   1.15,
+    "HEALTHCARE": 1.15,
+    "ENERGY":     1.15,
+    "BROAD_ETF":  1.10,
+    "INTL":       1.10,
+    "BOND":       1.00,
+    "COMMODITY":  0.95,
+    "CRYPTO":     0.85,
+}
+# Fallback boost for equity symbols not present in ASSET_CLASS_MAP —
+# classify_asset_class() below decides when this applies (default: any
+# symbol that isn't recognisably crypto/ETF/commodity is treated as a
+# plain stock and gets the same boost as the named equity sectors).
+DEFAULT_STOCK_SCORE_BOOST = 1.15
+
+_KNOWN_BROAD_ETFS = frozenset({"QQQ", "SPY", "IWM", "VTI", "EEM", "DIA", "RSP"})
+_KNOWN_COMMODITIES = frozenset({"GLD", "SLV", "CPER", "USO"})
+_KNOWN_BONDS = frozenset({"TLT"})
+
+
+def classify_asset_class(symbol: str) -> str:
+    """Best-effort asset-class classification for score-boost purposes.
+
+    Falls back to symbol-shape heuristics for instruments not in the
+    curated ASSET_CLASS_MAP, so the universe's ~65 symbols don't need to
+    be exhaustively hand-mapped for prioritization to work.
+    """
+    s = symbol.upper()
+    if s in ASSET_CLASS_MAP:
+        return ASSET_CLASS_MAP[s]
+    if s in CRYPTO_SYMBOLS or s.endswith("-USD"):
+        return "CRYPTO"
+    if s in _KNOWN_BROAD_ETFS:
+        return "BROAD_ETF"
+    if s in _KNOWN_COMMODITIES:
+        return "COMMODITY"
+    if s in _KNOWN_BONDS:
+        return "BOND"
+    return "STOCK"  # default: treat unrecognised symbols as plain equities
+
+
+def get_score_boost(symbol: str) -> float:
+    """Return the score multiplier for a symbol's asset class."""
+    asset_class = classify_asset_class(symbol)
+    if asset_class == "STOCK":
+        return DEFAULT_STOCK_SCORE_BOOST
+    return ASSET_CLASS_SCORE_BOOST.get(asset_class, 1.0)
 
 MAX_POSITIONS = 21
 MIN_BUY_USD = 50.0

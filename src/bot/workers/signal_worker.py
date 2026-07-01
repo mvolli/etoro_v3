@@ -84,7 +84,7 @@ def main() -> None:
 
     from bot.core.market_hours import is_market_open
     from bot.core.regime import get_regime_params
-    from bot.core.risk import check_buy_gate
+    from bot.core.risk import check_buy_gate, get_score_boost
     from bot.db.connection import DB
     from bot.db.repo import LogRepo, PortfolioRepo, SignalRepo, StateRepo, TradeRepo
 
@@ -163,41 +163,41 @@ def main() -> None:
     # V5: risk_scalar replaces buy_aggressiveness (never >1.0 — no revenge trading)
     buy_aggressiveness: float = min(risk_scalar, 1.0)
 
-    # ── 5. Evaluate each signal (top 3 by score, deduplicated per instrument) ─
-    # Sort by score descending
-    sorted_signals = sorted(buy_signals, key=lambda s: float(s.get("score", 0)), reverse=True)
-    
-    # Deduplicate: keep only the highest-score signal per instrument_id
-    seen_instruments = set()
-    unique_candidates = []
-    for signal in sorted_signals:
-        inst_id = signal["instrument_id"]
-        if inst_id not in seen_instruments:
-            seen_instruments.add(inst_id)
-            unique_candidates.append(signal)
-    
-    # Take max 3 unique candidates
-    candidates = unique_candidates[:3]
+    # ── 5. Rank & filter candidates BEFORE slicing to top-3 ────────────────────
+    # V5 fix: market-open and blacklist checks used to run *inside* the loop
+    # over the already-sliced top-3-by-score signals. That meant a closed
+    # market (e.g. crypto, which is always "fresh") or a blacklisted
+    # instrument could occupy one of only 3 scarce slots per 15-min cycle,
+    # starving open/tradable equity markets of any chance to be evaluated —
+    # even though their signals sat unused in the FRESH pool until the 6h TTL
+    # expired. Filtering BEFORE ranking+slicing fixes this.
 
-    evaluated_count = 0
-    approved_count = 0
-    blocked_reasons: list[str] = []
+    def _resolve_symbol(instrument_id: int) -> str:
+        """Look up ticker symbol for an instrument_id (signals table has none)."""
+        try:
+            inst_row = db.fetchone(
+                "SELECT symbol FROM instruments WHERE instrument_id=?",
+                (instrument_id,),
+            )
+            if inst_row:
+                return inst_row["symbol"] if isinstance(inst_row, dict) else inst_row[0]
+        except Exception:
+            pass
+        snap = portfolio_repo.get_by_instrument(instrument_id)
+        if snap:
+            sym = snap[0].get("symbol", "")
+            if sym:
+                return sym
+        return str(instrument_id)
+
     skipped_closed: list[str] = []
+    eligible: list[tuple[dict, str]] = []  # (signal, symbol) — open market, not blacklisted
 
-    # Fetch open positions once for asset-class gate (list of {symbol, amount_usd})
-    open_positions_raw = portfolio_repo.get_all()
-    open_positions = [
-        {"symbol": p.get("symbol", ""), "amount_usd": float(p.get("amount_usd") or 0.0)}
-        for p in open_positions_raw
-    ]
-
-    for signal in candidates:
+    for signal in buy_signals:
         instrument_id = signal["instrument_id"]
-        conviction = signal.get("conviction", "MEDIUM")
-        score = float(signal.get("score", 0))
         signal_id = signal.get("id")
 
-        # ── Ghost blacklist check — skip blacklisted instruments ──────────────
+        # Ghost blacklist check — skip blacklisted instruments
         if trade_repo.is_instrument_blacklisted(instrument_id):
             ghost_count = trade_repo.get_ghost_failure_count(instrument_id)
             logger.info(
@@ -207,30 +207,53 @@ def main() -> None:
             signal_repo.update_signal_status(signal_id, "REJECTED")
             continue
 
-        # Look up symbol — signals table does NOT have a symbol column, so we must look it up
-        symbol = ""
-        # Primary: instruments table (has instrument_id → symbol)
-        try:
-            inst_row = db.fetchone(
-                "SELECT symbol FROM instruments WHERE instrument_id=?",
-                (instrument_id,),
-            )
-            if inst_row:
-                symbol = inst_row["symbol"] if isinstance(inst_row, dict) else inst_row[0]
-        except Exception:
-            pass
-        # Fallback: portfolio_snapshot
-        if not symbol:
-            snap = portfolio_repo.get_by_instrument(instrument_id)
-            symbol = snap[0].get("symbol", "") if snap else ""
-        if not symbol:
-            symbol = str(instrument_id)  # last resort
+        symbol = _resolve_symbol(instrument_id)
 
         # Market hours check (Crypto = always open)
         if not is_market_open(symbol):
-            logger.info('SignalWorker: %s market closed — skipping signal', symbol)
             skipped_closed.append(f'{symbol} (market closed)')
             continue
+
+        eligible.append((signal, symbol))
+
+    # Sort by boosted score descending — only among OPEN, non-blacklisted
+    # signals. The boost (get_score_boost) prioritizes stocks/ETFs over
+    # crypto/commodities/indices when raw scores are close, without
+    # changing the underlying exposure caps (ASSET_CLASS_LIMITS in
+    # risk.py still applies at the gate stage further down).
+    eligible.sort(
+        key=lambda t: float(t[0].get("score", 0)) * get_score_boost(t[1]),
+        reverse=True,
+    )
+
+    # Deduplicate: keep only the highest-score signal per instrument_id
+    seen_instruments = set()
+    unique_candidates: list[tuple[dict, str]] = []
+    for signal, symbol in eligible:
+        inst_id = signal["instrument_id"]
+        if inst_id not in seen_instruments:
+            seen_instruments.add(inst_id)
+            unique_candidates.append((signal, symbol))
+
+    # Take max 3 unique candidates — guaranteed open-market, non-blacklisted
+    candidates = unique_candidates[:3]
+
+    evaluated_count = 0
+    approved_count = 0
+    blocked_reasons: list[str] = []
+
+    # Fetch open positions once for asset-class gate (list of {symbol, amount_usd})
+    open_positions_raw = portfolio_repo.get_all()
+    open_positions = [
+        {"symbol": p.get("symbol", ""), "amount_usd": float(p.get("amount_usd") or 0.0)}
+        for p in open_positions_raw
+    ]
+
+    for signal, symbol in candidates:
+        instrument_id = signal["instrument_id"]
+        conviction = signal.get("conviction", "MEDIUM")
+        score = float(signal.get("score", 0))
+        signal_id = signal.get("id")
 
         # a. Current amount + fragment count for pyramiding check
         snap_rows = portfolio_repo.get_by_instrument(instrument_id)
