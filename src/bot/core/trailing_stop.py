@@ -94,6 +94,101 @@ def evaluate_trailing(
     return actions
 
 
+def _find_position(client: Any, instrument_id: int, position_id: str) -> dict | None:
+    """Look up a position by instrument_id (+ position_id if present) in the
+    live eToro portfolio. Used to verify a partial-close actually took
+    effect, since eToro's close-order response only confirms the order was
+    ACCEPTED (statusID=1), not that it has been applied yet — verified via
+    a live test on 2026-07-01: a partial-close response arrived instantly
+    with statusID=1, but the portfolio amount only reflected the reduction
+    after ~9s of polling.
+    """
+    try:
+        portfolio = client.get_portfolio()
+    except Exception:
+        return None
+    positions = (
+        portfolio.get("clientPortfolio", {}).get("positions")
+        or portfolio.get("positions")
+        or []
+    )
+    for pos in positions:
+        pid = str(pos.get("positionID") or pos.get("positionId") or "")
+        iid = pos.get("instrumentID") or pos.get("instrumentId")
+        if position_id and pid == str(position_id):
+            return pos
+        if not position_id and iid is not None and int(iid) == int(instrument_id):
+            return pos
+    return None
+
+
+def _verify_partial_close(
+    client: Any,
+    action: "TrailingAction",
+    max_attempts: int = 6,
+    initial_wait_s: float = 3.0,
+) -> tuple[bool, str]:
+    """Poll the live portfolio with exponential backoff until the position's
+    amount actually reflects the expected reduction, instead of trusting
+    close_position()'s immediate 200/statusID=1 response.
+
+    Mirrors the ghost-order verification pattern already used in
+    execution_worker.py (open-side) — this is the same check for the
+    close/partial-close side, which previously had none.
+
+    Returns (verified, detail).
+    """
+    import time as _time
+
+    expected_amount = action.amount_usd * (1 - action.close_pct / 100.0)
+    tolerance_pct = 5.0  # allow rounding/spread drift, matches manual test tolerance
+    waited = 0.0
+
+    for attempt in range(max_attempts):
+        wait_s = min(initial_wait_s * (2 ** attempt), 30)
+        _time.sleep(wait_s)
+        waited += wait_s
+
+        pos = _find_position(client, action.instrument_id, action.position_id)
+
+        if pos is None:
+            # Position fully gone — could mean the WHOLE position closed
+            # instead of just close_pct% of it. That is a worse outcome
+            # than "nothing happened", not a success — never count it.
+            return False, (
+                f"{action.symbol}: position vanished entirely after partial-close "
+                f"(expected ~${expected_amount:.2f} remaining, position not found "
+                f"after {waited:.0f}s) — possible FULL close instead of partial"
+            )
+
+        actual_amount = float(pos.get("amount", 0))
+        if abs(actual_amount - action.amount_usd) < 0.01:
+            continue  # amount hasn't moved yet — keep polling
+
+        diff_pct = abs(actual_amount - expected_amount) / max(expected_amount, 0.01) * 100
+        if diff_pct < tolerance_pct:
+            return True, (
+                f"{action.symbol}: partial-close CONFIRMED after {waited:.0f}s — "
+                f"${action.amount_usd:.2f} → ${actual_amount:.2f} "
+                f"(expected ${expected_amount:.2f}, diff {diff_pct:.1f}%)"
+            )
+        # Amount changed but not to the expected value — record and keep
+        # polling in case it's still settling, but don't return success yet.
+        logger.debug(
+            "[trailing] %s: amount changed to $%.2f (expected $%.2f) after %.0fs, "
+            "still polling", action.symbol, actual_amount, expected_amount, waited,
+        )
+
+    # Exhausted all attempts without a confirmed match
+    final_pos = _find_position(client, action.instrument_id, action.position_id)
+    final_amount = float(final_pos.get("amount", 0)) if final_pos else 0.0
+    return False, (
+        f"{action.symbol}: partial-close NOT CONFIRMED after {waited:.0f}s "
+        f"— amount is ${final_amount:.2f}, expected ~${expected_amount:.2f} "
+        f"(started at ${action.amount_usd:.2f})"
+    )
+
+
 def execute_trailing_actions(
     client: Any,
     actions: list[TrailingAction],
@@ -154,7 +249,19 @@ def execute_trailing_actions(
                     units_to_deduct=units_to_deduct,
                 )
                 if result:
-                    stats['partial_closes'] += 1
+                    # ── Verify the partial-close actually took effect ──────
+                    # close_position() returning 200 only means the order was
+                    # ACCEPTED (statusID=1), not applied — confirmed via live
+                    # test 2026-07-01 (amount only updated after ~9s poll).
+                    # Don't count it as a success until we've seen it reflected
+                    # in the actual portfolio.
+                    verified, detail = _verify_partial_close(client, action)
+                    if verified:
+                        logger.info('[trailing] %s', detail)
+                        stats['partial_closes'] += 1
+                    else:
+                        logger.warning('[trailing] %s', detail)
+                        stats['errors'].append(detail)
                     # Post Discord embed
                     try:
                         from pathlib import Path as _Path
@@ -171,10 +278,15 @@ def execute_trailing_actions(
                                 symbol=action.symbol,
                                 amount_usd=0,
                                 position_id=action.position_id,
-                                reason=f'Profit-Taking: {action.reason}',
+                                reason=f'Profit-Taking: {action.reason}'
+                                + ('' if verified else ' [UNVERIFIED — siehe Log]'),
                             )
                     except Exception:
                         pass
+                else:
+                    stats['errors'].append(
+                        f'{action.symbol}: close_position() returned empty/falsy result'
+                    )
                 time.sleep(0.5)
             except Exception as e:
                 msg = f'{action.symbol}: partial-close API call failed — {e}'
