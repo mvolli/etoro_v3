@@ -15,6 +15,7 @@ build/
 data/*.db
 data/*.db-journal
 data/*.db-wal
+/trading.db
 backups/
 
 # Environment / secrets

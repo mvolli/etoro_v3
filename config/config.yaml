@@ -64,8 +64,9 @@ cache:
   instrument_map_ttl_hours: 24   # How long the instrument_id ↔ symbol map file is considered fresh
   signal_ttl_minutes: 60         # How long a generated signal is valid before re-computation
 
-market_hours:
-  NYSE:
-    open: "15:30"            # NYSE open in local timezone below (Europe/Berlin = CET/CEST)
-    close: "22:00"           # NYSE close in local timezone
-  timezone: "Europe/Berlin"  # All market_hours times are expressed in this timezone
+# market_hours: (UNUSED — see src/bot/core/market_hours.py for actual implementation)
+# market_hours:
+#   NYSE:
+#     open: "15:30"            # NYSE open in Europe/Berlin = CET/CEST
+#     close: "22:00"           # NYSE close in Europe/Berlin
+#   timezone: "Europe/Berlin"  # All market_hours times were in this timezone
