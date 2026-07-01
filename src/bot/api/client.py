@@ -345,6 +345,128 @@ class EToroClient:
         )
         return positions
 
+    def get_instrument_metadata(self, instrument_id: int) -> dict:
+        """Fetch live instrument metadata (symbol/name/exchange) by ID.
+
+        Endpoint: GET /market-data/instruments?instrumentIds={id}
+
+        Used as a pre-flight identity check before opening a position, to
+        catch a stale or wrong local instrument_id → symbol mapping BEFORE
+        an order is built for it (see: the DOT-USD incident, where the
+        watchlist held a Futures contract ID instead of the Spot ID for
+        the same nominal symbol — same symbol string, different real
+        instrument, silently accepted orders that never became positions).
+
+        Returns {} on any lookup failure (fail-open at the lookup level —
+        see verify_instrument_identity() for how that's handled).
+
+        Note: field names in the response (``internalSymbolFull`` vs
+        ``symbol`` vs ``ticker``) are based on public eToro API docs, not
+        a live-verified response shape. verify_instrument_identity() checks
+        multiple candidate field names defensively for this reason.
+        """
+        try:
+            resp = self.get(
+                "/market-data/instruments",
+                params={"instrumentIds": str(instrument_id)},
+            )
+        except APIError as exc:
+            logger.warning(
+                "get_instrument_metadata failed for %s: %s", instrument_id, exc
+            )
+            return {}
+        except Exception as exc:
+            logger.warning(
+                "get_instrument_metadata unexpected error for %s: %s",
+                instrument_id, exc,
+            )
+            return {}
+
+        items = resp
+        if isinstance(resp, dict):
+            items = resp.get("instruments") or resp.get("data") or []
+        if not isinstance(items, list):
+            return {}
+
+        for item in items:
+            iid = (
+                item.get("instrumentId")
+                or item.get("InstrumentID")
+                or item.get("instrumentID")
+            )
+            try:
+                if iid is not None and int(iid) == int(instrument_id):
+                    return item
+            except (TypeError, ValueError):
+                continue
+        return items[0] if items else {}
+
+    @staticmethod
+    def _normalize_symbol_for_comparison(sym: str) -> str:
+        """Loosely normalize a ticker for identity comparison.
+
+        Strips common quote-currency suffixes (BTC-USD ↔ BTC) and
+        upper-cases, so e.g. a local 'DOT-USD' and a live API 'DOT'
+        response are recognised as the same underlying instrument.
+        """
+        if not sym:
+            return ""
+        s = sym.upper().strip()
+        for suffix in ("-USD", "/USD", "USD"):
+            if s.endswith(suffix) and len(s) > len(suffix):
+                s = s[: -len(suffix)]
+                break
+        return s
+
+    def verify_instrument_identity(
+        self, instrument_id: int, expected_symbol: str
+    ) -> tuple[bool, str]:
+        """Verify *instrument_id* actually resolves to *expected_symbol* on
+        the live eToro API before an order is built for it.
+
+        Fail-open (ok=True) on metadata-lookup failure — a live endpoint
+        outage shouldn't block trading entirely, matching the eligibility
+        gate's existing fail-open philosophy elsewhere in this file.
+
+        A genuine MISMATCH is NEVER fail-open — it is always blocked. This
+        is deliberately the opposite failure mode: an ID that resolves to
+        the wrong instrument is exactly the bug class that caused the
+        DOT-USD ghost-order incident (Futures ID silently substituted for
+        Spot ID under the same watchlist symbol).
+        """
+        meta = self.get_instrument_metadata(instrument_id)
+        if not meta:
+            return True, (
+                f"Identity check skipped for {instrument_id} — metadata "
+                f"endpoint returned nothing (fail-open)"
+            )
+
+        live_symbol = (
+            meta.get("internalSymbolFull")
+            or meta.get("symbol")
+            or meta.get("ticker")
+            or meta.get("displayName")
+            or meta.get("displayname")
+            or ""
+        )
+        if not live_symbol:
+            return True, (
+                f"Identity check skipped for {instrument_id} — metadata "
+                f"had no recognisable symbol field (fail-open)"
+            )
+
+        expected_norm = self._normalize_symbol_for_comparison(expected_symbol)
+        live_norm = self._normalize_symbol_for_comparison(str(live_symbol))
+
+        if expected_norm != live_norm:
+            return False, (
+                f"ID/Symbol MISMATCH: instrument_id={instrument_id} "
+                f"resolves to '{live_symbol}' on eToro, but local data "
+                f"expected '{expected_symbol}' — refusing to trade "
+                f"(stale/wrong instrument mapping)"
+            )
+        return True, f"Identity OK: instrument_id={instrument_id} == {live_symbol}"
+
     def open_position(
         self,
         instrument_id: int,
@@ -390,6 +512,35 @@ class EToroClient:
         from pathlib import Path
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
         from bot.core.risk import calculate_sl_price, check_sl_quality_gate
+        from bot.core.market_hours import is_market_open
+
+        _symbol_for_preflight = symbol or str(instrument_id)
+
+        # 0a) Identity gate — does instrument_id actually resolve to the
+        #     expected ticker on the live API? Catches a stale/wrong local
+        #     ID→symbol mapping BEFORE any order is built (root cause of
+        #     the DOT-USD Futures-vs-Spot-ID ghost-order incident).
+        id_ok, id_reason = self.verify_instrument_identity(
+            instrument_id, _symbol_for_preflight
+        )
+        if not id_ok:
+            logger.error("open_position BLOCKED: %s", id_reason)
+            return {"success": False, "error": id_reason}
+        logger.debug(id_reason)
+
+        # 0b) Market-open gate — defense-in-depth. Callers (signal_worker,
+        #     execution_worker) already check is_market_open() before
+        #     reaching here, but checking again at the actual API-call
+        #     boundary means this guard holds even if a future caller
+        #     forgets to, or if the symbol used for classification was
+        #     stale by the time execution ran.
+        if not is_market_open(_symbol_for_preflight):
+            msg = (
+                f"Market closed for {_symbol_for_preflight} — refusing to "
+                f"open position (ghost-order guard)"
+            )
+            logger.warning("open_position BLOCKED: %s", msg)
+            return {"success": False, "error": msg}
 
         # a) Eligibility gate — official v2 endpoint
         #    POST /api/v2/trading/info/eligibility

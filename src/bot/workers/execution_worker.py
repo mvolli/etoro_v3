@@ -120,6 +120,17 @@ def main() -> None:
     filled_count = 0
     failed_count = 0
 
+    # ── c) Duplicate-instrument guard ───────────────────────────────────────
+    # get_by_status("APPROVED") can legitimately contain two different trade
+    # rows for the same instrument_id (e.g. approved in two separate
+    # signal_worker cycles before either got executed). Without a per-run
+    # dedup, both would be submitted back-to-back, doubling exposure beyond
+    # what sizing intended and increasing ghost-order surface area.
+    # get_by_status() orders by created_at ASC, so the oldest (first
+    # approved) trade per instrument executes; later duplicates are
+    # rejected for this run.
+    seen_instrument_ids: set = set()
+
     # ── 3. Process each APPROVED trade ────────────────────────────────────────
     for trade in approved_trades:
         trade_id = trade["id"]
@@ -127,6 +138,26 @@ def main() -> None:
         symbol = trade.get("symbol", str(instrument_id))
         amount_usd = float(trade.get("amount_usd", 0.0))
         stop_loss_pct = float(trade.get("stop_loss_pct") or cfg.get("sl", {}).get("default_pct", 3.0))
+
+        if instrument_id in seen_instrument_ids:
+            logger.warning(
+                "ExecutionWorker: trade #%d (%s) DUPLICATE instrument_id=%s "
+                "already processed this run — rejecting to avoid double exposure",
+                trade_id, symbol, instrument_id,
+            )
+            trade_repo.update_status(
+                trade_id,
+                "REJECTED",
+                rejection_reason=f"Duplicate instrument_id={instrument_id} in same execution batch",
+            )
+            log_repo.write(
+                "WARN",
+                "execution_worker",
+                f"Trade #{trade_id} REJECTED — duplicate instrument {symbol} in same batch",
+                {"symbol": symbol, "instrument_id": instrument_id},
+            )
+            continue
+        seen_instrument_ids.add(instrument_id)
 
         # a. Atomic lock: APPROVED → SUBMITTING
         locked = trade_repo.lock_for_submission(trade_id)
