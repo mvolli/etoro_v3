@@ -9,7 +9,7 @@ Syncs live eToro API positions with the local SQLite database.
 Responsibilities:
   1. Fetch live positions from GET /trading/info/real/pnl
   2. Upsert positions into portfolio_snapshot
-  3. Orphan detection: delete stale snapshots (> 10 min old)
+  3. Orphan detection: delete stale snapshots (> 5 min old)
   4. Trade reconciliation: mark ACTIVE trades CLOSED if no API position found
   5. Update system_state: CURRENT_EQUITY, LAST_RECONCILE, position count
   6. Update PEAK_EQUITY if new high
@@ -334,6 +334,25 @@ def main() -> int:
 
     live_position_ids: set[str] = set()
 
+    # ── 6.5 Circuit Breaker: suddenly empty positions list is suspicious ─────
+    previous_position_count = int(state_repo.get("POSITION_COUNT") or 0)
+    if not live_positions and previous_position_count > 0:
+        msg = (
+            f"SUSPICIOUS: API returned 0 positions, but POSITION_COUNT was "
+            f"{previous_position_count} last run. Skipping trade-closure and "
+            f"equity-update logic this cycle — likely transient API glitch, "
+            f"not a real 'all positions closed' event."
+        )
+        print(f"[{WORKER_NAME}] ERROR: {msg}", file=sys.stderr)
+        log_repo.write("ERROR", WORKER_NAME, msg, {"previous_count": previous_position_count})
+        _discord(
+            "post_alert_embed",
+            title="🔴 Reconciler: verdächtig leere API-Antwort",
+            description=msg,
+            severity="CRITICAL",
+        )
+        return 1
+
     # ── 7. Upsert each live position into portfolio_snapshot ──────────────────
     synced_count = 0
     for pos in live_positions:
@@ -413,6 +432,21 @@ def main() -> int:
                         print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
                         log_repo.write("WARNING", WORKER_NAME, msg)
             continue  # still live — leave alone
+
+        # ── Grace-Period: only close if position is confirmed orphaned ────────
+        # Position missing this cycle but portfolio_snapshot row still exists
+        # (< ORPHAN_THRESHOLD_MINUTES old → not yet confirmed orphaned).
+        # Skip closure this cycle — next cycle will decide.
+        if pos_id:
+            still_has_snapshot = any(
+                s["api_position_id"] == pos_id for s in all_snapshots
+            )
+            if still_has_snapshot:
+                print(
+                    f"[{WORKER_NAME}] INFO: Trade {trade['id']} ({trade.get('symbol')}): "
+                    f"pos_id={pos_id} missing this cycle but not yet confirmed orphaned — deferring closure"
+                )
+                continue
 
         # Trade is ACTIVE in DB but has no matching live position → mark CLOSED
         trade_id = trade["id"]
