@@ -281,10 +281,25 @@ def _is_market_open_now(market_key: str, now_utc: datetime) -> bool:
     if mkt.get('always_open'):
         return True
 
-    # 24/5 markets (Forex, Commodities) — closed Sat/Sun
+    # 24/5 markets (Forex, Commodities) — closed Fri 17:00 ET → Sun 17:00 ET
     if mkt.get('weekends_partial'):
-        weekday = now_utc.weekday()  # 0=Mon, 6=Sun
-        return weekday < 5  # Mon–Fri only
+        try:
+            tz_ny = ZoneInfo("America/New_York")
+            now_ny = now_utc.astimezone(tz_ny)
+        except Exception:
+            weekday = now_utc.weekday()
+            return weekday < 5
+
+        weekday_ny = now_ny.weekday()
+        hour_ny = now_ny.hour
+
+        if weekday_ny == 4 and hour_ny >= 17:   # Friday from 17:00 ET
+            return False
+        if weekday_ny == 5:                       # all day Saturday
+            return False
+        if weekday_ny == 6 and hour_ny < 17:      # Sunday before 17:00 ET
+            return False
+        return True
 
     # Standard equity market with single session
     tz_name = mkt.get('tz')
@@ -377,8 +392,29 @@ def _check_market_open(market_key: str, now_utc: datetime) -> bool:
         return True
 
     if mkt.get('weekends_partial'):
-        weekday = now_utc.weekday()
-        return weekday < 5
+        # Real ET boundary: closed Fri 17:00 ET → Sun 17:00 ET
+        # (Forex/Commodities close ~5pm ET Friday, reopen ~5pm ET Sunday)
+        try:
+            tz_ny = ZoneInfo("America/New_York")
+            now_ny = now_utc.astimezone(tz_ny)
+        except Exception:
+            # Fail-open on TZ error — consistent with rest of this file
+            weekday = now_utc.weekday()
+            return weekday < 5
+
+        weekday_ny = now_ny.weekday()
+        hour_ny = now_ny.hour
+
+        # Closed: Friday from 17:00 ET onwards
+        if weekday_ny == 4 and hour_ny >= 17:
+            return False
+        # Closed: all day Saturday
+        if weekday_ny == 5:
+            return False
+        # Closed: Sunday before 17:00 ET
+        if weekday_ny == 6 and hour_ny < 17:
+            return False
+        return True
 
     if 'sessions' in mkt:
         return _is_multi_session_open(market_key, now_utc)
