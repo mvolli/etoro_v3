@@ -170,32 +170,51 @@ def main() -> None:
 
             try:
                 client.close_position(position_id, instrument_id)
-                # Remove from local portfolio snapshot
-                db.execute(
-                    "DELETE FROM portfolio_snapshot WHERE api_position_id = ?",
-                    (str(position_id),),
-                )
-                closed_count += 1
-                logger.warning(
-                    "RiskWorker: Closed position %s (%s) — pnl=%.2f%%",
-                    position_id, symbol, pnl_pct,
-                )
-                # ── Discord: CLOSE Embed → #etoro-trades ─────────────────
-                try:
-                    upnl = pos.get("unrealizedPnL") or {}
-                    _discord(
-                        "post_position_closed_embed",
-                        symbol=symbol,
-                        amount_usd=float(pos.get("amount", 0)),
-                        position_id=str(position_id),
-                        entry_price=float(pos.get("openRate", 0)),
-                        close_price=float(upnl.get("closeRate", 0)),
-                        pnl_usd=float(upnl.get("pnL", 0)),
-                        pnl_pct=pnl_pct,
-                        reason=sl_action.reason,
+
+                # ── Verify the full-close actually took effect ──────────────
+                from bot.core.trailing_stop import verify_full_close
+                verified, detail = verify_full_close(client, int(instrument_id or 0), str(position_id))
+                if verified:
+                    closed_count += 1
+                    logger.warning("RiskWorker: %s", detail)
+                    # Remove from local portfolio snapshot
+                    db.execute(
+                        "DELETE FROM portfolio_snapshot WHERE api_position_id = ?",
+                        (str(position_id),),
                     )
-                except Exception as _emb_exc:
-                    logger.debug("Discord close embed failed: %s", _emb_exc)
+                    logger.warning(
+                        "RiskWorker: Closed position %s (%s) — pnl=%.2f%%",
+                        position_id, symbol, pnl_pct,
+                    )
+                    # ── Discord: CLOSE Embed → #etoro-trades ────────────────
+                    try:
+                        upnl = pos.get("unrealizedPnL") or {}
+                        _discord(
+                            "post_position_closed_embed",
+                            symbol=symbol,
+                            amount_usd=float(pos.get("amount", 0)),
+                            position_id=str(position_id),
+                            entry_price=float(pos.get("openRate", 0)),
+                            close_price=float(upnl.get("closeRate", 0)),
+                            pnl_usd=float(upnl.get("pnL", 0)),
+                            pnl_pct=pnl_pct,
+                            reason=sl_action.reason,
+                        )
+                    except Exception as _emb_exc:
+                        logger.debug("Discord close embed failed: %s", _emb_exc)
+                else:
+                    logger.error("RiskWorker: SL-Close NOT verified — %s", detail)
+                    log_repo.write(
+                        "ERROR",
+                        "risk_worker",
+                        f"SL-Close unverified: {symbol} ({position_id}) — {detail}",
+                    )
+                    _discord(
+                        "post_alert_embed",
+                        title="🔴 SL-Close unverifiziert",
+                        description=f"{symbol}: {detail}",
+                        severity="CRITICAL",
+                    )
             except APIError as exc:
                 logger.error(
                     "RiskWorker: Failed to close position %s — %s", position_id, exc

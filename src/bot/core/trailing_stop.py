@@ -189,6 +189,32 @@ def _verify_partial_close(
     )
 
 
+def verify_full_close(
+    client: Any,
+    instrument_id: int,
+    position_id: str,
+    max_attempts: int = 6,
+    initial_wait_s: float = 3.0,
+) -> tuple[bool, str]:
+    """Poll until a position after a full-close has actually disappeared,
+    instead of trusting the immediate 200 response (which only means the
+    order was accepted). For SL-close (risk_worker) and concentration-close.
+
+    Returns (confirmed, detail).
+    """
+    import time as _time
+
+    waited = 0.0
+    for attempt in range(max_attempts):
+        wait_s = min(initial_wait_s * (2 ** attempt), 30)
+        _time.sleep(wait_s)
+        waited += wait_s
+        pos = _find_position(client, instrument_id, position_id)
+        if pos is None:
+            return True, f"Full-close CONFIRMED after {waited:.0f}s"
+    return False, f"Full-close NOT confirmed after {waited:.0f}s — position may still be open"
+
+
 def execute_trailing_actions(
     client: Any,
     actions: list[TrailingAction],

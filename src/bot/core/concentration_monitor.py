@@ -168,26 +168,34 @@ def close_concentration_excess(
 
             try:
                 client.close_position(pos_id, iid)
-                closed_amount += frag_amount
-                stats["closed"] += 1
 
-                # Post Discord embed
-                try:
-                    upnl = frag.get("unrealizedPnL") or {}
-                    _discord(
-                        "post_position_closed_embed",
-                        symbol=sym,
-                        amount_usd=frag_amount,
-                        position_id=pos_id,
-                        entry_price=float(frag.get("openRate", 0)),
-                        close_price=float(upnl.get("closeRate", 0)),
-                        pnl_usd=float(upnl.get("pnL", 0)),
-                        reason=f"Konzentrations-Bereinigung: {sym} war {v['actual_pct']:.1f}% (Limit {v['limit_pct']:.0f}%)",
-                    )
-                except Exception:
-                    pass
+                # ── Verify the full-close actually took effect ──────────────
+                from bot.core.trailing_stop import verify_full_close
+                verified, detail = verify_full_close(client, iid, pos_id)
+                if verified:
+                    closed_amount += frag_amount
+                    stats["closed"] += 1
 
-                time.sleep(0.5)  # Rate limit
+                    # Post Discord embed
+                    try:
+                        upnl = frag.get("unrealizedPnL") or {}
+                        _discord(
+                            "post_position_closed_embed",
+                            symbol=sym,
+                            amount_usd=frag_amount,
+                            position_id=pos_id,
+                            entry_price=float(frag.get("openRate", 0)),
+                            close_price=float(upnl.get("closeRate", 0)),
+                            pnl_usd=float(upnl.get("pnL", 0)),
+                            reason=f"Konzentrations-Bereinigung: {sym} war {v['actual_pct']:.1f}% (Limit {v['limit_pct']:.0f}%)",
+                        )
+                    except Exception:
+                        pass
+
+                    time.sleep(0.5)  # Rate limit
+                else:
+                    stats["errors"].append(f"{sym} pos={pos_id}: full-close NOT verified — {detail}")
+                    print(f"  ❌ Close NOT verified: {detail}")
             except Exception as e:
                 stats["errors"].append(f"{sym} pos={pos_id}: {e}")
                 print(f"  ❌ Close failed: {e}")
