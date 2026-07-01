@@ -35,6 +35,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 import yaml  # type: ignore[import]
 
 from bot.api.client import APIError, ClientConfig, EToroClient
+from bot.api.instruments import get_instrument_map
 from bot.core.regime import detect_regime
 from bot.db.connection import DB
 from bot.db.repo import LogRepo, PortfolioRepo, StateRepo, TradeRepo
@@ -59,42 +60,16 @@ def _discord(fn_name: str, **kwargs) -> None:
 WORKER_NAME = "reconciler"
 ORPHAN_THRESHOLD_MINUTES = 5
 
-# Hardcoded fallback instrument_id → symbol map (used when data/instrument_map.json absent)
-# VERIFIED via eToro watchlist API on 2026-06-24
-_FALLBACK_INSTRUMENT_MAP: dict[int, str] = {
-    # Commodities/Indices
-    17:     "OIL",
-    18:     "GOLD",
-    19:     "SILVER",
-    22:     "NATGAS",
-    # Stocks (confirmed via watchlist API)
-    1001:   "AAPL",
-    1002:   "GOOG",
-    1003:   "META",
-    1004:   "MSFT",   # was wrongly NVDA/TSLA — confirmed MSFT
-    1005:   "AMZN",
-    1008:   "AA",
-    1033:   "RTX",
-    1037:   "C",
-    1111:   "TSLA",   # confirmed TSLA (was wrongly at 1004/1246)
-    1137:   "NVDA",
-    1246:   "TTE.PA", # TotalEnergies (was wrongly TSLA/NFLX)
-    1283:   "ENI.MI", # Eni SpA (was wrongly at 6700)
-    3000:   "SPY",
-    3006:   "QQQ",
-    6700:   "XPEV",   # XPeng Motors (was wrongly ENI.MI)
-    # Crypto (confirmed via watchlist API)
-    100000: "BTC-USD", # BTC — confirmed (was wrongly XRP-USD!)
-    100001: "ETH-USD", # ETH — logical inference (100001 follows BTC=100000)
-    100002: "BCH-USD", # Bitcoin Cash — confirmed
-    100003: "XRP-USD", # XRP — confirmed
-    # Large-cap IDs
-    127256: "USO",
-    309144: "BABA",
-    440969: "SLB",
-    665842: "PFE",
-    834108: "SLV",
-}
+# NOTE: The hand-maintained _FALLBACK_INSTRUMENT_MAP dict that used to live
+# here has been removed (fix/consolidate-instrument-map-truth). It was a
+# fourth, independent source of instrument_id->symbol truth alongside the
+# `instruments` DB table, data/instrument_map.json, and watchlist_multiasset
+# — its own comments documented a history of past errors ("was wrongly X")
+# that a hardcoded, manually-updated dict has no mechanism to catch when it
+# drifts again. Symbol resolution now goes through get_instrument_map()
+# (bot.api.instruments), which reads from the same `instruments` DB table
+# every other worker uses, with the live-API Tier 2 lookup in
+# _resolve_symbol() below as the safety net for anything not yet in the DB.
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -153,29 +128,10 @@ def _load_env_keys() -> tuple[str, str]:
     return api_key, user_key
 
 
-def _load_instrument_map() -> dict[int, str]:
-    """
-    Return instrument_id → symbol mapping.
-    Prefers data/instrument_map.json; falls back to hardcoded dict.
-    """
-    map_path = PROJECT_ROOT / "data" / "instrument_map.json"
-    if map_path.exists():
-        try:
-            with map_path.open() as fh:
-                raw: dict = json.load(fh)
-            # Support both formats:
-            # 1. {"_meta": {...}, "map": {"1003": "META", ...}}  (instruments.py format)
-            # 2. {"1003": "META", ...}  (direct format)
-            data = raw.get("map", raw)
-            data = {k: v for k, v in data.items() if not k.startswith("_")}
-            return {int(k): v for k, v in data.items()}
-        except Exception as exc:
-            print(
-                f"[{WORKER_NAME}] WARNING: Failed to load instrument_map.json "
-                f"({exc}) — using fallback",
-                file=sys.stderr,
-            )
-    return dict(_FALLBACK_INSTRUMENT_MAP)
+# NOTE: _load_instrument_map() has been removed — reconciler now calls
+# bot.api.instruments.get_instrument_map() directly (see main(), step 6),
+# which already implements file cache -> trading.db `instruments` table ->
+# legacy DB -> empty, and is shared with data_worker instead of duplicated.
 
 
 def _extract_positions(portfolio_payload: dict) -> list[dict]:
@@ -460,7 +416,7 @@ def main() -> int:
         # ── 6. Extract positions + equity ─────────────────────────────────────────
         live_positions  = _extract_positions(portfolio_payload)
         current_equity  = _extract_equity(portfolio_payload)
-        instrument_map  = _load_instrument_map()
+        instrument_map  = get_instrument_map(client=client)
     
         live_position_ids: set[str] = set()
     
