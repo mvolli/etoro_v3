@@ -401,6 +401,77 @@ class EToroClient:
                 continue
         return items[0] if items else {}
 
+    def get_instruments_metadata_batch(
+        self, instrument_ids: list[int], chunk_size: int = 50
+    ) -> dict[int, dict]:
+        """Fetch live metadata for MANY instrument IDs in as few requests as
+        possible, instead of one call per ID.
+
+        The eToro API accepts a comma-separated list for ``instrumentIds``
+        (documented at builders.etoro.com/blog/developers-guide-to-instrument-
+        discovery and multiple third-party API references — e.g.
+        ``instrumentIds=1001,1002,1003``). This is a huge win for bulk
+        auditing: checking ~14,000 instruments one-by-one at ~1 req/s would
+        take hours; batched at *chunk_size* IDs per request, it's minutes.
+
+        Parameters
+        ----------
+        instrument_ids : list[int]
+            IDs to look up. Duplicates are fine (deduplicated internally).
+        chunk_size : int
+            Max IDs per request. 50 is a conservative default — no
+            documented hard limit was found, but very long comma-separated
+            query strings risk URL-length issues on some server/proxy
+            configs, so this stays deliberately modest rather than
+            maximal. Tune down if requests start failing with 4xx for
+            reasons other than 429.
+
+        Returns
+        -------
+        dict[int, dict]
+            ``{instrument_id: metadata_dict}`` for every ID that could be
+            resolved. IDs that failed or weren't found are simply absent
+            from the result — callers should treat a missing key the same
+            way get_instrument_metadata() treats an empty dict (fail-open
+            at the lookup level, never raises).
+
+        Raises
+        ------
+        APIError
+            Propagated as-is (including status_code=429) so callers can
+            implement their own backoff/retry strategy per chunk — unlike
+            get_instrument_metadata(), which swallows errors internally,
+            this method intentionally lets 429s surface so bulk callers
+            can back off deliberately instead of silently losing data.
+        """
+        unique_ids = sorted(set(int(i) for i in instrument_ids))
+        result: dict[int, dict] = {}
+
+        for start in range(0, len(unique_ids), chunk_size):
+            chunk = unique_ids[start : start + chunk_size]
+            ids_param = ",".join(str(i) for i in chunk)
+
+            resp = self.get(
+                "/market-data/instruments",
+                params={"instrumentIds": ids_param},
+            )
+
+            items = resp
+            if isinstance(resp, dict):
+                items = resp.get("instrumentDisplayDatas") or resp.get("instruments") or resp.get("data") or []
+            if not isinstance(items, list):
+                continue
+
+            for item in items:
+                iid = item.get("instrumentID") or item.get("instrumentId")
+                try:
+                    if iid is not None:
+                        result[int(iid)] = item
+                except (TypeError, ValueError):
+                    continue
+
+        return result
+
     @staticmethod
     def _normalize_symbol_for_comparison(sym: str) -> str:
         """Loosely normalize a ticker for identity comparison.
