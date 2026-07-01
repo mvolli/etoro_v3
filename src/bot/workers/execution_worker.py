@@ -261,28 +261,31 @@ def main() -> None:
                     trade_id, attempt + 1, max_attempts, total_waited,
                 )
 
-            if not matching_pos and api_position_id:
-                # Ghost order: accepted but no position — record for blacklist tracking
+            if not matching_pos:
+                # No position found after polling — treat as ghost order regardless of orderId
+                # This catches both: (a) API returned orderId but no position, AND
+                # (b) API returned silently/empty but we got no exception (allowOpenPosition=false pattern)
                 ghost_count, bl_status = trade_repo.record_ghost_failure(instrument_id)
 
+                ghost_detail = f"orderId={api_position_id}" if api_position_id else "no orderId returned (silent block)"
                 logger.warning(
-                    "ExecutionWorker: trade #%d (%s) GHOST ORDER (orderId=%s) — "
+                    "ExecutionWorker: trade #%d (%s) GHOST ORDER (%s) — "
                     "failure #%d for this instrument (blacklist: %s)",
-                    trade_id, symbol, api_position_id, ghost_count, bl_status,
+                    trade_id, symbol, ghost_detail, ghost_count, bl_status,
                 )
                 trade_repo.update_status(
                     trade_id,
                     "FAILED",
                     rejection_reason=(
-                        f"Ghost order: orderId={api_position_id} but position "
+                        f"Ghost order: {ghost_detail} but position "
                         f"never materialized (failure #{ghost_count}, blacklist: {bl_status})"
                     ),
                 )
                 log_repo.write(
                     "WARN",
                     "execution_worker",
-                    f"Trade #{trade_id} GHOST ORDER: {symbol} orderId={api_position_id} no position created (#{ghost_count}, bl={bl_status})",
-                    {"symbol": symbol, "api_position_id": api_position_id, "ghost_count": ghost_count, "blacklist_status": bl_status},
+                    f"Trade #{trade_id} GHOST ORDER: {symbol} {ghost_detail} no position created (#{ghost_count}, bl={bl_status})",
+                    {"symbol": symbol, "api_position_id": api_position_id or "", "ghost_count": ghost_count, "blacklist_status": bl_status},
                 )
 
                 # c) Eskalierter Alert ab #5 — separates, lautereres Embed
@@ -298,7 +301,7 @@ def main() -> None:
                         severity='critical' if ghost_count >= 9 else 'high',
                         details=(
                             f"Blacklist: {bl_status} | "
-                            f"Last orderId: {api_position_id} | "
+                            f"Last orderId: {api_position_id or 'N/A'} | "
                             f"Instrument ID: {instrument_id}"
                         ),
                     )
@@ -307,7 +310,7 @@ def main() -> None:
                     symbol=symbol,
                     direction='BUY',
                     amount_usd=amount_usd,
-                    error=f"Ghost order: orderId={api_position_id} but no position created (#{ghost_count}, blacklist: {bl_status})",
+                    error=f"Ghost order: {ghost_detail} but no position created (#{ghost_count}, blacklist: {bl_status})",
                     dry_run=False,
                 )
                 failed_count += 1

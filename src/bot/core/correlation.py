@@ -210,7 +210,7 @@ if __name__ == "__main__":
     import sys
 
     # Ensure src/ is on path for imports
-    project_root = Path(__file__).resolve().parent.parent.parent
+    project_root = Path(__file__).resolve().parent.parent.parent.parent
     if str(project_root / "src") not in sys.path:
         sys.path.insert(0, str(project_root / "src"))
 

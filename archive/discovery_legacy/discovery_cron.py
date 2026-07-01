@@ -109,6 +109,7 @@ def run_discovery(conn, region):
     start = time.time()
     results = bulk_ensure_ohlcv(conn, instruments, required_days=30, batch_size=10)
     elapsed = time.time() - start
+    conn.commit()  # Ensure OHLCV writes are committed before signal storage
 
     success = sum(1 for v in results.values() if v['has_data'])
     days = sum(v['days'] for v in results.values())
