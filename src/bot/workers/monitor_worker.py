@@ -112,76 +112,84 @@ def _post_alert_embed(embeds_module, title: str, description: str, severity: str
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 def main() -> int:
+    # ── Worker lock: prevent overlapping cron invocations ────────────────────
+    from bot.core.worker_lock import worker_lock
+
+    with worker_lock("monitor_worker") as acquired:
+        if not acquired:
+            print("MonitorWorker: SKIPPED (already running)")
+            return 0
+
     t_start = time.time()
-    cfg = load_config()
-
-    db = DB(cfg.db.abs_path)
-    portfolio_repo = PortfolioRepo(db)
-    state_repo = StateRepo(db)
-    log_repo = LogRepo(db)
-
-    # Load Discord embed module
-    embeds = _try_import_embeds()
-    if embeds is None:
-        print("[monitor] discord_embeds not available — printing to stdout only")
-
-    # ── Collect portfolio state ──────────────────────────────────────────────
-    equity = state_repo.get_equity()
-    peak_equity = state_repo.get_peak_equity()
-    drawdown_pct = state_repo.get_drawdown_pct()
-    regime = state_repo.get_regime()
-    position_count = portfolio_repo.get_position_count()
-    total_exposure = portfolio_repo.get_total_exposure()
-    cash = max(0.0, equity - total_exposure)
-    cash_pct = (cash / equity * 100) if equity > 0 else 0.0
-
-    elapsed = time.time() - t_start
-
-    # ── Print status ─────────────────────────────────────────────────────────
-    print(f"[monitor] Equity: ${equity:.2f} | Cash: ${cash:.2f} ({cash_pct:.1f}%)")
-    print(f"[monitor] Positions: {position_count} | Drawdown: {drawdown_pct:.2f}% | Regime: {regime}")
-    print(f"[monitor] Peak: ${peak_equity:.2f} | Exposure: ${total_exposure:.2f}")
-
-    # ── Post heartbeat embed ─────────────────────────────────────────────────
-    tick = _get_and_increment_tick(state_repo)
-    ok = _post_heartbeat(
-        embeds_module=embeds,
-        equity=equity,
-        cash=cash,
-        position_count=position_count,
-        drawdown_pct=drawdown_pct,
-        regime=regime,
-        peak_equity=peak_equity,
-        tick=tick,
-    )
-    print(f"[monitor] Tick #{tick} | Discord embed: {'OK ✓' if ok else 'SKIP (no embeds module)' if embeds is None else 'FAILED'}")
-
-    # ── Alert on DEFENSIVE / CRITICAL regime (V5) ────────────────────────────
-    if regime in ("DEFENSIVE", "CRITICAL"):
-        risk_scalar = float(state_repo.get("RISK_SCALAR") or "0.5")
-        _post_alert_embed(
-            embeds,
-            title=f"{'🔴' if regime == 'CRITICAL' else '🟠'} {regime}-Regime aktiv",
-            description=(
-                f"Drawdown: **{drawdown_pct:.2f}%** | risk_scalar={risk_scalar:.2f}\n"
-                f"Equity: **${equity:.2f}** | Peak: **${peak_equity:.2f}**\n"
-                f"{'Nur VERY_HIGH Signale' if regime == 'CRITICAL' else 'Nur HIGH+ Signale'} — kein Pyramiding."
-            ),
-            severity="CRITICAL" if regime == "CRITICAL" else "WARNING",
+        cfg = load_config()
+    
+        db = DB(cfg.db.abs_path)
+        portfolio_repo = PortfolioRepo(db)
+        state_repo = StateRepo(db)
+        log_repo = LogRepo(db)
+    
+        # Load Discord embed module
+        embeds = _try_import_embeds()
+        if embeds is None:
+            print("[monitor] discord_embeds not available — printing to stdout only")
+    
+        # ── Collect portfolio state ──────────────────────────────────────────────
+        equity = state_repo.get_equity()
+        peak_equity = state_repo.get_peak_equity()
+        drawdown_pct = state_repo.get_drawdown_pct()
+        regime = state_repo.get_regime()
+        position_count = portfolio_repo.get_position_count()
+        total_exposure = portfolio_repo.get_total_exposure()
+        cash = max(0.0, equity - total_exposure)
+        cash_pct = (cash / equity * 100) if equity > 0 else 0.0
+    
+        elapsed = time.time() - t_start
+    
+        # ── Print status ─────────────────────────────────────────────────────────
+        print(f"[monitor] Equity: ${equity:.2f} | Cash: ${cash:.2f} ({cash_pct:.1f}%)")
+        print(f"[monitor] Positions: {position_count} | Drawdown: {drawdown_pct:.2f}% | Regime: {regime}")
+        print(f"[monitor] Peak: ${peak_equity:.2f} | Exposure: ${total_exposure:.2f}")
+    
+        # ── Post heartbeat embed ─────────────────────────────────────────────────
+        tick = _get_and_increment_tick(state_repo)
+        ok = _post_heartbeat(
+            embeds_module=embeds,
+            equity=equity,
+            cash=cash,
+            position_count=position_count,
+            drawdown_pct=drawdown_pct,
+            regime=regime,
+            peak_equity=peak_equity,
+            tick=tick,
         )
-
-    # ── Log to DB ────────────────────────────────────────────────────────────
-    log_repo.write(
-        "INFO",
-        "monitor_worker",
-        f"Heartbeat: equity=${equity:.2f}, positions={position_count}, "
-        f"drawdown={drawdown_pct:.2f}%, regime={regime}, "
-        f"embed={'OK' if ok else 'SKIP'}",
-    )
-
-    print(f"[monitor] Done in {time.time() - t_start:.1f}s")
-    return 0
-
-
+        print(f"[monitor] Tick #{tick} | Discord embed: {'OK ✓' if ok else 'SKIP (no embeds module)' if embeds is None else 'FAILED'}")
+    
+        # ── Alert on DEFENSIVE / CRITICAL regime (V5) ────────────────────────────
+        if regime in ("DEFENSIVE", "CRITICAL"):
+            risk_scalar = float(state_repo.get("RISK_SCALAR") or "0.5")
+            _post_alert_embed(
+                embeds,
+                title=f"{'🔴' if regime == 'CRITICAL' else '🟠'} {regime}-Regime aktiv",
+                description=(
+                    f"Drawdown: **{drawdown_pct:.2f}%** | risk_scalar={risk_scalar:.2f}\n"
+                    f"Equity: **${equity:.2f}** | Peak: **${peak_equity:.2f}**\n"
+                    f"{'Nur VERY_HIGH Signale' if regime == 'CRITICAL' else 'Nur HIGH+ Signale'} — kein Pyramiding."
+                ),
+                severity="CRITICAL" if regime == "CRITICAL" else "WARNING",
+            )
+    
+        # ── Log to DB ────────────────────────────────────────────────────────────
+        log_repo.write(
+            "INFO",
+            "monitor_worker",
+            f"Heartbeat: equity=${equity:.2f}, positions={position_count}, "
+            f"drawdown={drawdown_pct:.2f}%, regime={regime}, "
+            f"embed={'OK' if ok else 'SKIP'}",
+        )
+    
+        print(f"[monitor] Done in {time.time() - t_start:.1f}s")
+        return 0
+    
+    
 if __name__ == "__main__":
     sys.exit(main())

@@ -277,298 +277,306 @@ def main() -> int:
     Entry point.  Returns 0 on success, 1 on failure.
     Logs all errors via LogRepo before exiting with code 1.
     """
-    # ── 1. Load config ─────────────────────────────────────────────────────────
-    try:
-        cfg = _load_config()
-    except Exception as exc:
-        print(f"[{WORKER_NAME}] FATAL: Cannot load config: {exc}", file=sys.stderr)
-        return 1
+    # ── Worker lock: prevent overlapping cron invocations ────────────────────
+    from bot.core.worker_lock import worker_lock
 
-    # ── 2. Initialise DB ───────────────────────────────────────────────────────
-    db_cfg = cfg.get("db", {})
-    db_path = PROJECT_ROOT / db_cfg.get("path", "data/trading.db")
-    db = DB(
-        db_path=db_path,
-        busy_timeout_ms=db_cfg.get("busy_timeout_ms", 5000),
-    )
+    with worker_lock("reconciler") as acquired:
+        if not acquired:
+            print(f"[{WORKER_NAME}] SKIPPED (already running)")
+            return 0
 
-    log_repo    = LogRepo(db)
-    state_repo  = StateRepo(db)
-    portfolio_repo = PortfolioRepo(db)
-    trade_repo  = TradeRepo(db)
-
-    # ── 3. Load API credentials ────────────────────────────────────────────────
-    try:
-        api_key, user_key = _load_env_keys()
-    except RuntimeError as exc:
-        msg = f"FATAL: Missing API credentials: {exc}"
-        print(f"[{WORKER_NAME}] {msg}", file=sys.stderr)
-        log_repo.write("ERROR", WORKER_NAME, msg)
-        return 1
-
-    # ── 4. Initialise API client ───────────────────────────────────────────────
-    api_cfg = cfg.get("api", {})
-    client_config = ClientConfig.from_dict(api_cfg)
-    client = EToroClient(api_key=api_key, user_key=user_key, config=client_config)
-
-    # ── 5. Fetch live positions from eToro API ─────────────────────────────────
-    try:
-        portfolio_payload = client.get_portfolio()
-    except APIError as exc:
-        msg = f"API call failed: GET /trading/info/real/pnl → {exc}"
-        print(f"[{WORKER_NAME}] ERROR: {msg}", file=sys.stderr)
-        log_repo.write("ERROR", WORKER_NAME, msg, {"status_code": exc.status_code, "endpoint": exc.endpoint})
-        return 1
-    except Exception as exc:
-        msg = f"Unexpected error fetching portfolio: {exc}"
-        print(f"[{WORKER_NAME}] ERROR: {msg}", file=sys.stderr)
-        log_repo.write("ERROR", WORKER_NAME, msg)
-        return 1
-    finally:
-        client.close()
-
-    # ── 6. Extract positions + equity ─────────────────────────────────────────
-    live_positions  = _extract_positions(portfolio_payload)
-    current_equity  = _extract_equity(portfolio_payload)
-    instrument_map  = _load_instrument_map()
-
-    live_position_ids: set[str] = set()
-
-    # ── 6.5 Circuit Breaker: suddenly empty positions list is suspicious ─────
-    previous_position_count = int(state_repo.get("POSITION_COUNT") or 0)
-    if not live_positions and previous_position_count > 0:
-        msg = (
-            f"SUSPICIOUS: API returned 0 positions, but POSITION_COUNT was "
-            f"{previous_position_count} last run. Skipping trade-closure and "
-            f"equity-update logic this cycle — likely transient API glitch, "
-            f"not a real 'all positions closed' event."
-        )
-        print(f"[{WORKER_NAME}] ERROR: {msg}", file=sys.stderr)
-        log_repo.write("ERROR", WORKER_NAME, msg, {"previous_count": previous_position_count})
-        _discord(
-            "post_alert_embed",
-            title="🔴 Reconciler: verdächtig leere API-Antwort",
-            description=msg,
-            severity="CRITICAL",
-        )
-        return 1
-
-    # ── 7. Upsert each live position into portfolio_snapshot ──────────────────
-    synced_count = 0
-    for pos in live_positions:
-        record = _build_snapshot_record(pos, instrument_map)
-        pos_id = record["api_position_id"]
-        if not pos_id:
-            continue  # skip malformed entries
-        live_position_ids.add(pos_id)
+        # ── 1. Load config ─────────────────────────────────────────────────────────
         try:
-            portfolio_repo.upsert(record)
-            synced_count += 1
+            cfg = _load_config()
         except Exception as exc:
-            msg = f"Failed to upsert position {pos_id}: {exc}"
-            print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
-            log_repo.write("WARNING", WORKER_NAME, msg, {"position_id": pos_id})
-
-    # ── 8. Orphan detection: delete stale snapshots not in live API ───────────
-    # Any position last_synced > ORPHAN_THRESHOLD_MINUTES ago is an orphan
-    orphan_cutoff = _utcnow_minus(ORPHAN_THRESHOLD_MINUTES)
-    all_snapshots = portfolio_repo.get_all()
-    orphan_ids: list[str] = [
-        snap["api_position_id"]
-        for snap in all_snapshots
-        if snap["api_position_id"] not in live_position_ids
-        and snap["last_synced"] < orphan_cutoff
-    ]
-
-    orphan_count = 0
-    for orphan_id in orphan_ids:
+            print(f"[{WORKER_NAME}] FATAL: Cannot load config: {exc}", file=sys.stderr)
+            return 1
+    
+        # ── 2. Initialise DB ───────────────────────────────────────────────────────
+        db_cfg = cfg.get("db", {})
+        db_path = PROJECT_ROOT / db_cfg.get("path", "data/trading.db")
+        db = DB(
+            db_path=db_path,
+            busy_timeout_ms=db_cfg.get("busy_timeout_ms", 5000),
+        )
+    
+        log_repo    = LogRepo(db)
+        state_repo  = StateRepo(db)
+        portfolio_repo = PortfolioRepo(db)
+        trade_repo  = TradeRepo(db)
+    
+        # ── 3. Load API credentials ────────────────────────────────────────────────
         try:
-            db.execute(
-                "DELETE FROM portfolio_snapshot WHERE api_position_id = ?",
-                (orphan_id,),
+            api_key, user_key = _load_env_keys()
+        except RuntimeError as exc:
+            msg = f"FATAL: Missing API credentials: {exc}"
+            print(f"[{WORKER_NAME}] {msg}", file=sys.stderr)
+            log_repo.write("ERROR", WORKER_NAME, msg)
+            return 1
+    
+        # ── 4. Initialise API client ───────────────────────────────────────────────
+        api_cfg = cfg.get("api", {})
+        client_config = ClientConfig.from_dict(api_cfg)
+        client = EToroClient(api_key=api_key, user_key=user_key, config=client_config)
+    
+        # ── 5. Fetch live positions from eToro API ─────────────────────────────────
+        try:
+            portfolio_payload = client.get_portfolio()
+        except APIError as exc:
+            msg = f"API call failed: GET /trading/info/real/pnl → {exc}"
+            print(f"[{WORKER_NAME}] ERROR: {msg}", file=sys.stderr)
+            log_repo.write("ERROR", WORKER_NAME, msg, {"status_code": exc.status_code, "endpoint": exc.endpoint})
+            return 1
+        except Exception as exc:
+            msg = f"Unexpected error fetching portfolio: {exc}"
+            print(f"[{WORKER_NAME}] ERROR: {msg}", file=sys.stderr)
+            log_repo.write("ERROR", WORKER_NAME, msg)
+            return 1
+        finally:
+            client.close()
+    
+        # ── 6. Extract positions + equity ─────────────────────────────────────────
+        live_positions  = _extract_positions(portfolio_payload)
+        current_equity  = _extract_equity(portfolio_payload)
+        instrument_map  = _load_instrument_map()
+    
+        live_position_ids: set[str] = set()
+    
+        # ── 6.5 Circuit Breaker: suddenly empty positions list is suspicious ─────
+        previous_position_count = int(state_repo.get("POSITION_COUNT") or 0)
+        if not live_positions and previous_position_count > 0:
+            msg = (
+                f"SUSPICIOUS: API returned 0 positions, but POSITION_COUNT was "
+                f"{previous_position_count} last run. Skipping trade-closure and "
+                f"equity-update logic this cycle — likely transient API glitch, "
+                f"not a real 'all positions closed' event."
             )
-            orphan_count += 1
-            msg = f"Orphan position removed: {orphan_id}"
-            print(f"[{WORKER_NAME}] WARNING: {msg}")
-            log_repo.write("WARNING", WORKER_NAME, msg, {"api_position_id": orphan_id})
+            print(f"[{WORKER_NAME}] ERROR: {msg}", file=sys.stderr)
+            log_repo.write("ERROR", WORKER_NAME, msg, {"previous_count": previous_position_count})
+            _discord(
+                "post_alert_embed",
+                title="🔴 Reconciler: verdächtig leere API-Antwort",
+                description=msg,
+                severity="CRITICAL",
+            )
+            return 1
+    
+        # ── 7. Upsert each live position into portfolio_snapshot ──────────────────
+        synced_count = 0
+        for pos in live_positions:
+            record = _build_snapshot_record(pos, instrument_map)
+            pos_id = record["api_position_id"]
+            if not pos_id:
+                continue  # skip malformed entries
+            live_position_ids.add(pos_id)
+            try:
+                portfolio_repo.upsert(record)
+                synced_count += 1
+            except Exception as exc:
+                msg = f"Failed to upsert position {pos_id}: {exc}"
+                print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
+                log_repo.write("WARNING", WORKER_NAME, msg, {"position_id": pos_id})
+    
+        # ── 8. Orphan detection: delete stale snapshots not in live API ───────────
+        # Any position last_synced > ORPHAN_THRESHOLD_MINUTES ago is an orphan
+        orphan_cutoff = _utcnow_minus(ORPHAN_THRESHOLD_MINUTES)
+        all_snapshots = portfolio_repo.get_all()
+        orphan_ids: list[str] = [
+            snap["api_position_id"]
+            for snap in all_snapshots
+            if snap["api_position_id"] not in live_position_ids
+            and snap["last_synced"] < orphan_cutoff
+        ]
+    
+        orphan_count = 0
+        for orphan_id in orphan_ids:
+            try:
+                db.execute(
+                    "DELETE FROM portfolio_snapshot WHERE api_position_id = ?",
+                    (orphan_id,),
+                )
+                orphan_count += 1
+                msg = f"Orphan position removed: {orphan_id}"
+                print(f"[{WORKER_NAME}] WARNING: {msg}")
+                log_repo.write("WARNING", WORKER_NAME, msg, {"api_position_id": orphan_id})
+            except Exception as exc:
+                msg = f"Failed to delete orphan position {orphan_id}: {exc}"
+                print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
+                log_repo.write("WARNING", WORKER_NAME, msg)
+    
+        # ── 9. Trade reconciliation: mark ACTIVE trades CLOSED if no API match ────
+        # ALSO backfill entry_price from portfolio_snapshot for ACTIVE trades that have None
+        closed_trade_count = 0
+        try:
+            active_trades = trade_repo.get_by_status("ACTIVE")
         except Exception as exc:
-            msg = f"Failed to delete orphan position {orphan_id}: {exc}"
+            msg = f"Failed to query ACTIVE trades: {exc}"
             print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
             log_repo.write("WARNING", WORKER_NAME, msg)
-
-    # ── 9. Trade reconciliation: mark ACTIVE trades CLOSED if no API match ────
-    # ALSO backfill entry_price from portfolio_snapshot for ACTIVE trades that have None
-    closed_trade_count = 0
-    try:
-        active_trades = trade_repo.get_by_status("ACTIVE")
-    except Exception as exc:
-        msg = f"Failed to query ACTIVE trades: {exc}"
-        print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
-        log_repo.write("WARNING", WORKER_NAME, msg)
-        active_trades = []
-
-    for trade in active_trades:
-        pos_id = trade.get("api_position_id")
-        if pos_id and pos_id in live_position_ids:
-            # Position still live — backfill entry_price if missing
-            snap = next(
-                (s for s in all_snapshots if s["api_position_id"] == pos_id),
-                None,
-            )
-            if snap and trade.get("entry_price") is None:
-                open_price = snap.get("open_price")
-                if open_price:
-                    try:
-                        trade_repo.update_status(
-                            trade["id"],
-                            "ACTIVE",
-                            entry_price=float(open_price),
-                        )
-                        msg = f"Trade {trade['id']} ({trade.get('symbol')}) backfilled entry_price={open_price}"
-                        print(f"[{WORKER_NAME}] INFO: {msg}")
-                        log_repo.write("INFO", WORKER_NAME, msg, {"trade_id": trade["id"], "entry_price": open_price})
-                    except Exception as exc:
-                        msg = f"Failed to backfill entry_price for trade {trade['id']}: {exc}"
-                        print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
-                        log_repo.write("WARNING", WORKER_NAME, msg)
-            continue  # still live — leave alone
-
-        # ── Grace-Period: only close if position is confirmed orphaned ────────
-        # Position missing this cycle but portfolio_snapshot row still exists
-        # (< ORPHAN_THRESHOLD_MINUTES old → not yet confirmed orphaned).
-        # Skip closure this cycle — next cycle will decide.
-        if pos_id:
-            still_has_snapshot = any(
-                s["api_position_id"] == pos_id for s in all_snapshots
-            )
-            if still_has_snapshot:
-                print(
-                    f"[{WORKER_NAME}] INFO: Trade {trade['id']} ({trade.get('symbol')}): "
-                    f"pos_id={pos_id} missing this cycle but not yet confirmed orphaned — deferring closure"
-                )
-                continue
-
-        # Trade is ACTIVE in DB but has no matching live position → mark CLOSED
-        trade_id = trade["id"]
-        try:
-            # Attempt to calculate pnl from portfolio_snapshot if we have a record
-            pnl_usd: float | None = None
-            pnl_pct: float | None = None
-            if pos_id:
+            active_trades = []
+    
+        for trade in active_trades:
+            pos_id = trade.get("api_position_id")
+            if pos_id and pos_id in live_position_ids:
+                # Position still live — backfill entry_price if missing
                 snap = next(
                     (s for s in all_snapshots if s["api_position_id"] == pos_id),
                     None,
                 )
-                if snap:
-                    pnl_usd = snap.get("unrealized_pnl")
-                    pnl_pct = snap.get("unrealized_pnl_pct")
-
-            extra: dict = {"closed_at": _utcnow()}
-            if pnl_usd is not None:
-                extra["pnl_usd"] = pnl_usd
-            if pnl_pct is not None:
-                extra["pnl_pct"] = pnl_pct
-
-            trade_repo.update_status(trade_id, "CLOSED", **extra)
-            closed_trade_count += 1
-
-            msg = (
-                f"Trade {trade_id} ({trade.get('symbol')}) marked CLOSED "
-                f"— no matching API position (api_position_id={pos_id!r})"
-            )
-            print(f"[{WORKER_NAME}] INFO: {msg}")
-            log_repo.write(
-                "INFO", WORKER_NAME, msg,
-                {"trade_id": trade_id, "api_position_id": pos_id,
-                 "pnl_usd": pnl_usd, "pnl_pct": pnl_pct},
-            )
-            # ── Discord: CLOSE Embed → #etoro-trades ─────────────────────
-            _discord(
-                "post_position_closed_embed",
-                symbol=trade.get("symbol", "?"),
-                amount_usd=float(trade.get("amount_usd", 0)),
-                position_id=str(pos_id or ""),
-                pnl_usd=pnl_usd or 0.0,
-                pnl_pct=pnl_pct or 0.0,
-                reason="Position via Reconciler geschlossen (nicht mehr in API)",
-            )
+                if snap and trade.get("entry_price") is None:
+                    open_price = snap.get("open_price")
+                    if open_price:
+                        try:
+                            trade_repo.update_status(
+                                trade["id"],
+                                "ACTIVE",
+                                entry_price=float(open_price),
+                            )
+                            msg = f"Trade {trade['id']} ({trade.get('symbol')}) backfilled entry_price={open_price}"
+                            print(f"[{WORKER_NAME}] INFO: {msg}")
+                            log_repo.write("INFO", WORKER_NAME, msg, {"trade_id": trade["id"], "entry_price": open_price})
+                        except Exception as exc:
+                            msg = f"Failed to backfill entry_price for trade {trade['id']}: {exc}"
+                            print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
+                            log_repo.write("WARNING", WORKER_NAME, msg)
+                continue  # still live — leave alone
+    
+            # ── Grace-Period: only close if position is confirmed orphaned ────────
+            # Position missing this cycle but portfolio_snapshot row still exists
+            # (< ORPHAN_THRESHOLD_MINUTES old → not yet confirmed orphaned).
+            # Skip closure this cycle — next cycle will decide.
+            if pos_id:
+                still_has_snapshot = any(
+                    s["api_position_id"] == pos_id for s in all_snapshots
+                )
+                if still_has_snapshot:
+                    print(
+                        f"[{WORKER_NAME}] INFO: Trade {trade['id']} ({trade.get('symbol')}): "
+                        f"pos_id={pos_id} missing this cycle but not yet confirmed orphaned — deferring closure"
+                    )
+                    continue
+    
+            # Trade is ACTIVE in DB but has no matching live position → mark CLOSED
+            trade_id = trade["id"]
+            try:
+                # Attempt to calculate pnl from portfolio_snapshot if we have a record
+                pnl_usd: float | None = None
+                pnl_pct: float | None = None
+                if pos_id:
+                    snap = next(
+                        (s for s in all_snapshots if s["api_position_id"] == pos_id),
+                        None,
+                    )
+                    if snap:
+                        pnl_usd = snap.get("unrealized_pnl")
+                        pnl_pct = snap.get("unrealized_pnl_pct")
+    
+                extra: dict = {"closed_at": _utcnow()}
+                if pnl_usd is not None:
+                    extra["pnl_usd"] = pnl_usd
+                if pnl_pct is not None:
+                    extra["pnl_pct"] = pnl_pct
+    
+                trade_repo.update_status(trade_id, "CLOSED", **extra)
+                closed_trade_count += 1
+    
+                msg = (
+                    f"Trade {trade_id} ({trade.get('symbol')}) marked CLOSED "
+                    f"— no matching API position (api_position_id={pos_id!r})"
+                )
+                print(f"[{WORKER_NAME}] INFO: {msg}")
+                log_repo.write(
+                    "INFO", WORKER_NAME, msg,
+                    {"trade_id": trade_id, "api_position_id": pos_id,
+                     "pnl_usd": pnl_usd, "pnl_pct": pnl_pct},
+                )
+                # ── Discord: CLOSE Embed → #etoro-trades ─────────────────────
+                _discord(
+                    "post_position_closed_embed",
+                    symbol=trade.get("symbol", "?"),
+                    amount_usd=float(trade.get("amount_usd", 0)),
+                    position_id=str(pos_id or ""),
+                    pnl_usd=pnl_usd or 0.0,
+                    pnl_pct=pnl_pct or 0.0,
+                    reason="Position via Reconciler geschlossen (nicht mehr in API)",
+                )
+            except Exception as exc:
+                msg = f"Failed to close trade {trade_id}: {exc}"
+                print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
+                log_repo.write("WARNING", WORKER_NAME, msg, {"trade_id": trade_id})
+    
+        # ── 10. Update system_state ────────────────────────────────────────────────
+        now_str       = _utcnow()
+        position_count = portfolio_repo.get_position_count()
+    
+        try:
+            state_repo.set("CURRENT_EQUITY", str(current_equity))
+            state_repo.set("LAST_RECONCILE", now_str)
+            state_repo.set("POSITION_COUNT", str(position_count))
         except Exception as exc:
-            msg = f"Failed to close trade {trade_id}: {exc}"
+            msg = f"Failed to update system_state: {exc}"
             print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
-            log_repo.write("WARNING", WORKER_NAME, msg, {"trade_id": trade_id})
-
-    # ── 10. Update system_state ────────────────────────────────────────────────
-    now_str       = _utcnow()
-    position_count = portfolio_repo.get_position_count()
-
-    try:
-        state_repo.set("CURRENT_EQUITY", str(current_equity))
-        state_repo.set("LAST_RECONCILE", now_str)
-        state_repo.set("POSITION_COUNT", str(position_count))
-    except Exception as exc:
-        msg = f"Failed to update system_state: {exc}"
-        print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
-        log_repo.write("WARNING", WORKER_NAME, msg)
-
-    # ── 11. Update peak equity ─────────────────────────────────────────────────
-    try:
-        peak_equity = state_repo.get_float("PEAK_EQUITY", current_equity)
-        if current_equity > peak_equity:
-            state_repo.set("PEAK_EQUITY", str(current_equity))
+            log_repo.write("WARNING", WORKER_NAME, msg)
+    
+        # ── 11. Update peak equity ─────────────────────────────────────────────────
+        try:
+            peak_equity = state_repo.get_float("PEAK_EQUITY", current_equity)
+            if current_equity > peak_equity:
+                state_repo.set("PEAK_EQUITY", str(current_equity))
+                peak_equity = current_equity
+        except Exception as exc:
+            msg = f"Failed to update PEAK_EQUITY: {exc}"
+            print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
+            log_repo.write("WARNING", WORKER_NAME, msg)
             peak_equity = current_equity
-    except Exception as exc:
-        msg = f"Failed to update PEAK_EQUITY: {exc}"
-        print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
-        log_repo.write("WARNING", WORKER_NAME, msg)
-        peak_equity = current_equity
-
-    # ── 12. Update regime ─────────────────────────────────────────────────────
-    try:
-        previous_regime = state_repo.get_regime()
-        regime, regime_reason = detect_regime(current_equity, peak_equity, previous_regime)
-        state_repo.set_regime(regime)
-        state_repo.set("DRAWDOWN_REASON", regime_reason)
-
-        # Also persist drawdown pct
-        if peak_equity > 0:
-            drawdown_pct = ((peak_equity - current_equity) / peak_equity) * 100.0
-            state_repo.set("DRAWDOWN_PCT", f"{drawdown_pct:.4f}")
-    except Exception as exc:
-        msg = f"Failed to update regime: {exc}"
-        print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
-        log_repo.write("WARNING", WORKER_NAME, msg)
-        regime = state_repo.get_regime()
-
-    # ── 13. Summary ───────────────────────────────────────────────────────────
-    summary = (
-        f"Reconciler: {synced_count} positions synced, "
-        f"equity=${current_equity:.2f}, "
-        f"regime={regime}"
-    )
-    print(summary)
-
-    # ── 14. Persist structured log entry ─────────────────────────────────────
-    log_repo.write(
-        "INFO",
-        WORKER_NAME,
-        summary,
-        {
-            "positions_synced":   synced_count,
-            "orphans_removed":    orphan_count,
-            "trades_closed":      closed_trade_count,
-            "equity":             current_equity,
-            "peak_equity":        peak_equity,
-            "position_count":     position_count,
-            "regime":             regime,
-            "regime_reason":      regime_reason if 'regime_reason' in dir() else "",
-            "run_at":             now_str,
-        },
-    )
-
-    return 0
-
-
-# ── entry point ───────────────────────────────────────────────────────────────
-
+    
+        # ── 12. Update regime ─────────────────────────────────────────────────────
+        try:
+            previous_regime = state_repo.get_regime()
+            regime, regime_reason = detect_regime(current_equity, peak_equity, previous_regime)
+            state_repo.set_regime(regime)
+            state_repo.set("DRAWDOWN_REASON", regime_reason)
+    
+            # Also persist drawdown pct
+            if peak_equity > 0:
+                drawdown_pct = ((peak_equity - current_equity) / peak_equity) * 100.0
+                state_repo.set("DRAWDOWN_PCT", f"{drawdown_pct:.4f}")
+        except Exception as exc:
+            msg = f"Failed to update regime: {exc}"
+            print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
+            log_repo.write("WARNING", WORKER_NAME, msg)
+            regime = state_repo.get_regime()
+    
+        # ── 13. Summary ───────────────────────────────────────────────────────────
+        summary = (
+            f"Reconciler: {synced_count} positions synced, "
+            f"equity=${current_equity:.2f}, "
+            f"regime={regime}"
+        )
+        print(summary)
+    
+        # ── 14. Persist structured log entry ─────────────────────────────────────
+        log_repo.write(
+            "INFO",
+            WORKER_NAME,
+            summary,
+            {
+                "positions_synced":   synced_count,
+                "orphans_removed":    orphan_count,
+                "trades_closed":      closed_trade_count,
+                "equity":             current_equity,
+                "peak_equity":        peak_equity,
+                "position_count":     position_count,
+                "regime":             regime,
+                "regime_reason":      regime_reason if 'regime_reason' in dir() else "",
+                "run_at":             now_str,
+            },
+        )
+    
+        return 0
+    
+    
+    # ── entry point ───────────────────────────────────────────────────────────────
+    
 if __name__ == "__main__":
     sys.exit(main())

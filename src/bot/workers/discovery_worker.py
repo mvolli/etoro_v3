@@ -353,196 +353,204 @@ def main() -> int:
       9. Store top MAX_STORE candidates as signals (TTL 6h)
      10. Summary print + Discord embed
     """
+    # ── Worker lock: prevent overlapping cron invocations ────────────────────
+    from bot.core.worker_lock import worker_lock
+
+    with worker_lock("discovery_worker") as acquired:
+        if not acquired:
+            print("DiscoveryWorker: SKIPPED (already running)")
+            return 0
+
     t_start = time.monotonic()
 
-    # ── 1. Setup ──────────────────────────────────────────────────────────────
-    _load_env()
-    cfg = _load_config()
-
-    from bot.db.connection import DB
-    from bot.db.repo import LogRepo, SignalRepo
-    from bot.core.signals import compute_indicators, generate_signal
-
-    db_cfg = cfg.get("db", {})
-    db_path = PROJECT_ROOT / db_cfg.get("path", "data/trading.db")
-    busy_timeout_ms = int(db_cfg.get("busy_timeout_ms", 5000))
-    db = DB(db_path=db_path, busy_timeout_ms=busy_timeout_ms)
-
-    signal_repo = SignalRepo(db)
-    log_repo = LogRepo(db)
-
-    instrument_map = _load_instrument_map()
-    logger.info(
-        "[%s] Loaded %d instruments from map", WORKER_NAME, len(instrument_map)
-    )
-
-    # ── 2. Build combined symbol universe (stocks + multi-asset) ───────────────
-    all_symbols: list[str] = list(FULL_UNIVERSE)
-    symbol_to_inst_id: dict[str, int] = {}  # maps yf_symbol → instrument_id for multi-asset
-
-    # Load multi-asset watchlist from DB
-    multiasset = _get_multiasset_universe(db)
-    logger.info("[%s] Loaded %d multi-asset instruments from watchlist", WORKER_NAME, len(multiasset))
-    for yf_sym, inst_id in multiasset:
-        if yf_sym not in all_symbols:
-            all_symbols.append(yf_sym)
-            symbol_to_inst_id[yf_sym] = inst_id
-
-    # ── Release DB connection before yfinance (prevents lock conflicts with data_worker) ──
-    db.close()
-    logger.info("[%s] DB released — starting yfinance batch fetch", WORKER_NAME)
-
-    logger.info("[%s] Starting discovery scan of %d total symbols", WORKER_NAME, len(all_symbols))
-    try:
-        price_data = _batch_fetch(all_symbols)
-    except Exception as exc:
-        logger.critical("[%s] Batch fetch failed — %s", WORKER_NAME, exc, exc_info=True)
-        print(f"DiscoveryWorker: FATAL — batch fetch failed: {exc}")
-        return 1
-
-    n_scanned = len(price_data)
-    logger.info("[%s] %d symbols with usable OHLCV data", WORKER_NAME, n_scanned)
-
-    # ── 3+4+5. Compute indicators + generate signals + filter ─────────────────
-    buy_candidates: list[dict] = []
-
-    for symbol, df in price_data.items():
-        try:
-            indicators = compute_indicators(df)
-            if not indicators:
-                logger.debug("[%s] %s: no indicators — skipped", WORKER_NAME, symbol)
-                continue
-
-            result = generate_signal(symbol, indicators)
-
-            if result.direction != "BUY" or result.score < MIN_BUY_SCORE:
-                logger.debug(
-                    "[%s] %s: direction=%s score=%.1f — not a candidate",
-                    WORKER_NAME, symbol, result.direction, result.score,
-                )
-                continue
-
-            buy_candidates.append({
-                "symbol":     symbol,
-                "score":      result.score,
-                "conviction": result.conviction,
-                "rsi":        result.rsi,
-                "macd_hist":  result.macd_hist,
-                "bb_pct":     result.bb_pct,
-                "price":      result.price,
-                "atr":        result.atr,
-                "signal_types": result.signal_types,
-            })
-            logger.info(
-                "[%s] CANDIDATE %s score=%.1f conviction=%s",
-                WORKER_NAME, symbol, result.score, result.conviction,
-            )
-
-        except Exception as exc:
-            logger.warning(
-                "[%s] Error processing %s: %s", WORKER_NAME, symbol, exc, exc_info=True
-            )
-            # Per-symbol error: continue with remaining symbols
-
-    k_candidates = len(buy_candidates)
-    logger.info("[%s] %d BUY candidates (score >= %.0f)", WORKER_NAME, k_candidates, MIN_BUY_SCORE)
-
-    # ── 6. Rank by score, take top 20 ─────────────────────────────────────────
-    buy_candidates.sort(key=lambda c: c["score"], reverse=True)
-    top_candidates = buy_candidates[:MAX_CANDIDATES]
-
-    # ── 7. Apply sector-diversity cap ─────────────────────────────────────────
-    filtered_candidates = _apply_sector_filter(top_candidates)
-    logger.info(
-        "[%s] %d candidates after sector filter (max %d/sector)",
-        WORKER_NAME, len(filtered_candidates), MAX_PER_SECTOR,
-    )
-
-    # Limit to MAX_STORE for DB storage
-    store_candidates = filtered_candidates[:MAX_STORE]
-
-    # ── 8+9. Ensure instruments + store signals ────────────────────────────────
-    j_stored = 0
-
-    for cand in store_candidates:
-        symbol = cand["symbol"]
-        try:
-            # Prefer direct watchlist mapping for multi-asset instruments
-            if symbol in symbol_to_inst_id:
-                instrument_id = symbol_to_inst_id[symbol]
-            else:
-                instrument_id = _symbol_to_instrument_id(symbol, instrument_map)
-
-            # Ensure instrument row exists
-            _ensure_instrument(symbol, instrument_id, db)
-
-            # Resolve the actual instrument_id from the instruments table
-            # (in case _ensure_instrument used a placeholder that differs from
-            # the row inserted)
-            row = db.fetchone(
-                "SELECT instrument_id FROM instruments WHERE symbol = ? LIMIT 1", (symbol,)
-            )
-            if row is not None:
-                instrument_id = row["instrument_id"]
-
-            # Store signal with 6h TTL
-            signal_types_str = (
-                ",".join(cand["signal_types"]) if cand.get("signal_types") else "BUY"
-            )
-            signal_repo.create(
-                instrument_id=instrument_id,
-                signal_type=signal_types_str,
-                conviction=cand["conviction"],
-                score=cand["score"],
-                rsi=cand.get("rsi"),
-                macd_hist=cand.get("macd_hist"),
-                bb_pct=cand.get("bb_pct"),
-                price=cand.get("price"),
-                ttl_minutes=SIGNAL_TTL_MINUTES,
-            )
-            j_stored += 1
-            logger.info(
-                "[%s] Stored signal — %s (score=%.1f conviction=%s instrument_id=%d)",
-                WORKER_NAME, symbol, cand["score"], cand["conviction"], instrument_id,
-            )
-
-        except Exception as exc:
-            logger.warning(
-                "[%s] Failed to store signal for %s: %s",
-                WORKER_NAME, symbol, exc, exc_info=True,
-            )
-
-    # ── 10. Summary ───────────────────────────────────────────────────────────
-    elapsed = time.monotonic() - t_start
-    summary = (
-        f"DiscoveryWorker: scanned {n_scanned} symbols, "
-        f"{k_candidates} BUY candidates, "
-        f"{j_stored} stored (top {MAX_STORE}), "
-        f"took {elapsed:.1f}s"
-    )
-    print(summary)
-
-    try:
-        log_repo.write(
-            "INFO",
-            WORKER_NAME,
-            summary,
-            {
-                "n_scanned":    n_scanned,
-                "k_candidates": k_candidates,
-                "j_stored":     j_stored,
-                "elapsed_s":    round(elapsed, 2),
-                "top_symbols":  [c["symbol"] for c in store_candidates],
-            },
+        # ── 1. Setup ──────────────────────────────────────────────────────────────
+        _load_env()
+        cfg = _load_config()
+    
+        from bot.db.connection import DB
+        from bot.db.repo import LogRepo, SignalRepo
+        from bot.core.signals import compute_indicators, generate_signal
+    
+        db_cfg = cfg.get("db", {})
+        db_path = PROJECT_ROOT / db_cfg.get("path", "data/trading.db")
+        busy_timeout_ms = int(db_cfg.get("busy_timeout_ms", 5000))
+        db = DB(db_path=db_path, busy_timeout_ms=busy_timeout_ms)
+    
+        signal_repo = SignalRepo(db)
+        log_repo = LogRepo(db)
+    
+        instrument_map = _load_instrument_map()
+        logger.info(
+            "[%s] Loaded %d instruments from map", WORKER_NAME, len(instrument_map)
         )
-    except Exception as exc:
-        logger.warning("[%s] Could not write to system_log: %s", WORKER_NAME, exc)
-
-    # ── 11. Discord embed ─────────────────────────────────────────────────────
-    _post_discord(store_candidates)
-
-    return 0
-
-
+    
+        # ── 2. Build combined symbol universe (stocks + multi-asset) ───────────────
+        all_symbols: list[str] = list(FULL_UNIVERSE)
+        symbol_to_inst_id: dict[str, int] = {}  # maps yf_symbol → instrument_id for multi-asset
+    
+        # Load multi-asset watchlist from DB
+        multiasset = _get_multiasset_universe(db)
+        logger.info("[%s] Loaded %d multi-asset instruments from watchlist", WORKER_NAME, len(multiasset))
+        for yf_sym, inst_id in multiasset:
+            if yf_sym not in all_symbols:
+                all_symbols.append(yf_sym)
+                symbol_to_inst_id[yf_sym] = inst_id
+    
+        # ── Release DB connection before yfinance (prevents lock conflicts with data_worker) ──
+        db.close()
+        logger.info("[%s] DB released — starting yfinance batch fetch", WORKER_NAME)
+    
+        logger.info("[%s] Starting discovery scan of %d total symbols", WORKER_NAME, len(all_symbols))
+        try:
+            price_data = _batch_fetch(all_symbols)
+        except Exception as exc:
+            logger.critical("[%s] Batch fetch failed — %s", WORKER_NAME, exc, exc_info=True)
+            print(f"DiscoveryWorker: FATAL — batch fetch failed: {exc}")
+            return 1
+    
+        n_scanned = len(price_data)
+        logger.info("[%s] %d symbols with usable OHLCV data", WORKER_NAME, n_scanned)
+    
+        # ── 3+4+5. Compute indicators + generate signals + filter ─────────────────
+        buy_candidates: list[dict] = []
+    
+        for symbol, df in price_data.items():
+            try:
+                indicators = compute_indicators(df)
+                if not indicators:
+                    logger.debug("[%s] %s: no indicators — skipped", WORKER_NAME, symbol)
+                    continue
+    
+                result = generate_signal(symbol, indicators)
+    
+                if result.direction != "BUY" or result.score < MIN_BUY_SCORE:
+                    logger.debug(
+                        "[%s] %s: direction=%s score=%.1f — not a candidate",
+                        WORKER_NAME, symbol, result.direction, result.score,
+                    )
+                    continue
+    
+                buy_candidates.append({
+                    "symbol":     symbol,
+                    "score":      result.score,
+                    "conviction": result.conviction,
+                    "rsi":        result.rsi,
+                    "macd_hist":  result.macd_hist,
+                    "bb_pct":     result.bb_pct,
+                    "price":      result.price,
+                    "atr":        result.atr,
+                    "signal_types": result.signal_types,
+                })
+                logger.info(
+                    "[%s] CANDIDATE %s score=%.1f conviction=%s",
+                    WORKER_NAME, symbol, result.score, result.conviction,
+                )
+    
+            except Exception as exc:
+                logger.warning(
+                    "[%s] Error processing %s: %s", WORKER_NAME, symbol, exc, exc_info=True
+                )
+                # Per-symbol error: continue with remaining symbols
+    
+        k_candidates = len(buy_candidates)
+        logger.info("[%s] %d BUY candidates (score >= %.0f)", WORKER_NAME, k_candidates, MIN_BUY_SCORE)
+    
+        # ── 6. Rank by score, take top 20 ─────────────────────────────────────────
+        buy_candidates.sort(key=lambda c: c["score"], reverse=True)
+        top_candidates = buy_candidates[:MAX_CANDIDATES]
+    
+        # ── 7. Apply sector-diversity cap ─────────────────────────────────────────
+        filtered_candidates = _apply_sector_filter(top_candidates)
+        logger.info(
+            "[%s] %d candidates after sector filter (max %d/sector)",
+            WORKER_NAME, len(filtered_candidates), MAX_PER_SECTOR,
+        )
+    
+        # Limit to MAX_STORE for DB storage
+        store_candidates = filtered_candidates[:MAX_STORE]
+    
+        # ── 8+9. Ensure instruments + store signals ────────────────────────────────
+        j_stored = 0
+    
+        for cand in store_candidates:
+            symbol = cand["symbol"]
+            try:
+                # Prefer direct watchlist mapping for multi-asset instruments
+                if symbol in symbol_to_inst_id:
+                    instrument_id = symbol_to_inst_id[symbol]
+                else:
+                    instrument_id = _symbol_to_instrument_id(symbol, instrument_map)
+    
+                # Ensure instrument row exists
+                _ensure_instrument(symbol, instrument_id, db)
+    
+                # Resolve the actual instrument_id from the instruments table
+                # (in case _ensure_instrument used a placeholder that differs from
+                # the row inserted)
+                row = db.fetchone(
+                    "SELECT instrument_id FROM instruments WHERE symbol = ? LIMIT 1", (symbol,)
+                )
+                if row is not None:
+                    instrument_id = row["instrument_id"]
+    
+                # Store signal with 6h TTL
+                signal_types_str = (
+                    ",".join(cand["signal_types"]) if cand.get("signal_types") else "BUY"
+                )
+                signal_repo.create(
+                    instrument_id=instrument_id,
+                    signal_type=signal_types_str,
+                    conviction=cand["conviction"],
+                    score=cand["score"],
+                    rsi=cand.get("rsi"),
+                    macd_hist=cand.get("macd_hist"),
+                    bb_pct=cand.get("bb_pct"),
+                    price=cand.get("price"),
+                    ttl_minutes=SIGNAL_TTL_MINUTES,
+                )
+                j_stored += 1
+                logger.info(
+                    "[%s] Stored signal — %s (score=%.1f conviction=%s instrument_id=%d)",
+                    WORKER_NAME, symbol, cand["score"], cand["conviction"], instrument_id,
+                )
+    
+            except Exception as exc:
+                logger.warning(
+                    "[%s] Failed to store signal for %s: %s",
+                    WORKER_NAME, symbol, exc, exc_info=True,
+                )
+    
+        # ── 10. Summary ───────────────────────────────────────────────────────────
+        elapsed = time.monotonic() - t_start
+        summary = (
+            f"DiscoveryWorker: scanned {n_scanned} symbols, "
+            f"{k_candidates} BUY candidates, "
+            f"{j_stored} stored (top {MAX_STORE}), "
+            f"took {elapsed:.1f}s"
+        )
+        print(summary)
+    
+        try:
+            log_repo.write(
+                "INFO",
+                WORKER_NAME,
+                summary,
+                {
+                    "n_scanned":    n_scanned,
+                    "k_candidates": k_candidates,
+                    "j_stored":     j_stored,
+                    "elapsed_s":    round(elapsed, 2),
+                    "top_symbols":  [c["symbol"] for c in store_candidates],
+                },
+            )
+        except Exception as exc:
+            logger.warning("[%s] Could not write to system_log: %s", WORKER_NAME, exc)
+    
+        # ── 11. Discord embed ─────────────────────────────────────────────────────
+        _post_discord(store_candidates)
+    
+        return 0
+    
+    
 if __name__ == "__main__":
     sys.exit(main())

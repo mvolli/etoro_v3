@@ -709,6 +709,14 @@ def run(project_root: Path | None = None) -> dict:
 
 def main() -> int:
     """CLI entry point — configure logging and run one cycle."""
+    # ── Worker lock: prevent overlapping cron invocations ────────────────────
+    from bot.core.worker_lock import worker_lock
+
+    with worker_lock("data_worker") as acquired:
+        if not acquired:
+            print("DataWorker: SKIPPED (already running)")
+            return 0
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
