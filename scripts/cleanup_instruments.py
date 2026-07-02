@@ -28,6 +28,7 @@ import os
 import re
 import sqlite3
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -186,15 +187,22 @@ def _verify_against_etoro(
         # for those IDs by injecting a sentinel.
         chunk_size = 50
         unverifiable: set[int] = set()
+        max_retries = 3
         for i in range(0, len(candidate_ids), chunk_size):
+            # Rate-limit protection: 1s Pause zwischen Batches
+            if i > 0:
+                time.sleep(1.0)
             chunk = candidate_ids[i:i + chunk_size]
             got: dict[int, dict] = {}
-            for attempt in (1, 2):
+            for attempt in range(1, max_retries + 1):
                 try:
                     got = client.get_instruments_metadata_batch(chunk, chunk_size=chunk_size)
                     break
                 except APIError as exc:
-                    print(f"  Batch {i//chunk_size+1}: APIError ({exc}) — Versuch {attempt}/2")
+                    wait = min(2 ** attempt, 30)  # exponential backoff: 2s, 4s, 8s...
+                    print(f"  Batch {i//chunk_size+1}: APIError (HTTP {exc.status if hasattr(exc, 'status') else '?'}) — "
+                          f"Versuch {attempt}/{max_retries}, warte {wait}s")
+                    time.sleep(wait)
                     got = {}
             if not got and chunk:
                 unverifiable.update(chunk)
