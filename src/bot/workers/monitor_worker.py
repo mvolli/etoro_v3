@@ -120,7 +120,7 @@ def main() -> int:
             print("MonitorWorker: SKIPPED (already running)")
             return 0
 
-    t_start = time.time()
+        t_start = time.time()
         cfg = load_config()
     
         db = DB(cfg.db.abs_path)

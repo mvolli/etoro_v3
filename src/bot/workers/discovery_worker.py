@@ -361,7 +361,7 @@ def main() -> int:
             print("DiscoveryWorker: SKIPPED (already running)")
             return 0
 
-    t_start = time.monotonic()
+        t_start = time.monotonic()
 
         # ── 1. Setup ──────────────────────────────────────────────────────────────
         _load_env()
