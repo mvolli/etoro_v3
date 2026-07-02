@@ -133,12 +133,41 @@ def main() -> None:
         )
     
         # ── 3. Evaluate stop-loss for each position ────────────────────────────────
+        # hotfix/risk-worker-position-id: the /trading/info/real/pnl payload
+        # uses capital-ID field names (positionID, instrumentID) — the old
+        # lowercase-first lookups returned None for EVERY position, so SL
+        # closes were fired as close_position(None, ...) → HTTP 400.
+        # Same extraction order as reconciler._build_snapshot_record().
         for pos in raw_positions:
             checked_count += 1
     
-            position_id = pos.get("positionId") or pos.get("id") or pos.get("position_id")
-            instrument_id = pos.get("instrumentId") or pos.get("instrument_id")
-            symbol = pos.get("symbol") or str(instrument_id)
+            position_id = (
+                pos.get("positionID")
+                or pos.get("positionId")
+                or pos.get("id")
+                or pos.get("position_id")
+            )
+            instrument_id = (
+                pos.get("instrumentID")
+                or pos.get("instrumentId")
+                or pos.get("instrument_id")
+            )
+            symbol = pos.get("symbol") or ""
+            if not symbol and instrument_id is not None:
+                # Payload carries no symbol — resolve via portfolio_snapshot
+                try:
+                    _sym_row = db.fetchone(
+                        "SELECT symbol FROM portfolio_snapshot "
+                        "WHERE instrument_id = ? AND symbol IS NOT NULL "
+                        "ORDER BY last_synced DESC LIMIT 1",
+                        (int(instrument_id),),
+                    )
+                    if _sym_row:
+                        symbol = _sym_row["symbol"]
+                except Exception:
+                    pass
+            if not symbol:
+                symbol = str(instrument_id)
     
             # Extract pnl_pct: unrealizedPnL.pnLPct or flat pnLPct
             unrealized = pos.get("unrealizedPnL") or {}
@@ -195,6 +224,32 @@ def main() -> None:
             sl_action = evaluate_sl(pnl_pct)
     
             if sl_action.action == "CLOSE":
+                # hotfix/risk-worker-position-id: never send a close order
+                # without a valid position id — the API rejects 'None' with
+                # HTTP 400 and the position stays open while looking handled.
+                if not position_id or str(position_id).lower() == "none":
+                    logger.error(
+                        "RiskWorker: SL CLOSE für %s NICHT ausführbar — position_id fehlt "
+                        "im API-Payload (Felder: %s)",
+                        symbol, sorted(pos.keys()),
+                    )
+                    log_repo.write(
+                        "ERROR",
+                        "risk_worker",
+                        f"SL CLOSE blockiert: {symbol} ohne position_id (pnl={pnl_pct:.2f}%)",
+                        {"payload_keys": sorted(pos.keys()), "pnl_pct": pnl_pct},
+                    )
+                    _discord(
+                        "post_alert_embed",
+                        title="🔴 RiskWorker: SL-Close ohne position_id",
+                        description=(
+                            f"{symbol}: SL bei {pnl_pct:.2f}% ausgelöst, aber API-Payload "
+                            f"enthält keine positionID — Position bleibt offen, manuelle Prüfung!"
+                        ),
+                        severity="CRITICAL",
+                    )
+                    continue
+
                 logger.warning(
                     "RiskWorker: SL CLOSE triggered for %s (pos=%s) — %s",
                     symbol, position_id, sl_action.reason,
