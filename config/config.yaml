@@ -62,6 +62,9 @@ sector_limits:
   max_per_sector_pct: 20.0    # Maximum combined exposure to any single GICS sector (%)
   max_active_sectors: 3       # Maximum number of sectors with open positions simultaneously
 
+discovery:
+  max_price_deviation_pct: 25.0  # Identity guard: max yfinance↔eToro price deviation (scale-aware GBp/GBP)
+
 discord:
   main_channel: 1513971015108263957    # General bot status / heartbeat channel
   trades_channel: 1514786489110630600  # Trade execution notifications channel

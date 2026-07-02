@@ -1,0 +1,631 @@
+diff --git a/config/config.yaml b/config/config.yaml
+index 8886c7d..dae8969 100644
+--- a/config/config.yaml
++++ b/config/config.yaml
+@@ -62,6 +62,9 @@ sector_limits:
+   max_per_sector_pct: 20.0    # Maximum combined exposure to any single GICS sector (%)
+   max_active_sectors: 3       # Maximum number of sectors with open positions simultaneously
+ 
++discovery:
++  max_price_deviation_pct: 25.0  # Identity guard: max yfinance↔eToro price deviation (scale-aware GBp/GBP)
++
+ discord:
+   main_channel: 1513971015108263957    # General bot status / heartbeat channel
+   trades_channel: 1514786489110630600  # Trade execution notifications channel
+diff --git a/src/bot/core/heartbeat.py b/src/bot/core/heartbeat.py
+index 07d74c0..52bf6fe 100644
+--- a/src/bot/core/heartbeat.py
++++ b/src/bot/core/heartbeat.py
+@@ -19,6 +19,7 @@ EXPECTED_INTERVALS_MIN: dict[str, int] = {
+     "reconciler": 5,
+     "signal_worker": 15,
+     "execution_worker": 15,
++    "discovery_worker": 120,
+ }
+ 
+ # A worker is considered stale after this many missed intervals.
+diff --git a/src/bot/core/instrument_verification.py b/src/bot/core/instrument_verification.py
+new file mode 100644
+index 0000000..79b0e5f
+--- /dev/null
++++ b/src/bot/core/instrument_verification.py
+@@ -0,0 +1,161 @@
++#!/usr/bin/env python3
++"""Instrument verification — fix/discovery-identity-verification.
++
++Pure logic (no API, no DB) to verify that a locally-resolved
++instrument_id actually refers to the instrument a signal was generated
++for, BEFORE the signal enters the pool.
++
++Root cause this prevents (VALT.L incident, 2026-07-02): discovery
++resolved a symbol to a wrong/placeholder instrument_id. The signal
++carried the correct yfinance price (~$113) while the eToro ID pointed at
++a completely different instrument (~$5,200). The slippage gate caught it
++at execution time — this module catches the whole class at DISCOVERY
++time, so mismatched identities never reach the signal pool at all.
++
++Two independent checks:
++  1. Identity  — does eToro metadata for the ID resolve to the expected
++                 ticker? (Hard fail on mismatch; fail-open when metadata
++                 is unavailable — same philosophy as
++                 EToroClient.verify_instrument_identity.)
++  2. Price     — does the eToro live price agree with the yfinance price
++                 the signal is based on? Scale-aware to tolerate
++                 GBp/GBP (LSE pence, ×100) and similar minor-unit quotes
++                 (×0.01), so e.g. VALT.L at 113 GBP vs 11,300 GBp passes,
++                 while 113 vs 5,200 (a genuinely different instrument)
++                 fails at every scale.
++"""
++from __future__ import annotations
++
++# Deviation above which two prices are considered "different instruments".
++# Generous on purpose: yfinance candles can be up to a session old and the
++# check must survive normal volatility + FX wobble. A true identity
++# mismatch is typically off by 10×–1000×, far outside any tolerance.
++MAX_PRICE_DEVIATION_PCT_DEFAULT = 25.0
++
++# Scale factors tried when comparing prices. 1.0 = same unit,
++# 100.0 / 0.01 = major/minor currency unit (GBP↔GBp, EUR↔cent).
++PRICE_SCALE_FACTORS: tuple[float, ...] = (1.0, 100.0, 0.01)
++
++# Metadata symbol fields in priority order — mirrors
++# EToroClient.verify_instrument_identity (symbolFull verified 2026-07-01).
++_SYMBOL_FIELDS: tuple[str, ...] = (
++    "symbolFull",
++    "internalSymbolFull",
++    "symbol",
++    "ticker",
++    "displayName",
++    "displayname",
++)
++
++
++def normalize_symbol(sym: str) -> str:
++    """Loosely normalize a ticker for identity comparison.
++
++    Upper-cases and strips common quote-currency suffixes so a local
++    'DOT-USD' matches a live-API 'DOT'. Exchange suffixes like '.L' are
++    KEPT — 'VALT.L' and 'VALT' are different listings on purpose.
++    """
++    if not sym:
++        return ""
++    s = sym.upper().strip()
++    for suffix in ("-USD", "/USD", "USD"):
++        if s.endswith(suffix) and len(s) > len(suffix):
++            s = s[: -len(suffix)]
++            break
++    return s
++
++
++def extract_live_symbol(meta: dict | None) -> str:
++    """Pull the ticker out of an eToro metadata dict ('' when absent)."""
++    if not meta:
++        return ""
++    for field in _SYMBOL_FIELDS:
++        val = meta.get(field)
++        if val:
++            return str(val)
++    return ""
++
++
++def check_identity(expected_symbol: str, meta: dict | None) -> tuple[bool, str]:
++    """Identity check against eToro metadata.
++
++    - meta missing / no symbol field → (True, ...) fail-open: a metadata
++      outage must not silence discovery entirely; the price check below
++      still applies.
++    - symbol present and different   → (False, ...) HARD fail, never open.
++    """
++    live_symbol = extract_live_symbol(meta)
++    if not live_symbol:
++        return True, f"Identity: skipped für '{expected_symbol}' (keine Metadata — fail-open)"
++
++    if normalize_symbol(expected_symbol) != normalize_symbol(live_symbol):
++        return False, (
++            f"Identity MISMATCH: lokal '{expected_symbol}' ≠ eToro '{live_symbol}' "
++            f"— falsche instrument_id-Zuordnung"
++        )
++    return True, f"Identity OK: '{expected_symbol}' == '{live_symbol}'"
++
++
++def check_price_consistency(
++    reference_price: float | None,
++    live_price: float | None,
++    max_deviation_pct: float = MAX_PRICE_DEVIATION_PCT_DEFAULT,
++    scale_factors: tuple[float, ...] = PRICE_SCALE_FACTORS,
++) -> tuple[bool, float, float]:
++    """Compare the signal's reference price (yfinance) with the eToro live
++    price for the resolved instrument_id.
++
++    Returns (consistent, best_deviation_pct, best_scale).
++
++    - Either price missing/non-positive → (True, 0.0, 1.0): nothing to
++      compare, treated as pass — the identity check is the primary gate.
++    - Tries each scale factor and keeps the smallest absolute deviation,
++      so GBp/GBP and cent quotes don't false-positive.
++    """
++    if not reference_price or reference_price <= 0 or not live_price or live_price <= 0:
++        return (True, 0.0, 1.0)
++
++    best_dev = float("inf")
++    best_scale = 1.0
++    for scale in scale_factors:
++        scaled_live = live_price * scale
++        dev_pct = abs(scaled_live - reference_price) / reference_price * 100.0
++        if dev_pct < best_dev:
++            best_dev = dev_pct
++            best_scale = scale
++
++    return (best_dev <= max_deviation_pct, best_dev, best_scale)
++
++
++def verify_candidate(
++    expected_symbol: str,
++    meta: dict | None,
++    reference_price: float | None,
++    live_price: float | None,
++    max_deviation_pct: float = MAX_PRICE_DEVIATION_PCT_DEFAULT,
++) -> tuple[bool, str]:
++    """Combined verification for one discovery candidate.
++
++    Order matters: a hard identity mismatch always wins. The price check
++    is the safety net for the fail-open metadata paths (missing meta,
++    missing symbol field) — exactly the paths a placeholder/collided ID
++    slips through.
++    """
++    id_ok, id_reason = check_identity(expected_symbol, meta)
++    if not id_ok:
++        return (False, id_reason)
++
++    price_ok, dev_pct, scale = check_price_consistency(
++        reference_price, live_price, max_deviation_pct
++    )
++    if not price_ok:
++        return (False, (
++            f"Preis-Mismatch: {expected_symbol} Signal ${reference_price:.4f} vs. "
++            f"eToro ${live_price:.4f} — beste Abweichung {dev_pct:.1f}% "
++            f"(Scale ×{scale:g}, Max {max_deviation_pct:.0f}%) — "
++            f"instrument_id zeigt vermutlich auf ein anderes Instrument"
++        ))
++
++    detail = f"{id_reason} | Preis OK ({dev_pct:.1f}% @ ×{scale:g})" \
++        if (reference_price and live_price) else f"{id_reason} | Preis: kein Vergleich möglich"
++    return (True, detail)
+diff --git a/src/bot/workers/discovery_worker.py b/src/bot/workers/discovery_worker.py
+index d82a807..9d40727 100644
+--- a/src/bot/workers/discovery_worker.py
++++ b/src/bot/workers/discovery_worker.py
+@@ -184,17 +184,25 @@ def _load_instrument_map() -> dict[int, str]:
+ def _symbol_to_instrument_id(
+     symbol: str,
+     instrument_map: dict[int, str],
+-) -> int:
++) -> int | None:
+     """
+-    Resolve symbol → eToro instrument_id.
+-    Falls back to a deterministic placeholder if not in the known map.
++    Resolve symbol → eToro instrument_id via the local map.
++
++    fix/discovery-identity-verification: returns None when unknown.
++    The old fallback generated abs(hash(symbol)) % 900_000 + 100_000 —
++    a FAKE instrument_id that (a) was not even deterministic across
++    processes (PYTHONHASHSEED randomization), (b) could collide with a
++    REAL eToro instrument, and (c) was persisted into the `instruments`
++    table via INSERT OR IGNORE, permanently poisoning symbol resolution.
++    This is the mechanism behind the placeholder pollution the symbol
++    audit is cleaning up, and behind the VALT.L→$5,200 incident.
++    Unresolvable symbols now simply produce NO signal (fail-closed).
+     """
+     sym_upper = symbol.strip().upper()
+     for iid, sym in instrument_map.items():
+         if sym.strip().upper() == sym_upper:
+             return iid
+-    # Deterministic placeholder: hash-based, 100000–999999
+-    return abs(hash(symbol)) % 900_000 + 100_000
++    return None
+ 
+ 
+ def _batch_fetch(symbols: list[str]) -> dict[str, Any]:
+@@ -378,6 +386,37 @@ def main() -> int:
+     
+         signal_repo = SignalRepo(db)
+         log_repo = LogRepo(db)
++
++        # ── Heartbeat (dead-man's switch) ──────────────────────────────────────────
++        try:
++            from bot.db.repo import StateRepo as _StateRepo
++            from bot.core.heartbeat import record_heartbeat as _record_heartbeat
++            _record_heartbeat(_StateRepo(db), "discovery_worker")
++        except Exception:
++            pass
++
++        # ── API client for identity/price verification ─────────────────────────────
++        # fix/discovery-identity-verification: signals are only stored after
++        # the resolved instrument_id has been verified against eToro
++        # (identity + price cross-check). Without API credentials, discovery
++        # stores NOTHING — an unverified signal pool is exactly the bug
++        # class that produced the VALT.L incident.
++        from bot.api.client import APIError, ClientConfig, EToroClient
++        _api_key = os.environ.get("ETORO_API_KEY", "")
++        _user_key = os.environ.get("ETORO_USER_KEY", "")
++        verify_client: EToroClient | None = None
++        if _api_key and _user_key:
++            verify_client = EToroClient(
++                api_key=_api_key,
++                user_key=_user_key,
++                config=ClientConfig.from_dict(cfg.get("api", {})),
++            )
++        else:
++            logger.critical(
++                "[%s] ETORO_API_KEY/ETORO_USER_KEY fehlen — Kandidaten können nicht "
++                "verifiziert werden, es werden KEINE Signale gespeichert (fail-closed)",
++                WORKER_NAME,
++            )
+     
+         instrument_map = _load_instrument_map()
+         logger.info(
+@@ -469,30 +508,108 @@ def main() -> int:
+         # Limit to MAX_STORE for DB storage
+         store_candidates = filtered_candidates[:MAX_STORE]
+     
+-        # ── 8+9. Ensure instruments + store signals ────────────────────────────────
++        # ── 8+9. Resolve → VERIFY → store signals ──────────────────────────────────
++        # fix/discovery-identity-verification: every candidate's instrument_id
++        # is verified against eToro (identity via metadata, plausibility via
++        # price cross-check) BEFORE a signal is stored. Mismatches like
++        # VALT.L↔Valterra can no longer enter the signal pool.
++        from bot.core.instrument_verification import (
++            MAX_PRICE_DEVIATION_PCT_DEFAULT,
++            verify_candidate,
++        )
++
++        max_dev_pct = float(
++            cfg.get("discovery", {}).get(
++                "max_price_deviation_pct", MAX_PRICE_DEVIATION_PCT_DEFAULT
++            )
++        )
++
+         j_stored = 0
+-    
++        n_unresolved = 0
++        unverified: list[str] = []  # "SYMBOL: reason" for summary/Discord
++
++        # Pass 1: resolve instrument_ids (fail-closed, no placeholders)
++        resolved: list[tuple[dict, int]] = []  # (candidate, instrument_id)
+         for cand in store_candidates:
+             symbol = cand["symbol"]
+-            try:
+-                # Prefer direct watchlist mapping for multi-asset instruments
+-                if symbol in symbol_to_inst_id:
+-                    instrument_id = symbol_to_inst_id[symbol]
+-                else:
+-                    instrument_id = _symbol_to_instrument_id(symbol, instrument_map)
+-    
+-                # Ensure instrument row exists
+-                _ensure_instrument(symbol, instrument_id, db)
+-    
+-                # Resolve the actual instrument_id from the instruments table
+-                # (in case _ensure_instrument used a placeholder that differs from
+-                # the row inserted)
++            if symbol in symbol_to_inst_id:
++                instrument_id = symbol_to_inst_id[symbol]
++            else:
++                instrument_id = _symbol_to_instrument_id(symbol, instrument_map)
++
++            if instrument_id is None:
++                # Last chance: an existing (non-placeholder) instruments row.
+                 row = db.fetchone(
+-                    "SELECT instrument_id FROM instruments WHERE symbol = ? LIMIT 1", (symbol,)
++                    "SELECT instrument_id FROM instruments WHERE symbol = ? LIMIT 1",
++                    (symbol,),
+                 )
+                 if row is not None:
+-                    instrument_id = row["instrument_id"]
+-    
++                    instrument_id = int(row["instrument_id"])
++
++            if instrument_id is None:
++                n_unresolved += 1
++                logger.warning(
++                    "[%s] %s: keine instrument_id auflösbar — Signal wird NICHT "
++                    "gespeichert (fail-closed, kein Placeholder mehr)",
++                    WORKER_NAME, symbol,
++                )
++                continue
++            resolved.append((cand, int(instrument_id)))
++
++        # Pass 2: batch metadata for all resolved IDs (1 request / 50 IDs)
++        metadata_by_id: dict[int, dict] = {}
++        if verify_client is not None and resolved:
++            try:
++                metadata_by_id = verify_client.get_instruments_metadata_batch(
++                    [iid for _, iid in resolved]
++                )
++            except APIError as exc:
++                logger.warning(
++                    "[%s] Batch-Metadata fehlgeschlagen (%s) — Identity-Check "
++                    "läuft fail-open, Preis-Check bleibt aktiv",
++                    WORKER_NAME, exc,
++                )
++            except Exception as exc:
++                logger.warning(
++                    "[%s] Batch-Metadata unerwartet fehlgeschlagen: %s",
++                    WORKER_NAME, exc,
++                )
++
++        # Pass 3: verify + store
++        for cand, instrument_id in resolved:
++            symbol = cand["symbol"]
++            try:
++                if verify_client is None:
++                    unverified.append(f"{symbol}: keine API-Credentials — nicht verifizierbar")
++                    continue
++
++                live_price = verify_client.get_current_price(instrument_id)
++                ok, reason = verify_candidate(
++                    expected_symbol=symbol,
++                    meta=metadata_by_id.get(instrument_id),
++                    reference_price=cand.get("price"),
++                    live_price=live_price,
++                    max_deviation_pct=max_dev_pct,
++                )
++                if not ok:
++                    unverified.append(f"{symbol} (ID {instrument_id}): {reason}")
++                    logger.error(
++                        "[%s] VERIFIKATION FEHLGESCHLAGEN — %s (ID %d): %s",
++                        WORKER_NAME, symbol, instrument_id, reason,
++                    )
++                    log_repo.write(
++                        "ERROR", WORKER_NAME,
++                        f"Kandidat verworfen: {symbol} (ID {instrument_id})",
++                        {"reason": reason, "yf_price": cand.get("price"),
++                         "etoro_price": live_price},
++                    )
++                    continue
++
++                logger.info("[%s] Verifiziert: %s — %s", WORKER_NAME, symbol, reason)
++
++                # Ensure instrument row exists (verified ID only)
++                _ensure_instrument(symbol, instrument_id, db)
++
+                 # Store signal with 6h TTL
+                 signal_types_str = (
+                     ",".join(cand["signal_types"]) if cand.get("signal_types") else "BUY"
+@@ -519,6 +636,22 @@ def main() -> int:
+                     "[%s] Failed to store signal for %s: %s",
+                     WORKER_NAME, symbol, exc, exc_info=True,
+                 )
++
++        if verify_client is not None:
++            try:
++                verify_client.close()
++            except Exception:
++                pass
++
++        # Alert when verification dropped candidates — this is exactly the
++        # data-quality signal the symbol audit should pick up.
++        if unverified:
++            _discord(
++                "post_alert_embed",
++                title=f"🟠 Discovery: {len(unverified)} Kandidat(en) nicht verifiziert",
++                description="\n".join(f"• {u[:180]}" for u in unverified[:8]),
++                severity="WARNING",
++            )
+     
+         # ── 10. Summary ───────────────────────────────────────────────────────────
+         elapsed = time.monotonic() - t_start
+@@ -526,6 +659,7 @@ def main() -> int:
+             f"DiscoveryWorker: scanned {n_scanned} symbols, "
+             f"{k_candidates} BUY candidates, "
+             f"{j_stored} stored (top {MAX_STORE}), "
++            f"{len(unverified)} unverified, {n_unresolved} unresolved, "
+             f"took {elapsed:.1f}s"
+         )
+         print(summary)
+@@ -539,6 +673,8 @@ def main() -> int:
+                     "n_scanned":    n_scanned,
+                     "k_candidates": k_candidates,
+                     "j_stored":     j_stored,
++                    "n_unverified": len(unverified),
++                    "n_unresolved": n_unresolved,
+                     "elapsed_s":    round(elapsed, 2),
+                     "top_symbols":  [c["symbol"] for c in store_candidates],
+                 },
+diff --git a/tests/unit/test_instrument_verification.py b/tests/unit/test_instrument_verification.py
+new file mode 100644
+index 0000000..2d0ef71
+--- /dev/null
++++ b/tests/unit/test_instrument_verification.py
+@@ -0,0 +1,192 @@
++#!/usr/bin/env python3
++"""Unit tests — fix/discovery-identity-verification.
++
++Covers the pure verification module plus the discovery resolver's
++fail-closed behaviour (no more hash placeholders).
++
++Includes the VALT.L regression case from 2026-07-02: signal price $113.04
++(yfinance, correct) vs. eToro live price $5,200 (wrong instrument behind
++the resolved ID) must be rejected at discovery time.
++"""
++from __future__ import annotations
++
++import pytest
++
++from bot.core.instrument_verification import (
++    MAX_PRICE_DEVIATION_PCT_DEFAULT,
++    check_identity,
++    check_price_consistency,
++    extract_live_symbol,
++    normalize_symbol,
++    verify_candidate,
++)
++from bot.workers.discovery_worker import _symbol_to_instrument_id
++
++
++# ─── normalize / extract ──────────────────────────────────────────────────────
++
++class TestNormalize:
++    def test_basic_upper_strip(self):
++        assert normalize_symbol(" aapl ") == "AAPL"
++
++    def test_usd_suffixes_stripped(self):
++        assert normalize_symbol("BTC-USD") == "BTC"
++        assert normalize_symbol("eth/usd") == "ETH"
++        assert normalize_symbol("XRPUSD") == "XRP"
++
++    def test_exchange_suffix_kept(self):
++        # .L is a different LISTING, not a quote currency — must be kept.
++        assert normalize_symbol("VALT.L") == "VALT.L"
++        assert normalize_symbol("valt.l") != "VALT"
++
++    def test_empty(self):
++        assert normalize_symbol("") == ""
++        assert normalize_symbol(None) == ""  # type: ignore[arg-type]
++
++
++class TestExtractLiveSymbol:
++    def test_priority_symbolfull_first(self):
++        meta = {"symbolFull": "VALT.L", "displayName": "Vanguard FTSE UK"}
++        assert extract_live_symbol(meta) == "VALT.L"
++
++    def test_fallback_chain(self):
++        assert extract_live_symbol({"ticker": "AAPL"}) == "AAPL"
++        assert extract_live_symbol({"displayName": "Apple"}) == "Apple"
++
++    def test_missing(self):
++        assert extract_live_symbol(None) == ""
++        assert extract_live_symbol({}) == ""
++        assert extract_live_symbol({"foo": "bar"}) == ""
++
++
++# ─── identity check ───────────────────────────────────────────────────────────
++
++class TestIdentity:
++    def test_match(self):
++        ok, _ = check_identity("VALT.L", {"symbolFull": "VALT.L"})
++        assert ok
++
++    def test_crypto_suffix_match(self):
++        ok, _ = check_identity("BTC-USD", {"symbolFull": "BTC"})
++        assert ok
++
++    def test_hard_mismatch(self):
++        # The VALT.L incident shape: local symbol vs. Valterra Platinum ID
++        ok, reason = check_identity("VALT.L", {"symbolFull": "VPL"})
++        assert not ok
++        assert "MISMATCH" in reason
++
++    def test_fail_open_on_missing_meta(self):
++        ok, reason = check_identity("VALT.L", None)
++        assert ok
++        assert "fail-open" in reason
++
++    def test_fail_open_on_meta_without_symbol(self):
++        ok, _ = check_identity("VALT.L", {"instrumentId": 1456})
++        assert ok
++
++
++# ─── price consistency ────────────────────────────────────────────────────────
++
++class TestPriceConsistency:
++    def test_valt_l_regression_blocked(self):
++        # 2026-07-02 incident: yfinance $113.04 vs. eToro $5,200.
++        # No scale factor (1, 100, 0.01) brings these within 25%.
++        ok, dev, _ = check_price_consistency(113.04, 5200.0)
++        assert not ok
++        assert dev > MAX_PRICE_DEVIATION_PCT_DEFAULT
++
++    def test_same_unit_passes(self):
++        ok, dev, scale = check_price_consistency(100.0, 102.0)
++        assert ok
++        assert scale == 1.0
++        assert dev == pytest.approx(2.0)
++
++    def test_gbp_vs_pence_passes_at_x100(self):
++        # yfinance 113.04 GBP vs. eToro 1.1304 (quoted in GBP while yf gives
++        # pence would be the inverse) — scale 100 rescues it.
++        ok, dev, scale = check_price_consistency(11304.0, 113.04)
++        assert ok
++        assert scale == 100.0
++        assert dev == pytest.approx(0.0, abs=1e-6)
++
++    def test_pence_vs_gbp_passes_at_x001(self):
++        ok, _, scale = check_price_consistency(113.04, 11304.0)
++        assert ok
++        assert scale == 0.01
++
++    def test_boundary_exactly_at_limit_passes(self):
++        ok, dev, _ = check_price_consistency(100.0, 125.0, max_deviation_pct=25.0)
++        assert ok
++        assert dev == pytest.approx(25.0)
++
++    def test_just_over_limit_fails(self):
++        ok, _, _ = check_price_consistency(100.0, 125.1, max_deviation_pct=25.0)
++        assert not ok
++
++    def test_missing_prices_pass(self):
++        assert check_price_consistency(None, 100.0)[0]
++        assert check_price_consistency(100.0, None)[0]
++        assert check_price_consistency(0.0, 100.0)[0]
++        assert check_price_consistency(100.0, 0.0)[0]
++
++    def test_collapse_direction_also_fails(self):
++        ok, _, _ = check_price_consistency(5200.0, 113.0)
++        assert not ok
++
++
++# ─── combined verify_candidate ────────────────────────────────────────────────
++
++class TestVerifyCandidate:
++    def test_full_pass(self):
++        ok, reason = verify_candidate(
++            "VALT.L", {"symbolFull": "VALT.L"}, 113.04, 112.50
++        )
++        assert ok
++        assert "Preis OK" in reason
++
++    def test_identity_mismatch_wins_even_with_matching_price(self):
++        ok, reason = verify_candidate(
++            "VALT.L", {"symbolFull": "VPL"}, 113.04, 113.04
++        )
++        assert not ok
++        assert "MISMATCH" in reason
++
++    def test_price_net_catches_failopen_identity(self):
++        # Metadata unavailable (identity fail-open) + wrong-instrument price
++        # → the price check is the net that still blocks it.
++        ok, reason = verify_candidate("VALT.L", None, 113.04, 5200.0)
++        assert not ok
++        assert "Preis-Mismatch" in reason
++
++    def test_failopen_identity_and_no_price_passes(self):
++        # Nothing to compare at all → pass (documented behaviour; the
++        # execution-time slippage gate remains the last line of defence).
++        ok, _ = verify_candidate("VALT.L", None, 113.04, None)
++        assert ok
++
++    def test_crypto_pass(self):
++        ok, _ = verify_candidate("BTC-USD", {"symbolFull": "BTC"}, 65000.0, 64800.0)
++        assert ok
++
++
++# ─── discovery resolver: fail-closed, no placeholders ─────────────────────────
++
++class TestSymbolResolution:
++    IMAP = {1003: "META", 1456: "VALT.L"}
++
++    def test_known_symbol_resolves(self):
++        assert _symbol_to_instrument_id("META", self.IMAP) == 1003
++        assert _symbol_to_instrument_id("  valt.l ", self.IMAP) == 1456
++
++    def test_unknown_symbol_returns_none_not_placeholder(self):
++        result = _symbol_to_instrument_id("DOESNOTEXIST", self.IMAP)
++        assert result is None
++
++    def test_no_hash_placeholder_range(self):
++        # Regression: the old fallback produced IDs in [100000, 999999].
++        for sym in ("FOO", "BAR.L", "XYZ-USD"):
++            assert _symbol_to_instrument_id(sym, {}) is None
++
++    def test_empty_map(self):
++        assert _symbol_to_instrument_id("META", {}) is None

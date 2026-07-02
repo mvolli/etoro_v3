@@ -184,17 +184,25 @@ def _load_instrument_map() -> dict[int, str]:
 def _symbol_to_instrument_id(
     symbol: str,
     instrument_map: dict[int, str],
-) -> int:
+) -> int | None:
     """
-    Resolve symbol → eToro instrument_id.
-    Falls back to a deterministic placeholder if not in the known map.
+    Resolve symbol → eToro instrument_id via the local map.
+
+    fix/discovery-identity-verification: returns None when unknown.
+    The old fallback generated abs(hash(symbol)) % 900_000 + 100_000 —
+    a FAKE instrument_id that (a) was not even deterministic across
+    processes (PYTHONHASHSEED randomization), (b) could collide with a
+    REAL eToro instrument, and (c) was persisted into the `instruments`
+    table via INSERT OR IGNORE, permanently poisoning symbol resolution.
+    This is the mechanism behind the placeholder pollution the symbol
+    audit is cleaning up, and behind the VALT.L→$5,200 incident.
+    Unresolvable symbols now simply produce NO signal (fail-closed).
     """
     sym_upper = symbol.strip().upper()
     for iid, sym in instrument_map.items():
         if sym.strip().upper() == sym_upper:
             return iid
-    # Deterministic placeholder: hash-based, 100000–999999
-    return abs(hash(symbol)) % 900_000 + 100_000
+    return None
 
 
 def _batch_fetch(symbols: list[str]) -> dict[str, Any]:
@@ -378,6 +386,37 @@ def main() -> int:
     
         signal_repo = SignalRepo(db)
         log_repo = LogRepo(db)
+
+        # ── Heartbeat (dead-man's switch) ──────────────────────────────────────────
+        try:
+            from bot.db.repo import StateRepo as _StateRepo
+            from bot.core.heartbeat import record_heartbeat as _record_heartbeat
+            _record_heartbeat(_StateRepo(db), "discovery_worker")
+        except Exception:
+            pass
+
+        # ── API client for identity/price verification ─────────────────────────────
+        # fix/discovery-identity-verification: signals are only stored after
+        # the resolved instrument_id has been verified against eToro
+        # (identity + price cross-check). Without API credentials, discovery
+        # stores NOTHING — an unverified signal pool is exactly the bug
+        # class that produced the VALT.L incident.
+        from bot.api.client import APIError, ClientConfig, EToroClient
+        _api_key = os.environ.get("ETORO_API_KEY", "")
+        _user_key = os.environ.get("ETORO_USER_KEY", "")
+        verify_client: EToroClient | None = None
+        if _api_key and _user_key:
+            verify_client = EToroClient(
+                api_key=_api_key,
+                user_key=_user_key,
+                config=ClientConfig.from_dict(cfg.get("api", {})),
+            )
+        else:
+            logger.critical(
+                "[%s] ETORO_API_KEY/ETORO_USER_KEY fehlen — Kandidaten können nicht "
+                "verifiziert werden, es werden KEINE Signale gespeichert (fail-closed)",
+                WORKER_NAME,
+            )
     
         instrument_map = _load_instrument_map()
         logger.info(
@@ -469,30 +508,108 @@ def main() -> int:
         # Limit to MAX_STORE for DB storage
         store_candidates = filtered_candidates[:MAX_STORE]
     
-        # ── 8+9. Ensure instruments + store signals ────────────────────────────────
+        # ── 8+9. Resolve → VERIFY → store signals ──────────────────────────────────
+        # fix/discovery-identity-verification: every candidate's instrument_id
+        # is verified against eToro (identity via metadata, plausibility via
+        # price cross-check) BEFORE a signal is stored. Mismatches like
+        # VALT.L↔Valterra can no longer enter the signal pool.
+        from bot.core.instrument_verification import (
+            MAX_PRICE_DEVIATION_PCT_DEFAULT,
+            verify_candidate,
+        )
+
+        max_dev_pct = float(
+            cfg.get("discovery", {}).get(
+                "max_price_deviation_pct", MAX_PRICE_DEVIATION_PCT_DEFAULT
+            )
+        )
+
         j_stored = 0
-    
+        n_unresolved = 0
+        unverified: list[str] = []  # "SYMBOL: reason" for summary/Discord
+
+        # Pass 1: resolve instrument_ids (fail-closed, no placeholders)
+        resolved: list[tuple[dict, int]] = []  # (candidate, instrument_id)
         for cand in store_candidates:
             symbol = cand["symbol"]
-            try:
-                # Prefer direct watchlist mapping for multi-asset instruments
-                if symbol in symbol_to_inst_id:
-                    instrument_id = symbol_to_inst_id[symbol]
-                else:
-                    instrument_id = _symbol_to_instrument_id(symbol, instrument_map)
-    
-                # Ensure instrument row exists
-                _ensure_instrument(symbol, instrument_id, db)
-    
-                # Resolve the actual instrument_id from the instruments table
-                # (in case _ensure_instrument used a placeholder that differs from
-                # the row inserted)
+            if symbol in symbol_to_inst_id:
+                instrument_id = symbol_to_inst_id[symbol]
+            else:
+                instrument_id = _symbol_to_instrument_id(symbol, instrument_map)
+
+            if instrument_id is None:
+                # Last chance: an existing (non-placeholder) instruments row.
                 row = db.fetchone(
-                    "SELECT instrument_id FROM instruments WHERE symbol = ? LIMIT 1", (symbol,)
+                    "SELECT instrument_id FROM instruments WHERE symbol = ? LIMIT 1",
+                    (symbol,),
                 )
                 if row is not None:
-                    instrument_id = row["instrument_id"]
-    
+                    instrument_id = int(row["instrument_id"])
+
+            if instrument_id is None:
+                n_unresolved += 1
+                logger.warning(
+                    "[%s] %s: keine instrument_id auflösbar — Signal wird NICHT "
+                    "gespeichert (fail-closed, kein Placeholder mehr)",
+                    WORKER_NAME, symbol,
+                )
+                continue
+            resolved.append((cand, int(instrument_id)))
+
+        # Pass 2: batch metadata for all resolved IDs (1 request / 50 IDs)
+        metadata_by_id: dict[int, dict] = {}
+        if verify_client is not None and resolved:
+            try:
+                metadata_by_id = verify_client.get_instruments_metadata_batch(
+                    [iid for _, iid in resolved]
+                )
+            except APIError as exc:
+                logger.warning(
+                    "[%s] Batch-Metadata fehlgeschlagen (%s) — Identity-Check "
+                    "läuft fail-open, Preis-Check bleibt aktiv",
+                    WORKER_NAME, exc,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "[%s] Batch-Metadata unerwartet fehlgeschlagen: %s",
+                    WORKER_NAME, exc,
+                )
+
+        # Pass 3: verify + store
+        for cand, instrument_id in resolved:
+            symbol = cand["symbol"]
+            try:
+                if verify_client is None:
+                    unverified.append(f"{symbol}: keine API-Credentials — nicht verifizierbar")
+                    continue
+
+                live_price = verify_client.get_current_price(instrument_id)
+                ok, reason = verify_candidate(
+                    expected_symbol=symbol,
+                    meta=metadata_by_id.get(instrument_id),
+                    reference_price=cand.get("price"),
+                    live_price=live_price,
+                    max_deviation_pct=max_dev_pct,
+                )
+                if not ok:
+                    unverified.append(f"{symbol} (ID {instrument_id}): {reason}")
+                    logger.error(
+                        "[%s] VERIFIKATION FEHLGESCHLAGEN — %s (ID %d): %s",
+                        WORKER_NAME, symbol, instrument_id, reason,
+                    )
+                    log_repo.write(
+                        "ERROR", WORKER_NAME,
+                        f"Kandidat verworfen: {symbol} (ID {instrument_id})",
+                        {"reason": reason, "yf_price": cand.get("price"),
+                         "etoro_price": live_price},
+                    )
+                    continue
+
+                logger.info("[%s] Verifiziert: %s — %s", WORKER_NAME, symbol, reason)
+
+                # Ensure instrument row exists (verified ID only)
+                _ensure_instrument(symbol, instrument_id, db)
+
                 # Store signal with 6h TTL
                 signal_types_str = (
                     ",".join(cand["signal_types"]) if cand.get("signal_types") else "BUY"
@@ -519,6 +636,22 @@ def main() -> int:
                     "[%s] Failed to store signal for %s: %s",
                     WORKER_NAME, symbol, exc, exc_info=True,
                 )
+
+        if verify_client is not None:
+            try:
+                verify_client.close()
+            except Exception:
+                pass
+
+        # Alert when verification dropped candidates — this is exactly the
+        # data-quality signal the symbol audit should pick up.
+        if unverified:
+            _discord(
+                "post_alert_embed",
+                title=f"🟠 Discovery: {len(unverified)} Kandidat(en) nicht verifiziert",
+                description="\n".join(f"• {u[:180]}" for u in unverified[:8]),
+                severity="WARNING",
+            )
     
         # ── 10. Summary ───────────────────────────────────────────────────────────
         elapsed = time.monotonic() - t_start
@@ -526,6 +659,7 @@ def main() -> int:
             f"DiscoveryWorker: scanned {n_scanned} symbols, "
             f"{k_candidates} BUY candidates, "
             f"{j_stored} stored (top {MAX_STORE}), "
+            f"{len(unverified)} unverified, {n_unresolved} unresolved, "
             f"took {elapsed:.1f}s"
         )
         print(summary)
@@ -539,6 +673,8 @@ def main() -> int:
                     "n_scanned":    n_scanned,
                     "k_candidates": k_candidates,
                     "j_stored":     j_stored,
+                    "n_unverified": len(unverified),
+                    "n_unresolved": n_unresolved,
                     "elapsed_s":    round(elapsed, 2),
                     "top_symbols":  [c["symbol"] for c in store_candidates],
                 },

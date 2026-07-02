@@ -19,6 +19,7 @@ EXPECTED_INTERVALS_MIN: dict[str, int] = {
     "reconciler": 5,
     "signal_worker": 15,
     "execution_worker": 15,
+    "discovery_worker": 120,
 }
 
 # A worker is considered stale after this many missed intervals.
