@@ -474,6 +474,14 @@ def run(project_root: Path | None = None) -> dict:
 
     db = DB(db_path=db_path, busy_timeout_ms=busy_timeout_ms)
 
+    # Heartbeat (dead-man's switch) -------------------------------------------
+    try:
+        from bot.db.repo import StateRepo as _StateRepo
+        from bot.core.heartbeat import record_heartbeat as _record_heartbeat
+        _record_heartbeat(_StateRepo(db), "data_worker")
+    except Exception:
+        pass
+
     # 0. Initialize persistent failed-symbol cache ----------------------------
     _ensure_failed_symbols_table(db)
     _load_failed_cache(db)
@@ -717,17 +725,20 @@ def main() -> int:
             print("DataWorker: SKIPPED (already running)")
             return 0
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
-        datefmt="%Y-%m-%dT%H:%M:%S",
-    )
-    try:
-        run()
-        return 0
-    except Exception as exc:
-        logger.critical("[%s] Fatal error: %s", WORKER_NAME, exc, exc_info=True)
-        return 1
+        # fix/autonomy-hardening: run() used to sit OUTSIDE this with-block
+        # (indentation bug), so the flock was released immediately and the
+        # lock never actually prevented overlapping data_worker runs.
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
+            datefmt="%Y-%m-%dT%H:%M:%S",
+        )
+        try:
+            run()
+            return 0
+        except Exception as exc:
+            logger.critical("[%s] Fatal error: %s", WORKER_NAME, exc, exc_info=True)
+            return 1
 
 
 if __name__ == "__main__":

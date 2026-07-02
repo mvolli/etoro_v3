@@ -381,6 +381,10 @@ def main() -> int:
         state_repo  = StateRepo(db)
         portfolio_repo = PortfolioRepo(db)
         trade_repo  = TradeRepo(db)
+
+        # ── Heartbeat (dead-man's switch) ─────────────────────────────────────────
+        from bot.core.heartbeat import record_heartbeat
+        record_heartbeat(state_repo, "reconciler")
     
         # ── 3. Load API credentials ────────────────────────────────────────────────
         try:
@@ -421,24 +425,71 @@ def main() -> int:
         live_position_ids: set[str] = set()
     
         # ── 6.5 Circuit Breaker: suddenly empty positions list is suspicious ─────
+        # fix/autonomy-hardening: the breaker used to stall FOREVER when all
+        # positions were legitimately closed (SL cascade, manual sell-off):
+        # the API keeps returning 0 positions, POSITION_COUNT stays > 0, and
+        # every cycle exits with code 1. Escape hatch: after
+        # EMPTY_STREAK_ACCEPT_AFTER consecutive suspicious-empty cycles
+        # (~15 min), accept the empty portfolio as real — with a CRITICAL
+        # alert so a human still looks at it.
+        EMPTY_STREAK_ACCEPT_AFTER = 3
         previous_position_count = int(state_repo.get("POSITION_COUNT") or 0)
         if not live_positions and previous_position_count > 0:
+            empty_streak = int(state_repo.get("RECONCILER_EMPTY_STREAK") or 0) + 1
+            state_repo.set("RECONCILER_EMPTY_STREAK", str(empty_streak))
+
+            if empty_streak < EMPTY_STREAK_ACCEPT_AFTER:
+                msg = (
+                    f"SUSPICIOUS: API returned 0 positions, but POSITION_COUNT was "
+                    f"{previous_position_count} last run (Streak {empty_streak}/"
+                    f"{EMPTY_STREAK_ACCEPT_AFTER}). Skipping trade-closure and "
+                    f"equity-update logic this cycle — likely transient API glitch."
+                )
+                print(f"[{WORKER_NAME}] ERROR: {msg}", file=sys.stderr)
+                log_repo.write("ERROR", WORKER_NAME, msg,
+                               {"previous_count": previous_position_count,
+                                "empty_streak": empty_streak})
+                _discord(
+                    "post_alert_embed",
+                    title="🔴 Reconciler: verdächtig leere API-Antwort",
+                    description=msg,
+                    severity="CRITICAL",
+                )
+                client.close()
+                return 1
+
+            # Streak limit reached → accept the empty portfolio as real
             msg = (
-                f"SUSPICIOUS: API returned 0 positions, but POSITION_COUNT was "
-                f"{previous_position_count} last run. Skipping trade-closure and "
-                f"equity-update logic this cycle — likely transient API glitch, "
-                f"not a real 'all positions closed' event."
+                f"API liefert seit {empty_streak} Zyklen 0 Positionen "
+                f"(vorher {previous_position_count}) — akzeptiere leeres "
+                f"Portfolio als real und synchronisiere. Manuelle Prüfung empfohlen!"
             )
-            print(f"[{WORKER_NAME}] ERROR: {msg}", file=sys.stderr)
-            log_repo.write("ERROR", WORKER_NAME, msg, {"previous_count": previous_position_count})
+            print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
+            log_repo.write("WARNING", WORKER_NAME, msg,
+                           {"previous_count": previous_position_count,
+                            "empty_streak": empty_streak})
             _discord(
                 "post_alert_embed",
-                title="🔴 Reconciler: verdächtig leere API-Antwort",
+                title="🟠 Reconciler: leeres Portfolio bestätigt",
                 description=msg,
                 severity="CRITICAL",
             )
-            client.close()
-            return 1
+            state_repo.set("RECONCILER_EMPTY_STREAK", "0")
+        else:
+            # Non-empty (or genuinely never had positions) → reset streak
+            if int(state_repo.get("RECONCILER_EMPTY_STREAK") or 0) != 0:
+                state_repo.set("RECONCILER_EMPTY_STREAK", "0")
+
+        # ── 6.6 Persist REAL available cash (fix/autonomy-hardening) ─────────────
+        # clientPortfolio.credit is the broker-side cash balance. The signal
+        # worker prefers this over its equity−exposure estimate for the
+        # cash gate.
+        try:
+            _credit = portfolio_payload.get("clientPortfolio", {}).get("credit")
+            if _credit is not None:
+                state_repo.set("AVAILABLE_CASH", str(float(_credit)))
+        except (TypeError, ValueError):
+            pass
     
         # ── 7. Upsert each live position into portfolio_snapshot ──────────────────
         synced_count = 0

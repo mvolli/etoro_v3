@@ -83,14 +83,6 @@ def main() -> None:
         _load_env()
         cfg = _load_config()
     
-        # ── Kill Switch check (V5) — abort immediately if active ──────────────────
-        from bot.core.kill_switch import is_kill_switch_active, KILL_SWITCH_FILE
-        if is_kill_switch_active():
-            _ks_reason = KILL_SWITCH_FILE.read_text().strip() if KILL_SWITCH_FILE.exists() else 'Manual kill switch'
-            print(f'SignalWorker: KILL SWITCH ACTIVE — no signals generated ({_ks_reason})')
-            logger.warning('SignalWorker: KILL SWITCH ACTIVE — exiting without generating signals (%s)', _ks_reason)
-            sys.exit(0)
-    
         from bot.core.market_hours import is_market_open
         from bot.core.regime import get_regime_params
         from bot.core.risk import check_buy_gate, get_score_boost
@@ -106,6 +98,19 @@ def main() -> None:
         portfolio_repo = PortfolioRepo(db)
         state_repo = StateRepo(db)
         log_repo = LogRepo(db)
+
+        # ── Heartbeat (dead-man's switch) — before kill-switch exit so an
+        #    active kill switch does not look like a dead worker ─────────────
+        from bot.core.heartbeat import record_heartbeat
+        record_heartbeat(state_repo, "signal_worker")
+
+        # ── Kill Switch check (V5) — abort immediately if active ──────────────────
+        from bot.core.kill_switch import is_kill_switch_active, KILL_SWITCH_FILE
+        if is_kill_switch_active():
+            _ks_reason = KILL_SWITCH_FILE.read_text().strip() if KILL_SWITCH_FILE.exists() else 'Manual kill switch'
+            print(f'SignalWorker: KILL SWITCH ACTIVE — no signals generated ({_ks_reason})')
+            logger.warning('SignalWorker: KILL SWITCH ACTIVE — exiting without generating signals (%s)', _ks_reason)
+            sys.exit(0)
     
         # ── 2. Check regime — V5: 4-level system, no hard block except legacy ────
         regime = state_repo.get_regime()
@@ -147,14 +152,64 @@ def main() -> None:
             return
     
         # ── 4. Current portfolio state ────────────────────────────────────────────
+        # fix/autonomy-hardening: FAIL-CLOSED on missing equity. The previous
+        # $10,000 default meant position sizing ran on a fabricated number
+        # whenever CURRENT_EQUITY was empty or corrupt. No equity → no trades.
         equity = state_repo.get_equity()
         if equity <= 0.0:
-            equity = 10_000.0
-            logger.warning("SignalWorker: equity=0 in state, using default $10,000")
+            msg = ("CURRENT_EQUITY fehlt oder ist 0 — keine Trades möglich "
+                   "(fail-closed). Reconciler prüfen.")
+            logger.error("SignalWorker: %s", msg)
+            log_repo.write("ERROR", "signal_worker", msg)
+            print("SignalWorker: ABORT — equity unbekannt (fail-closed)")
+            _post('post_alert_embed',
+                title='🔴 Signal Worker: Equity unbekannt',
+                description=msg,
+                severity='CRITICAL',
+                dry_run=False,
+            )
+            return
     
         total_exposure = portfolio_repo.get_total_exposure()
         position_count = portfolio_repo.get_position_count()
-        cash_estimate = max(0.0, equity - total_exposure)
+
+        # fix/autonomy-hardening: prefer REAL available cash (stored by the
+        # reconciler from clientPortfolio.credit) over the equity−exposure
+        # estimate, which ignores pending orders, fees and rounding.
+        available_cash = state_repo.get_float("AVAILABLE_CASH", -1.0)
+        if available_cash >= 0.0:
+            cash_estimate = available_cash
+        else:
+            cash_estimate = max(0.0, equity - total_exposure)
+            logger.info("SignalWorker: AVAILABLE_CASH nicht gesetzt — nutze Schätzung equity−exposure")
+
+        # ── fix/autonomy-hardening: daily trade-count brake ───────────────────────
+        # Hard ceiling on new trades per UTC day. Protects against signal
+        # storms (e.g. a market-wide selloff generating 'oversold' BUYs on
+        # every watchlist symbol at once).
+        max_trades_per_day = int(cfg.get("trading", {}).get("max_trades_per_day", 12))
+        if max_trades_per_day > 0:
+            row = db.fetchone(
+                "SELECT COUNT(*) AS n FROM trades "
+                "WHERE created_at >= date('now') "
+                "AND status NOT IN ('REJECTED','FAILED')",
+            )
+            trades_today = int(
+                (row["n"] if isinstance(row, dict) else row[0]) if row else 0
+            )
+            if trades_today >= max_trades_per_day:
+                msg = (f"Tageslimit erreicht: {trades_today}/{max_trades_per_day} "
+                       f"Trades heute — keine weiteren Approvals bis Mitternacht UTC")
+                logger.warning("SignalWorker: %s", msg)
+                log_repo.write("WARN", "signal_worker", msg)
+                print(f"SignalWorker: 0 signals evaluated, 0 trades approved ({msg})")
+                _post('post_alert_embed',
+                    title='🟡 Signal Worker: Tageslimit erreicht',
+                    description=msg,
+                    severity='WARNING',
+                    dry_run=False,
+                )
+                return
     
         logger.info(
             "SignalWorker: equity=%.2f exposure=%.2f cash=%.2f positions=%d regime=%s scalar=%.2f",

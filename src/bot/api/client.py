@@ -540,6 +540,36 @@ class EToroClient:
             )
         return True, f"Identity OK: instrument_id={instrument_id} == {live_symbol}"
 
+    def get_current_price(self, instrument_id: int) -> float | None:
+        """Fetch the live price for *instrument_id* from the market-data
+        rates endpoint. Returns None when unavailable (caller decides
+        fail-open vs. fail-closed).
+
+        fix/autonomy-hardening: extracted as a public method so the
+        execution worker's slippage gate can reuse the exact same price
+        source as open_position() itself.
+        """
+        try:
+            rates_resp = self.get(
+                "/market-data/instruments/rates",
+                params={"instrumentIds": str(instrument_id)},
+            )
+            rates_list = rates_resp.get("rates", []) if isinstance(rates_resp, dict) else []
+            if rates_list:
+                rate_data = rates_list[0]
+                price = (
+                    rate_data.get("lastExecution")
+                    or rate_data.get("bid")
+                    or rate_data.get("ask")
+                )
+                if price:
+                    return float(price)
+        except (APIError, TypeError, ValueError) as exc:
+            logger.warning(
+                "get_current_price failed for %s: %s", instrument_id, exc
+            )
+        return None
+
     def open_position(
         self,
         instrument_id: int,

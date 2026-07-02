@@ -21,9 +21,15 @@ trading:
   max_positions: 21           # Maximum total open positions across all instruments
   max_fragments_per_instrument: 3  # Maximum partial fills / DCA entries per ticker
   min_buy_usd: 50.0           # Minimum order size in USD
+  max_trades_per_day: 12      # Hard ceiling on new trades per UTC day (0 = disabled)
+  max_slippage_pct: 1.5       # Max signal→execution price deviation for stocks/ETFs (%)
+  max_slippage_pct_crypto: 3.0  # Max signal→execution price deviation for crypto (%)
   cash_target_min_pct: 15.0   # Minimum idle cash as % of portfolio equity
   cash_target_max_pct: 30.0   # Maximum idle cash as % of portfolio equity (soft ceiling)
   cash_emergency_pct: 10.0    # Hard floor — no new buys below this cash level
+
+risk:
+  daily_loss_limit_pct: 5.0   # Auto-kill-switch: intraday equity drop from day start (%; 0 = disabled)
 
 regime:
   drawdown_soft_cb_pct: 4.0   # Intraday drawdown % → triggers soft circuit-breaker (reduce sizing)

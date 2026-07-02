@@ -1,0 +1,1049 @@
+diff --git a/config/config.yaml b/config/config.yaml
+index 9d9e98f..8886c7d 100644
+--- a/config/config.yaml
++++ b/config/config.yaml
+@@ -21,10 +21,16 @@ trading:
+   max_positions: 21           # Maximum total open positions across all instruments
+   max_fragments_per_instrument: 3  # Maximum partial fills / DCA entries per ticker
+   min_buy_usd: 50.0           # Minimum order size in USD
++  max_trades_per_day: 12      # Hard ceiling on new trades per UTC day (0 = disabled)
++  max_slippage_pct: 1.5       # Max signal→execution price deviation for stocks/ETFs (%)
++  max_slippage_pct_crypto: 3.0  # Max signal→execution price deviation for crypto (%)
+   cash_target_min_pct: 15.0   # Minimum idle cash as % of portfolio equity
+   cash_target_max_pct: 30.0   # Maximum idle cash as % of portfolio equity (soft ceiling)
+   cash_emergency_pct: 10.0    # Hard floor — no new buys below this cash level
+ 
++risk:
++  daily_loss_limit_pct: 5.0   # Auto-kill-switch: intraday equity drop from day start (%; 0 = disabled)
++
+ regime:
+   drawdown_soft_cb_pct: 4.0   # Intraday drawdown % → triggers soft circuit-breaker (reduce sizing)
+   drawdown_recovery_pct: 2.0  # Drawdown must recover to this % before resuming normal ops
+diff --git a/src/bot/api/client.py b/src/bot/api/client.py
+index aeba965..3f929d3 100644
+--- a/src/bot/api/client.py
++++ b/src/bot/api/client.py
+@@ -540,6 +540,36 @@ class EToroClient:
+             )
+         return True, f"Identity OK: instrument_id={instrument_id} == {live_symbol}"
+ 
++    def get_current_price(self, instrument_id: int) -> float | None:
++        """Fetch the live price for *instrument_id* from the market-data
++        rates endpoint. Returns None when unavailable (caller decides
++        fail-open vs. fail-closed).
++
++        fix/autonomy-hardening: extracted as a public method so the
++        execution worker's slippage gate can reuse the exact same price
++        source as open_position() itself.
++        """
++        try:
++            rates_resp = self.get(
++                "/market-data/instruments/rates",
++                params={"instrumentIds": str(instrument_id)},
++            )
++            rates_list = rates_resp.get("rates", []) if isinstance(rates_resp, dict) else []
++            if rates_list:
++                rate_data = rates_list[0]
++                price = (
++                    rate_data.get("lastExecution")
++                    or rate_data.get("bid")
++                    or rate_data.get("ask")
++                )
++                if price:
++                    return float(price)
++        except (APIError, TypeError, ValueError) as exc:
++            logger.warning(
++                "get_current_price failed for %s: %s", instrument_id, exc
++            )
++        return None
++
+     def open_position(
+         self,
+         instrument_id: int,
+diff --git a/src/bot/core/heartbeat.py b/src/bot/core/heartbeat.py
+new file mode 100644
+index 0000000..07d74c0
+--- /dev/null
++++ b/src/bot/core/heartbeat.py
+@@ -0,0 +1,93 @@
++#!/usr/bin/env python3
++"""Worker heartbeat — dead-man's switch support (fix/autonomy-hardening).
++
++Every worker records a LAST_RUN_<NAME> timestamp in system_state at the
++start of each successful (lock-acquired) cycle. The monitor worker calls
++get_stale_workers() and raises a CRITICAL Discord alert when any worker
++has been silent for longer than STALE_FACTOR × its expected interval.
++
++Pure logic + thin state_repo wrapper — unit-testable without DB.
++"""
++from __future__ import annotations
++
++from datetime import datetime, timezone
++
++# Expected cron interval per worker (minutes). Keep in sync with crontab.txt.
++EXPECTED_INTERVALS_MIN: dict[str, int] = {
++    "data_worker": 5,
++    "risk_worker": 5,
++    "reconciler": 5,
++    "signal_worker": 15,
++    "execution_worker": 15,
++}
++
++# A worker is considered stale after this many missed intervals.
++STALE_FACTOR = 3
++
++_TS_FORMAT = "%Y-%m-%d %H:%M:%S"
++
++
++def _utcnow() -> datetime:
++    return datetime.now(timezone.utc)
++
++
++def record_heartbeat(state_repo, worker_name: str) -> None:
++    """Persist LAST_RUN_<NAME> = now (UTC). Never raises."""
++    try:
++        state_repo.set(
++            f"LAST_RUN_{worker_name.upper()}",
++            _utcnow().strftime(_TS_FORMAT),
++        )
++    except Exception:
++        # Heartbeat must never break a worker cycle.
++        pass
++
++
++def is_stale(last_run: str | None, interval_min: int, now: datetime | None = None) -> bool:
++    """Pure check: True when last_run is missing/unparseable or older than
++    STALE_FACTOR × interval_min.
++
++    A missing heartbeat is treated as stale so a worker that has *never*
++    run (broken cron entry) is detected too — but see get_stale_workers()
++    for the grace handling on first deploy.
++    """
++    if now is None:
++        now = _utcnow()
++    if not last_run:
++        return True
++    try:
++        ts = datetime.strptime(last_run.strip(), _TS_FORMAT).replace(tzinfo=timezone.utc)
++    except ValueError:
++        return True
++    age_min = (now - ts).total_seconds() / 60.0
++    return age_min > STALE_FACTOR * interval_min
++
++
++def get_stale_workers(state_repo, now: datetime | None = None) -> list[str]:
++    """Return human-readable descriptions of all stale workers.
++
++    Workers that have never written a heartbeat are only reported once the
++    deploy marker HEARTBEAT_DEPLOYED_AT exists and is itself older than the
++    stale window — avoids a false-alarm storm right after rolling out this
++    feature.
++    """
++    if now is None:
++        now = _utcnow()
++
++    deployed_at = state_repo.get("HEARTBEAT_DEPLOYED_AT")
++    if not deployed_at:
++        # First monitor run after deploy: set marker, report nothing yet.
++        try:
++            state_repo.set("HEARTBEAT_DEPLOYED_AT", now.strftime(_TS_FORMAT))
++        except Exception:
++            pass
++        return []
++
++    stale: list[str] = []
++    for worker, interval in EXPECTED_INTERVALS_MIN.items():
++        last_run = state_repo.get(f"LAST_RUN_{worker.upper()}")
++        if last_run is None and is_stale(deployed_at, interval, now):
++            stale.append(f"{worker}: noch nie gelaufen seit Deploy ({deployed_at} UTC)")
++        elif last_run is not None and is_stale(last_run, interval, now):
++            stale.append(f"{worker}: letzter Lauf {last_run} UTC (Intervall {interval}min)")
++    return stale
+diff --git a/src/bot/core/risk.py b/src/bot/core/risk.py
+index f0c4e19..5865f96 100644
+--- a/src/bot/core/risk.py
++++ b/src/bot/core/risk.py
+@@ -149,6 +149,15 @@ CASH_TARGET_MAX_PCT = 30.0
+ MAX_TOTAL_EXPOSURE_PCT = 75.0
+ MAX_CORRELATION = 0.85
+ 
++# fix/autonomy-hardening: execution-time slippage guard.
++# Max allowed deviation between signal price and live price at execution.
++MAX_SLIPPAGE_PCT_DEFAULT = 1.5   # stocks / ETFs
++MAX_SLIPPAGE_PCT_CRYPTO = 3.0    # crypto is more volatile between cycles
++
++# fix/autonomy-hardening: automatic daily-loss kill switch.
++# 0.0 disables the check. Overridable via config risk.daily_loss_limit_pct.
++DAILY_LOSS_LIMIT_PCT_DEFAULT = 5.0
++
+ SL_HARD_CLOSE_PCT = -3.0
+ SL_EMERGENCY_PCT = -4.0
+ SL_WARNING_PCT = -2.0
+@@ -436,6 +445,80 @@ def check_correlation_gate_risk(
+         return GateResult(True, [f'Correlation check skipped: {e}'])
+ 
+ 
++def get_max_slippage_pct(symbol: str, cfg: dict | None = None) -> float:
++    """Max allowed signal→execution price deviation for *symbol* (%).
++
++    Config keys (optional): trading.max_slippage_pct,
++    trading.max_slippage_pct_crypto.
++    """
++    trading_cfg = (cfg or {}).get("trading", {}) if cfg else {}
++    if symbol.upper() in CRYPTO_SYMBOLS:
++        return float(trading_cfg.get("max_slippage_pct_crypto", MAX_SLIPPAGE_PCT_CRYPTO))
++    return float(trading_cfg.get("max_slippage_pct", MAX_SLIPPAGE_PCT_DEFAULT))
++
++
++def check_slippage_gate(
++    symbol: str,
++    signal_price: float | None,
++    current_price: float | None,
++    max_slippage_pct: float | None = None,
++) -> GateResult:
++    """fix/autonomy-hardening: block execution when the live price has moved
++    too far from the price the signal was generated on.
++
++    Between signal generation (yfinance, up to 15-min-old candles) and
++    execution (:04 cron), price can run away — especially after gaps or
++    news. Without this gate the bot buys blind at market.
++
++    Semantics:
++      - signal_price missing/0  → PASS (legacy trades without signal_price;
++        open_position() still applies its own price sanity checks)
++      - current_price missing/0 → PASS with warning reason (fail-open:
++        the downstream ghost-guard in open_position() blocks price=0 cases)
++      - |deviation| > max      → BLOCK (both directions: a price that
++        collapsed below the signal price usually means the setup broke,
++        not that we get a bargain)
++    """
++    if max_slippage_pct is None:
++        max_slippage_pct = get_max_slippage_pct(symbol)
++
++    if not signal_price or signal_price <= 0:
++        return GateResult(True, ["Slippage-Gate: skipped (kein signal_price)"])
++    if not current_price or current_price <= 0:
++        return GateResult(True, [
++            "Slippage-Gate: skipped (kein Live-Preis verfügbar — "
++            "open_position() Ghost-Guard greift)"
++        ])
++
++    deviation_pct = (current_price - signal_price) / signal_price * 100.0
++    if abs(deviation_pct) > max_slippage_pct:
++        return GateResult(False, [
++            f"Slippage-Gate: {symbol} Preis {deviation_pct:+.2f}% vs. Signal "
++            f"(Signal ${signal_price:.6f} → Live ${current_price:.6f}, "
++            f"Max ±{max_slippage_pct:.1f}%)"
++        ])
++    return GateResult(True, [
++        f"Slippage OK: {deviation_pct:+.2f}% (Max ±{max_slippage_pct:.1f}%)"
++    ])
++
++
++def check_daily_loss_breach(
++    day_start_equity: float,
++    current_equity: float,
++    limit_pct: float = DAILY_LOSS_LIMIT_PCT_DEFAULT,
++) -> tuple[bool, float]:
++    """fix/autonomy-hardening: automatic kill-switch trigger.
++
++    Returns (breached, day_pnl_pct). breached=True when equity dropped
++    more than limit_pct below the day-start equity. limit_pct <= 0
++    disables the check entirely.
++    """
++    if limit_pct <= 0 or day_start_equity <= 0 or current_equity <= 0:
++        return (False, 0.0)
++    day_pnl_pct = (current_equity - day_start_equity) / day_start_equity * 100.0
++    return (day_pnl_pct <= -abs(limit_pct), day_pnl_pct)
++
++
+ # ─── Master BUY Gate ──────────────────────────────────────────────────────────
+ 
+ def check_buy_gate(
+diff --git a/src/bot/workers/data_worker.py b/src/bot/workers/data_worker.py
+index f2ca0b6..d019299 100644
+--- a/src/bot/workers/data_worker.py
++++ b/src/bot/workers/data_worker.py
+@@ -474,6 +474,14 @@ def run(project_root: Path | None = None) -> dict:
+ 
+     db = DB(db_path=db_path, busy_timeout_ms=busy_timeout_ms)
+ 
++    # Heartbeat (dead-man's switch) -------------------------------------------
++    try:
++        from bot.db.repo import StateRepo as _StateRepo
++        from bot.core.heartbeat import record_heartbeat as _record_heartbeat
++        _record_heartbeat(_StateRepo(db), "data_worker")
++    except Exception:
++        pass
++
+     # 0. Initialize persistent failed-symbol cache ----------------------------
+     _ensure_failed_symbols_table(db)
+     _load_failed_cache(db)
+@@ -717,17 +725,20 @@ def main() -> int:
+             print("DataWorker: SKIPPED (already running)")
+             return 0
+ 
+-    logging.basicConfig(
+-        level=logging.INFO,
+-        format="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
+-        datefmt="%Y-%m-%dT%H:%M:%S",
+-    )
+-    try:
+-        run()
+-        return 0
+-    except Exception as exc:
+-        logger.critical("[%s] Fatal error: %s", WORKER_NAME, exc, exc_info=True)
+-        return 1
++        # fix/autonomy-hardening: run() used to sit OUTSIDE this with-block
++        # (indentation bug), so the flock was released immediately and the
++        # lock never actually prevented overlapping data_worker runs.
++        logging.basicConfig(
++            level=logging.INFO,
++            format="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
++            datefmt="%Y-%m-%dT%H:%M:%S",
++        )
++        try:
++            run()
++            return 0
++        except Exception as exc:
++            logger.critical("[%s] Fatal error: %s", WORKER_NAME, exc, exc_info=True)
++            return 1
+ 
+ 
+ if __name__ == "__main__":
+diff --git a/src/bot/workers/execution_worker.py b/src/bot/workers/execution_worker.py
+index 903416d..48e00ab 100644
+--- a/src/bot/workers/execution_worker.py
++++ b/src/bot/workers/execution_worker.py
+@@ -98,15 +98,47 @@ def main() -> None:
+         busy_timeout = cfg["db"].get("busy_timeout_ms", 5000)
+         db = DB(db_path=db_path, busy_timeout_ms=busy_timeout)
+     
++        trade_repo = TradeRepo(db)
++        state_repo = StateRepo(db)
++        log_repo = LogRepo(db)
++
++        # ── Heartbeat (dead-man's switch) ─────────────────────────────────────────
++        from bot.core.heartbeat import record_heartbeat
++        record_heartbeat(state_repo, "execution_worker")
++
++        # ── Kill Switch check (fix/autonomy-hardening) ────────────────────────────
++        # Previously the execution worker relied ONLY on the DB regime, which
++        # the risk worker sets with up to 5 minutes latency. In that window,
++        # already-APPROVED trades would execute despite an active kill switch.
++        # Check the flag file directly AND reject all pending approvals so
++        # stale APPROVED trades cannot fire later once the switch is lifted.
++        from bot.core.kill_switch import is_kill_switch_active, get_reason
++        if is_kill_switch_active():
++            ks_reason = get_reason() or "Manual kill switch"
++            stale_approved = trade_repo.get_by_status("APPROVED")
++            for t in stale_approved:
++                trade_repo.update_status(
++                    t["id"],
++                    "REJECTED",
++                    rejection_reason=f"Kill switch active: {ks_reason}",
++                )
++            logger.warning(
++                "ExecutionWorker: KILL SWITCH ACTIVE (%s) — %d APPROVED trade(s) rejected, exiting",
++                ks_reason, len(stale_approved),
++            )
++            log_repo.write(
++                "WARN",
++                "execution_worker",
++                f"Kill switch active — {len(stale_approved)} APPROVED trade(s) rejected ({ks_reason})",
++            )
++            print(f"ExecutionWorker: KILL SWITCH — {len(stale_approved)} approvals rejected, no execution")
++            return
++
+         api_key = os.environ.get("ETORO_API_KEY", "")
+         user_key = os.environ.get("ETORO_USER_KEY", "")
+         client_cfg = ClientConfig.from_dict(cfg.get("api", {}))
+         client = EToroClient(api_key=api_key, user_key=user_key, config=client_cfg)
+     
+-        trade_repo = TradeRepo(db)
+-        state_repo = StateRepo(db)
+-        log_repo = LogRepo(db)
+-    
+         # ── 2. Fetch all APPROVED trades ──────────────────────────────────────────
+         approved_trades = trade_repo.get_by_status("APPROVED")
+     
+@@ -228,6 +260,50 @@ def main() -> None:
+                 failed_count += 1
+                 continue
+     
++            # c2. Slippage gate (fix/autonomy-hardening) — the signal price is
++            #     stored at approval time but was previously never used. Block
++            #     execution when the live price has drifted too far from it.
++            from bot.core.risk import check_slippage_gate, get_max_slippage_pct
++            signal_price = float(trade.get("signal_price") or 0.0)
++            current_price = client.get_current_price(instrument_id)
++            slippage_gate = check_slippage_gate(
++                symbol=symbol,
++                signal_price=signal_price if signal_price > 0 else None,
++                current_price=current_price,
++                max_slippage_pct=get_max_slippage_pct(symbol, cfg),
++            )
++            if not slippage_gate.allowed:
++                reason = slippage_gate.summary()
++                logger.warning(
++                    "ExecutionWorker: trade #%d (%s) BLOCKED by slippage gate — %s",
++                    trade_id, symbol, reason,
++                )
++                trade_repo.update_status(
++                    trade_id,
++                    "REJECTED",
++                    rejection_reason=reason[:200],
++                )
++                log_repo.write(
++                    "WARN",
++                    "execution_worker",
++                    f"Trade #{trade_id} REJECTED — slippage gate: {symbol}",
++                    {
++                        "symbol": symbol,
++                        "signal_price": signal_price,
++                        "current_price": current_price,
++                        "reason": reason,
++                    },
++                )
++                _post('post_trade_failed_embed',
++                    symbol=symbol,
++                    direction='BUY',
++                    amount_usd=amount_usd,
++                    error=f"Slippage gate: {reason[:150]}",
++                    dry_run=False,
++                )
++                failed_count += 1
++                continue
++
+             # d. Call eToro API to open the position
+             try:
+                 result = client.open_position(
+diff --git a/src/bot/workers/monitor_worker.py b/src/bot/workers/monitor_worker.py
+index c12e9e4..bbfc75c 100644
+--- a/src/bot/workers/monitor_worker.py
++++ b/src/bot/workers/monitor_worker.py
+@@ -164,6 +164,35 @@ def main() -> int:
+         )
+         print(f"[monitor] Tick #{tick} | Discord embed: {'OK ✓' if ok else 'SKIP (no embeds module)' if embeds is None else 'FAILED'}")
+     
++        # ── Dead-man's switch: alert on stale workers (fix/autonomy-hardening) ───
++        try:
++            from bot.core.heartbeat import get_stale_workers
++            from bot.core.kill_switch import is_kill_switch_active
++            stale = get_stale_workers(state_repo)
++            if stale and is_kill_switch_active():
++                # Kill switch legitimately silences signal/execution — only
++                # report the always-on workers to avoid alert noise.
++                stale = [s for s in stale
++                         if not s.startswith(("signal_worker", "execution_worker"))]
++            if stale:
++                stale_desc = "\n".join(f"• {s}" for s in stale)
++                print(f"[monitor] STALE WORKERS:\n{stale_desc}")
++                log_repo.write("ERROR", "monitor_worker",
++                               f"Stale workers detected: {len(stale)}",
++                               {"stale": stale})
++                _post_alert_embed(
++                    embeds,
++                    title="🔴 Dead-Man's-Switch: Worker ohne Heartbeat",
++                    description=(
++                        f"{stale_desc}\n\n"
++                        f"Positionen laufen ggf. unüberwacht (nur Broker-SL aktiv). "
++                        f"Cron/WSL prüfen!"
++                    ),
++                    severity="CRITICAL",
++                )
++        except Exception as _hb_exc:
++            print(f"[monitor] Heartbeat check failed: {_hb_exc}")
++
+         # ── Alert on DEFENSIVE / CRITICAL regime (V5) ────────────────────────────
+         if regime in ("DEFENSIVE", "CRITICAL"):
+             risk_scalar = float(state_repo.get("RISK_SCALAR") or "0.5")
+diff --git a/src/bot/workers/reconciler.py b/src/bot/workers/reconciler.py
+index 65d6aba..df1160a 100644
+--- a/src/bot/workers/reconciler.py
++++ b/src/bot/workers/reconciler.py
+@@ -381,6 +381,10 @@ def main() -> int:
+         state_repo  = StateRepo(db)
+         portfolio_repo = PortfolioRepo(db)
+         trade_repo  = TradeRepo(db)
++
++        # ── Heartbeat (dead-man's switch) ─────────────────────────────────────────
++        from bot.core.heartbeat import record_heartbeat
++        record_heartbeat(state_repo, "reconciler")
+     
+         # ── 3. Load API credentials ────────────────────────────────────────────────
+         try:
+@@ -421,24 +425,71 @@ def main() -> int:
+         live_position_ids: set[str] = set()
+     
+         # ── 6.5 Circuit Breaker: suddenly empty positions list is suspicious ─────
++        # fix/autonomy-hardening: the breaker used to stall FOREVER when all
++        # positions were legitimately closed (SL cascade, manual sell-off):
++        # the API keeps returning 0 positions, POSITION_COUNT stays > 0, and
++        # every cycle exits with code 1. Escape hatch: after
++        # EMPTY_STREAK_ACCEPT_AFTER consecutive suspicious-empty cycles
++        # (~15 min), accept the empty portfolio as real — with a CRITICAL
++        # alert so a human still looks at it.
++        EMPTY_STREAK_ACCEPT_AFTER = 3
+         previous_position_count = int(state_repo.get("POSITION_COUNT") or 0)
+         if not live_positions and previous_position_count > 0:
++            empty_streak = int(state_repo.get("RECONCILER_EMPTY_STREAK") or 0) + 1
++            state_repo.set("RECONCILER_EMPTY_STREAK", str(empty_streak))
++
++            if empty_streak < EMPTY_STREAK_ACCEPT_AFTER:
++                msg = (
++                    f"SUSPICIOUS: API returned 0 positions, but POSITION_COUNT was "
++                    f"{previous_position_count} last run (Streak {empty_streak}/"
++                    f"{EMPTY_STREAK_ACCEPT_AFTER}). Skipping trade-closure and "
++                    f"equity-update logic this cycle — likely transient API glitch."
++                )
++                print(f"[{WORKER_NAME}] ERROR: {msg}", file=sys.stderr)
++                log_repo.write("ERROR", WORKER_NAME, msg,
++                               {"previous_count": previous_position_count,
++                                "empty_streak": empty_streak})
++                _discord(
++                    "post_alert_embed",
++                    title="🔴 Reconciler: verdächtig leere API-Antwort",
++                    description=msg,
++                    severity="CRITICAL",
++                )
++                client.close()
++                return 1
++
++            # Streak limit reached → accept the empty portfolio as real
+             msg = (
+-                f"SUSPICIOUS: API returned 0 positions, but POSITION_COUNT was "
+-                f"{previous_position_count} last run. Skipping trade-closure and "
+-                f"equity-update logic this cycle — likely transient API glitch, "
+-                f"not a real 'all positions closed' event."
++                f"API liefert seit {empty_streak} Zyklen 0 Positionen "
++                f"(vorher {previous_position_count}) — akzeptiere leeres "
++                f"Portfolio als real und synchronisiere. Manuelle Prüfung empfohlen!"
+             )
+-            print(f"[{WORKER_NAME}] ERROR: {msg}", file=sys.stderr)
+-            log_repo.write("ERROR", WORKER_NAME, msg, {"previous_count": previous_position_count})
++            print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
++            log_repo.write("WARNING", WORKER_NAME, msg,
++                           {"previous_count": previous_position_count,
++                            "empty_streak": empty_streak})
+             _discord(
+                 "post_alert_embed",
+-                title="🔴 Reconciler: verdächtig leere API-Antwort",
++                title="🟠 Reconciler: leeres Portfolio bestätigt",
+                 description=msg,
+                 severity="CRITICAL",
+             )
+-            client.close()
+-            return 1
++            state_repo.set("RECONCILER_EMPTY_STREAK", "0")
++        else:
++            # Non-empty (or genuinely never had positions) → reset streak
++            if int(state_repo.get("RECONCILER_EMPTY_STREAK") or 0) != 0:
++                state_repo.set("RECONCILER_EMPTY_STREAK", "0")
++
++        # ── 6.6 Persist REAL available cash (fix/autonomy-hardening) ─────────────
++        # clientPortfolio.credit is the broker-side cash balance. The signal
++        # worker prefers this over its equity−exposure estimate for the
++        # cash gate.
++        try:
++            _credit = portfolio_payload.get("clientPortfolio", {}).get("credit")
++            if _credit is not None:
++                state_repo.set("AVAILABLE_CASH", str(float(_credit)))
++        except (TypeError, ValueError):
++            pass
+     
+         # ── 7. Upsert each live position into portfolio_snapshot ──────────────────
+         synced_count = 0
+diff --git a/src/bot/workers/risk_worker.py b/src/bot/workers/risk_worker.py
+index a36f673..0c465b0 100644
+--- a/src/bot/workers/risk_worker.py
++++ b/src/bot/workers/risk_worker.py
+@@ -102,7 +102,11 @@ def main() -> None:
+         portfolio_repo = PortfolioRepo(db)
+         state_repo = StateRepo(db)
+         log_repo = LogRepo(db)
+-    
++
++        # ── Heartbeat (dead-man's switch) ─────────────────────────────────────────
++        from bot.core.heartbeat import record_heartbeat
++        record_heartbeat(state_repo, "risk_worker")
++
+         closed_count = 0
+         checked_count = 0
+         regime = "NORMAL"
+@@ -152,16 +156,41 @@ def main() -> None:
+                     or 0.0
+                 )
+     
+-            # Normalise: if absolute value < 1.0, it's a decimal fraction → multiply by 100
+             try:
+                 raw_pnl_pct = float(raw_pnl_pct)
+             except (TypeError, ValueError):
+                 raw_pnl_pct = 0.0
+-    
+-            if abs(raw_pnl_pct) < 1.0 and raw_pnl_pct != 0.0:
+-                pnl_pct = raw_pnl_pct * 100.0
+-            else:
+-                pnl_pct = raw_pnl_pct
++
++            # fix/autonomy-hardening: the old "abs < 1.0 → ×100" heuristic was
++            # a real false-positive path — a genuine −0.8% position became
++            # −80% and was closed instantly. Primary source is now the
++            # rate-derived PnL (openRate vs. live closeRate, long-only bot);
++            # the raw API field is the fallback and is taken AS-IS (eToro
++            # reports pnLPct in percent). Ambiguous small values are logged
++            # instead of being silently rescaled.
++            pnl_pct = raw_pnl_pct
++            _open_rate = float(pos.get("openRate", 0) or 0)
++            _close_rate = 0.0
++            if isinstance(unrealized, dict):
++                _close_rate = float(unrealized.get("closeRate", 0) or 0)
++            if _close_rate <= 0:
++                _close_rate = float(pos.get("closeRate", 0) or pos.get("currentRate", 0) or 0)
++
++            if _open_rate > 0 and _close_rate > 0:
++                rate_pnl_pct = (_close_rate / _open_rate - 1.0) * 100.0
++                if raw_pnl_pct != 0.0 and abs(rate_pnl_pct - raw_pnl_pct) > 1.0:
++                    logger.warning(
++                        "RiskWorker: %s PnL-Diskrepanz — API=%.2f%% vs. ratenbasiert=%.2f%% "
++                        "(nutze ratenbasiert)",
++                        symbol, raw_pnl_pct, rate_pnl_pct,
++                    )
++                pnl_pct = rate_pnl_pct
++            elif raw_pnl_pct != 0.0 and abs(raw_pnl_pct) < 1.0:
++                logger.info(
++                    "RiskWorker: %s PnL %.4f%% ist klein — wird als Prozentwert "
++                    "interpretiert (keine ×100-Reskalierung mehr)",
++                    symbol, raw_pnl_pct,
++                )
++    
+             sl_action = evaluate_sl(pnl_pct)
+     
+@@ -251,6 +280,9 @@ def main() -> None:
+         if is_kill_switch_active():
+             _ks_reason = KILL_SWITCH_FILE.read_text().strip() if KILL_SWITCH_FILE.exists() else 'Manual kill switch'
+             logger.warning('RiskWorker: KILL SWITCH ACTIVE — forcing CRITICAL regime (%s)', _ks_reason)
++            # fix/autonomy-hardening: capture the regime BEFORE overwriting it,
++            # otherwise the embed always showed CRITICAL→CRITICAL.
++            _old_regime = state_repo.get_regime() or 'UNKNOWN'
+             state_repo.set_regime('CRITICAL')
+             state_repo.set('RISK_SCALAR', '0.25')
+             log_repo.write('WARNING', 'kill_switch', f'Kill switch active: {_ks_reason}')
+@@ -261,7 +293,7 @@ def main() -> None:
+             else:
+                 _discord(
+                     'post_regime_change_embed',
+-                    old_regime=state_repo.get_regime() or 'UNKNOWN',
++                    old_regime=_old_regime,
+                     new_regime='CRITICAL',
+                     drawdown_pct=0.0,
+                     equity=state_repo.get_equity() or 0.0,
+@@ -275,17 +307,72 @@ def main() -> None:
+         # ── 5. Update regime (skipped if kill switch forced CRITICAL) ─────────────
+         equity = state_repo.get_equity()
+         if equity <= 0.0:
+-            # Fall back to portfolio equity from API response if available
++            # Fall back to portfolio equity from the API response if available.
++            # fix/autonomy-hardening: NO fabricated $10,000 default anymore —
++            # if equity is genuinely unknown, we skip regime/drawdown math
++            # (fail-closed) instead of computing it on a fantasy number.
+             equity = float(
+                 portfolio.get("equity")
+                 or portfolio.get("totalEquity")
+                 or portfolio.get("netEquity")
+-                or 10_000.0
++                or 0.0
+             )
+             if equity > 0.0:
+                 state_repo.set("CURRENT_EQUITY", str(equity))
+-    
+-        if not is_kill_switch_active():
++            else:
++                logger.error(
++                    "RiskWorker: Equity unbekannt (State leer, API-Payload ohne Equity) "
++                    "— Regime-Update übersprungen (fail-closed)"
++                )
++                log_repo.write("ERROR", "risk_worker",
++                               "Equity unbekannt — Regime-Update übersprungen (fail-closed)")
++
++        # ── fix/autonomy-hardening: Daily-Loss Auto-Kill-Switch ───────────────────
++        # Regime scaling only reduces sizing; nothing previously STOPPED the
++        # bot automatically. Track day-start equity (UTC) and trip the kill
++        # switch when the intraday drop exceeds risk.daily_loss_limit_pct.
++        if equity > 0.0:
++            from datetime import datetime as _dt, timezone as _tz
++            from bot.core.risk import check_daily_loss_breach, DAILY_LOSS_LIMIT_PCT_DEFAULT
++            from bot.core import kill_switch as _ks
++
++            _today = _dt.now(_tz.utc).strftime("%Y-%m-%d")
++            _day_date = state_repo.get("DAY_START_DATE")
++            if _day_date != _today:
++                state_repo.set("DAY_START_DATE", _today)
++                state_repo.set("DAY_START_EQUITY", str(equity))
++                logger.info("RiskWorker: neuer Handelstag %s — DAY_START_EQUITY=%.2f", _today, equity)
++
++            _day_start_equity = state_repo.get_float("DAY_START_EQUITY", 0.0)
++            _loss_limit_pct = float(
++                cfg.get("risk", {}).get("daily_loss_limit_pct", DAILY_LOSS_LIMIT_PCT_DEFAULT)
++            )
++            _breached, _day_pnl_pct = check_daily_loss_breach(
++                _day_start_equity, equity, _loss_limit_pct
++            )
++            if _breached and not is_kill_switch_active():
++                _reason = (
++                    f"AUTO: Tagesverlust {_day_pnl_pct:.2f}% überschreitet Limit "
++                    f"-{_loss_limit_pct:.1f}% (Start ${_day_start_equity:.2f} → ${equity:.2f})"
++                )
++                logger.critical("RiskWorker: %s — Kill Switch wird aktiviert", _reason)
++                _ks.activate(_reason)
++                state_repo.set_regime("CRITICAL")
++                state_repo.set("RISK_SCALAR", "0.25")
++                log_repo.write("CRITICAL", "risk_worker", f"Auto-Kill-Switch: {_reason}")
++                _discord(
++                    "post_alert_embed",
++                    title="🛑 AUTO-KILL-SWITCH ausgelöst",
++                    description=(
++                        f"{_reason}\n"
++                        f"Alle neuen Trades gestoppt. Reaktivierung: "
++                        f"`rm data/kill_switch.flag` nach manueller Prüfung."
++                    ),
++                    severity="CRITICAL",
++                )
++                regime = "CRITICAL"
++
++        if equity > 0.0 and not is_kill_switch_active():
+             previous_regime = state_repo.get_regime()
+             regime, regime_changed = update_regime(state_repo, equity)
+     
+@@ -305,8 +392,13 @@ def main() -> None:
+                     reason=state_repo.get("DRAWDOWN_REASON") or f"Regime changed to {regime}",
+                 )
+         else:
+-            # Kill switch forces CRITICAL — do not allow update_regime() to overwrite
+-            regime = 'CRITICAL'
++            # Kill switch forces CRITICAL — do not allow update_regime() to
++            # overwrite. If we got here because equity is unknown (fail-closed
++            # skip), keep the last known regime instead of forcing CRITICAL.
++            if is_kill_switch_active():
++                regime = 'CRITICAL'
++            else:
++                regime = state_repo.get_regime() or 'NORMAL'
+             regime_changed = False
+     
+         # ── P3 V5: Post-Trade Concentration Monitoring ────────────────────────────
+diff --git a/src/bot/workers/signal_worker.py b/src/bot/workers/signal_worker.py
+index df4a45a..0063b35 100644
+--- a/src/bot/workers/signal_worker.py
++++ b/src/bot/workers/signal_worker.py
+@@ -83,14 +83,6 @@ def main() -> None:
+         _load_env()
+         cfg = _load_config()
+     
+-        # ── Kill Switch check (V5) — abort immediately if active ──────────────────
+-        from bot.core.kill_switch import is_kill_switch_active, KILL_SWITCH_FILE
+-        if is_kill_switch_active():
+-            _ks_reason = KILL_SWITCH_FILE.read_text().strip() if KILL_SWITCH_FILE.exists() else 'Manual kill switch'
+-            print(f'SignalWorker: KILL SWITCH ACTIVE — no signals generated ({_ks_reason})')
+-            logger.warning('SignalWorker: KILL SWITCH ACTIVE — exiting without generating signals (%s)', _ks_reason)
+-            sys.exit(0)
+-    
+         from bot.core.market_hours import is_market_open
+         from bot.core.regime import get_regime_params
+         from bot.core.risk import check_buy_gate, get_score_boost
+@@ -106,6 +98,19 @@ def main() -> None:
+         portfolio_repo = PortfolioRepo(db)
+         state_repo = StateRepo(db)
+         log_repo = LogRepo(db)
++
++        # ── Heartbeat (dead-man's switch) — before kill-switch exit so an
++        #    active kill switch does not look like a dead worker ─────────────
++        from bot.core.heartbeat import record_heartbeat
++        record_heartbeat(state_repo, "signal_worker")
++
++        # ── Kill Switch check (V5) — abort immediately if active ──────────────────
++        from bot.core.kill_switch import is_kill_switch_active, KILL_SWITCH_FILE
++        if is_kill_switch_active():
++            _ks_reason = KILL_SWITCH_FILE.read_text().strip() if KILL_SWITCH_FILE.exists() else 'Manual kill switch'
++            print(f'SignalWorker: KILL SWITCH ACTIVE — no signals generated ({_ks_reason})')
++            logger.warning('SignalWorker: KILL SWITCH ACTIVE — exiting without generating signals (%s)', _ks_reason)
++            sys.exit(0)
+     
+         # ── 2. Check regime — V5: 4-level system, no hard block except legacy ────
+         regime = state_repo.get_regime()
+@@ -147,14 +152,64 @@ def main() -> None:
+             return
+     
+         # ── 4. Current portfolio state ────────────────────────────────────────────
++        # fix/autonomy-hardening: FAIL-CLOSED on missing equity. The previous
++        # $10,000 default meant position sizing ran on a fabricated number
++        # whenever CURRENT_EQUITY was empty or corrupt. No equity → no trades.
+         equity = state_repo.get_equity()
+         if equity <= 0.0:
+-            equity = 10_000.0
+-            logger.warning("SignalWorker: equity=0 in state, using default $10,000")
++            msg = ("CURRENT_EQUITY fehlt oder ist 0 — keine Trades möglich "
++                   "(fail-closed). Reconciler prüfen.")
++            logger.error("SignalWorker: %s", msg)
++            log_repo.write("ERROR", "signal_worker", msg)
++            print("SignalWorker: ABORT — equity unbekannt (fail-closed)")
++            _post('post_alert_embed',
++                title='🔴 Signal Worker: Equity unbekannt',
++                description=msg,
++                severity='CRITICAL',
++                dry_run=False,
++            )
++            return
+     
+         total_exposure = portfolio_repo.get_total_exposure()
+         position_count = portfolio_repo.get_position_count()
+-        cash_estimate = max(0.0, equity - total_exposure)
++
++        # fix/autonomy-hardening: prefer REAL available cash (stored by the
++        # reconciler from clientPortfolio.credit) over the equity−exposure
++        # estimate, which ignores pending orders, fees and rounding.
++        available_cash = state_repo.get_float("AVAILABLE_CASH", -1.0)
++        if available_cash >= 0.0:
++            cash_estimate = available_cash
++        else:
++            cash_estimate = max(0.0, equity - total_exposure)
++            logger.info("SignalWorker: AVAILABLE_CASH nicht gesetzt — nutze Schätzung equity−exposure")
++
++        # ── fix/autonomy-hardening: daily trade-count brake ───────────────────────
++        # Hard ceiling on new trades per UTC day. Protects against signal
++        # storms (e.g. a market-wide selloff generating 'oversold' BUYs on
++        # every watchlist symbol at once).
++        max_trades_per_day = int(cfg.get("trading", {}).get("max_trades_per_day", 12))
++        if max_trades_per_day > 0:
++            row = db.fetchone(
++                "SELECT COUNT(*) AS n FROM trades "
++                "WHERE created_at >= date('now') "
++                "AND status NOT IN ('REJECTED','FAILED')",
++            )
++            trades_today = int(
++                (row["n"] if isinstance(row, dict) else row[0]) if row else 0
++            )
++            if trades_today >= max_trades_per_day:
++                msg = (f"Tageslimit erreicht: {trades_today}/{max_trades_per_day} "
++                       f"Trades heute — keine weiteren Approvals bis Mitternacht UTC")
++                logger.warning("SignalWorker: %s", msg)
++                log_repo.write("WARN", "signal_worker", msg)
++                print(f"SignalWorker: 0 signals evaluated, 0 trades approved ({msg})")
++                _post('post_alert_embed',
++                    title='🟡 Signal Worker: Tageslimit erreicht',
++                    description=msg,
++                    severity='WARNING',
++                    dry_run=False,
++                )
++                return
+     
+         logger.info(
+             "SignalWorker: equity=%.2f exposure=%.2f cash=%.2f positions=%d regime=%s scalar=%.2f",
+diff --git a/tests/unit/test_autonomy_fixes.py b/tests/unit/test_autonomy_fixes.py
+new file mode 100644
+index 0000000..dc52602
+--- /dev/null
++++ b/tests/unit/test_autonomy_fixes.py
+@@ -0,0 +1,202 @@
++#!/usr/bin/env python3
++"""Unit tests — fix/autonomy-hardening batch.
++
++Covers:
++  - check_slippage_gate (all pass/block/skip branches)
++  - get_max_slippage_pct (config override + crypto detection)
++  - check_daily_loss_breach (breach / no breach / disabled / edge cases)
++  - heartbeat.is_stale + get_stale_workers (incl. deploy grace period)
++"""
++from __future__ import annotations
++
++from datetime import datetime, timedelta, timezone
++
++import pytest
++
++from bot.core.heartbeat import (
++    EXPECTED_INTERVALS_MIN,
++    STALE_FACTOR,
++    get_stale_workers,
++    is_stale,
++    record_heartbeat,
++)
++from bot.core.risk import (
++    DAILY_LOSS_LIMIT_PCT_DEFAULT,
++    MAX_SLIPPAGE_PCT_CRYPTO,
++    MAX_SLIPPAGE_PCT_DEFAULT,
++    check_daily_loss_breach,
++    check_slippage_gate,
++    get_max_slippage_pct,
++)
++
++TS_FMT = "%Y-%m-%d %H:%M:%S"
++
++
++# ─── Slippage Gate ────────────────────────────────────────────────────────────
++
++class TestSlippageGate:
++    def test_pass_within_tolerance(self):
++        g = check_slippage_gate("AAPL", signal_price=100.0, current_price=101.0,
++                                max_slippage_pct=1.5)
++        assert g.allowed
++
++    def test_block_price_ran_up(self):
++        g = check_slippage_gate("AAPL", signal_price=100.0, current_price=102.0,
++                                max_slippage_pct=1.5)
++        assert not g.allowed
++        assert "Slippage-Gate" in g.summary()
++
++    def test_block_price_collapsed(self):
++        # A collapse below signal price means the setup broke — also blocked.
++        g = check_slippage_gate("AAPL", signal_price=100.0, current_price=97.0,
++                                max_slippage_pct=1.5)
++        assert not g.allowed
++
++    def test_exact_boundary_passes(self):
++        # deviation == max → not strictly greater → pass
++        g = check_slippage_gate("AAPL", signal_price=100.0, current_price=101.5,
++                                max_slippage_pct=1.5)
++        assert g.allowed
++
++    def test_skip_no_signal_price(self):
++        assert check_slippage_gate("AAPL", None, 100.0, 1.5).allowed
++        assert check_slippage_gate("AAPL", 0.0, 100.0, 1.5).allowed
++
++    def test_skip_no_current_price(self):
++        assert check_slippage_gate("AAPL", 100.0, None, 1.5).allowed
++        assert check_slippage_gate("AAPL", 100.0, 0.0, 1.5).allowed
++
++    def test_crypto_default_tolerance_via_symbol(self):
++        # BTC at +2.5% with defaults: crypto max is 3.0 → pass
++        g = check_slippage_gate("BTC", signal_price=100.0, current_price=102.5)
++        assert g.allowed
++        # Stock at +2.5% with defaults: 1.5 → block
++        g2 = check_slippage_gate("AAPL", signal_price=100.0, current_price=102.5)
++        assert not g2.allowed
++
++
++class TestMaxSlippageConfig:
++    def test_defaults(self):
++        assert get_max_slippage_pct("AAPL") == MAX_SLIPPAGE_PCT_DEFAULT
++        assert get_max_slippage_pct("BTC-USD") == MAX_SLIPPAGE_PCT_CRYPTO
++        assert get_max_slippage_pct("btc") == MAX_SLIPPAGE_PCT_CRYPTO
++
++    def test_config_override(self):
++        cfg = {"trading": {"max_slippage_pct": 2.0, "max_slippage_pct_crypto": 5.0}}
++        assert get_max_slippage_pct("AAPL", cfg) == 2.0
++        assert get_max_slippage_pct("ETH", cfg) == 5.0
++
++    def test_empty_config_falls_back(self):
++        assert get_max_slippage_pct("AAPL", {}) == MAX_SLIPPAGE_PCT_DEFAULT
++        assert get_max_slippage_pct("AAPL", {"trading": {}}) == MAX_SLIPPAGE_PCT_DEFAULT
++
++
++# ─── Daily-Loss Breach ────────────────────────────────────────────────────────
++
++class TestDailyLossBreach:
++    def test_no_breach(self):
++        breached, pnl = check_daily_loss_breach(10_000.0, 9_700.0, 5.0)
++        assert not breached
++        assert pnl == pytest.approx(-3.0)
++
++    def test_breach(self):
++        breached, pnl = check_daily_loss_breach(10_000.0, 9_400.0, 5.0)
++        assert breached
++        assert pnl == pytest.approx(-6.0)
++
++    def test_exact_limit_breaches(self):
++        breached, pnl = check_daily_loss_breach(10_000.0, 9_500.0, 5.0)
++        assert breached
++        assert pnl == pytest.approx(-5.0)
++
++    def test_gain_never_breaches(self):
++        breached, _ = check_daily_loss_breach(10_000.0, 11_000.0, 5.0)
++        assert not breached
++
++    def test_disabled_via_zero_limit(self):
++        breached, _ = check_daily_loss_breach(10_000.0, 1_000.0, 0.0)
++        assert not breached
++
++    def test_negative_limit_treated_as_abs(self):
++        breached, _ = check_daily_loss_breach(10_000.0, 9_400.0, -5.0)
++        # limit_pct <= 0 disables — documented behaviour
++        assert not breached
++
++    def test_invalid_equities_never_breach(self):
++        assert not check_daily_loss_breach(0.0, 9_000.0, 5.0)[0]
++        assert not check_daily_loss_breach(10_000.0, 0.0, 5.0)[0]
++        assert not check_daily_loss_breach(-1.0, -1.0, 5.0)[0]
++
++    def test_default_constant_sane(self):
++        assert 0.0 < DAILY_LOSS_LIMIT_PCT_DEFAULT <= 10.0
++
++
++# ─── Heartbeat / Dead-Man's Switch ───────────────────────────────────────────
++
++class FakeStateRepo:
++    """Minimal in-memory stand-in for StateRepo."""
++    def __init__(self, data: dict | None = None):
++        self.data = dict(data or {})
++
++    def get(self, key, default=None):
++        return self.data.get(key, default)
++
++    def set(self, key, value):
++        self.data[key] = value
++
++
++class TestHeartbeat:
++    def test_record_and_not_stale(self):
++        repo = FakeStateRepo()
++        record_heartbeat(repo, "risk_worker")
++        last = repo.get("LAST_RUN_RISK_WORKER")
++        assert last is not None
++        assert not is_stale(last, interval_min=5)
++
++    def test_stale_after_window(self):
++        now = datetime(2026, 7, 2, 12, 0, 0, tzinfo=timezone.utc)
++        old = (now - timedelta(minutes=5 * STALE_FACTOR + 1)).strftime(TS_FMT)
++        assert is_stale(old, interval_min=5, now=now)
++
++    def test_fresh_within_window(self):
++        now = datetime(2026, 7, 2, 12, 0, 0, tzinfo=timezone.utc)
++        fresh = (now - timedelta(minutes=5 * STALE_FACTOR - 1)).strftime(TS_FMT)
++        assert not is_stale(fresh, interval_min=5, now=now)
++
++    def test_missing_or_garbage_is_stale(self):
++        assert is_stale(None, 5)
++        assert is_stale("", 5)
++        assert is_stale("not-a-timestamp", 5)
++
++    def test_deploy_grace_first_run_reports_nothing(self):
++        repo = FakeStateRepo()  # no HEARTBEAT_DEPLOYED_AT yet
++        assert get_stale_workers(repo) == []
++        assert repo.get("HEARTBEAT_DEPLOYED_AT") is not None
++
++    def test_stale_workers_reported_after_grace(self):
++        now = datetime(2026, 7, 2, 12, 0, 0, tzinfo=timezone.utc)
++        deployed = (now - timedelta(hours=2)).strftime(TS_FMT)
++        fresh = (now - timedelta(minutes=1)).strftime(TS_FMT)
++        stale_ts = (now - timedelta(hours=1)).strftime(TS_FMT)
++        repo = FakeStateRepo({
++            "HEARTBEAT_DEPLOYED_AT": deployed,
++            "LAST_RUN_RISK_WORKER": fresh,
++            "LAST_RUN_DATA_WORKER": stale_ts,
++            # reconciler / signal / execution never ran → also stale
++        })
++        stale = get_stale_workers(repo, now=now)
++        joined = " ".join(stale)
++        assert "data_worker" in joined
++        assert "reconciler" in joined
++        assert "risk_worker" not in joined
++        # never-ran workers should reference the deploy marker
++        assert any("noch nie gelaufen" in s for s in stale)
++
++    def test_all_fresh_reports_nothing(self):
++        now = datetime(2026, 7, 2, 12, 0, 0, tzinfo=timezone.utc)
++        fresh = (now - timedelta(minutes=1)).strftime(TS_FMT)
++        data = {"HEARTBEAT_DEPLOYED_AT": fresh}
++        for w in EXPECTED_INTERVALS_MIN:
++            data[f"LAST_RUN_{w.upper()}"] = fresh
++        repo = FakeStateRepo(data)
++        assert get_stale_workers(repo, now=now) == []
+\ No newline at end of file

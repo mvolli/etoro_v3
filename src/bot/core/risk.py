@@ -149,6 +149,15 @@ CASH_TARGET_MAX_PCT = 30.0
 MAX_TOTAL_EXPOSURE_PCT = 75.0
 MAX_CORRELATION = 0.85
 
+# fix/autonomy-hardening: execution-time slippage guard.
+# Max allowed deviation between signal price and live price at execution.
+MAX_SLIPPAGE_PCT_DEFAULT = 1.5   # stocks / ETFs
+MAX_SLIPPAGE_PCT_CRYPTO = 3.0    # crypto is more volatile between cycles
+
+# fix/autonomy-hardening: automatic daily-loss kill switch.
+# 0.0 disables the check. Overridable via config risk.daily_loss_limit_pct.
+DAILY_LOSS_LIMIT_PCT_DEFAULT = 5.0
+
 SL_HARD_CLOSE_PCT = -3.0
 SL_EMERGENCY_PCT = -4.0
 SL_WARNING_PCT = -2.0
@@ -434,6 +443,80 @@ def check_correlation_gate_risk(
     except Exception as e:
         # Fail-open: correlation check failed, don't block trading
         return GateResult(True, [f'Correlation check skipped: {e}'])
+
+
+def get_max_slippage_pct(symbol: str, cfg: dict | None = None) -> float:
+    """Max allowed signal→execution price deviation for *symbol* (%).
+
+    Config keys (optional): trading.max_slippage_pct,
+    trading.max_slippage_pct_crypto.
+    """
+    trading_cfg = (cfg or {}).get("trading", {}) if cfg else {}
+    if symbol.upper() in CRYPTO_SYMBOLS:
+        return float(trading_cfg.get("max_slippage_pct_crypto", MAX_SLIPPAGE_PCT_CRYPTO))
+    return float(trading_cfg.get("max_slippage_pct", MAX_SLIPPAGE_PCT_DEFAULT))
+
+
+def check_slippage_gate(
+    symbol: str,
+    signal_price: float | None,
+    current_price: float | None,
+    max_slippage_pct: float | None = None,
+) -> GateResult:
+    """fix/autonomy-hardening: block execution when the live price has moved
+    too far from the price the signal was generated on.
+
+    Between signal generation (yfinance, up to 15-min-old candles) and
+    execution (:04 cron), price can run away — especially after gaps or
+    news. Without this gate the bot buys blind at market.
+
+    Semantics:
+      - signal_price missing/0  → PASS (legacy trades without signal_price;
+        open_position() still applies its own price sanity checks)
+      - current_price missing/0 → PASS with warning reason (fail-open:
+        the downstream ghost-guard in open_position() blocks price=0 cases)
+      - |deviation| > max      → BLOCK (both directions: a price that
+        collapsed below the signal price usually means the setup broke,
+        not that we get a bargain)
+    """
+    if max_slippage_pct is None:
+        max_slippage_pct = get_max_slippage_pct(symbol)
+
+    if not signal_price or signal_price <= 0:
+        return GateResult(True, ["Slippage-Gate: skipped (kein signal_price)"])
+    if not current_price or current_price <= 0:
+        return GateResult(True, [
+            "Slippage-Gate: skipped (kein Live-Preis verfügbar — "
+            "open_position() Ghost-Guard greift)"
+        ])
+
+    deviation_pct = (current_price - signal_price) / signal_price * 100.0
+    if abs(deviation_pct) > max_slippage_pct:
+        return GateResult(False, [
+            f"Slippage-Gate: {symbol} Preis {deviation_pct:+.2f}% vs. Signal "
+            f"(Signal ${signal_price:.6f} → Live ${current_price:.6f}, "
+            f"Max ±{max_slippage_pct:.1f}%)"
+        ])
+    return GateResult(True, [
+        f"Slippage OK: {deviation_pct:+.2f}% (Max ±{max_slippage_pct:.1f}%)"
+    ])
+
+
+def check_daily_loss_breach(
+    day_start_equity: float,
+    current_equity: float,
+    limit_pct: float = DAILY_LOSS_LIMIT_PCT_DEFAULT,
+) -> tuple[bool, float]:
+    """fix/autonomy-hardening: automatic kill-switch trigger.
+
+    Returns (breached, day_pnl_pct). breached=True when equity dropped
+    more than limit_pct below the day-start equity. limit_pct <= 0
+    disables the check entirely.
+    """
+    if limit_pct <= 0 or day_start_equity <= 0 or current_equity <= 0:
+        return (False, 0.0)
+    day_pnl_pct = (current_equity - day_start_equity) / day_start_equity * 100.0
+    return (day_pnl_pct <= -abs(limit_pct), day_pnl_pct)
 
 
 # ─── Master BUY Gate ──────────────────────────────────────────────────────────

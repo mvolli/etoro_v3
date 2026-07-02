@@ -164,6 +164,35 @@ def main() -> int:
         )
         print(f"[monitor] Tick #{tick} | Discord embed: {'OK ✓' if ok else 'SKIP (no embeds module)' if embeds is None else 'FAILED'}")
     
+        # ── Dead-man's switch: alert on stale workers (fix/autonomy-hardening) ───
+        try:
+            from bot.core.heartbeat import get_stale_workers
+            from bot.core.kill_switch import is_kill_switch_active
+            stale = get_stale_workers(state_repo)
+            if stale and is_kill_switch_active():
+                # Kill switch legitimately silences signal/execution — only
+                # report the always-on workers to avoid alert noise.
+                stale = [s for s in stale
+                         if not s.startswith(("signal_worker", "execution_worker"))]
+            if stale:
+                stale_desc = "\n".join(f"• {s}" for s in stale)
+                print(f"[monitor] STALE WORKERS:\n{stale_desc}")
+                log_repo.write("ERROR", "monitor_worker",
+                               f"Stale workers detected: {len(stale)}",
+                               {"stale": stale})
+                _post_alert_embed(
+                    embeds,
+                    title="🔴 Dead-Man's-Switch: Worker ohne Heartbeat",
+                    description=(
+                        f"{stale_desc}\n\n"
+                        f"Positionen laufen ggf. unüberwacht (nur Broker-SL aktiv). "
+                        f"Cron/WSL prüfen!"
+                    ),
+                    severity="CRITICAL",
+                )
+        except Exception as _hb_exc:
+            print(f"[monitor] Heartbeat check failed: {_hb_exc}")
+
         # ── Alert on DEFENSIVE / CRITICAL regime (V5) ────────────────────────────
         if regime in ("DEFENSIVE", "CRITICAL"):
             risk_scalar = float(state_repo.get("RISK_SCALAR") or "0.5")

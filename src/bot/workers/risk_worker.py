@@ -102,7 +102,11 @@ def main() -> None:
         portfolio_repo = PortfolioRepo(db)
         state_repo = StateRepo(db)
         log_repo = LogRepo(db)
-    
+
+        # ── Heartbeat (dead-man's switch) ─────────────────────────────────────────
+        from bot.core.heartbeat import record_heartbeat
+        record_heartbeat(state_repo, "risk_worker")
+
         closed_count = 0
         checked_count = 0
         regime = "NORMAL"
@@ -152,17 +156,42 @@ def main() -> None:
                     or 0.0
                 )
     
-            # Normalise: if absolute value < 1.0, it's a decimal fraction → multiply by 100
             try:
                 raw_pnl_pct = float(raw_pnl_pct)
             except (TypeError, ValueError):
                 raw_pnl_pct = 0.0
-    
-            if abs(raw_pnl_pct) < 1.0 and raw_pnl_pct != 0.0:
-                pnl_pct = raw_pnl_pct * 100.0
-            else:
-                pnl_pct = raw_pnl_pct
-    
+
+            # fix/autonomy-hardening: the old "abs < 1.0 → ×100" heuristic was
+            # a real false-positive path — a genuine −0.8% position became
+            # −80% and was closed instantly. Primary source is now the
+            # rate-derived PnL (openRate vs. live closeRate, long-only bot);
+            # the raw API field is the fallback and is taken AS-IS (eToro
+            # reports pnLPct in percent). Ambiguous small values are logged
+            # instead of being silently rescaled.
+            pnl_pct = raw_pnl_pct
+            _open_rate = float(pos.get("openRate", 0) or 0)
+            _close_rate = 0.0
+            if isinstance(unrealized, dict):
+                _close_rate = float(unrealized.get("closeRate", 0) or 0)
+            if _close_rate <= 0:
+                _close_rate = float(pos.get("closeRate", 0) or pos.get("currentRate", 0) or 0)
+
+            if _open_rate > 0 and _close_rate > 0:
+                rate_pnl_pct = (_close_rate / _open_rate - 1.0) * 100.0
+                if raw_pnl_pct != 0.0 and abs(rate_pnl_pct - raw_pnl_pct) > 1.0:
+                    logger.warning(
+                        "RiskWorker: %s PnL-Diskrepanz — API=%.2f%% vs. ratenbasiert=%.2f%% "
+                        "(nutze ratenbasiert)",
+                        symbol, raw_pnl_pct, rate_pnl_pct,
+                    )
+                pnl_pct = rate_pnl_pct
+            elif raw_pnl_pct != 0.0 and abs(raw_pnl_pct) < 1.0:
+                logger.info(
+                    "RiskWorker: %s PnL %.4f%% ist klein — wird als Prozentwert "
+                    "interpretiert (keine ×100-Reskalierung mehr)",
+                    symbol, raw_pnl_pct,
+                )
+
             sl_action = evaluate_sl(pnl_pct)
     
             if sl_action.action == "CLOSE":
@@ -251,6 +280,9 @@ def main() -> None:
         if is_kill_switch_active():
             _ks_reason = KILL_SWITCH_FILE.read_text().strip() if KILL_SWITCH_FILE.exists() else 'Manual kill switch'
             logger.warning('RiskWorker: KILL SWITCH ACTIVE — forcing CRITICAL regime (%s)', _ks_reason)
+            # fix/autonomy-hardening: capture the regime BEFORE overwriting it,
+            # otherwise the embed always showed CRITICAL→CRITICAL.
+            _old_regime = state_repo.get_regime() or 'UNKNOWN'
             state_repo.set_regime('CRITICAL')
             state_repo.set('RISK_SCALAR', '0.25')
             log_repo.write('WARNING', 'kill_switch', f'Kill switch active: {_ks_reason}')
@@ -261,7 +293,7 @@ def main() -> None:
             else:
                 _discord(
                     'post_regime_change_embed',
-                    old_regime=state_repo.get_regime() or 'UNKNOWN',
+                    old_regime=_old_regime,
                     new_regime='CRITICAL',
                     drawdown_pct=0.0,
                     equity=state_repo.get_equity() or 0.0,
@@ -271,24 +303,79 @@ def main() -> None:
             print(f'RiskWorker: KILL SWITCH — CRITICAL regime forced ({_ks_reason})')
             regime = 'CRITICAL'
             # Fall through: still run SL checks on existing positions (already done above)
-    
+
         # ── 5. Update regime (skipped if kill switch forced CRITICAL) ─────────────
         equity = state_repo.get_equity()
         if equity <= 0.0:
-            # Fall back to portfolio equity from API response if available
+            # Fall back to portfolio equity from the API response if available.
+            # fix/autonomy-hardening: NO fabricated $10,000 default anymore —
+            # if equity is genuinely unknown, we skip regime/drawdown math
+            # (fail-closed) instead of computing it on a fantasy number.
             equity = float(
                 portfolio.get("equity")
                 or portfolio.get("totalEquity")
                 or portfolio.get("netEquity")
-                or 10_000.0
+                or 0.0
             )
             if equity > 0.0:
                 state_repo.set("CURRENT_EQUITY", str(equity))
-    
-        if not is_kill_switch_active():
+            else:
+                logger.error(
+                    "RiskWorker: Equity unbekannt (State leer, API-Payload ohne Equity) "
+                    "— Regime-Update übersprungen (fail-closed)"
+                )
+                log_repo.write("ERROR", "risk_worker",
+                               "Equity unbekannt — Regime-Update übersprungen (fail-closed)")
+
+        # ── fix/autonomy-hardening: Daily-Loss Auto-Kill-Switch ───────────────────
+        # Regime scaling only reduces sizing; nothing previously STOPPED the
+        # bot automatically. Track day-start equity (UTC) and trip the kill
+        # switch when the intraday drop exceeds risk.daily_loss_limit_pct.
+        if equity > 0.0:
+            from datetime import datetime as _dt, timezone as _tz
+            from bot.core.risk import check_daily_loss_breach, DAILY_LOSS_LIMIT_PCT_DEFAULT
+            from bot.core import kill_switch as _ks
+
+            _today = _dt.now(_tz.utc).strftime("%Y-%m-%d")
+            _day_date = state_repo.get("DAY_START_DATE")
+            if _day_date != _today:
+                state_repo.set("DAY_START_DATE", _today)
+                state_repo.set("DAY_START_EQUITY", str(equity))
+                logger.info("RiskWorker: neuer Handelstag %s — DAY_START_EQUITY=%.2f", _today, equity)
+
+            _day_start_equity = state_repo.get_float("DAY_START_EQUITY", 0.0)
+            _loss_limit_pct = float(
+                cfg.get("risk", {}).get("daily_loss_limit_pct", DAILY_LOSS_LIMIT_PCT_DEFAULT)
+            )
+            _breached, _day_pnl_pct = check_daily_loss_breach(
+                _day_start_equity, equity, _loss_limit_pct
+            )
+            if _breached and not is_kill_switch_active():
+                _reason = (
+                    f"AUTO: Tagesverlust {_day_pnl_pct:.2f}% überschreitet Limit "
+                    f"-{_loss_limit_pct:.1f}% (Start ${_day_start_equity:.2f} → ${equity:.2f})"
+                )
+                logger.critical("RiskWorker: %s — Kill Switch wird aktiviert", _reason)
+                _ks.activate(_reason)
+                state_repo.set_regime("CRITICAL")
+                state_repo.set("RISK_SCALAR", "0.25")
+                log_repo.write("CRITICAL", "risk_worker", f"Auto-Kill-Switch: {_reason}")
+                _discord(
+                    "post_alert_embed",
+                    title="🛑 AUTO-KILL-SWITCH ausgelöst",
+                    description=(
+                        f"{_reason}\n"
+                        f"Alle neuen Trades gestoppt. Reaktivierung: "
+                        f"`rm data/kill_switch.flag` nach manueller Prüfung."
+                    ),
+                    severity="CRITICAL",
+                )
+                regime = "CRITICAL"
+
+        if equity > 0.0 and not is_kill_switch_active():
             previous_regime = state_repo.get_regime()
             regime, regime_changed = update_regime(state_repo, equity)
-    
+
             if regime_changed:
                 logger.info("RiskWorker: Regime changed → %s (equity=%.2f)", regime, equity)
                 log_repo.write(
@@ -305,8 +392,13 @@ def main() -> None:
                     reason=state_repo.get("DRAWDOWN_REASON") or f"Regime changed to {regime}",
                 )
         else:
-            # Kill switch forces CRITICAL — do not allow update_regime() to overwrite
-            regime = 'CRITICAL'
+            # Kill switch forces CRITICAL — do not allow update_regime() to
+            # overwrite. If we got here because equity is unknown (fail-closed
+            # skip), keep the last known regime instead of forcing CRITICAL.
+            if is_kill_switch_active():
+                regime = 'CRITICAL'
+            else:
+                regime = state_repo.get_regime() or 'NORMAL'
             regime_changed = False
     
         # ── P3 V5: Post-Trade Concentration Monitoring ────────────────────────────

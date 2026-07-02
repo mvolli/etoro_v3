@@ -98,14 +98,46 @@ def main() -> None:
         busy_timeout = cfg["db"].get("busy_timeout_ms", 5000)
         db = DB(db_path=db_path, busy_timeout_ms=busy_timeout)
     
+        trade_repo = TradeRepo(db)
+        state_repo = StateRepo(db)
+        log_repo = LogRepo(db)
+
+        # ── Heartbeat (dead-man's switch) ─────────────────────────────────────────
+        from bot.core.heartbeat import record_heartbeat
+        record_heartbeat(state_repo, "execution_worker")
+
+        # ── Kill Switch check (fix/autonomy-hardening) ────────────────────────────
+        # Previously the execution worker relied ONLY on the DB regime, which
+        # the risk worker sets with up to 5 minutes latency. In that window,
+        # already-APPROVED trades would execute despite an active kill switch.
+        # Check the flag file directly AND reject all pending approvals so
+        # stale APPROVED trades cannot fire later once the switch is lifted.
+        from bot.core.kill_switch import is_kill_switch_active, get_reason
+        if is_kill_switch_active():
+            ks_reason = get_reason() or "Manual kill switch"
+            stale_approved = trade_repo.get_by_status("APPROVED")
+            for t in stale_approved:
+                trade_repo.update_status(
+                    t["id"],
+                    "REJECTED",
+                    rejection_reason=f"Kill switch active: {ks_reason}",
+                )
+            logger.warning(
+                "ExecutionWorker: KILL SWITCH ACTIVE (%s) — %d APPROVED trade(s) rejected, exiting",
+                ks_reason, len(stale_approved),
+            )
+            log_repo.write(
+                "WARN",
+                "execution_worker",
+                f"Kill switch active — {len(stale_approved)} APPROVED trade(s) rejected ({ks_reason})",
+            )
+            print(f"ExecutionWorker: KILL SWITCH — {len(stale_approved)} approvals rejected, no execution")
+            return
+
         api_key = os.environ.get("ETORO_API_KEY", "")
         user_key = os.environ.get("ETORO_USER_KEY", "")
         client_cfg = ClientConfig.from_dict(cfg.get("api", {}))
         client = EToroClient(api_key=api_key, user_key=user_key, config=client_cfg)
-    
-        trade_repo = TradeRepo(db)
-        state_repo = StateRepo(db)
-        log_repo = LogRepo(db)
     
         # ── 2. Fetch all APPROVED trades ──────────────────────────────────────────
         approved_trades = trade_repo.get_by_status("APPROVED")
@@ -228,6 +260,50 @@ def main() -> None:
                 failed_count += 1
                 continue
     
+            # c2. Slippage gate (fix/autonomy-hardening) — the signal price is
+            #     stored at approval time but was previously never used. Block
+            #     execution when the live price has drifted too far from it.
+            from bot.core.risk import check_slippage_gate, get_max_slippage_pct
+            signal_price = float(trade.get("signal_price") or 0.0)
+            current_price = client.get_current_price(instrument_id)
+            slippage_gate = check_slippage_gate(
+                symbol=symbol,
+                signal_price=signal_price if signal_price > 0 else None,
+                current_price=current_price,
+                max_slippage_pct=get_max_slippage_pct(symbol, cfg),
+            )
+            if not slippage_gate.allowed:
+                reason = slippage_gate.summary()
+                logger.warning(
+                    "ExecutionWorker: trade #%d (%s) BLOCKED by slippage gate — %s",
+                    trade_id, symbol, reason,
+                )
+                trade_repo.update_status(
+                    trade_id,
+                    "REJECTED",
+                    rejection_reason=reason[:200],
+                )
+                log_repo.write(
+                    "WARN",
+                    "execution_worker",
+                    f"Trade #{trade_id} REJECTED — slippage gate: {symbol}",
+                    {
+                        "symbol": symbol,
+                        "signal_price": signal_price,
+                        "current_price": current_price,
+                        "reason": reason,
+                    },
+                )
+                _post('post_trade_failed_embed',
+                    symbol=symbol,
+                    direction='BUY',
+                    amount_usd=amount_usd,
+                    error=f"Slippage gate: {reason[:150]}",
+                    dry_run=False,
+                )
+                failed_count += 1
+                continue
+
             # d. Call eToro API to open the position
             try:
                 result = client.open_position(
