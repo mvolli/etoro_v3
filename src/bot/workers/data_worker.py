@@ -120,15 +120,22 @@ def _ensure_failed_symbols_table(db: "DB") -> None:
             symbol TEXT PRIMARY KEY,
             first_failed_at DATETIME NOT NULL,
             last_failed_at DATETIME NOT NULL,
-            failure_count INTEGER NOT NULL DEFAULT 1
+            failure_count INTEGER NOT NULL DEFAULT 1,
+            permanent INTEGER NOT NULL DEFAULT 0
         )
     """)
+    # Migration for existing installs (idempotent):
+    try:
+        db.execute("ALTER TABLE failed_symbols ADD COLUMN permanent INTEGER NOT NULL DEFAULT 0")
+    except Exception:
+        pass  # column already exists
 
 def _load_failed_cache(db: "DB") -> None:
     """Load failed symbols from DB into in-memory cache (only those still in cooldown)."""
     rows = db.fetchall("""
         SELECT symbol FROM failed_symbols
-        WHERE last_failed_at > datetime('now', ? || ' days')
+        WHERE permanent = 1
+           OR last_failed_at > datetime('now', ? || ' days')
     """, (f"-{_COOLDOWN_DAYS}",))
     _FAILED_SYMBOLS_CACHE.clear()
     for row in rows:
@@ -166,7 +173,8 @@ def _cleanup_old_failed_symbols(db: "DB") -> int:
     """Remove failed symbol entries older than CLEANUP_DAYS. Returns count deleted."""
     cur = db.execute("""
         DELETE FROM failed_symbols
-        WHERE last_failed_at < datetime('now', ? || ' days')
+        WHERE permanent = 0
+          AND last_failed_at < datetime('now', ? || ' days')
     """, (f"-{_CLEANUP_DAYS}",))
     deleted = cur.rowcount
     if deleted:
@@ -364,11 +372,25 @@ def _get_watchlist_from_db(db: DB) -> list[dict]:
     Returns list of dicts: [{symbol, yf_symbol, category, instrument_id}, ...]
     """
     try:
-        rows = db.fetchall("""
-            SELECT w.symbol, i.yfinance_symbol, w.category, w.instrument_id
-            FROM watchlist w
-            LEFT JOIN instruments i ON w.instrument_id = i.instrument_id
-        """)
+        # fix/instrument-db-cleanup: deactivated instruments (is_active=0,
+        # set by scripts/cleanup_instruments.py) must not be re-fetched —
+        # that periodic re-checking of dead/delisted rows was exactly the
+        # overhead being cleaned up. COALESCE keeps rows without an
+        # instruments match; the except-fallback keeps DBs without the
+        # (locally migrated) is_active column working.
+        try:
+            rows = db.fetchall("""
+                SELECT w.symbol, i.yfinance_symbol, w.category, w.instrument_id
+                FROM watchlist w
+                LEFT JOIN instruments i ON w.instrument_id = i.instrument_id
+                WHERE COALESCE(i.is_active, 1) = 1
+            """)
+        except Exception:
+            rows = db.fetchall("""
+                SELECT w.symbol, i.yfinance_symbol, w.category, w.instrument_id
+                FROM watchlist w
+                LEFT JOIN instruments i ON w.instrument_id = i.instrument_id
+            """)
 
         watchlist = []
         for symbol, yf_symbol, category, instrument_id in rows:
@@ -614,24 +636,20 @@ def run(project_root: Path | None = None) -> dict:
                 # Try yf ticker as fallback
                 instrument_id = symbol_to_id(yf_sym, instrument_map)
             if instrument_id is None:
-                # Auto-register new instrument with generated ID
-                try:
-                    existing_ids = db.execute("SELECT MAX(instrument_id) FROM instruments").fetchone()[0] or 0
-                    instrument_id = existing_ids + 1
-                    db.execute(
-                        "INSERT OR IGNORE INTO instruments (instrument_id, symbol) VALUES (?, ?)",
-                        (instrument_id, original_sym),
-                    )
-                    logger.info(
-                        "[%s] AUTO-REGISTERED %s → instrument_id=%d",
-                        WORKER_NAME, original_sym, instrument_id,
-                    )
-                except Exception as reg_exc:
-                    logger.debug(
-                        "[%s] %s: auto-register failed — %s",
-                        WORKER_NAME, original_sym, reg_exc,
-                    )
-                    continue
+                # fix/instrument-db-cleanup: the old MAX(instrument_id)+1
+                # "auto-register" fabricated instrument_ids that do NOT
+                # correspond to any eToro instrument — the second
+                # fake-ID generator besides discovery's hash placeholder
+                # (removed in fix/discovery-identity-verification).
+                # Fabricated IDs poison the instruments table and produce
+                # signals that can never execute (or worse, collide with
+                # a real ID). Fail-closed: no verified ID → no signal.
+                logger.warning(
+                    "[%s] %s: keine instrument_id auflösbar — Signal wird NICHT "
+                    "gespeichert (fail-closed, kein Auto-Register mehr)",
+                    WORKER_NAME, original_sym,
+                )
+                continue
 
             # 7. Store signal in DB
             signal_types_str = ",".join(result.signal_types) if result.signal_types else result.direction
