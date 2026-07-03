@@ -235,9 +235,10 @@ def _build_snapshot_record(pos: dict, instrument_map: dict[int, str], client: ET
     Returns (record, api_resolved_ids) where api_resolved_ids contains any
     instrument IDs that were resolved via the live API and should be persisted.
 
-    API fields:
+    API fields (verified live 2026-07-03 — pnLPct/pnlPct do not actually
+    appear in this endpoint's response; closeRate is the live price):
       positionID, instrumentID, amount, openRate,
-      unrealizedPnL.pnL, unrealizedPnL.pnLPct,
+      unrealizedPnL.pnL, unrealizedPnL.closeRate,
       stopLossRate, isNoStopLoss
     """
     instrument_id = pos.get("instrumentID") or pos.get("instrumentId")
@@ -266,17 +267,42 @@ def _build_snapshot_record(pos: dict, instrument_map: dict[int, str], client: ET
     instr_id = _int(instrument_id)
     symbol, api_resolved = _resolve_symbol(instr_id, instrument_map, client)
     open_rate = _float(pos.get("openRate"))
+    amount = _float(pos.get("amount"))
+
+    # fix/reconciler-live-price: unrealizedPnL.pnLPct/pnlPct DO NOT EXIST in
+    # the live /trading/info/real/pnl payload (verified 2026-07-03 against
+    # all 17 open positions incl. crypto) — pnl_pct above was always None.
+    # The live price the endpoint DOES provide is unrealizedPnL.closeRate
+    # (same field risk_worker.py already reads to derive its own PnL%).
+    # current_price was previously hardcoded to open_rate with the comment
+    # "no live price in this endpoint" — that was wrong, and since this
+    # worker runs at :02 (two minutes after data_worker's :00), it
+    # overwrote data_worker's real yfinance-derived price with a stale
+    # placeholder every single cycle, permanently flatlining
+    # unrealized_pnl_pct at 0%/blank for every position in portfolio_snapshot.
+    close_rate = _float(unrealized.get("closeRate")) if isinstance(unrealized, dict) else None
+    if not close_rate:
+        close_rate = _float(pos.get("closeRate")) or _float(pos.get("currentRate"))
+    current_price = close_rate if close_rate else open_rate
+
+    pnl_val = _float(pnl)
+    if open_rate and close_rate:
+        pnl_pct = (close_rate / open_rate - 1.0) * 100.0
+    elif pnl_val is not None and amount:
+        pnl_pct = (pnl_val / amount) * 100.0
+    else:
+        pnl_pct = _float(pnl_pct)  # last resort: the (usually absent) API field
 
     record = {
         "api_position_id":    str(pos.get("positionID") or pos.get("positionId", "")),
         "instrument_id":      instr_id,
         "symbol":             symbol,
         "is_buy":             1,
-        "amount_usd":         _float(pos.get("amount")),
+        "amount_usd":         amount,
         "open_price":         open_rate,
-        "current_price":      open_rate,  # best available; no live price in this endpoint
-        "unrealized_pnl":     _float(pnl),
-        "unrealized_pnl_pct": _float(pnl_pct),
+        "current_price":      current_price,
+        "unrealized_pnl":     pnl_val,
+        "unrealized_pnl_pct": pnl_pct,
         "stop_loss_rate":     _float(pos.get("stopLossRate")),
         "is_no_stop_loss":    1 if pos.get("isNoStopLoss") else 0,
         "last_synced":        _utcnow(),
