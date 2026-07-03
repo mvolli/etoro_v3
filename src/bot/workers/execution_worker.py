@@ -271,8 +271,10 @@ def main() -> None:
                 failed_count += 1
                 continue
     
-            # c. Market hours gate — prevent ghost orders on closed markets
-            if not is_market_open(symbol):
+            # c. Market hours gate — prevent ghost orders on closed markets.
+            #    fail_open=False: ein unbekannter/unmappbarer Markt gilt am
+            #    BUY-Boundary als GESCHLOSSEN (fix/market-hours-fail-closed).
+            if not is_market_open(symbol, fail_open=False):
                 mkt_status = get_market_status(symbol)
                 logger.warning(
                     'ExecutionWorker: %s market closed (%s) — skipping BUY to prevent ghost order',

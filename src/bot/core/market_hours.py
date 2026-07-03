@@ -12,8 +12,11 @@ fixed UTC tables that break during winter/summer time transitions.
 
 Fail-open: unknown suffixes → True (better to miss a trade than skip a signal).
 """
+import logging
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
+
+logger = logging.getLogger(__name__)
 
 
 # ─── Market Definitions (zoneinfo-based) ────────────────────────────────────────
@@ -351,7 +354,12 @@ def _is_multi_session_open(market_key: str, now_utc: datetime) -> bool:
     return False  # Between sessions or outside hours
 
 
-def is_market_open(symbol: str = '', yf_symbol: str = '', category: str = '') -> bool:
+def is_market_open(
+    symbol: str = '',
+    yf_symbol: str = '',
+    category: str = '',
+    fail_open: bool = True,
+) -> bool:
     """Returns True if the market for this symbol is currently open.
 
     Single Source of Truth — used by data_worker, signal_worker, execution_worker.
@@ -364,6 +372,11 @@ def is_market_open(symbol: str = '', yf_symbol: str = '', category: str = '') ->
                 Empty string → check if ANY market is open.
         yf_symbol: yfinance ticker for 3-tier lookup (optional).
         category: Watchlist category for fallback (optional).
+        fail_open: Verhalten wenn der aufgelöste Market-Key NICHT in
+            MARKET_DEFINITIONS existiert (Mapping-Loch). True (Default) =
+            offen annehmen — richtig für Daten-Fetches. False = geschlossen
+            annehmen — Pflicht am BUY/Execution-Boundary, wo ein unbekannter
+            Markt sonst Ghost-Orders produziert (fix/market-hours-fail-closed).
 
     Returns:
         True if the relevant market is currently trading.
@@ -379,6 +392,13 @@ def is_market_open(symbol: str = '', yf_symbol: str = '', category: str = '') ->
 
     # Symbol-specific check
     market_key = _get_market_key(symbol, yf_symbol, category)
+    if market_key not in MARKET_DEFINITIONS and not fail_open:
+        logger.warning(
+            "is_market_open: Market-Key %r für %s unbekannt — fail-CLOSED "
+            "(BUY-Boundary): Markt gilt als geschlossen",
+            market_key, symbol,
+        )
+        return False
     return _check_market_open(market_key, now_utc)
 
 
@@ -386,7 +406,7 @@ def _check_market_open(market_key: str, now_utc: datetime) -> bool:
     """Internal dispatcher for market open checks."""
     mkt = MARKET_DEFINITIONS.get(market_key)
     if not mkt:
-        return True  # Fail-open
+        return True  # Fail-open (Daten-Pfade; BUY-Pfade nutzen fail_open=False oben)
 
     if mkt.get('always_open'):
         return True

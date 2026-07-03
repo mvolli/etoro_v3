@@ -637,7 +637,11 @@ class EToroClient:
         #     boundary means this guard holds even if a future caller
         #     forgets to, or if the symbol used for classification was
         #     stale by the time execution ran.
-        if not is_market_open(_symbol_for_preflight):
+        # fail_open=False: unbekannter Markt gilt am BUY-Boundary als
+        # geschlossen (fix/market-hours-fail-closed) — Daten-Pfade bleiben
+        # fail-open, aber eine Order auf einem unmappbaren Markt ist die
+        # klassische Ghost-Order-Quelle.
+        if not is_market_open(_symbol_for_preflight, fail_open=False):
             msg = (
                 f"Market closed for {_symbol_for_preflight} — refusing to "
                 f"open position (ghost-order guard)"
