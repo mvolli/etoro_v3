@@ -57,13 +57,13 @@ def _backup_db(db_path: Path) -> Path:
     return backup_path
 
 
-def _load_candidates(db: DB, watchlist_only: bool, limit: int | None) -> list[dict]:
+def _load_candidates(db: DB, region: str, watchlist_only: bool, limit: int | None) -> list[dict]:
     if watchlist_only:
         query = """
             SELECT DISTINCT i.instrument_id, i.symbol, i.yfinance_symbol
             FROM watchlist w
             JOIN instruments i ON w.instrument_id = i.instrument_id
-            WHERE i.market_region = 'EU'
+            WHERE i.market_region = ?
               AND i.yahoo_status = 'delisted'
               AND i.symbol != i.yfinance_symbol
             ORDER BY i.instrument_id
@@ -72,12 +72,12 @@ def _load_candidates(db: DB, watchlist_only: bool, limit: int | None) -> list[di
         query = """
             SELECT instrument_id, symbol, yfinance_symbol
             FROM instruments
-            WHERE market_region = 'EU'
+            WHERE market_region = ?
               AND yahoo_status = 'delisted'
               AND symbol != yfinance_symbol
             ORDER BY instrument_id
         """
-    rows = db.fetchall(query)
+    rows = db.fetchall(query, (region,))
     items = [{"instrument_id": r[0], "symbol": r[1], "yfinance_symbol": r[2]} for r in rows]
     if limit:
         items = items[:limit]
@@ -104,20 +104,24 @@ def _try_resolve(symbol: str, yfinance_symbol: str) -> tuple[str | None, int]:
 
 
 def main() -> int:
-    p = argparse.ArgumentParser(description="Re-verify and reactivate EU instruments with a broken yfinance_symbol")
+    p = argparse.ArgumentParser(description="Re-verify and reactivate instruments with a broken yfinance_symbol")
+    p.add_argument("--region", default="EU", help="instruments.market_region to target (default: EU)")
     p.add_argument("--apply", action="store_true", help="Write changes (default: dry-run report only)")
     p.add_argument("--all-instruments", action="store_true",
                     help="Scan the whole instruments table, not just current watchlist members")
     p.add_argument("--limit", type=int, default=None, help="Cap number of rows processed")
-    p.add_argument("--report", default=str(PROJECT_ROOT / "data" / "eu_yfinance_fix_report.csv"))
+    p.add_argument("--report", default=None)
     args = p.parse_args()
+    report_path = args.report or str(
+        PROJECT_ROOT / "data" / f"{args.region.lower()}_yfinance_fix_report.csv"
+    )
 
     cfg_db_path = PROJECT_ROOT / "data" / "trading.db"
     db = DB(db_path=cfg_db_path)
 
-    items = _load_candidates(db, watchlist_only=not args.all_instruments, limit=args.limit)
+    items = _load_candidates(db, args.region, watchlist_only=not args.all_instruments, limit=args.limit)
     scope = "watchlist-only" if not args.all_instruments else "ALL instruments"
-    print(f"Scope: {scope} — {len(items)} candidate rows to test\n")
+    print(f"Region: {args.region}  Scope: {scope} — {len(items)} candidate rows to test\n")
 
     if args.apply and items:
         backup_path = _backup_db(cfg_db_path)
@@ -143,7 +147,7 @@ def main() -> int:
             dead.append(item)
             print(f"  DEAD     {symbol:15s} ({yf_sym})  no candidate resolved — left untouched")
 
-    with open(args.report, "w", newline="") as fh:
+    with open(report_path, "w", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=["instrument_id", "symbol", "yfinance_symbol", "resolved_symbol", "rows", "status"])
         writer.writeheader()
         for r in rescued:
@@ -153,7 +157,7 @@ def main() -> int:
 
     print(f"\n{'='*60}")
     print(f"Rescued: {len(rescued)}/{len(items)}   Still dead/unresolved: {len(dead)}/{len(items)}")
-    print(f"Report written to {args.report}")
+    print(f"Report written to {report_path}")
     if not args.apply and rescued:
         print("\nDry-run only — re-run with --apply to write these changes.")
     return 0
