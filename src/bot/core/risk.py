@@ -228,16 +228,33 @@ def check_conviction_gate(conviction: str, regime: str) -> GateResult:
     return GateResult(True, [f"Conviction OK: {conviction} ≥ {min_conv} ({regime})"])
 
 
+# Trading Bible: max. Fragmente (Teilkäufe/DCA-Entries) pro Instrument.
+# Config-Key: trading.max_fragments_per_instrument. 0 = deaktiviert.
+MAX_FRAGMENTS_PER_INSTRUMENT = 3
+
+
 def check_pyramiding_gate(
     symbol: str,
     regime: str,
     existing_fragments: int,
+    max_fragments: int = MAX_FRAGMENTS_PER_INSTRUMENT,
 ) -> GateResult:
-    """V5 NEW: Pyramiding forbidden in DEFENSIVE and CRITICAL regimes.
+    """V5: Pyramiding forbidden in DEFENSIVE and CRITICAL regimes.
 
     Prevents 'good money after bad' — no adding to positions when system
     is already under stress.
+
+    fix/fragment-limit: zusätzlich hartes Fragment-Limit pro Instrument
+    (Bible: max_fragments_per_instrument, default 3) — gilt UNABHÄNGIG
+    vom Regime. Vorher wurde das Limit nirgends geprüft: in NORMAL/CAUTION
+    waren unbegrenzte Fragmente möglich, bis das %-Limit griff.
     """
+    if max_fragments > 0 and existing_fragments >= max_fragments:
+        return GateResult(False, [
+            f"Fragment-Limit: {symbol} hat bereits {existing_fragments} Fragment(e) "
+            f"(Max: {max_fragments}/Instrument, Trading Bible)"
+        ])
+
     from bot.core.regime import is_pyramiding_allowed
     if existing_fragments > 0 and not is_pyramiding_allowed(regime):
         return GateResult(False, [
@@ -245,7 +262,7 @@ def check_pyramiding_gate(
             f"kein Pyramiding im {regime}-Regime erlaubt"
         ])
     return GateResult(True, [
-        f"Pyramiding OK: {existing_fragments} Fragment(e) (Regime: {regime})"
+        f"Pyramiding OK: {existing_fragments}/{max_fragments} Fragment(e) (Regime: {regime})"
     ])
 
 
@@ -537,6 +554,7 @@ def check_buy_gate(
     existing_fragments: int = 0,
     entry_price: float = 0.0,
     sl_price: float = 0.0,
+    max_fragments: int = MAX_FRAGMENTS_PER_INSTRUMENT,
 ) -> GateResult:
     """Master gate V5 — all rules in sequence. Returns on first block.
 
@@ -552,7 +570,7 @@ def check_buy_gate(
     checks = [
         check_regime_gate(regime),
         check_conviction_gate(conviction, regime),           # V5: conviction filter
-        check_pyramiding_gate(symbol, regime, existing_fragments),  # V5: no pyramiding
+        check_pyramiding_gate(symbol, regime, existing_fragments, max_fragments),  # V5 + Fragment-Limit
         check_cash_gate(cash, equity),
         check_max_positions_gate(open_count),
         check_instrument_limit_gate(symbol, buy_amount, current_symbol_amount, equity),

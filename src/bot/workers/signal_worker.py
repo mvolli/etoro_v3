@@ -353,6 +353,8 @@ def main() -> None:
                 open_positions=open_positions,
                 conviction=conviction,                   # V5: conviction gate
                 existing_fragments=existing_fragments,   # V5: pyramiding gate
+                max_fragments=int(cfg.get("trading", {}).get(
+                    "max_fragments_per_instrument", 3)),  # Bible: Fragment-Limit
             )
     
             if gate.allowed:
