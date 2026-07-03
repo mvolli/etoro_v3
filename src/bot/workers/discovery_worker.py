@@ -3,8 +3,10 @@
 src/bot/workers/discovery_worker.py
 
 Runs every 2 hours (raised from 4x/day — see fix/signal-pool-exhaustion).
-Scans the full instrument universe (80 symbols) for trading candidates
-and updates the watchlist / signals DB.
+Scans the core instrument universe (80 symbols + multi-asset watchlist)
+plus one rotating slice of the EU universe (~2900 instruments, see
+EU_DISCOVERY_CHUNK_COUNT) for trading candidates and updates the
+watchlist / signals DB.
 
 Schedule (cron, CET):
   0 */2 * * * cd /path/to/etoro_v3 && python3 -m bot.workers.discovery_worker
@@ -134,6 +136,133 @@ SECTOR_MAP: dict[str, str] = {
 }
 
 MAX_PER_SECTOR = 3
+
+# ── EU universe rotation (fix/eu-watchlist-expansion) ────────────────────────
+# ~2900 EU instruments were reactivated 2026-07-03 (see docs/legacy/ +
+# scripts/fix_eu_yfinance_symbols.py) but were invisible to discovery, which
+# only scanned the hardcoded FULL_UNIVERSE (a single EU ticker: ENI.MI) plus
+# watchlist_multiasset (forex/commodity/index only). Scanning all ~2900 in
+# one run would ~15x the batch size and risk Yahoo rate limits, so the
+# universe is partitioned deterministically by instrument_id % CHUNK_COUNT —
+# each run covers one stable slice. At the current every-2h schedule (12
+# runs/day), CHUNK_COUNT=16 gives a full rotation in ~32h (~1.3 days).
+EU_DISCOVERY_CHUNK_COUNT = 16
+EU_DISCOVERY_CHUNK_STATE_KEY = "discovery_eu_chunk_idx"
+
+# Discovery's signal_repo.create() is a one-shot, 6h-TTL entry — a genuinely
+# promising EU candidate would otherwise vanish from active tracking after
+# one cycle. Promote it into the watchlist (5-min tracking) instead, capped
+# so EU can't crowd out US/Asia watchlist slots; only displaces the weakest
+# existing EU slot when full, and only if the new candidate scores higher.
+EU_WATCHLIST_CAP = 60
+EU_WATCHLIST_CATEGORY = "eu.discovered"
+
+
+def _get_eu_discovery_chunk(
+    db: Any, chunk_idx: int, chunk_count: int = EU_DISCOVERY_CHUNK_COUNT
+) -> list[tuple[str, int, str]]:
+    """Return (yfinance_symbol, instrument_id, symbol) for one rotating slice
+    of the EU stock/ETF universe."""
+    try:
+        rows = db.fetchall(
+            """
+            SELECT instrument_id, symbol, yfinance_symbol
+            FROM instruments
+            WHERE market_region = 'EU'
+              AND is_active = 1
+              AND asset_class IN ('stock', 'etf')
+              AND yfinance_symbol IS NOT NULL
+              AND yfinance_symbol != ''
+              AND instrument_id % ? = ?
+            ORDER BY instrument_id
+            """,
+            (chunk_count, chunk_idx),
+        )
+        return [(row["yfinance_symbol"], row["instrument_id"], row["symbol"]) for row in rows]
+    except Exception as exc:
+        logger.warning("[%s] _get_eu_discovery_chunk failed: %s", WORKER_NAME, exc)
+        return []
+
+
+def _ensure_watchlist_score_columns(db: Any) -> None:
+    """Lazy migration: watchlist had no way to rank entries for eviction."""
+    for ddl in (
+        "ALTER TABLE watchlist ADD COLUMN last_score REAL",
+        "ALTER TABLE watchlist ADD COLUMN last_signal_at TEXT",
+    ):
+        try:
+            db.execute(ddl)
+        except Exception:
+            pass  # column already exists
+
+
+def _promote_to_eu_watchlist(
+    db: Any, instrument_id: int, symbol: str, score: float, cap: int = EU_WATCHLIST_CAP
+) -> None:
+    """Promote a verified EU BUY-candidate into the watchlist for ongoing
+    5-min tracking. No-op for non-EU instruments. Never raises."""
+    try:
+        row = db.fetchone(
+            "SELECT market_region FROM instruments WHERE instrument_id = ?", (instrument_id,)
+        )
+        if row is None or row["market_region"] != "EU":
+            return
+
+        _ensure_watchlist_score_columns(db)
+
+        existing = db.fetchone(
+            "SELECT id FROM watchlist WHERE instrument_id = ? AND category = ?",
+            (instrument_id, EU_WATCHLIST_CATEGORY),
+        )
+        if existing is not None:
+            db.execute(
+                "UPDATE watchlist SET last_score = ?, last_signal_at = datetime('now','utc') "
+                "WHERE id = ?",
+                (score, existing["id"]),
+            )
+            return
+
+        count_row = db.fetchone(
+            "SELECT count(*) AS n FROM watchlist WHERE category = ?", (EU_WATCHLIST_CATEGORY,)
+        )
+        count = count_row["n"] if count_row else 0
+
+        if count < cap:
+            db.execute(
+                "INSERT INTO watchlist (symbol, instrument_id, category, last_score, last_signal_at) "
+                "VALUES (?, ?, ?, ?, datetime('now','utc'))",
+                (symbol, instrument_id, EU_WATCHLIST_CATEGORY, score),
+            )
+            logger.info(
+                "[%s] EU watchlist: added %s (score=%.1f, %d/%d slots)",
+                WORKER_NAME, symbol, score, count + 1, cap,
+            )
+            return
+
+        # At cap — only displace the weakest existing slot, and only if we beat it.
+        weakest = db.fetchone(
+            "SELECT id, symbol, last_score FROM watchlist WHERE category = ? "
+            "ORDER BY COALESCE(last_score, -1e9) ASC LIMIT 1",
+            (EU_WATCHLIST_CATEGORY,),
+        )
+        if weakest is None:
+            return
+        weakest_score = weakest["last_score"]
+        if weakest_score is not None and score <= weakest_score:
+            return  # not strong enough to displace anything — stays a one-off signal
+
+        db.execute("DELETE FROM watchlist WHERE id = ?", (weakest["id"],))
+        db.execute(
+            "INSERT INTO watchlist (symbol, instrument_id, category, last_score, last_signal_at) "
+            "VALUES (?, ?, ?, ?, datetime('now','utc'))",
+            (symbol, instrument_id, EU_WATCHLIST_CATEGORY, score),
+        )
+        logger.info(
+            "[%s] EU watchlist: %s (score=%.1f) displaced %s (score=%s) — cap %d reached",
+            WORKER_NAME, symbol, score, weakest["symbol"], weakest_score, cap,
+        )
+    except Exception as exc:
+        logger.warning("[%s] EU watchlist promotion failed for %s: %s", WORKER_NAME, symbol, exc)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -351,7 +480,7 @@ def main() -> int:
     """
     Full discovery cycle:
       1. Load config + init DB
-      2. Batch-fetch OHLCV for 80 symbols
+      2. Batch-fetch OHLCV for 80 symbols + multi-asset + 1 rotating EU chunk
       3. Compute TA indicators
       4. Apply Trading Bible V4 signal rules
       5. Filter: BUY signals with score >= 30
@@ -376,7 +505,7 @@ def main() -> int:
         cfg = _load_config()
     
         from bot.db.connection import DB
-        from bot.db.repo import LogRepo, SignalRepo
+        from bot.db.repo import LogRepo, SignalRepo, StateRepo
         from bot.core.signals import compute_indicators, generate_signal
     
         db_cfg = cfg.get("db", {})
@@ -386,6 +515,7 @@ def main() -> int:
     
         signal_repo = SignalRepo(db)
         log_repo = LogRepo(db)
+        state_repo = StateRepo(db)
 
         # ── Heartbeat (dead-man's switch) ──────────────────────────────────────────
         try:
@@ -423,10 +553,10 @@ def main() -> int:
             "[%s] Loaded %d instruments from map", WORKER_NAME, len(instrument_map)
         )
     
-        # ── 2. Build combined symbol universe (stocks + multi-asset) ───────────────
+        # ── 2. Build combined symbol universe (stocks + multi-asset + EU chunk) ────
         all_symbols: list[str] = list(FULL_UNIVERSE)
         symbol_to_inst_id: dict[str, int] = {}  # maps yf_symbol → instrument_id for multi-asset
-    
+
         # Load multi-asset watchlist from DB
         multiasset = _get_multiasset_universe(db)
         logger.info("[%s] Loaded %d multi-asset instruments from watchlist", WORKER_NAME, len(multiasset))
@@ -434,7 +564,24 @@ def main() -> int:
             if yf_sym not in all_symbols:
                 all_symbols.append(yf_sym)
                 symbol_to_inst_id[yf_sym] = inst_id
-    
+
+        # fix/eu-watchlist-expansion: one rotating slice of the ~2900-strong
+        # EU universe per run (see EU_DISCOVERY_CHUNK_COUNT docstring above).
+        try:
+            eu_chunk_idx = int(state_repo.get(EU_DISCOVERY_CHUNK_STATE_KEY, "0")) % EU_DISCOVERY_CHUNK_COUNT
+        except (TypeError, ValueError):
+            eu_chunk_idx = 0
+        eu_chunk = _get_eu_discovery_chunk(db, eu_chunk_idx)
+        logger.info(
+            "[%s] EU chunk %d/%d: %d instruments",
+            WORKER_NAME, eu_chunk_idx, EU_DISCOVERY_CHUNK_COUNT, len(eu_chunk),
+        )
+        for yf_sym, inst_id, _orig_sym in eu_chunk:
+            if yf_sym not in all_symbols:
+                all_symbols.append(yf_sym)
+                symbol_to_inst_id[yf_sym] = inst_id
+        state_repo.set(EU_DISCOVERY_CHUNK_STATE_KEY, str((eu_chunk_idx + 1) % EU_DISCOVERY_CHUNK_COUNT))
+
         # ── Release DB connection before yfinance (prevents lock conflicts with data_worker) ──
         db.close()
         logger.info("[%s] DB released — starting yfinance batch fetch", WORKER_NAME)
@@ -631,6 +778,11 @@ def main() -> int:
                     "[%s] Stored signal — %s (score=%.1f conviction=%s instrument_id=%d)",
                     WORKER_NAME, symbol, cand["score"], cand["conviction"], instrument_id,
                 )
+
+                # fix/eu-watchlist-expansion: a discovery signal is a one-shot
+                # with a 6h TTL — promote EU candidates into the watchlist so
+                # they keep getting tracked every 5 min instead of vanishing.
+                _promote_to_eu_watchlist(db, instrument_id, symbol, cand["score"])
     
             except Exception as exc:
                 logger.warning(
