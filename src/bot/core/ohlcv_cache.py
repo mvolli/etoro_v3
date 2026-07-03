@@ -28,10 +28,19 @@ DB_PATH = str(PROJECT_ROOT / 'data' / 'trading.db')
 #   00027.HK / 0027.HK → 0728.HK  (China Telecom HK; 0027.HK = Galaxy Ent!)
 #   CVX.US             → CVX      (Chevron; Yahoo Finance has no .US suffix)
 #   AAPL.US etc.       → AAPL     (US stocks — eToro adds .US, Yahoo doesn't need it)
+#   06881.HK           → 6881.HK  (stored yfinance_symbol was 'GALA-USD' — crypto,
+#                                  unrelated instrument; open position, was firing
+#                                  "possibly delisted" every data_worker cycle)
+#   HMC.ASX            → HMC.AX   (stored yfinance_symbol 'HCL.AX' = HighCom Ltd,
+#                                  a DIFFERENT company — HMC Capital Ltd is HMC.AX)
+#   PNI.ASX            → PNI.AX   (stored yfinance_symbol 'PIM.AX' = Pinnacle
+#                                  Minerals Ltd, a DIFFERENT company — Pinnacle
+#                                  Investment Management Group is PNI.AX)
 YFINANCE_TICKER_MAP: dict[str, str] = {
     # Hong Kong stocks (eToro uses leading zeros, Yahoo strips them)
     "00027.HK": "0728.HK",   # China Telecom HK — 0027.HK is Galaxy Entertainment!
     "0027.HK":  "0728.HK",   # Same instrument under wrong DB yfinance_symbol
+    "06881.HK": "6881.HK",   # stored yfinance_symbol was 'GALA-USD' (crypto!)
     # US stocks with .US suffix (eToro adds it, Yahoo doesn't need it)
     "CVX.US":   "CVX",       # Chevron
     "AAPL.US":  "AAPL",
@@ -41,6 +50,9 @@ YFINANCE_TICKER_MAP: dict[str, str] = {
     "META.US":  "META",
     "TSLA.US":  "TSLA",
     "NVDA.US":  "NVDA",
+    # ASX stocks — stored yfinance_symbol resolved to a DIFFERENT company
+    "HMC.ASX":  "HMC.AX",    # HMC Capital Ltd — stored value was HighCom Ltd
+    "PNI.ASX":  "PNI.AX",    # Pinnacle Investment Mgmt — stored value was Pinnacle Minerals
 }
 
 
@@ -65,11 +77,20 @@ def _resolve_yf_symbol(symbol: str) -> str:
 EU_SUFFIXES = ('.DE', '.PA', '.L', '.ST', '.MI', '.CO', '.SW', '.LS', '.ZU', '.AS', '.BR', '.OL', '.MC')
 NORDIC_SHARE_CLASS_SUFFIXES = ('.ST', '.CO', '.OL')
 
+# fix/asx-yfinance-suffix: eToro uses '.ASX' for Australian stocks; Yahoo uses
+# '.AX'. ALL 436 ASIA_AU instruments in the DB have symbol != yfinance_symbol
+# (same systemic-seeding bug as the EU rows) — two currently-held positions
+# (HMC.ASX, PNI.ASX) had a stored yfinance_symbol resolving to a DIFFERENT
+# ASX company entirely (see YFINANCE_TICKER_MAP comments above).
+ASX_SUFFIX = '.ASX'
+ASX_YAHOO_SUFFIX = '.AX'
+
 
 def _add_structural_variants(symbol: str, add) -> None:
     """Add identity-preserving spelling variants of *symbol* via *add(s)*.
 
-    HK zero-padding / .HKG swap, .US-suffix strip, EU suffix fixes.
+    HK zero-padding / .HKG swap, .US-suffix strip, EU suffix fixes, ASX
+    suffix swap.
     """
     m = re.match(r'^(\d+)\.(HK|HKG)$', symbol, re.IGNORECASE)
     if m:
@@ -79,6 +100,8 @@ def _add_structural_variants(symbol: str, add) -> None:
         add(f"{digits}.HKG")
     if symbol.upper().endswith('.US'):
         add(symbol[:-3])
+    if symbol.upper().endswith(ASX_SUFFIX):
+        add(f"{symbol[:-len(ASX_SUFFIX)]}{ASX_YAHOO_SUFFIX}")
     for suf in EU_SUFFIXES:
         if symbol.upper().endswith(suf):
             base = symbol[: -len(suf)]

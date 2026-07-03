@@ -69,6 +69,31 @@ def test_session_cache_wins():
     assert oc.generate_symbol_candidates("FOO.US")[0] == "FOO.SW"
 
 
+# ── fix/asx-yfinance-suffix ────────────────────────────────────────────────────
+
+def test_uncurated_asx_symbol_gets_suffix_swap():
+    cands = oc.generate_symbol_candidates("XYZ.ASX")
+    assert cands[0] == "XYZ.ASX"
+    assert "XYZ.AX" in cands
+
+
+def test_curated_asx_mismatch_has_no_structural_guess():
+    # HMC.ASX's stored yfinance_symbol resolved to HighCom Ltd, a DIFFERENT
+    # company than HMC Capital Ltd (HMC.AX) — must stay a pure curated hit.
+    cands = oc.generate_symbol_candidates("HMC.ASX")
+    assert cands == ["HMC.AX", "HMC.ASX"]
+
+    cands = oc.generate_symbol_candidates("PNI.ASX")
+    assert cands == ["PNI.AX", "PNI.ASX"]
+
+
+def test_06881_hk_curated_to_6881():
+    # Stored DB yfinance_symbol was 'GALA-USD' (an unrelated crypto token) —
+    # 06881.HK must resolve to the correct HK stock, not that garbage.
+    cands = oc.generate_symbol_candidates("06881.HK")
+    assert cands == ["6881.HK", "06881.HK"]
+
+
 # ── fetch_ohlcv fallback loop ─────────────────────────────────────────────────
 
 class FakeDF:
