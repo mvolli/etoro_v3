@@ -1021,6 +1021,113 @@ def post_data_worker_embed(
     return ok
 
 
+def post_reconciler_embed(
+    equity: float,
+    peak_equity: float,
+    position_count: int,
+    synced_count: int,
+    orphan_count: int,
+    trades_closed: int,
+    regime: str,
+    drawdown_pct: float = 0.0,
+    available_cash: float = 0.0,
+    positions_summary: list = None,
+    dry_run: bool = False,
+) -> bool:
+    """Reconciler Summary — data-rich Embed mit Equity, Positionen und Regime → #etoro-trading.
+
+    Wird am Ende jedes Reconciler-Runs aufgerufen (alle 5min).
+    """
+    if positions_summary is None:
+        positions_summary = []
+
+    # ── Color based on regime + drawdown ──────────────────────────────────────
+    if regime in ("CRITICAL",):
+        color = COLOR_RED
+    elif regime in ("DRAWDOWN", "CAUTION"):
+        color = COLOR_ORANGE
+    else:
+        color = COLOR_GREEN
+
+    # ── Description: Portfolio overview ───────────────────────────────────────
+    desc_parts = [
+        f"Equity: **${equity:,.2f}**",
+        f"Peak: **${peak_equity:,.2f}**",
+        f"Cash: **${available_cash:,.2f}**",
+    ]
+    if drawdown_pct > 0.5:
+        desc_parts.append(f"Drawdown: **-{drawdown_pct:.1f}%**")
+    desc = " · ".join(desc_parts)
+
+    # ── Fields ────────────────────────────────────────────────────────────────
+    fields = []
+
+    # 1) Sync Stats
+    sync_lines = [
+        f"Positionen synchronisiert: **{synced_count}**",
+        f"Orphans entfernt: **{orphan_count}**",
+        f"Trades geschlossen: **{trades_closed}**",
+    ]
+    fields.append({
+        "name": "🔄 Sync",
+        "value": "\n".join(sync_lines),
+        "inline": True,
+    })
+
+    # 2) Regime & Risk
+    regime_emoji = {"NORMAL": "🟢", "CAUTION": "🟡", "DRAWDOWN": "🟠", "CRITICAL": "🔴"}.get(regime, "⚪")
+    risk_lines = [
+        f"Regime: {regime_emoji} **{regime}**",
+        f"Aktive Positionen: **{position_count}**",
+    ]
+    if drawdown_pct > 0.5:
+        risk_lines.append(f"Drawdown seit Peak: **-{drawdown_pct:.1f}%**")
+    fields.append({
+        "name": "⚠️ Regime & Risiko",
+        "value": "\n".join(risk_lines),
+        "inline": True,
+    })
+
+    # 3) Positions detail (top 8)
+    if positions_summary:
+        pos_lines = []
+        for p in positions_summary[:8]:
+            sym = p.get("symbol", "?")
+            amount = p.get("amount_usd", 0) or 0
+            pnl_pct = p.get("unrealized_pnl_pct")
+            sl_rate = p.get("stop_loss_rate")
+            no_sl = p.get("is_no_stop_loss", 0)
+
+            emoji = "🟢" if (pnl_pct is not None and pnl_pct >= 0) else "🔴"
+            line = f"{emoji} **{sym}** ${amount:,.2f}"
+            if pnl_pct is not None:
+                line += f" ({pnl_pct:+.1f}%)"
+            if no_sl:
+                line += " ⚠️ No SL"
+            elif sl_rate:
+                line += f" | SL: ${sl_rate:,.2f}"
+            pos_lines.append(line)
+
+        fields.append({
+            "name": "💼 Positionen",
+            "value": "\n".join(pos_lines),
+            "inline": False,
+        })
+
+    embed = {
+        "title":       f"🔄 Reconciler — ${equity:,.2f}",
+        "description": desc,
+        "color":       color,
+        "fields":      fields,
+        "footer":      {"text": "eToro RoBoCop · Reconciler · alle 5min"},
+        "timestamp":   _ts(),
+    }
+    ok = _post_embed(embed, DISCORD_MAIN_CHANNEL, dry_run)
+    if ok:
+        insert_system_log("INFO", "discord_embeds", f"P2 Reconciler gepostet equity={equity:.2f} regime={regime}")
+    return ok
+
+
 def post_data_ingestion_embed(
     results: list,
     dry_run: bool = False,

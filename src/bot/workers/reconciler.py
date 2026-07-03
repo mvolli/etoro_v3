@@ -18,6 +18,9 @@ Responsibilities:
 """
 from __future__ import annotations
 
+import logging
+logger = logging.getLogger(__name__)
+
 import json
 import sys
 from datetime import datetime, timedelta, timezone
@@ -218,10 +221,7 @@ def _resolve_symbol(
                     instrument_map[instr_id] = live_symbol
                     return (live_symbol, True)
         except Exception as exc:
-            print(
-                f"[{WORKER_NAME}] DEBUG: API lookup for ID {instr_id} failed: {exc}",
-                file=sys.stderr,
-            )
+            logger.debug("[%s] DEBUG: API lookup for ID %s failed: %s", WORKER_NAME, instr_id, exc)
 
     # Tier 3: UNKNOWN fallback — fail-open
     return (f"UNKNOWN_{instr_id}", False)
@@ -315,9 +315,9 @@ def _save_instrument_map_update(instrument_map: dict[int, str], new_ids: dict[in
             json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8"
         )
         tmp_file.rename(cache_file)  # atomic on same filesystem
-        print(f"[{WORKER_NAME}] INFO: Updated instrument_map.json with {len(new_ids)} new entries")
+        logger.info("[\1] INFO: Updated instrument_map.json with {len(new_ids)} new entries")
     except OSError as exc:
-        print(f"[{WORKER_NAME}] WARNING: Failed to update instrument_map.json: {exc}", file=sys.stderr)
+        logger.warning("[{WORKER_NAME}] WARNING: Failed to update instrument_map.json: {exc}")
 
     # Also persist to instruments table in trading.db
     try:
@@ -342,9 +342,9 @@ def _save_instrument_map_update(instrument_map: dict[int, str], new_ids: dict[in
                    VALUES (?, ?, ?, ?)""",
                 (iid, sym, asset_class, _utcnow()),
             )
-        print(f"[{WORKER_NAME}] INFO: Upserted {len(new_ids)} instruments into trading.db")
+        logger.info("[\1] INFO: Upserted {len(new_ids)} instruments into trading.db")
     except Exception as exc:
-        print(f"[{WORKER_NAME}] WARNING: Failed to update instruments table: {exc}", file=sys.stderr)
+        logger.warning("[{WORKER_NAME}] WARNING: Failed to update instruments table: {exc}")
 
 
 # ── main reconciliation logic ─────────────────────────────────────────────────
@@ -359,14 +359,20 @@ def main() -> int:
 
     with worker_lock("reconciler") as acquired:
         if not acquired:
-            print(f"[{WORKER_NAME}] SKIPPED (already running)")
+            logger.info("[{WORKER_NAME}] SKIPPED (already running)")
             return 0
+
+        # ── Logging (WARNING only — INFO goes to Discord embed) ──────────────
+        logging.basicConfig(
+            level=logging.WARNING,
+            format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        )
 
         # ── 1. Load config ─────────────────────────────────────────────────────────
         try:
             cfg = _load_config()
         except Exception as exc:
-            print(f"[{WORKER_NAME}] FATAL: Cannot load config: {exc}", file=sys.stderr)
+            logger.critical("[{WORKER_NAME}] FATAL: Cannot load config: {exc}")
             return 1
     
         # ── 2. Initialise DB ───────────────────────────────────────────────────────
@@ -391,7 +397,7 @@ def main() -> int:
             api_key, user_key = _load_env_keys()
         except RuntimeError as exc:
             msg = f"FATAL: Missing API credentials: {exc}"
-            print(f"[{WORKER_NAME}] {msg}", file=sys.stderr)
+            logger.error("[%s] %s", WORKER_NAME, msg)
             log_repo.write("ERROR", WORKER_NAME, msg)
             return 1
     
@@ -406,13 +412,13 @@ def main() -> int:
             portfolio_payload = client.get_portfolio()
         except APIError as exc:
             msg = f"API call failed: GET /trading/info/real/pnl → {exc}"
-            print(f"[{WORKER_NAME}] ERROR: {msg}", file=sys.stderr)
+            logger.error("[{WORKER_NAME}] ERROR: {msg}")
             log_repo.write("ERROR", WORKER_NAME, msg, {"status_code": exc.status_code, "endpoint": exc.endpoint})
             client.close()
             return 1
         except Exception as exc:
             msg = f"Unexpected error fetching portfolio: {exc}"
-            print(f"[{WORKER_NAME}] ERROR: {msg}", file=sys.stderr)
+            logger.error("[{WORKER_NAME}] ERROR: {msg}")
             log_repo.write("ERROR", WORKER_NAME, msg)
             client.close()
             return 1
@@ -445,7 +451,7 @@ def main() -> int:
                     f"{EMPTY_STREAK_ACCEPT_AFTER}). Skipping trade-closure and "
                     f"equity-update logic this cycle — likely transient API glitch."
                 )
-                print(f"[{WORKER_NAME}] ERROR: {msg}", file=sys.stderr)
+                logger.error("[{WORKER_NAME}] ERROR: {msg}")
                 log_repo.write("ERROR", WORKER_NAME, msg,
                                {"previous_count": previous_position_count,
                                 "empty_streak": empty_streak})
@@ -464,7 +470,7 @@ def main() -> int:
                 f"(vorher {previous_position_count}) — akzeptiere leeres "
                 f"Portfolio als real und synchronisiere. Manuelle Prüfung empfohlen!"
             )
-            print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
+            logger.warning("[{WORKER_NAME}] WARNING: {msg}")
             log_repo.write("WARNING", WORKER_NAME, msg,
                            {"previous_count": previous_position_count,
                             "empty_streak": empty_streak})
@@ -508,13 +514,13 @@ def main() -> int:
                 synced_count += 1
             except Exception as exc:
                 msg = f"Failed to upsert position {pos_id}: {exc}"
-                print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
+                logger.warning("[{WORKER_NAME}] WARNING: {msg}")
                 log_repo.write("WARNING", WORKER_NAME, msg, {"position_id": pos_id})
 
         # ── 7.5 Persist any newly resolved instrument IDs ────────────────────────
         if all_api_resolved_ids:
             _save_instrument_map_update(instrument_map, all_api_resolved_ids)
-            print(f"[{WORKER_NAME}] INFO: Resolved {len(all_api_resolved_ids)} new instrument IDs via API")
+            logger.info("[\1] INFO: Resolved {len(all_api_resolved_ids)} new instrument IDs via API")
 
         # Close client after all API lookups are done
         client.close()
@@ -539,11 +545,11 @@ def main() -> int:
                 )
                 orphan_count += 1
                 msg = f"Orphan position removed: {orphan_id}"
-                print(f"[{WORKER_NAME}] WARNING: {msg}")
+                logger.warning("[{WORKER_NAME}] WARNING: {msg}")
                 log_repo.write("WARNING", WORKER_NAME, msg, {"api_position_id": orphan_id})
             except Exception as exc:
                 msg = f"Failed to delete orphan position {orphan_id}: {exc}"
-                print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
+                logger.warning("[{WORKER_NAME}] WARNING: {msg}")
                 log_repo.write("WARNING", WORKER_NAME, msg)
     
         # ── 9. Trade reconciliation: mark ACTIVE trades CLOSED if no API match ────
@@ -553,7 +559,7 @@ def main() -> int:
             active_trades = trade_repo.get_by_status("ACTIVE")
         except Exception as exc:
             msg = f"Failed to query ACTIVE trades: {exc}"
-            print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
+            logger.warning("[{WORKER_NAME}] WARNING: {msg}")
             log_repo.write("WARNING", WORKER_NAME, msg)
             active_trades = []
     
@@ -575,11 +581,11 @@ def main() -> int:
                                 entry_price=float(open_price),
                             )
                             msg = f"Trade {trade['id']} ({trade.get('symbol')}) backfilled entry_price={open_price}"
-                            print(f"[{WORKER_NAME}] INFO: {msg}")
+                            logger.info("[\1] INFO: {msg}")
                             log_repo.write("INFO", WORKER_NAME, msg, {"trade_id": trade["id"], "entry_price": open_price})
                         except Exception as exc:
                             msg = f"Failed to backfill entry_price for trade {trade['id']}: {exc}"
-                            print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
+                            logger.warning("[{WORKER_NAME}] WARNING: {msg}")
                             log_repo.write("WARNING", WORKER_NAME, msg)
                 continue  # still live — leave alone
     
@@ -592,9 +598,9 @@ def main() -> int:
                     s["api_position_id"] == pos_id for s in all_snapshots
                 )
                 if still_has_snapshot:
-                    print(
-                        f"[{WORKER_NAME}] INFO: Trade {trade['id']} ({trade.get('symbol')}): "
-                        f"pos_id={pos_id} missing this cycle but not yet confirmed orphaned — deferring closure"
+                    logger.info(
+                        "[%s] INFO: Trade %s (%s): pos_id=%s missing this cycle but not yet confirmed orphaned — deferring closure",
+                        WORKER_NAME, trade['id'], trade.get('symbol'), pos_id
                     )
                     continue
     
@@ -626,7 +632,7 @@ def main() -> int:
                     f"Trade {trade_id} ({trade.get('symbol')}) marked CLOSED "
                     f"— no matching API position (api_position_id={pos_id!r})"
                 )
-                print(f"[{WORKER_NAME}] INFO: {msg}")
+                logger.info("[\1] INFO: {msg}")
                 log_repo.write(
                     "INFO", WORKER_NAME, msg,
                     {"trade_id": trade_id, "api_position_id": pos_id,
@@ -644,7 +650,7 @@ def main() -> int:
                 )
             except Exception as exc:
                 msg = f"Failed to close trade {trade_id}: {exc}"
-                print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
+                logger.warning("[{WORKER_NAME}] WARNING: {msg}")
                 log_repo.write("WARNING", WORKER_NAME, msg, {"trade_id": trade_id})
     
         # ── 10. Update system_state ────────────────────────────────────────────────
@@ -657,7 +663,7 @@ def main() -> int:
             state_repo.set("POSITION_COUNT", str(position_count))
         except Exception as exc:
             msg = f"Failed to update system_state: {exc}"
-            print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
+            logger.warning("[{WORKER_NAME}] WARNING: {msg}")
             log_repo.write("WARNING", WORKER_NAME, msg)
     
         # ── 11. Update peak equity ─────────────────────────────────────────────────
@@ -668,11 +674,12 @@ def main() -> int:
                 peak_equity = current_equity
         except Exception as exc:
             msg = f"Failed to update PEAK_EQUITY: {exc}"
-            print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
+            logger.warning("[{WORKER_NAME}] WARNING: {msg}")
             log_repo.write("WARNING", WORKER_NAME, msg)
             peak_equity = current_equity
     
         # ── 12. Update regime ─────────────────────────────────────────────────────
+        drawdown_pct = 0.0
         try:
             previous_regime = state_repo.get_regime()
             regime, regime_reason = detect_regime(current_equity, peak_equity, previous_regime)
@@ -685,17 +692,48 @@ def main() -> int:
                 state_repo.set("DRAWDOWN_PCT", f"{drawdown_pct:.4f}")
         except Exception as exc:
             msg = f"Failed to update regime: {exc}"
-            print(f"[{WORKER_NAME}] WARNING: {msg}", file=sys.stderr)
+            logger.warning("[{WORKER_NAME}] WARNING: {msg}")
             log_repo.write("WARNING", WORKER_NAME, msg)
             regime = state_repo.get_regime()
     
-        # ── 13. Summary ───────────────────────────────────────────────────────────
+        # ── 13. Summary + Discord Embed ───────────────────────────────────────
         summary = (
             f"Reconciler: {synced_count} positions synced, "
             f"equity=${current_equity:.2f}, "
             f"regime={regime}"
         )
-        print(summary)
+
+        # Build positions summary for embed
+        positions_for_embed = []
+        for snap in all_snapshots[:8]:
+            positions_for_embed.append({
+                "symbol": snap.get("symbol", "?"),
+                "amount_usd": snap.get("amount_usd"),
+                "unrealized_pnl_pct": snap.get("unrealized_pnl_pct"),
+                "stop_loss_rate": snap.get("stop_loss_rate"),
+                "is_no_stop_loss": snap.get("is_no_stop_loss", 0),
+            })
+
+        # Get available cash from state
+        try:
+            cash_val = float(state_repo.get("AVAILABLE_CASH") or current_equity)
+        except (TypeError, ValueError):
+            cash_val = current_equity
+
+        # Discord embed → #etoro-trading
+        _discord(
+            "post_reconciler_embed",
+            equity=current_equity,
+            peak_equity=peak_equity,
+            position_count=position_count,
+            synced_count=synced_count,
+            orphan_count=orphan_count,
+            trades_closed=closed_trade_count,
+            regime=regime,
+            drawdown_pct=drawdown_pct,
+            available_cash=cash_val,
+            positions_summary=positions_for_embed,
+        )
     
         # ── 14. Persist structured log entry ─────────────────────────────────────
         log_repo.write(
