@@ -204,15 +204,66 @@ def get_min_conviction(regime: str) -> str:
     return _REGIME_PARAMS.get(regime, {}).get("min_conviction", "MEDIUM")
 
 
+# ─── Rolling Peak (fix/rolling-peak-drawdown) ────────────────────────────────
+# PEAK_EQUITY war ein All-Time-High ohne Verfall: nach einem starken Run-up
+# erzwang jeder normale 8%-Pullback DEFENSIVE, obwohl das Konto hochprofitabel
+# war — uebertriebene Defensive als Renditebremse. Das Regime rechnet den
+# Drawdown jetzt gegen das Hoch der letzten ROLLING_PEAK_DAYS Kalendertage;
+# das All-Time-PEAK_EQUITY bleibt fuers Reporting erhalten.
+
+ROLLING_PEAK_DAYS = 30
+
+
+def record_equity_snapshot(db, equity: float) -> None:
+    """Persist today's equity high into equity_history (lazy CREATE, idempotent)."""
+    if db is None or equity <= 0:
+        return
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS equity_history (
+            date        TEXT PRIMARY KEY,
+            equity_high REAL NOT NULL
+        )
+    """)
+    db.execute("""
+        INSERT INTO equity_history (date, equity_high)
+        VALUES (date('now'), ?)
+        ON CONFLICT(date) DO UPDATE SET
+            equity_high = MAX(equity_history.equity_high, excluded.equity_high)
+    """, (equity,))
+
+
+def get_rolling_peak(db, current_equity: float, days: int = ROLLING_PEAK_DAYS) -> float:
+    """Highest equity over the last *days* calendar days (incl. current)."""
+    if db is None:
+        return current_equity
+    row = db.fetchone(
+        "SELECT MAX(equity_high) FROM equity_history WHERE date >= date('now', ?)",
+        (f"-{days} days",),
+    )
+    hist_peak = float(row[0]) if row and row[0] is not None else 0.0
+    return max(hist_peak, current_equity)
+
+
 # ─── StateRepo Integration ────────────────────────────────────────────────────
 
 def update_regime(state_repo, equity: float) -> tuple[str, bool]:
     """Detect and persist current regime. Returns (new_regime, changed).
 
     V5: Also updates HIGH_WATERMARK and RISK_SCALAR in system_state.
+    fix/rolling-peak-drawdown: Drawdown wird gegen den 30-Tage-Peak
+    gerechnet (equity_history); All-Time-PEAK_EQUITY bleibt fuers
+    Reporting. Bei DB-Fehlern Fallback auf den All-Time-Peak.
     """
-    peak_equity = state_repo.get_float("PEAK_EQUITY", equity)
+    all_time_peak = state_repo.get_float("PEAK_EQUITY", equity)
     previous_regime = state_repo.get_regime()
+
+    try:
+        record_equity_snapshot(state_repo.db, equity)
+        peak_equity = get_rolling_peak(state_repo.db, equity)
+        state_repo.set("ROLLING_PEAK", str(peak_equity))
+    except Exception:
+        # Fail-safe: ohne History wie bisher gegen den All-Time-Peak rechnen
+        peak_equity = all_time_peak
 
     new_regime, reason = detect_regime(equity, peak_equity, previous_regime)
     changed = new_regime != previous_regime
@@ -222,17 +273,19 @@ def update_regime(state_repo, equity: float) -> tuple[str, bool]:
     state_repo.set("RISK_SCALAR", str(get_risk_scalar(new_regime)))
     state_repo.set("DRAWDOWN_REASON", reason)
 
-    # Update drawdown pct
+    # Update drawdown pct (gegen Rolling Peak — konsistent zum Regime)
     if peak_equity > 0:
         dd_pct = (peak_equity - equity) / peak_equity * 100
         state_repo.set("DRAWDOWN_PCT", f"{dd_pct:.4f}")
 
-    # Update peak equity (high-watermark) if new high
-    if equity > peak_equity:
+    # All-Time-Peak fuers Reporting weiter pflegen; HIGH_WATERMARK im
+    # Rolling-Modell: volle Risikofreigabe am 30-Tage-Hoch.
+    if equity > all_time_peak:
         state_repo.set("PEAK_EQUITY", str(equity))
-        state_repo.set("HIGH_WATERMARK_REACHED", "true")
-    else:
-        state_repo.set("HIGH_WATERMARK_REACHED", "false")
+    state_repo.set(
+        "HIGH_WATERMARK_REACHED",
+        "true" if equity >= peak_equity else "false",
+    )
 
     return new_regime, changed
 
