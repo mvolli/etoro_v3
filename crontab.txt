@@ -42,6 +42,13 @@
 # fix/signal-pool-exhaustion: at 3 signals/15min-cycle, the old 15-signal
 # batch was fully consumed within ~75min, leaving zero fresh signals for
 # hours during open market sessions until the next scheduled run)
+#
+# 2026-07-03: Live-Hermes-Job 6fe7dae39284 auf 0 */2 nachgezogen (stand
+# noch auf 0 6,12,18,0 — die Repo-Aenderung war nie deployed worden, der
+# signal-pool-exhaustion-Bug damit live regressiert). Ausserdem den
+# parallelen Legacy-Job 33bd244c3e65 ("eToro Discovery Pipeline",
+# scripts/discovery_cron.py alle 6h, agent-basiert) deaktiviert — zwei
+# konkurrierende Discovery-Systeme schrieben in denselben Signal-Pool.
 0 */2 * * * cd /home/mvolli/.hermes/workspace/etoro_v3 && bash scripts/v3_discovery_worker.sh >> logs/discovery_worker.log 2>&1
 
 # Kill Switch Watchdog — every 5 minutes
