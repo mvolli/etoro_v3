@@ -9,6 +9,7 @@ requires Close+Reopen (blocked in DEFENSIVE/CRITICAL).
 Partial profit-taking uses units-based close (see EToroClient.close_position).
 """
 from __future__ import annotations
+import json
 import logging
 from dataclasses import dataclass
 from typing import Any
@@ -16,17 +17,53 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 # ── Profit-Taking Thresholds (Trading Bible V5) ──────────────────────────────
-BREAK_EVEN_TRIGGER_PCT = 5.0    # +5% PnL → move SL to entry (software tracking)
+# fix/be-trigger-lowered: war 5.0. Bei SL=3% blieb eine Position bis +5%
+# vollstaendig ungeschuetzt und konnte von +4.9% direkt auf -3% durchrutschen,
+# bevor ueberhaupt ein Boden eingezogen wurde. 3.0 = Position muss sich weiter
+# in unsere Richtung bewegt haben als das SL riskiert, bevor wir sie sichern.
+BREAK_EVEN_TRIGGER_PCT = 3.0    # +3% PnL → move SL to entry (software tracking)
 # fix/break-even-enforcement: Schwelle, unter die eine BE-armierte Position
 # nicht zurückfallen darf. Leicht über 0, damit Spread/Fees den Close nicht
 # in einen Mini-Verlust drehen. eToro hat kein SL-Update-Endpoint, daher
 # Software-Enforcement: BE aktiv + PnL ≤ Floor → Full Close.
 BREAK_EVEN_FLOOR_PCT = 0.3
+
+# Fixed fallback ladder — used when an instrument has no ATR% on file yet
+# (fresh instrument, data_worker hasn't run a cycle for it). Same values as
+# the original Trading Bible V5 ladder.
 PROFIT_TAKE_LEVELS = [
     {'threshold': 15.0, 'close_pct': 20},   # +15% → close 20% of position
     {'threshold': 25.0, 'close_pct': 20},   # +25% → close another 20%
     {'threshold': 50.0, 'close_pct': 30},   # +50% → close 30%
 ]
+
+# fix/atr-adaptive-profit-levels: ein Blue-Chip (ATR ~1-1.5%) erreicht real
+# selten ein flaches +15%; eine Crypto/High-Beta-Position (ATR ~4-6%) durch-
+# schlaegt +50% oft als reines Intraday-Rauschen, ohne dass es einen echten
+# Trend bedeutet. Die Level werden daher als ATR%-Vielfache skaliert statt
+# fix — je Position EINMAL beim ersten Erreichen der Gewinnzone berechnet und
+# in position_state eingefroren (siehe load_profit_levels/save_profit_levels),
+# damit ein spaeter driftender ATR-Wert nie ein bereits genommenes Level neu
+# triggert (Doppel-Verkaufs-Risiko).
+ATR_PROFIT_LEVELS = [
+    {'atr_mult': 6.0,  'close_pct': 20, 'min_pct': 6.0,  'max_pct': 30.0},
+    {'atr_mult': 10.0, 'close_pct': 20, 'min_pct': 10.0, 'max_pct': 50.0},
+    {'atr_mult': 18.0, 'close_pct': 30, 'min_pct': 18.0, 'max_pct': 90.0},
+]
+
+
+def _resolve_profit_levels(atr_pct: float | None) -> list[dict]:
+    """Return the profit-take ladder to use for a position.
+
+    ATR-scaled when *atr_pct* is known (> 0), else the fixed fallback ladder.
+    """
+    if not atr_pct or atr_pct <= 0:
+        return PROFIT_TAKE_LEVELS
+    levels = []
+    for lv in ATR_PROFIT_LEVELS:
+        threshold = min(max(lv['atr_mult'] * atr_pct, lv['min_pct']), lv['max_pct'])
+        levels.append({'threshold': round(threshold, 2), 'close_pct': lv['close_pct']})
+    return levels
 
 @dataclass
 class TrailingAction:
@@ -62,6 +99,73 @@ def _ensure_position_state_table(db: Any) -> None:
             updated_at      TEXT NOT NULL DEFAULT (datetime('now','utc'))
         )
     """)
+    # Migration for existing installs (idempotent):
+    try:
+        db.execute("ALTER TABLE position_state ADD COLUMN profit_levels_json TEXT")
+    except Exception:
+        pass  # column already exists
+
+
+def load_atr_pct(db: Any, instrument_ids: list[int]) -> dict[int, float]:
+    """Return {instrument_id: atr_pct} for the given ids (data_worker-populated)."""
+    ids = [i for i in instrument_ids if i]
+    if db is None or not ids:
+        return {}
+    try:
+        placeholders = ",".join("?" * len(ids))
+        rows = db.fetchall(
+            f"SELECT instrument_id, atr_pct FROM instruments "
+            f"WHERE instrument_id IN ({placeholders}) AND atr_pct IS NOT NULL",
+            ids,
+        )
+        return {int(row[0]): float(row[1]) for row in rows}
+    except Exception as exc:
+        logger.warning("[trailing] load_atr_pct failed: %s", exc)
+        return {}
+
+
+def load_profit_levels(db: Any, position_ids: list[str]) -> dict[str, list[dict]]:
+    """Return the frozen profit-take ladder already snapshot for each position."""
+    if db is None or not position_ids:
+        return {}
+    try:
+        _ensure_position_state_table(db)
+        placeholders = ",".join("?" * len(position_ids))
+        rows = db.fetchall(
+            f"SELECT position_id, profit_levels_json FROM position_state "
+            f"WHERE position_id IN ({placeholders})",
+            list(position_ids),
+        )
+        result: dict[str, list[dict]] = {}
+        for pid, levels_json in rows:
+            if levels_json:
+                try:
+                    result[pid] = json.loads(levels_json)
+                except Exception:
+                    continue
+        return result
+    except Exception as exc:
+        logger.warning("[trailing] load_profit_levels failed: %s", exc)
+        return {}
+
+
+def save_profit_levels(db: Any, position_id: str, symbol: str, levels: list[dict]) -> None:
+    """Freeze *levels* for *position_id* — first write wins (never overwrite)."""
+    if db is None or not position_id:
+        return
+    try:
+        _ensure_position_state_table(db)
+        levels_json = json.dumps(levels)
+        db.execute("""
+            INSERT INTO position_state (position_id, symbol, profit_levels_json, updated_at)
+            VALUES (?, ?, ?, datetime('now','utc'))
+            ON CONFLICT(position_id) DO UPDATE SET
+                symbol = excluded.symbol,
+                profit_levels_json = COALESCE(position_state.profit_levels_json, excluded.profit_levels_json),
+                updated_at = excluded.updated_at
+        """, (position_id, symbol, levels_json))
+    except Exception as exc:
+        logger.warning("[trailing] save_profit_levels(%s) failed: %s", position_id, exc)
 
 
 def load_levels_taken(db: Any, position_ids: list[str]) -> dict[str, set[float]]:
@@ -179,6 +283,11 @@ def evaluate_trailing(
     pos_ids = [str(p.get('positionID', '')) for p in positions if p.get('positionID')]
     levels_taken = load_levels_taken(db, pos_ids)
     be_armed = load_be_active(db, pos_ids)
+    frozen_levels = load_profit_levels(db, pos_ids)
+    instrument_ids = [
+        int(p.get('instrumentID') or p.get('instrumentId') or 0) for p in positions
+    ]
+    atr_by_instrument = load_atr_pct(db, instrument_ids)
 
     actions = []
     for pos in positions:
@@ -196,8 +305,8 @@ def evaluate_trailing(
 
         if pnl_pct < BREAK_EVEN_TRIGGER_PCT:
             # fix/break-even-enforcement: eine BE-armierte Position (war
-            # schon ≥ +5%) darf nicht zurück unter Entry fallen — Full
-            # Close am Floor, statt bis zum -3%-Hard-SL durchzurutschen.
+            # schon ≥ BREAK_EVEN_TRIGGER_PCT) darf nicht zurück unter Entry
+            # fallen — Full Close am Floor, statt bis zum Hard-SL durchzurutschen.
             if pos_id in be_armed and pnl_pct <= BREAK_EVEN_FLOOR_PCT:
                 actions.append(TrailingAction(
                     action='BE_CLOSE',
@@ -216,11 +325,22 @@ def evaluate_trailing(
 
         taken = levels_taken.get(pos_id, set())
 
+        # ATR-adaptive Ladder: einmal beim ersten Erreichen der Gewinnzone
+        # bestimmt und in position_state eingefroren (siehe save_profit_levels),
+        # damit ein spaeter aktualisierter ATR-Wert das Level fuer diese
+        # Position NICHT mehr verschiebt — sonst koennte ein bereits als
+        # "genommen" markiertes Level bei naechster Berechnung einen leicht
+        # anderen threshold ergeben und erneut feuern (Doppel-Verkauf).
+        profit_levels = frozen_levels.get(pos_id)
+        if profit_levels is None:
+            profit_levels = _resolve_profit_levels(atr_by_instrument.get(instrument_id))
+            save_profit_levels(db, pos_id, symbol, profit_levels)
+
         # Fälliges, noch NICHT genommenes Level suchen — das NIEDRIGSTE zuerst
-        # (Bible-Reihenfolge: 15 → 25 → 50; springt der PnL direkt auf +30%,
-        # nimmt dieser Zyklus Level 15, der nächste 5-min-Zyklus Level 25).
+        # (Bible-Reihenfolge: springt der PnL direkt auf das oberste Level,
+        # nimmt dieser Zyklus das unterste, der naechste 5-min-Zyklus das naechste).
         pending = [
-            lv for lv in sorted(PROFIT_TAKE_LEVELS, key=lambda x: x['threshold'])
+            lv for lv in sorted(profit_levels, key=lambda x: x['threshold'])
             if pnl_pct >= lv['threshold'] and lv['threshold'] not in taken
         ]
         if pending:
@@ -426,7 +546,7 @@ def execute_trailing_actions(
     order (not only after verification) — if the close settles slowly, the
     next 5-min cycle must NOT fire the same level again (double-sell risk
     outweighs the risk of losing one level to a never-executed order).
-    BREAK_EVEN: arms persistent break-even state (position was ≥ +5%).
+    BREAK_EVEN: arms persistent break-even state (position was ≥ BREAK_EVEN_TRIGGER_PCT).
     BE_CLOSE: full close because an armed position fell back to entry —
     executes in ALL regimes (loss protection, not profit-taking).
     """

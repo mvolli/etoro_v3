@@ -127,6 +127,42 @@ _MAX_FAILED_CACHE = 200                   # soft cap for logging
 _COOLDOWN_DAYS = 7                        # retry a failed symbol after N days
 _CLEANUP_DAYS = 90                        # purge entries older than N days
 
+def _ensure_instrument_atr_columns(db: "DB") -> None:
+    """Lazy migration: add atr_pct/atr_updated_at to instruments (idempotent)."""
+    for ddl in (
+        "ALTER TABLE instruments ADD COLUMN atr_pct REAL",
+        "ALTER TABLE instruments ADD COLUMN atr_updated_at TEXT",
+    ):
+        try:
+            db.execute(ddl)
+        except Exception:
+            pass  # column already exists
+
+
+_ATR_COLUMNS_READY = False
+
+
+def _update_instrument_atr(db: "DB", instrument_id: int, atr_pct: float) -> None:
+    """Persist ATR% (ATR / price * 100) for *instrument_id*, refreshed each cycle.
+
+    Read by bot.core.trailing_stop to scale profit-take levels to each
+    instrument's actual volatility instead of one fixed ladder for every
+    symbol (a blue-chip's ATR and a crypto's ATR differ by 3-5x).
+    """
+    global _ATR_COLUMNS_READY
+    if not _ATR_COLUMNS_READY:
+        _ensure_instrument_atr_columns(db)
+        _ATR_COLUMNS_READY = True
+    try:
+        db.execute(
+            "UPDATE instruments SET atr_pct = ?, atr_updated_at = datetime('now','utc') "
+            "WHERE instrument_id = ?",
+            (atr_pct, instrument_id),
+        )
+    except Exception as exc:
+        logger.debug("[%s] _update_instrument_atr(%s) failed: %s", WORKER_NAME, instrument_id, exc)
+
+
 def _ensure_failed_symbols_table(db: "DB") -> None:
     """Create the failed_symbols table if it doesn't exist."""
     db.execute("""
@@ -665,6 +701,24 @@ def run(project_root: Path | None = None) -> dict:
             # 6. Generate signal
             result = generate_signal(original_sym, indicators)
 
+            # Resolve instrument_id — done before the HOLD-filter below so ATR
+            # gets refreshed for every symbol we have data for (incl. open
+            # positions that generate a HOLD signal most cycles), not only
+            # for symbols that just produced a fresh BUY/SELL candidate.
+            if instrument_id_from_db:
+                instrument_id = instrument_id_from_db
+            else:
+                instrument_id = symbol_to_id(original_sym, instrument_map)
+            if instrument_id is None:
+                # Try yf ticker as fallback
+                instrument_id = symbol_to_id(yf_sym, instrument_map)
+
+            # ATR-adaptive profit-taking (trailing_stop.py) reads atr_pct from
+            # the instruments table — refresh it here whenever we resolved an
+            # id and have a usable price, independent of signal direction.
+            if instrument_id is not None and result.atr and result.price:
+                _update_instrument_atr(db, instrument_id, result.atr / result.price * 100.0)
+
             if result.direction == "HOLD" or result.score < MIN_SIGNAL_SCORE:
                 logger.debug(
                     "[%s] %s: direction=%s score=%.1f — not stored",
@@ -680,14 +734,6 @@ def run(project_root: Path | None = None) -> dict:
                 )
                 continue
 
-            # Resolve instrument_id
-            if instrument_id_from_db:
-                instrument_id = instrument_id_from_db
-            else:
-                instrument_id = symbol_to_id(original_sym, instrument_map)
-            if instrument_id is None:
-                # Try yf ticker as fallback
-                instrument_id = symbol_to_id(yf_sym, instrument_map)
             if instrument_id is None:
                 # fix/instrument-db-cleanup: the old MAX(instrument_id)+1
                 # "auto-register" fabricated instrument_ids that do NOT
