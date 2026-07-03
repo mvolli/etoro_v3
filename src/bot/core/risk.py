@@ -35,6 +35,18 @@ ASSET_CLASS_LIMITS: dict[str, float] = {
     "CRYPTO":       10.0,
     "BOND":         20.0,
     "INTL":         20.0,
+    # fix/asset-class-limits-gap: FINANCIAL/CONSUMER/HEALTHCARE/ENERGY are
+    # populated in ASSET_CLASS_MAP below (JPM/WMT/JNJ/XOM etc.) but had no
+    # entry here — check_asset_class_gate()'s .get(asset_class, 100.0)
+    # fallback meant these four sectors had NO enforced concentration limit
+    # at all (only the blunt 75% total-exposure gate could ever stop them).
+    # 20.0 matches the already-configured (but, until this fix, unwired)
+    # config.yaml sector_limits.max_per_sector_pct, and the existing
+    # COMMODITY/BOND/INTL entries below.
+    "FINANCIAL":    20.0,
+    "CONSUMER":     20.0,
+    "HEALTHCARE":   20.0,
+    "ENERGY":       20.0,
 }
 
 # V5: Explicit crypto symbols for SL relative-calculation enforcement
