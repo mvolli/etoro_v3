@@ -1574,7 +1574,8 @@ def post_kill_switch_embed(
 ) -> bool:
     """Kill Switch Aktivierungs-Alert → #etoro-trading (MAIN).
 
-    Wird gepostet wenn /tmp/etoro_kill_switch erstellt wird.
+    Wird gepostet wenn data/kill_switch.flag erstellt wird (Source of Truth:
+    bot.core.kill_switch — NICHT /tmp, das WSL beim Reboot leert).
     Blockiert alle neuen BUYs durch Erzwingen von CRITICAL-Regime.
     """
     embed = {
@@ -1582,7 +1583,7 @@ def post_kill_switch_embed(
         "description": (
             "Der Kill Switch ist aktiv. **Alle neuen BUYs sind blockiert.**\n"
             "Bestehende Positionen werden weiterhin per SL überwacht.\n\n"
-            f"**Deaktivieren:** `rm /tmp/etoro_kill_switch`"
+            f"**Deaktivieren:** `rm data/kill_switch.flag` (im Projekt-Root)"
         ),
         "color":       COLOR_RED,
         "fields": [
@@ -1602,7 +1603,7 @@ def post_kill_switch_embed(
                 "inline": True,
             },
         ],
-        "footer":    {"text": "eToro RoBoCop · Kill Switch V5 · /tmp/etoro_kill_switch"},
+        "footer":    {"text": "eToro RoBoCop · Kill Switch V5 · data/kill_switch.flag"},
         "timestamp": _ts(),
     }
     ok = _post_embed(embed, DISCORD_MAIN_CHANNEL, dry_run)
