@@ -34,20 +34,109 @@ class TrailingAction:
     instrument_id: int = 0     # needed for close_position() body
     amount_usd: float = 0.0    # position size in USD — used to derive units
     open_rate: float = 0.0     # entry price — used to derive units
+    level_threshold: float = 0.0  # which PROFIT_TAKE_LEVEL fired (for persistence)
+
+
+# ── Position-State Persistenz ─────────────────────────────────────────────────
+# fix/partial-close-level-tracking: evaluate_trailing() hatte KEIN Gedächtnis,
+# welche Profit-Level bereits realisiert wurden. Eine Position bei +16% PnL
+# feuerte bei JEDEM risk_worker-Lauf (5min) erneut "PARTIAL_CLOSE 20%" — der
+# PnL-Prozentsatz des Rests bleibt ja ~gleich — und wurde so in 20%-Schritten
+# zwangsliquidiert statt einmalig 20% zu realisieren (Bible: +15% → EINMAL 20%).
+# position_state persistiert die genommenen Level pro position_id.
+
+def _ensure_position_state_table(db: Any) -> None:
+    """Create the position_state table if it doesn't exist (lazy, idempotent)."""
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS position_state (
+            position_id     TEXT PRIMARY KEY,
+            symbol          TEXT,
+            levels_taken    TEXT NOT NULL DEFAULT '',
+            be_active       INTEGER NOT NULL DEFAULT 0,
+            be_triggered_at TEXT,
+            updated_at      TEXT NOT NULL DEFAULT (datetime('now','utc'))
+        )
+    """)
+
+
+def load_levels_taken(db: Any, position_ids: list[str]) -> dict[str, set[float]]:
+    """Return {position_id: {threshold, ...}} for the given positions."""
+    if db is None or not position_ids:
+        return {}
+    try:
+        _ensure_position_state_table(db)
+        placeholders = ",".join("?" * len(position_ids))
+        rows = db.fetchall(
+            f"SELECT position_id, levels_taken FROM position_state "
+            f"WHERE position_id IN ({placeholders})",
+            list(position_ids),
+        )
+        result: dict[str, set[float]] = {}
+        for row in rows:
+            pid, levels_csv = row[0], row[1] or ""
+            result[pid] = {float(x) for x in levels_csv.split(",") if x.strip()}
+        return result
+    except Exception as exc:
+        logger.warning("[trailing] load_levels_taken failed: %s", exc)
+        return {}
+
+
+def mark_level_taken(db: Any, position_id: str, symbol: str, threshold: float) -> None:
+    """Persist that *threshold* has been realized for *position_id*."""
+    if db is None or not position_id:
+        return
+    try:
+        _ensure_position_state_table(db)
+        existing = load_levels_taken(db, [position_id]).get(position_id, set())
+        existing.add(threshold)
+        levels_csv = ",".join(f"{t:g}" for t in sorted(existing))
+        db.execute("""
+            INSERT INTO position_state (position_id, symbol, levels_taken, updated_at)
+            VALUES (?, ?, ?, datetime('now','utc'))
+            ON CONFLICT(position_id) DO UPDATE SET
+                symbol = excluded.symbol,
+                levels_taken = excluded.levels_taken,
+                updated_at = excluded.updated_at
+        """, (position_id, symbol, levels_csv))
+    except Exception as exc:
+        logger.warning("[trailing] mark_level_taken(%s, %.0f) failed: %s",
+                       position_id, threshold, exc)
+
+
+def cleanup_position_state(db: Any, live_position_ids: set[str]) -> int:
+    """Remove state rows for positions that no longer exist. Returns count."""
+    if db is None:
+        return 0
+    try:
+        _ensure_position_state_table(db)
+        rows = db.fetchall("SELECT position_id FROM position_state")
+        stale = [r[0] for r in rows if r[0] not in live_position_ids]
+        for pid in stale:
+            db.execute("DELETE FROM position_state WHERE position_id = ?", (pid,))
+        return len(stale)
+    except Exception as exc:
+        logger.warning("[trailing] cleanup_position_state failed: %s", exc)
+        return 0
 
 
 def evaluate_trailing(
     positions: list[dict],
     regime: str = 'NORMAL',
+    db: Any = None,
 ) -> list[TrailingAction]:
     """Evaluate all positions for trailing stop opportunities.
 
     Args:
         positions: Raw positions from eToro API (clientPortfolio.positions)
         regime: Current trading regime
+        db: DB handle (bot.db.connection.DB) for level-taken persistence.
+            None → stateless fallback (every level fires; only for tests).
     Returns:
         List of TrailingActions to execute
     """
+    pos_ids = [str(p.get('positionID', '')) for p in positions if p.get('positionID')]
+    levels_taken = load_levels_taken(db, pos_ids)
+
     actions = []
     for pos in positions:
         pos_id = str(pos.get('positionID', ''))
@@ -65,32 +154,39 @@ def evaluate_trailing(
         if pnl_pct < BREAK_EVEN_TRIGGER_PCT:
             continue  # No action needed
 
-        # Check profit-taking levels (highest first)
-        for level in sorted(PROFIT_TAKE_LEVELS, key=lambda x: x['threshold'], reverse=True):
-            if pnl_pct >= level['threshold']:
-                actions.append(TrailingAction(
-                    action='PARTIAL_CLOSE',
-                    symbol=symbol,
-                    position_id=pos_id,
-                    pnl_pct=pnl_pct,
-                    reason=f"+{pnl_pct:.1f}% ≥ +{level['threshold']:.0f}% profit target",
-                    close_pct=level['close_pct'],
-                    instrument_id=instrument_id,
-                    amount_usd=amount,
-                    open_rate=open_rate,
-                ))
-                break
+        taken = levels_taken.get(pos_id, set())
+
+        # Fälliges, noch NICHT genommenes Level suchen — das NIEDRIGSTE zuerst
+        # (Bible-Reihenfolge: 15 → 25 → 50; springt der PnL direkt auf +30%,
+        # nimmt dieser Zyklus Level 15, der nächste 5-min-Zyklus Level 25).
+        pending = [
+            lv for lv in sorted(PROFIT_TAKE_LEVELS, key=lambda x: x['threshold'])
+            if pnl_pct >= lv['threshold'] and lv['threshold'] not in taken
+        ]
+        if pending:
+            level = pending[0]
+            actions.append(TrailingAction(
+                action='PARTIAL_CLOSE',
+                symbol=symbol,
+                position_id=pos_id,
+                pnl_pct=pnl_pct,
+                reason=f"+{pnl_pct:.1f}% ≥ +{level['threshold']:.0f}% profit target",
+                close_pct=level['close_pct'],
+                instrument_id=instrument_id,
+                amount_usd=amount,
+                open_rate=open_rate,
+                level_threshold=level['threshold'],
+            ))
         else:
-            # Only break-even (5-15% range)
-            if pnl_pct >= BREAK_EVEN_TRIGGER_PCT:
-                actions.append(TrailingAction(
-                    action='BREAK_EVEN',
-                    symbol=symbol,
-                    position_id=pos_id,
-                    pnl_pct=pnl_pct,
-                    reason=f"+{pnl_pct:.1f}% ≥ +{BREAK_EVEN_TRIGGER_PCT:.0f}% — break-even tracked",
-                    instrument_id=instrument_id,
-                ))
+            # Only break-even (5-15% range, or all due levels already taken)
+            actions.append(TrailingAction(
+                action='BREAK_EVEN',
+                symbol=symbol,
+                position_id=pos_id,
+                pnl_pct=pnl_pct,
+                reason=f"+{pnl_pct:.1f}% ≥ +{BREAK_EVEN_TRIGGER_PCT:.0f}% — break-even tracked",
+                instrument_id=instrument_id,
+            ))
     return actions
 
 
@@ -220,10 +316,15 @@ def execute_trailing_actions(
     actions: list[TrailingAction],
     regime: str = 'NORMAL',
     dry_run: bool = False,
+    db: Any = None,
 ) -> dict:
     """Execute trailing stop actions.
 
-    PARTIAL_CLOSE: Closes a percentage of the position via API.
+    PARTIAL_CLOSE: Closes a percentage of the position via API. The fired
+    level is persisted via mark_level_taken() as soon as eToro ACCEPTS the
+    order (not only after verification) — if the close settles slowly, the
+    next 5-min cycle must NOT fire the same level again (double-sell risk
+    outweighs the risk of losing one level to a never-executed order).
     BREAK_EVEN: Software tracking only (logged, no API call — eToro has no SL update).
     """
     import time
@@ -275,6 +376,13 @@ def execute_trailing_actions(
                     units_to_deduct=units_to_deduct,
                 )
                 if result:
+                    # Level SOFORT als genommen markieren (Order wurde von
+                    # eToro akzeptiert) — verhindert Endlos-Feuer desselben
+                    # Levels im nächsten 5-min-Zyklus, selbst wenn die
+                    # Verifikation unten wegen Settlement-Latenz fehlschlägt.
+                    if action.level_threshold > 0:
+                        mark_level_taken(db, action.position_id, action.symbol,
+                                         action.level_threshold)
                     # ── Verify the partial-close actually took effect ──────
                     # close_position() returning 200 only means the order was
                     # ACCEPTED (statusID=1), not applied — confirmed via live
