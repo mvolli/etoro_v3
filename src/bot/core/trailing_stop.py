@@ -250,8 +250,17 @@ def evaluate_trailing(
     return actions
 
 
-def _post_closed_embed(symbol: str, position_id: str, reason: str, pnl_pct: float = 0.0) -> None:
-    """Best-effort Discord embed for a (partial) close. Never raises."""
+# Modul-Cache für discord_embeds — vorher wurde das ~1700-Zeilen-Modul bei
+# JEDEM Close per importlib neu von der Platte geladen und ausgeführt.
+# False = Laden bereits fehlgeschlagen (nicht erneut versuchen).
+_DISCORD_EMBEDS_CACHE: Any = None
+
+
+def _get_discord_embeds() -> Any:
+    """Load discord_embeds once per process. Returns module or None."""
+    global _DISCORD_EMBEDS_CACHE
+    if _DISCORD_EMBEDS_CACHE is not None:
+        return _DISCORD_EMBEDS_CACHE or None
     try:
         from pathlib import Path as _Path
         import importlib.util
@@ -259,7 +268,18 @@ def _post_closed_embed(symbol: str, position_id: str, reason: str, pnl_pct: floa
         spec = importlib.util.spec_from_file_location('discord_embeds', _embed_file)
         de = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(de)
-        if hasattr(de, 'post_position_closed_embed'):
+        _DISCORD_EMBEDS_CACHE = de
+        return de
+    except Exception:
+        _DISCORD_EMBEDS_CACHE = False
+        return None
+
+
+def _post_closed_embed(symbol: str, position_id: str, reason: str, pnl_pct: float = 0.0) -> None:
+    """Best-effort Discord embed for a (partial) close. Never raises."""
+    try:
+        de = _get_discord_embeds()
+        if de is not None and hasattr(de, 'post_position_closed_embed'):
             de.post_position_closed_embed(
                 symbol=symbol,
                 amount_usd=0,
