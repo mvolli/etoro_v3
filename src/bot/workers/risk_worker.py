@@ -154,7 +154,8 @@ def main() -> None:
             )
             symbol = pos.get("symbol") or ""
             if not symbol and instrument_id is not None:
-                # Payload carries no symbol — resolve via portfolio_snapshot
+                # Payload carries no symbol — resolve via portfolio_snapshot,
+                # then instruments table (raw IDs in Discord/logs vermeiden)
                 try:
                     _sym_row = db.fetchone(
                         "SELECT symbol FROM portfolio_snapshot "
@@ -162,6 +163,12 @@ def main() -> None:
                         "ORDER BY last_synced DESC LIMIT 1",
                         (int(instrument_id),),
                     )
+                    if not _sym_row:
+                        _sym_row = db.fetchone(
+                            "SELECT symbol FROM instruments "
+                            "WHERE instrument_id = ? AND symbol IS NOT NULL",
+                            (int(instrument_id),),
+                        )
                     if _sym_row:
                         symbol = _sym_row["symbol"]
                 except Exception:

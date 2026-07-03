@@ -62,8 +62,30 @@ def _read_token() -> Optional[str]:
     return None
 
 
+def _clip_embed_limits(embed: dict) -> dict:
+    """Discord-API-Limits zentral durchsetzen, statt in jedem Embed einzeln.
+
+    Ohne Clipping lehnt Discord das GANZE Embed mit 400 ab (Notification
+    verloren) — z.B. wenn resolve_instrument_display() lange Namen liefert
+    und ein Feld über 1024 Zeichen wächst.
+    """
+    if embed.get("title"):
+        embed["title"] = str(embed["title"])[:256]
+    if embed.get("description"):
+        embed["description"] = str(embed["description"])[:4096]
+    fields = embed.get("fields") or []
+    embed["fields"] = [
+        {**f,
+         "name":  str(f.get("name", ""))[:256],
+         "value": str(f.get("value", ""))[:1024]}
+        for f in fields[:25]
+    ]
+    return embed
+
+
 def _post_embed(embed: dict, channel_id: str, dry_run: bool = False) -> bool:
     """Sende ein Discord Embed. Gibt True bei Erfolg zurück."""
+    embed = _clip_embed_limits(embed)
     if dry_run:
         logger.info(f"[discord_embeds DRY-RUN] '{embed.get('title', '?')}' → channel {channel_id}")
         return True
@@ -121,6 +143,94 @@ def _severity_color(severity: str) -> int:
         "CRITICAL":        COLOR_RED,
         "CIRCUIT_BREAKER": COLOR_PURPLE,
     }.get(severity, COLOR_GREY)
+
+
+# ─── Instrument Display Resolution ───────────────────────────────────────────
+# Discord-Embeds sollen nie rohe instrument_ids ohne Kontext zeigen.
+# resolve_instrument_display() löst eine ID oder ein Symbol gegen die
+# instruments-Tabelle auf und liefert "Symbol — Name (Market)".
+# Fail-open: wenn DB/Zeile fehlt, kommt die Eingabe unverändert zurück
+# (numerische IDs werden als "Instrument #<id>" gekennzeichnet).
+
+_PROJECT_ROOT_DE = Path(__file__).resolve().parent.parent.parent   # src/bot → src → etoro_v3
+_TRADING_DB_PATH = _PROJECT_ROOT_DE / "data" / "trading.db"
+_INSTRUMENT_LOOKUP_CACHE: dict[str, Optional[dict]] = {}
+
+
+def _lookup_instrument(instrument_ref) -> Optional[dict]:
+    """Instrumenten-Zeile per instrument_id ODER Symbol aus data/trading.db.
+
+    Ergebnis wird pro Prozess gecacht. Fail-open: None bei Fehlern/kein Match.
+    """
+    ref = str(instrument_ref).strip()
+    if not ref:
+        return None
+    if ref in _INSTRUMENT_LOOKUP_CACHE:
+        return _INSTRUMENT_LOOKUP_CACHE[ref]
+
+    row_dict: Optional[dict] = None
+    try:
+        import sqlite3
+        conn = sqlite3.connect(f"file:{_TRADING_DB_PATH}?mode=ro", uri=True, timeout=3)
+        try:
+            conn.row_factory = sqlite3.Row
+            if ref.isdigit():
+                row = conn.execute(
+                    "SELECT instrument_id, symbol, name, market_region, asset_class "
+                    "FROM instruments WHERE instrument_id = ?", (int(ref),)
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    "SELECT instrument_id, symbol, name, market_region, asset_class "
+                    "FROM instruments WHERE symbol = ? COLLATE NOCASE", (ref,)
+                ).fetchone()
+            if row:
+                row_dict = dict(row)
+        finally:
+            conn.close()
+    except Exception as exc:
+        logger.debug(f"[discord_embeds] Instrument-Lookup '{ref}' fehlgeschlagen: {exc}")
+        return None  # nicht cachen — DB könnte gleich wieder da sein
+
+    # Nur Treffer cachen: ein Miss kann durch spätere Discovery-Inserts zum
+    # Treffer werden — Negativ-Cache würde dauerhaft "Instrument #id" zeigen.
+    if row_dict is not None:
+        _INSTRUMENT_LOOKUP_CACHE[ref] = row_dict
+    return row_dict
+
+
+def resolve_instrument_display(instrument_ref) -> str:
+    """'Symbol — Name (Market)' für eine instrument_id oder ein Symbol.
+
+    Beispiele:
+        2358      → "00027.HK — China Telecom (HK)"
+        "CVX.US"  → "CVX.US — Chevron (US)"
+        "AAPL"    → "AAPL — Apple Inc (US)"
+
+    Fail-open: unbekanntes Symbol kommt unverändert zurück, eine unbekannte
+    numerische ID als "Instrument #<id>" (nie eine nackte Zahl ohne Kontext).
+    """
+    ref = str(instrument_ref).strip()
+    if not ref or ref == "?":
+        return "?"
+    return _format_instrument_display(ref, _lookup_instrument(ref))
+
+
+def _format_instrument_display(ref: str, row: Optional[dict]) -> str:
+    """Display-String aus einer (evtl. fehlenden) instruments-Zeile bauen."""
+    if row is None:
+        return f"Instrument #{ref}" if ref.isdigit() else ref
+
+    symbol = row.get("symbol") or ref
+    name   = (row.get("name") or "").strip()
+    region = (row.get("market_region") or "").strip()
+
+    display = symbol
+    if name and name.upper() != symbol.upper():
+        display += f" — {name}"
+    if region:
+        display += f" ({region})"
+    return display
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -335,8 +445,23 @@ def post_sl_watchdog_embed(
         logger.debug(f"[discord_embeds] SL-Watchdog: {checked} geprüft, 0 Events — kein Embed")
         return True
 
-    color      = COLOR_RED if closed > 0 else COLOR_ORANGE
-    alert_text = "\n".join(f"• {a}" for a in alerts[:8]) or "_Keine Alerts_"
+    color = COLOR_RED if closed > 0 else COLOR_ORANGE
+
+    def _fmt_alert(a) -> str:
+        # Dict-Alerts ({symbol|instrument_id, pnl_pct, reason}) menschenlesbar
+        # auflösen; String-Alerts unverändert durchreichen.
+        if isinstance(a, dict):
+            inst   = resolve_instrument_display(a.get("symbol") or a.get("instrument_id") or "?")
+            parts  = [f"**{inst}**"]
+            if a.get("pnl_pct") is not None:
+                parts.append(f"PnL={a['pnl_pct']:+.1f}%")
+            reason = a.get("reason") or a.get("message") or ""
+            if reason:
+                parts.append(str(reason)[:80])
+            return " · ".join(parts)
+        return str(a)
+
+    alert_text = "\n".join(f"• {_fmt_alert(a)}" for a in alerts[:8]) or "_Keine Alerts_"
 
     embed = {
         "title":       f"🛑 SL-Watchdog — {closed} Position(en) geschlossen",
@@ -399,12 +524,13 @@ def post_trading_decisions_embed(
             return "_Keine_"
         lines = []
         for d in decs[:6]:
-            sym   = d.get("instrument", "?")
-            conv  = d.get("conviction", "")
-            pct   = d.get("amount_pct", 0)
+            raw_sym = d.get("instrument", "?")
+            sym    = resolve_instrument_display(raw_sym)
+            conv   = d.get("conviction", "")
+            pct    = d.get("amount_pct", 0)
             reason = d.get("reason", "")[:50]
-            ok    = res_map.get(sym)
-            st    = "✅" if ok else ("❌" if ok is False else "⏳")
+            ok     = res_map.get(raw_sym)
+            st     = "✅" if ok else ("❌" if ok is False else "⏳")
             conv_e = {"VERY_HIGH": "🔥", "HIGH": "⬆️", "MEDIUM-HIGH": "↗️", "MEDIUM": "〰️", "LOW": "⬇️"}.get(conv, "")
             lines.append(f"{st} {conv_e} **{sym}** ({pct:.1f}%) — {reason}")
         return "\n".join(lines)
@@ -420,7 +546,7 @@ def post_trading_decisions_embed(
     if sells:
         fields.append({"name": f"📉 SELL/CLOSE ({len(sells)})", "value": _fmt_decisions(sells), "inline": False})
     if holds:
-        hold_syms = ", ".join(d.get("instrument", "?") for d in holds[:10])
+        hold_syms = ", ".join(resolve_instrument_display(d.get("instrument", "?")) for d in holds[:10])
         fields.append({"name": f"⏸️ HOLD ({len(holds)})", "value": f"`{hold_syms}`", "inline": False})
 
     fields.append({
@@ -469,9 +595,9 @@ def post_consolidation_embed(
 
     lines = []
     for c in closed[:8]:
-        sym   = c.get("symbol", "?")
-        pct   = c.get("pnl_pct", 0)
-        val   = c.get("pnl_value", 0)
+        sym    = resolve_instrument_display(c.get("symbol") or c.get("instrument_id") or "?")
+        pct    = c.get("pnl_pct", 0)
+        val    = c.get("pnl_value", 0)
         reason = c.get("reason", "")[:55]
         lines.append(f"{_pnl_emoji(pct)} **{sym}** PnL={pct:+.1f}% (${val:+.1f}) — {reason}")
 
@@ -826,7 +952,7 @@ def post_data_ingestion_embed(
     def _fmt_instruments(items, show_rsi=True):
         lines = []
         for r in items[:12]:
-            sym = r.get("instrument", "?")
+            sym = resolve_instrument_display(r.get("instrument") or r.get("instrument_id") or "?")
             if show_rsi and r.get("status") == "fetched":
                 rsi = r.get("rsi")
                 rsi_str = f"RSI={rsi:.1f}" if rsi is not None else "RSI=N/A"
@@ -1140,7 +1266,7 @@ def post_trade_filled_embed(
         fields.append({"name": "📋 Grund", "value": f"`{reason[:100]}`", "inline": False})
 
     embed = {
-        "title":       f"{emoji} {action} — {symbol}",
+        "title":       f"{emoji} {action} — {resolve_instrument_display(symbol)}",
         "description": f"Order erfolgreich ausgeführt",
         "color":       color,
         "fields":      fields,
@@ -1168,15 +1294,16 @@ def post_trade_failed_embed(
 
     Wird gepostet wenn ein BUY/SELL von eToro abgelehnt wurde oder als Ghost erkannt.
     """
+    display = resolve_instrument_display(symbol)
     if is_ghost:
         color  = COLOR_PURPLE
         emoji  = "👻"
-        title  = f"GHOST ORDER — {symbol}"
+        title  = f"GHOST ORDER — {display}"
         desc   = "Order von eToro akzeptiert, aber keine Position erstellt"
     else:
         color  = COLOR_RED
         emoji  = "❌"
-        title  = f"TRADE FAILED — {symbol}"
+        title  = f"TRADE FAILED — {display}"
         desc   = "Order konnte nicht ausgeführt werden"
 
     fields = [
@@ -1295,12 +1422,13 @@ def post_watchdog_alert_embed(
         st = severity or "high"
         color  = COLOR_RED if st == "critical" else COLOR_ORANGE
         emoji  = "🚨" if st == "critical" else "⚠️"
-        title  = f"{emoji} Ghost-Order Eskalation — {symbol or '?'}"
-        desc   = message or f"{symbol or '?'}: Multiple consecutive ghost failures detected"
+        sym_display = resolve_instrument_display(symbol) if symbol else "?"
+        title  = f"{emoji} Ghost-Order Eskalation — {sym_display}"
+        desc   = message or f"{sym_display}: Multiple consecutive ghost failures detected"
 
         fields = []
         if symbol:
-            fields.append({"name": "📌 Instrument", "value": f"`{symbol}`", "inline": True})
+            fields.append({"name": "📌 Instrument", "value": f"`{sym_display}`", "inline": True})
         if severity:
             sev_emoji = "💀" if severity == "critical" else "⚠️"
             fields.append({"name": "🔥 Severity", "value": f"{sev_emoji} `{severity.upper()}`", "inline": True})
@@ -1420,7 +1548,7 @@ def post_position_closed_embed(
         fields.append({"name": "🆔 Position", "value": f"`{position_id}`", "inline": True})
 
     embed = {
-        "title":       f"{emoji} POSITION CLOSED — {symbol}",
+        "title":       f"{emoji} POSITION CLOSED — {resolve_instrument_display(symbol)}",
         "description": result,
         "color":       color,
         "fields":      fields,
@@ -1480,5 +1608,132 @@ def post_kill_switch_embed(
     ok = _post_embed(embed, DISCORD_MAIN_CHANNEL, dry_run)
     if ok:
         insert_system_log("WARNING", "discord_embeds", f"P15 Kill Switch alert gepostet: {reason[:80]}")
+    return ok
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# P16 — DISCOVERY CANDIDATES (Data-Rich Ranking)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_RANK_EMOJI = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
+
+
+def _rsi_emoji(rsi: Optional[float]) -> str:
+    if rsi is None:
+        return "⚪"
+    if rsi <= 30:
+        return "🟢"   # oversold — Kaufzone
+    if rsi >= 70:
+        return "🔴"   # overbought
+    return "⚪"
+
+
+def _trend_str(macd_hist: Optional[float], bb_pct: Optional[float]) -> str:
+    """Menschenlesbare Trend-Einschätzung aus MACD-Histogramm + Bollinger %B."""
+    if macd_hist is None:
+        trend = "— unklar"
+    elif macd_hist > 0:
+        trend = "↗️ Aufwärts (MACD+)"
+    else:
+        trend = "↘️ Abwärts (MACD−)"
+    if bb_pct is not None:
+        if bb_pct <= 0.2:
+            trend += " · nahe unterem BB-Band"
+        elif bb_pct >= 0.8:
+            trend += " · nahe oberem BB-Band"
+    return trend
+
+
+def _portfolio_fit(symbol: str) -> str:
+    """Portfolio-Fit: ist das Symbol bereits im Portfolio? Fail-open bei DB-Fehler."""
+    try:
+        import sqlite3
+        conn = sqlite3.connect(f"file:{_TRADING_DB_PATH}?mode=ro", uri=True, timeout=3)
+        try:
+            row = conn.execute(
+                "SELECT SUM(amount_usd) FROM portfolio_snapshot WHERE symbol = ? COLLATE NOCASE",
+                (symbol,),
+            ).fetchone()
+        finally:
+            conn.close()
+        if row and row[0]:
+            return f"⚠️ Bereits im Portfolio (${row[0]:,.0f} Exposure)"
+        return "✅ Neu — keine Überschneidung"
+    except Exception:
+        return "—"
+
+
+def post_discovery_embed(
+    candidates: list,
+    scanned: int = 0,
+    stored: int = 0,
+    unverified: int = 0,
+    elapsed_s: float = 0.0,
+    dry_run: bool = False,
+) -> bool:
+    """Discovery-Ranking — Top-Kandidaten mit vollem Kontext → #etoro-trading.
+
+    `candidates` — sortierte Liste von Dicts (Score absteigend):
+        {symbol, score, conviction, rsi, macd_hist, bb_pct, price,
+         signal_types, instrument_id?}
+    Pro Kandidat: Ranking, Score, Asset-Klasse, Preis, RSI, Trend,
+    Begründung (Signal-Typen) und Portfolio-Fit.
+    """
+    if not candidates:
+        logger.debug("[discord_embeds] Discovery: keine Kandidaten — kein Embed")
+        return True
+
+    top = candidates[:5]
+    fields = []
+    for i, c in enumerate(top):
+        symbol  = c.get("symbol", "?")
+        ref     = str(c.get("instrument_id") or symbol)
+        row     = _lookup_instrument(ref)
+        display = _format_instrument_display(ref, row)
+        asset   = ((row or {}).get("asset_class") or "").capitalize() or "—"
+
+        score = c.get("score", 0)
+        conv  = c.get("conviction", "?")
+        rsi   = c.get("rsi")
+        price = c.get("price")
+
+        rsi_str   = f"{rsi:.1f} {_rsi_emoji(rsi)}" if rsi is not None else "N/A"
+        price_str = f"${price:,.2f}" if price else "N/A"
+        types     = c.get("signal_types") or []
+        reason    = ", ".join(types) if isinstance(types, (list, tuple)) else str(types)
+
+        value = (
+            f"📊 Score: **{score:.0f}** ({conv}) · 🏷️ {asset}\n"
+            f"💵 Preis: {price_str} · RSI: {rsi_str}\n"
+            f"📈 Trend: {_trend_str(c.get('macd_hist'), c.get('bb_pct'))}\n"
+            f"📋 Begründung: {reason[:120] or '—'}\n"
+            f"💼 Portfolio-Fit: {_portfolio_fit(symbol)}"
+        )
+        rank = _RANK_EMOJI[i] if i < len(_RANK_EMOJI) else f"#{i + 1}"
+        fields.append({"name": f"{rank} {display}", "value": value, "inline": False})
+
+    desc_parts = []
+    if scanned:
+        desc_parts.append(f"Gescannt: **{scanned}** Symbole")
+    desc_parts.append(f"Kandidaten: **{len(candidates)}**")
+    if stored:
+        desc_parts.append(f"Gespeichert: **{stored}** Signale")
+    if unverified:
+        desc_parts.append(f"⚠️ Unverifiziert: **{unverified}**")
+    if elapsed_s:
+        desc_parts.append(f"Dauer: {elapsed_s:.0f}s")
+
+    embed = {
+        "title":       f"🔍 Discovery — Top {len(top)} Kandidaten",
+        "description": " · ".join(desc_parts),
+        "color":       COLOR_BLUE,
+        "fields":      fields,
+        "footer":      {"text": "eToro RoBoCop · Discovery · alle 2h"},
+        "timestamp":   _ts(),
+    }
+    ok = _post_embed(embed, DISCORD_MAIN_CHANNEL, dry_run)
+    if ok:
+        insert_system_log("INFO", "discord_embeds",
+                          f"P16 Discovery gepostet candidates={len(candidates)} stored={stored}")
     return ok
 

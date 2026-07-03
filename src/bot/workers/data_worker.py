@@ -26,7 +26,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import yaml
 
@@ -84,25 +84,20 @@ DEFAULT_WATCHLIST: list[str] = [
 ]
 
 # yfinance ticker aliases (eToro symbol → Yahoo Finance ticker)
-# fix/yfinance-ticker-resolution: eToro symbols often differ from Yahoo Finance tickers.
-# This map ensures the correct ticker is sent to yfinance.
+# fix/yfinance-ticker-resolution: eToro symbols often differ from Yahoo Finance
+# tickers. Single source of truth is ohlcv_cache.YFINANCE_TICKER_MAP (so a
+# correction only has to be applied once); this map adds worker-local crypto
+# aliases on top. Successful fallback resolutions from _fallback_single_fetch
+# are cached here for the rest of the session.
+from bot.core.ohlcv_cache import YFINANCE_TICKER_MAP as _YF_TICKER_MAP
+
 SYMBOL_ALIAS_MAP: dict[str, str] = {
+    **_YF_TICKER_MAP,
     # Crypto
     "BTC-USD":  "BTC-USD",
     "ETH-USD":  "ETH-USD",
     "XRP-USD":  "XRP-USD",
     "UNI-USD":  "UNI7083-USD",
-    # US stocks with .US suffix (eToro adds it, Yahoo doesn't need it)
-    "CVX.US":   "CVX",
-    "AAPL.US":  "AAPL",
-    "MSFT.US":  "MSFT",
-    "GOOGL.US": "GOOGL",
-    "AMZN.US":  "AMZN",
-    "META.US":  "META",
-    "TSLA.US":  "TSLA",
-    "NVDA.US":  "NVDA",
-    # Hong Kong stocks (eToro uses leading zeros, Yahoo doesn't)
-    "00027.HK": "0728.HK",   # China Telecom HK — 0027.HK is Galaxy Entertainment!
 }
 
 # Minimum signal score to store
@@ -233,6 +228,50 @@ def _apply_alias(symbol: str) -> str:
     return SYMBOL_ALIAS_MAP.get(symbol, symbol)
 
 
+_MAX_FALLBACK_CANDIDATES = 3   # extra yfinance calls per failed symbol, per run
+
+
+def _fallback_single_fetch(sym: str) -> Optional[Any]:
+    """Rescue a symbol that failed in the batch by trying alternative tickers.
+
+    fix/yfinance-fallback-resolution: symbols like 00027.HK or CVX.US fail with
+    "possibly delisted" because eToro spelling differs from Yahoo. Before the
+    symbol lands in the failed-cache, try the candidate spellings from
+    ohlcv_cache.generate_symbol_candidates() (capped at _MAX_FALLBACK_CANDIDATES
+    extra calls to keep rate-limit pressure bounded). Successful resolutions
+    are logged and cached in SYMBOL_ALIAS_MAP for the rest of the session.
+    """
+    import yfinance as yf
+    from bot.core.ohlcv_cache import generate_symbol_candidates
+
+    alternatives = [c for c in generate_symbol_candidates(sym) if c != sym]
+    for cand in alternatives[:_MAX_FALLBACK_CANDIDATES]:
+        try:
+            df = yf.Ticker(cand).history(period="3mo", auto_adjust=True)
+            df = df[["Open", "High", "Low", "Close", "Volume"]].dropna(subset=["Close"])
+            if len(df) >= 30:
+                logger.info(
+                    "[%s] ✅ Symbol-Resolution: %s → %s (%d Zeilen via Fallback)",
+                    WORKER_NAME, sym, cand, len(df),
+                )
+                SYMBOL_ALIAS_MAP[sym] = cand
+                return df
+            logger.debug("[%s] Fallback %s → %s: only %d rows", WORKER_NAME, sym, cand, len(df))
+        except Exception as exc:
+            logger.debug("[%s] Fallback %s → %s failed: %s", WORKER_NAME, sym, cand, exc)
+    return None
+
+
+def _rescue_or_mark_failed(sym: str, result: dict, reason: str) -> None:
+    """Try alternative tickers for a batch-failed symbol; else cache as failed."""
+    fallback_df = _fallback_single_fetch(sym)
+    if fallback_df is not None:
+        result[sym] = fallback_df
+        return
+    _FAILED_SYMBOLS_CACHE.add(sym)
+    logger.debug("[%s] %s: %s → cached as failed", WORKER_NAME, sym, reason)
+
+
 def _batch_fetch(symbols: list[str], batch_size: int = BATCH_SIZE) -> dict[str, Any]:
     """
     Download 3 months of OHLCV data for all symbols via yf.download().
@@ -323,7 +362,7 @@ def _batch_fetch(symbols: list[str], batch_size: int = BATCH_SIZE) -> dict[str, 
                 if len(df) >= 30:
                     result[sym] = df
                 else:
-                    logger.debug("[%s] %s: only %d rows — skipped", WORKER_NAME, sym, len(df))
+                    _rescue_or_mark_failed(sym, result, f"only {len(df)} rows")
             except Exception as exc:
                 logger.warning("[%s] %s: single-symbol extraction failed — %s", WORKER_NAME, sym, exc)
         else:
@@ -338,16 +377,10 @@ def _batch_fetch(symbols: list[str], batch_size: int = BATCH_SIZE) -> dict[str, 
                         result[sym] = df
                     else:
                         # Symbol in response but no valid data (all NaN / delisted)
-                        # → cache as failed to avoid repeated yfinance ERROR logs
-                        _FAILED_SYMBOLS_CACHE.add(sym)
-                        logger.debug(
-                            "[%s] %s: %d rows after dropna (delisted/no-data) → cached as failed",
-                            WORKER_NAME, sym, len(df),
-                        )
+                        _rescue_or_mark_failed(sym, result, f"{len(df)} rows after dropna (delisted/no-data)")
                 except KeyError:
                     # Symbol not in response — likely invalid ticker (eToro CFD)
-                    _FAILED_SYMBOLS_CACHE.add(sym)
-                    logger.debug("[%s] %s: not found in batch response → cached as failed", WORKER_NAME, sym)
+                    _rescue_or_mark_failed(sym, result, "not found in batch response")
                 except Exception as exc:
                     logger.warning("[%s] %s: extraction failed — %s", WORKER_NAME, sym, exc)
 

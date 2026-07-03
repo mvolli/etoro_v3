@@ -5,8 +5,10 @@ CHECK: SELECT MAX(date) FROM ohlcv_daily WHERE instrument_id = ?
 FETCH: yfinance.download() nur für fehlende Tage
 STORE: INSERT OR REPLACE in ohlcv_daily
 """
+import re
 import sqlite3
 import logging
+import time
 from datetime import datetime, timedelta
 from typing import Optional, Any
 from pathlib import Path
@@ -18,9 +20,9 @@ DB_PATH = str(PROJECT_ROOT / 'data' / 'trading.db')
 
 # ── Ticker alias map: eToro symbol → correct yfinance ticker ─────────────────
 # fix/yfinance-ticker-resolution: several instruments have a different ticker
-# on Yahoo Finance than their eToro display symbol. This map is consulted in
-# fetch_ohlcv() and ensure_ohlcv() BEFORE any yfinance call so the wrong
-# ticker is never sent to Yahoo.
+# on Yahoo Finance than their eToro display symbol. This map is the CURATED
+# first candidate in generate_symbol_candidates(); fetch_ohlcv() tries all
+# candidates with retries (fix/yfinance-fallback-resolution).
 #
 # Known mismatches (verified 2026-07-03):
 #   00027.HK / 0027.HK → 0728.HK  (China Telecom HK; 0027.HK = Galaxy Ent!)
@@ -49,6 +51,101 @@ def _resolve_yf_symbol(symbol: str) -> str:
     This prevents sending wrong tickers (e.g. CVX.US instead of CVX) to Yahoo.
     """
     return YFINANCE_TICKER_MAP.get(symbol, symbol)
+
+
+# ── Fallback symbol resolution ────────────────────────────────────────────────
+# fix/yfinance-fallback-resolution: when the primary yfinance_symbol fails
+# ("possibly delisted"), alternative ticker spellings are tried before the
+# instrument is written off. Successful resolutions are logged, cached for the
+# session and persisted (symbol_resolutions table + instruments.yfinance_symbol).
+
+MAX_FETCH_RETRIES = 2        # extra attempts per candidate on transient errors
+RETRY_BACKOFF_S = 2.0        # backoff base: 2s, 4s, ...
+
+# Session cache: original symbol → ticker that actually worked.
+_RESOLVED_SYMBOL_CACHE: dict[str, str] = {}
+
+
+def generate_symbol_candidates(symbol: str) -> list[str]:
+    """Return ordered, deduplicated ticker candidates for a symbol.
+
+    Order: session-cached resolution, static alias map, the raw symbol,
+    then structural variants (HK zero-padding, .HKG/.HK swap, .US strip).
+
+    WICHTIG: Für Symbole mit kuratiertem Alias in YFINANCE_TICKER_MAP gibt es
+    KEINE strukturellen Rate-Kandidaten. Ein kuratierter Eintrag existiert
+    genau dann, wenn die naive Umformung falsch wäre (00027.HK ist bei eToro
+    China Telecom, aber 0027.HK ist auf Yahoo Galaxy Entertainment!) — ein
+    struktureller Fallback würde dort die FALSCHE Firma liefern.
+    Für ungemappte Symbole sind die Varianten identitätserhaltend (gleiche
+    HK-Codenummer, gleicher US-Ticker ohne Suffix).
+    """
+    candidates: list[str] = []
+
+    def add(s: str) -> None:
+        if s and s not in candidates:
+            candidates.append(s)
+
+    cached = _RESOLVED_SYMBOL_CACHE.get(symbol)
+    if cached:
+        add(cached)
+
+    if symbol in YFINANCE_TICKER_MAP:
+        add(_resolve_yf_symbol(symbol))
+        add(symbol)
+        return candidates   # kuratierte Zuordnung — keine strukturellen Ratereien
+
+    add(symbol)
+    m = re.match(r'^(\d+)\.(HK|HKG)$', symbol, re.IGNORECASE)
+    if m:
+        digits = m.group(1)
+        add(f"{int(digits):04d}.HK")   # Yahoo standard: 4-stellig, Codenummer bleibt gleich
+        add(f"{digits}.HK")
+        add(f"{digits}.HKG")
+    if symbol.upper().endswith('.US'):
+        add(symbol[:-3])
+
+    return candidates
+
+
+def _persist_resolution(conn, instrument_id: Optional[int], original: str, resolved: str) -> None:
+    """Persist a successful fallback resolution.
+
+    Audit-Log (symbol_resolutions) immer; instruments.yfinance_symbol wird nur
+    für KURATIERTE Aliase (YFINANCE_TICKER_MAP) überschrieben. Strukturelle
+    Varianten bleiben Session-Wissen — eine geratene Schreibweise darf die
+    DB-Wahrheit nicht dauerhaft ersetzen (Fehlgriff wäre selbstverstärkend).
+    """
+    _RESOLVED_SYMBOL_CACHE[original] = resolved
+    if conn is None:
+        return
+    curated = YFINANCE_TICKER_MAP.get(original) == resolved
+    try:
+        c = conn.cursor()
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS symbol_resolutions (
+                original_symbol TEXT NOT NULL,
+                resolved_symbol TEXT NOT NULL,
+                instrument_id   INTEGER,
+                curated         INTEGER NOT NULL DEFAULT 0,
+                resolved_at     TEXT NOT NULL DEFAULT (datetime('now','utc')),
+                PRIMARY KEY (original_symbol, resolved_symbol)
+            )
+        """)
+        c.execute("""
+            INSERT OR REPLACE INTO symbol_resolutions
+                (original_symbol, resolved_symbol, instrument_id, curated)
+            VALUES (?, ?, ?, ?)
+        """, (original, resolved, instrument_id, int(curated)))
+        if curated and instrument_id is not None:
+            c.execute(
+                "UPDATE instruments SET yfinance_symbol = ?, last_updated = CURRENT_TIMESTAMP"
+                " WHERE instrument_id = ?",
+                (resolved, instrument_id),
+            )
+        conn.commit()
+    except Exception as e:
+        logger.warning(f"Could not persist symbol resolution {original} → {resolved}: {e}")
 
 
 def get_db():
@@ -114,45 +211,90 @@ def update_yahoo_status(conn, instrument_id: int, yf_symbol: str, success: bool)
     conn.commit()
 
 
-def fetch_ohlcv(yf_symbol: str, start_date: str, end_date: str) -> Optional[Any]:
-    """FETCH: Hole OHLCV-Daten via yfinance für den fehlenden Zeitraum.
+def _fetch_yf_once(ticker_symbol: str, start_date: str, end_date: str) -> tuple[Optional[Any], str]:
+    """Single yfinance attempt for one concrete ticker.
 
-    Returns tuple: (df_or_None, is_delisted_bool)
-    is_delisted=True wenn der Error klar auf delisted hindeutet.
-
-    fix/yfinance-ticker-resolution: resolves yf_symbol through YFINANCE_TICKER_MAP
-    before calling yfinance so eToro-style symbols (CVX.US, 00027.HK) are mapped
-    to their correct Yahoo Finance tickers.
+    Returns (df_or_None, outcome):
+      'ok'        — Daten erhalten
+      'no_data'   — leere Antwort (falscher Ticker ODER nur keine Handelstage)
+      'delisted'  — expliziter delisted/not-found Fehler von Yahoo
+      'transient' — Netzwerk/Rate-Limit, Retry auf demselben Ticker sinnvoll
     """
-    # Resolve ticker alias BEFORE yfinance call
-    resolved_symbol = _resolve_yf_symbol(yf_symbol)
-
     try:
-        import pandas as pd
         import yfinance as yf
 
-        ticker = yf.Ticker(resolved_symbol)
+        ticker = yf.Ticker(ticker_symbol)
         df = ticker.history(start=start_date, end=end_date, interval='1d')
-        
+
         if df.empty:
-            logger.warning(f"yfinance returned empty for {yf_symbol} ({start_date} to {end_date})")
-            return None, False
-        
+            logger.debug(f"yfinance returned empty for {ticker_symbol} ({start_date} to {end_date})")
+            return None, 'no_data'
+
         # Normalize column names
         df.columns = [col.lower() for col in df.columns]
         df.index.name = 'date'
         df = df.reset_index()
-        
+
         # Ensure date is string format
         df['date'] = df['date'].dt.strftime('%Y-%m-%d')
-        
-        return df, False
+
+        return df, 'ok'
     except Exception as e:
-        error_msg = str(e)
-        delisted = is_delisted_error(yf_symbol, error_msg)
-        level = logger.warning if delisted else logger.error
-        level(f"yfinance error for {yf_symbol}: {e}" + (" [DELISTED]" if delisted else ""))
-        return None, delisted
+        delisted = is_delisted_error(ticker_symbol, str(e))
+        level = logger.debug if delisted else logger.warning
+        level(f"yfinance error for {ticker_symbol}: {e}" + (" [DELISTED]" if delisted else ""))
+        return None, 'delisted' if delisted else 'transient'
+
+
+def fetch_ohlcv(yf_symbol: str, start_date: str, end_date: str) -> tuple[Optional[Any], bool, Optional[str]]:
+    """FETCH: Hole OHLCV-Daten via yfinance, mit Fallback-Symbol-Resolution.
+
+    Probiert alle Kandidaten aus generate_symbol_candidates() der Reihe nach.
+    Pro Kandidat bis zu MAX_FETCH_RETRIES Wiederholungen bei transienten
+    Fehlern (Netzwerk/Rate-Limit); leere/"delisted"-Antworten führen sofort
+    zum nächsten Kandidaten.
+
+    Returns tuple: (df_or_None, is_delisted, resolved_symbol_or_None)
+    is_delisted=True nur bei explizitem delisted-Fehler (leere Antworten
+    zählen NICHT — die laufen über die 3-Strikes-Regel in update_yahoo_status).
+    resolved_symbol ist der Ticker, der tatsächlich Daten geliefert hat.
+    """
+    candidates = generate_symbol_candidates(yf_symbol)
+    any_delisted = False
+
+    for cand in candidates:
+        outcome = None
+        for attempt in range(MAX_FETCH_RETRIES + 1):
+            df, outcome = _fetch_yf_once(cand, start_date, end_date)
+
+            if outcome == 'ok':
+                if cand != yf_symbol and _RESOLVED_SYMBOL_CACHE.get(yf_symbol) != cand:
+                    logger.info(f"✅ Symbol-Resolution: {yf_symbol} → {cand} (Kandidat lieferte Daten)")
+                _RESOLVED_SYMBOL_CACHE[yf_symbol] = cand
+                return df, False, cand
+
+            if outcome == 'delisted':
+                any_delisted = True
+                break  # expliziter Yahoo-Fehler → nächster Kandidat
+            if outcome == 'no_data':
+                break  # leere Antwort → Retry hilft nicht, nächster Kandidat
+
+            if attempt < MAX_FETCH_RETRIES:
+                wait = RETRY_BACKOFF_S * (attempt + 1)
+                logger.debug(f"{cand}: transient error, retry {attempt + 1}/{MAX_FETCH_RETRIES} in {wait:.0f}s")
+                time.sleep(wait)
+
+        if outcome == 'transient':
+            # Rate-Limit/Netzwerkproblem trifft ALLE Kandidaten gleichermaßen —
+            # weitere Kandidaten würden den Rate-Limiter nur zusätzlich hämmern.
+            logger.warning(f"{yf_symbol}: transient errors exhausted on '{cand}' — aborting remaining candidates")
+            break
+
+    logger.warning(
+        f"yfinance: no data for {yf_symbol} after trying {len(candidates)} candidate(s): "
+        f"{', '.join(candidates)}" + (" [DELISTED]" if any_delisted else "")
+    )
+    return None, any_delisted, None
 
 
 def store_ohlcv(conn, instrument_id: int, df) -> int:
@@ -249,18 +391,21 @@ def ensure_ohlcv(conn, instrument_id: int, yf_symbol: str, required_days: int = 
         if existing_count >= required_days:
             update_yahoo_status(conn, instrument_id, yf_symbol, success=True)
             return True, existing_count
-        
+
         # Nur fehlende Tage holen
         today = datetime.utcnow().strftime('%Y-%m-%d')
-        df, delisted = fetch_ohlcv(yf_symbol, needed_start, today)
+        df, delisted, resolved = fetch_ohlcv(yf_symbol, needed_start, today)
     else:
         # Kein Cache – alles holen
         end_date = datetime.utcnow().strftime('%Y-%m-%d')
         start_date = (datetime.utcnow() - timedelta(days=required_days + 10)).strftime('%Y-%m-%d')
-        df, delisted = fetch_ohlcv(yf_symbol, start_date, end_date)
-    
+        df, delisted, resolved = fetch_ohlcv(yf_symbol, start_date, end_date)
+
     # Update Yahoo Status
     if df is not None and not df.empty:
+        # Fallback-Resolution persistieren (Audit-Log + instruments.yfinance_symbol)
+        if resolved and resolved != yf_symbol:
+            _persist_resolution(conn, instrument_id, yf_symbol, resolved)
         # STORE
         stored = store_ohlcv(conn, instrument_id, df)
         update_yahoo_status(conn, instrument_id, yf_symbol, success=True)
@@ -339,9 +484,8 @@ def bulk_ensure_ohlcv(conn, instruments: list, required_days: int = 50, batch_si
                 results[iid] = {'has_data': False, 'days': 0, 'error': 'no_yf_symbol'}
                 continue
 
-            # fix/yfinance-ticker-resolution: resolve alias before passing to ensure_ohlcv
-            yf_sym = _resolve_yf_symbol(yf_sym)
-
+            # Alias/Fallback-Resolution passiert in fetch_ohlcv() — hier das
+            # DB-Original durchreichen, damit Resolutionen korrekt persistiert werden.
             has_data, days = ensure_ohlcv(conn, iid, yf_sym, required_days)
             results[iid] = {'has_data': has_data, 'days': days}
             

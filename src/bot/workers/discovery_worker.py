@@ -307,41 +307,41 @@ def _apply_sector_filter(
     return filtered
 
 
-def _post_discord(candidates: list[dict]) -> None:
+def _post_discord(
+    candidates: list[dict],
+    scanned: int = 0,
+    stored: int = 0,
+    unverified: int = 0,
+    elapsed_s: float = 0.0,
+) -> None:
     """
-    Post the top 5 candidates as a Discord embed.
+    Post the top 5 candidates as a data-rich Discord embed
+    (post_discovery_embed: Ranking, Score, Asset-Klasse, Preis, RSI,
+    Trend, Begründung, Portfolio-Fit).
     Gracefully degrades if discord_embeds is unavailable.
     """
-    top5 = candidates[:5]
-    if not top5:
+    if not candidates:
         return
 
-    # Build description text
-    lines: list[str] = []
-    for i, c in enumerate(top5, 1):
-        rsi_str = f"RSI={c['rsi']:.1f}" if c.get("rsi") is not None else "RSI=N/A"
-        bb_str = f"BB%B={c['bb_pct']:.2f}" if c.get("bb_pct") is not None else "BB%B=N/A"
-        lines.append(
-            f"**{i}. {c['symbol']}** — Score={c['score']:.0f} "
-            f"({c['conviction']}) | {rsi_str} | {bb_str}"
-        )
-    description = "\n".join(lines)
-
-    # Try Discord embed
-    if _DE:
+    if _DE and hasattr(_DE, "post_discovery_embed"):
         _discord(
-            "post_alert_embed",
-            title="🔍 Discovery: Top Kandidaten",
-            description=description,
-            severity="INFO",
-            channel="main",
+            "post_discovery_embed",
+            candidates=candidates,
+            scanned=scanned,
+            stored=stored,
+            unverified=unverified,
+            elapsed_s=elapsed_s,
         )
-        logger.info("[%s] Discord embed posted (%d candidates)", WORKER_NAME, len(top5))
+        logger.info("[%s] Discovery embed posted (%d candidates)", WORKER_NAME, min(len(candidates), 5))
         return
 
     # Fallback: print
+    lines = [
+        f"{i}. {c['symbol']} — Score={c['score']:.0f} ({c['conviction']})"
+        for i, c in enumerate(candidates[:5], 1)
+    ]
     print("─── Discovery Top 5 ─────────────────────────────────")
-    print(description)
+    print("\n".join(lines))
     print("─────────────────────────────────────────────────────")
 
 
@@ -554,6 +554,7 @@ def main() -> int:
                     WORKER_NAME, symbol,
                 )
                 continue
+            cand["instrument_id"] = int(instrument_id)   # für Embed-Anzeige
             resolved.append((cand, int(instrument_id)))
 
         # Pass 2: batch metadata for all resolved IDs (1 request / 50 IDs)
@@ -683,7 +684,13 @@ def main() -> int:
             logger.warning("[%s] Could not write to system_log: %s", WORKER_NAME, exc)
     
         # ── 11. Discord embed ─────────────────────────────────────────────────────
-        _post_discord(store_candidates)
+        _post_discord(
+            store_candidates,
+            scanned=n_scanned,
+            stored=j_stored,
+            unverified=len(unverified),
+            elapsed_s=elapsed,
+        )
     
         return 0
     
