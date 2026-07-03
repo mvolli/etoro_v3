@@ -376,6 +376,32 @@ def main() -> None:
     
             if gate.allowed:
                 evaluated_count += 1
+
+                # c2. Correlation Reduce-Tier (Bible V5): 0.60 <= r < 0.80 →
+                # Größe halbieren. Das Block-Gate (≥0.80) lief bereits in
+                # check_buy_gate; die Paare sind gecacht — dieser Aufruf
+                # kostet nur SQLite-Lookups. Fail-open bei Fehlern.
+                try:
+                    from bot.core.correlation import get_size_factor
+                    corr_factor, corr_reason = get_size_factor(symbol, open_positions)
+                except Exception as _corr_exc:
+                    corr_factor, corr_reason = 1.0, f'Korrelation-Sizing übersprungen: {_corr_exc}'
+                if corr_factor < 1.0:
+                    reduced = round(buy_amount * corr_factor, 2)
+                    logger.info(
+                        "SignalWorker: %s Größe reduziert $%.2f → $%.2f — %s",
+                        symbol, buy_amount, reduced, corr_reason,
+                    )
+                    buy_amount = reduced
+                    if buy_amount < min_buy:
+                        logger.info(
+                            "SignalWorker: %s reduzierte Größe $%.2f < Regime-Min $%.2f — skipped",
+                            symbol, buy_amount, min_buy,
+                        )
+                        signal_repo.update_signal_status(signal_id, "REJECTED")
+                        blocked_reasons.append(f'{symbol}: {corr_reason} → unter Min-Buy')
+                        continue
+
                 # d. Get signal price for execution (yfinance data)
                 signal_price = float(signal.get("price") or 0.0) if signal.get("price") else None
     

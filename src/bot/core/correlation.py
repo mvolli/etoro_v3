@@ -14,7 +14,8 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 CORRELATION_BLOCK_THRESHOLD  = 0.80  # Block BUY if r >= 0.80 with any existing position
-CORRELATION_REDUCE_THRESHOLD = 0.60  # (future: halve size if 0.60 <= r < 0.80)
+CORRELATION_REDUCE_THRESHOLD = 0.60  # Halve position size if 0.60 <= r < 0.80
+CORRELATION_REDUCE_FACTOR    = 0.5   # Size-Faktor im Reduce-Band
 BROAD_ETFS = {'SPY', 'QQQ', 'VOO', 'VTI', 'IWM', 'DIA', 'RSP'}  # Exempt (tolerance 0.95)
 
 CACHE_TTL = 4 * 3600  # 4 hours
@@ -146,6 +147,82 @@ def get_correlation(sym_a: str, sym_b: str, lookback_days: int = 30, db_path: st
         conn.close()
 
 
+def get_correlations_with(
+    symbol: str,
+    existing_symbols: list[str],
+    lookback_days: int = 30,
+    db_path: str | None = None,
+) -> dict[str, float | None]:
+    """Correlations of *symbol* against each existing symbol.
+
+    fix/correlation-batching: uncached Paare werden mit EINEM
+    yf.download([symbol] + missing) geholt statt einem Download pro Paar
+    (vorher bis zu N sequenzielle Downloads im Gate-Pfad pro Kandidat).
+    Cache-Treffer kosten weiterhin nur einen SQLite-Lookup.
+
+    Returns {existing_symbol: corr or None (Daten nicht verfügbar)}.
+    """
+    result: dict[str, float | None] = {}
+    if not existing_symbols:
+        return result
+
+    conn = _get_cache_conn(db_path)
+    try:
+        _ensure_cache_table(conn)
+
+        missing: list[str] = []
+        for ex in existing_symbols:
+            cached = _get_cached(conn, symbol, ex)
+            if cached is not None:
+                result[ex] = cached
+            else:
+                missing.append(ex)
+
+        if not missing:
+            return result
+
+        try:
+            import yfinance as yf
+            import pandas as pd
+
+            period = f"{lookback_days + 5}d"
+            data = yf.download(
+                [symbol] + missing, period=period, progress=False, auto_adjust=True
+            )
+            if data is None or data.empty:
+                for ex in missing:
+                    result[ex] = None
+                return result
+
+            closes = data['Close'] if isinstance(data.columns, pd.MultiIndex) else data[['Close']]
+
+            for ex in missing:
+                corr: float | None = None
+                if symbol in closes.columns and ex in closes.columns:
+                    returns = closes[[symbol, ex]].pct_change().dropna()
+                    if len(returns) >= 10:
+                        corr = float(returns[symbol].corr(returns[ex]))
+                        _set_cached(conn, symbol, ex, corr)
+                result[ex] = corr
+        except Exception as e:
+            logger.debug("Batch correlation fetch failed for %s: %s", symbol, e)
+            for ex in missing:
+                result.setdefault(ex, None)
+
+        return result
+    finally:
+        conn.close()
+
+
+def _existing_symbols(symbol: str, open_positions: list[dict]) -> list[str]:
+    """Deduplicated portfolio symbols relevant for correlation checks."""
+    symbols = [
+        p['symbol'] for p in open_positions
+        if p.get('symbol') and p['symbol'] != symbol and float(p.get('amount_usd', 0)) > 0
+    ]
+    return list(dict.fromkeys(symbols))
+
+
 def check_correlation_gate(
     symbol: str,
     open_positions: list[dict],
@@ -167,15 +244,10 @@ def check_correlation_gate(
     # Broad ETFs have higher tolerance
     block_threshold = 0.95 if symbol.upper() in BROAD_ETFS else CORRELATION_BLOCK_THRESHOLD
 
-    existing_symbols = [
-        p['symbol'] for p in open_positions
-        if p.get('symbol') and p['symbol'] != symbol and float(p.get('amount_usd', 0)) > 0
-    ]
-    # Deduplicate, preserve order
-    existing_symbols = list(dict.fromkeys(existing_symbols))
+    existing_symbols = _existing_symbols(symbol, open_positions)
+    corrs = get_correlations_with(symbol, existing_symbols, db_path=db_path)
 
-    for existing in existing_symbols:
-        corr = get_correlation(symbol, existing, db_path=db_path)
+    for existing, corr in corrs.items():
         if corr is None:
             continue  # Fail-open: can't get data, don't block
         if corr >= block_threshold:
@@ -184,7 +256,54 @@ def check_correlation_gate(
                 f'>= {block_threshold:.2f} — BUY blockiert'
             )
 
+    # fix/correlation-fail-open-alert: komplett blinder Check ist ein
+    # Datenqualitäts-Signal, kein Normalfall — sichtbar machen statt
+    # stillschweigend durchwinken.
+    if existing_symbols and all(c is None for c in corrs.values()):
+        logger.warning(
+            "Correlation gate FAIL-OPEN: keine Daten für %s gegen %d Positionen "
+            "(yfinance down?) — BUY wird ungeprüft erlaubt",
+            symbol, len(existing_symbols),
+        )
+        return True, (
+            f'Korrelation FAIL-OPEN: keine Daten für {len(existing_symbols)} '
+            f'Positionen — ungeprüft erlaubt'
+        )
+
     return True, f'Korrelation OK (max checked: {len(existing_symbols)} Positionen)'
+
+
+def get_size_factor(
+    symbol: str,
+    open_positions: list[dict],
+    db_path: str | None = None,
+) -> tuple[float, str]:
+    """Trading Bible V5 Reduce-Tier: 0.60 <= r < block → Positionsgröße halbieren.
+
+    Läuft NACH dem Block-Gate (das ≥0.80 bereits blockt); die Paare sind
+    dann frisch gecacht, dieser Aufruf kostet nur SQLite-Lookups.
+
+    Returns (size_factor, reason) — 1.0 = volle Größe.
+    """
+    if not open_positions or not symbol:
+        return 1.0, 'Korrelation: keine offenen Positionen'
+
+    block_threshold = 0.95 if symbol.upper() in BROAD_ETFS else CORRELATION_BLOCK_THRESHOLD
+    existing_symbols = _existing_symbols(symbol, open_positions)
+    corrs = get_correlations_with(symbol, existing_symbols, db_path=db_path)
+
+    valid = {ex: c for ex, c in corrs.items() if c is not None}
+    if not valid:
+        return 1.0, 'Korrelation: keine Daten (volle Größe)'
+
+    max_sym, max_corr = max(valid.items(), key=lambda kv: kv[1])
+    if CORRELATION_REDUCE_THRESHOLD <= max_corr < block_threshold:
+        return CORRELATION_REDUCE_FACTOR, (
+            f'Korrelation {symbol}/{max_sym}: r={max_corr:.2f} im Reduce-Band '
+            f'[{CORRELATION_REDUCE_THRESHOLD:.2f}, {block_threshold:.2f}) '
+            f'— Größe × {CORRELATION_REDUCE_FACTOR}'
+        )
+    return 1.0, f'Korrelation: max r={max_corr:.2f} ({max_sym}) — volle Größe'
 
 
 def cleanup_stale_cache(db_path: str | None = None) -> int:
