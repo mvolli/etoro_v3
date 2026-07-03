@@ -28,6 +28,23 @@ def test_hysteresis_defensive_stays():
     regime, _ = detect_regime(9250, 10000, previous_regime="DEFENSIVE")
     assert regime == "DEFENSIVE"
 
+def test_hysteresis_critical_stays():
+    # fix/critical-hysteresis: 14% DD from CRITICAL — above 13% exit
+    # threshold → stays CRITICAL (kein Flattern CRITICAL↔DEFENSIVE)
+    regime, reason = detect_regime(8600, 10000, previous_regime="CRITICAL")
+    assert regime == "CRITICAL"
+    assert "Hysteresis" in reason
+
+def test_hysteresis_critical_exits_to_defensive():
+    # 12.5% DD from CRITICAL — below 13% exit → drops to DEFENSIVE
+    regime, _ = detect_regime(8750, 10000, previous_regime="CRITICAL")
+    assert regime == "DEFENSIVE"
+
+def test_critical_exit_boundary():
+    # Exakt 13.0% → nicht mehr > CRITICAL_EXIT → DEFENSIVE
+    regime, _ = detect_regime(8700, 10000, previous_regime="CRITICAL")
+    assert regime == "DEFENSIVE"
+
 def test_zero_peak(): assert detect_regime(9000, 0)[0] == "NORMAL"
 
 # ─── Regime Parameters ────────────────────────────────────────────────────────

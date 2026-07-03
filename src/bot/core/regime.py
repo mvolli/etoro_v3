@@ -153,6 +153,17 @@ def detect_regime(
             f"(Quarter-Kelly, only VERY_HIGH signals)"
         )
 
+    # ── Hysteresis for CRITICAL: stay until dd drops below CRITICAL_EXIT ──
+    # fix/critical-hysteresis: CRITICAL_EXIT (13%) war toter Code — bei DD
+    # um 15% flatterte das System im 5-min-Takt zwischen CRITICAL (0.25)
+    # und DEFENSIVE (0.50), genau das Whipsawing, das die Hysterese für
+    # CAUTION/DEFENSIVE bereits verhindert.
+    if previous_regime == "CRITICAL" and dd > CRITICAL_EXIT:
+        return "CRITICAL", (
+            f"Hysteresis: DD {dd:.1f}% > {CRITICAL_EXIT:.0f}% exit threshold "
+            f"— staying in CRITICAL"
+        )
+
     if dd >= DEFENSIVE_THRESHOLD:
         return "DEFENSIVE", (
             f"DD {dd:.1f}% ≥ {DEFENSIVE_THRESHOLD:.0f}% → DEFENSIVE "
