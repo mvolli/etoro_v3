@@ -53,6 +53,47 @@ def _resolve_yf_symbol(symbol: str) -> str:
     return YFINANCE_TICKER_MAP.get(symbol, symbol)
 
 
+# fix/eu-yfinance-fallback: EU exchange suffixes, checked structurally in
+# _add_structural_variants(). Verified live 2026-07-03 on a 20-instrument
+# sample of DB rows marked yahoo_status='delisted': 12/20 resolved directly
+# under the plain eToro symbol (the stored yfinance_symbol was simply wrong —
+# e.g. BMWA.DE / MRA.DE / FS&.DE instead of the correct BMW.DE / MUV2.DE /
+# FRE.DE), 3 more needed the .ZU→.SW swap (Zurich tickers are .SW on Yahoo),
+# 2 more needed a hyphen before the Nordic share-class letter (ELUXB.ST →
+# ELUX-B.ST). The remaining 3/20 were genuine delistings/malformed symbols —
+# no structural rule can or should rescue those.
+EU_SUFFIXES = ('.DE', '.PA', '.L', '.ST', '.MI', '.CO', '.SW', '.LS', '.ZU', '.AS', '.BR', '.OL', '.MC')
+NORDIC_SHARE_CLASS_SUFFIXES = ('.ST', '.CO', '.OL')
+
+
+def _add_structural_variants(symbol: str, add) -> None:
+    """Add identity-preserving spelling variants of *symbol* via *add(s)*.
+
+    HK zero-padding / .HKG swap, .US-suffix strip, EU suffix fixes.
+    """
+    m = re.match(r'^(\d+)\.(HK|HKG)$', symbol, re.IGNORECASE)
+    if m:
+        digits = m.group(1)
+        add(f"{int(digits):04d}.HK")   # Yahoo standard: 4-stellig, Codenummer bleibt gleich
+        add(f"{digits}.HK")
+        add(f"{digits}.HKG")
+    if symbol.upper().endswith('.US'):
+        add(symbol[:-3])
+    for suf in EU_SUFFIXES:
+        if symbol.upper().endswith(suf):
+            base = symbol[: -len(suf)]
+            if suf == '.ZU':
+                add(f"{base}.SW")
+            if (
+                suf in NORDIC_SHARE_CLASS_SUFFIXES
+                and len(base) >= 3
+                and base[-1] in ('A', 'B')
+                and '-' not in base
+            ):
+                add(f"{base[:-1]}-{base[-1]}{suf}")
+            break
+
+
 # ── Fallback symbol resolution ────────────────────────────────────────────────
 # fix/yfinance-fallback-resolution: when the primary yfinance_symbol fails
 # ("possibly delisted"), alternative ticker spellings are tried before the
@@ -66,11 +107,17 @@ RETRY_BACKOFF_S = 2.0        # backoff base: 2s, 4s, ...
 _RESOLVED_SYMBOL_CACHE: dict[str, str] = {}
 
 
-def generate_symbol_candidates(symbol: str) -> list[str]:
+def generate_symbol_candidates(symbol: str, original_symbol: str | None = None) -> list[str]:
     """Return ordered, deduplicated ticker candidates for a symbol.
 
     Order: session-cached resolution, static alias map, the raw symbol,
-    then structural variants (HK zero-padding, .HKG/.HK swap, .US strip).
+    then structural variants (HK zero-padding, .HKG/.HK swap, .US strip, EU
+    suffix fixes) — and, if the caller passes the known-correct eToro
+    original_symbol and it differs from *symbol*, that symbol and ITS
+    structural variants too (fix/eu-yfinance-fallback: for many EU
+    instruments the stored yfinance_symbol was simply wrong in a way no
+    structural rule on it alone can derive — the original eToro symbol is
+    the highest-confidence candidate in that case).
 
     WICHTIG: Für Symbole mit kuratiertem Alias in YFINANCE_TICKER_MAP gibt es
     KEINE strukturellen Rate-Kandidaten. Ein kuratierter Eintrag existiert
@@ -78,7 +125,7 @@ def generate_symbol_candidates(symbol: str) -> list[str]:
     China Telecom, aber 0027.HK ist auf Yahoo Galaxy Entertainment!) — ein
     struktureller Fallback würde dort die FALSCHE Firma liefern.
     Für ungemappte Symbole sind die Varianten identitätserhaltend (gleiche
-    HK-Codenummer, gleicher US-Ticker ohne Suffix).
+    HK-Codenummer, gleicher US-Ticker ohne Suffix, gleiche EU-Aktie).
     """
     candidates: list[str] = []
 
@@ -96,14 +143,11 @@ def generate_symbol_candidates(symbol: str) -> list[str]:
         return candidates   # kuratierte Zuordnung — keine strukturellen Ratereien
 
     add(symbol)
-    m = re.match(r'^(\d+)\.(HK|HKG)$', symbol, re.IGNORECASE)
-    if m:
-        digits = m.group(1)
-        add(f"{int(digits):04d}.HK")   # Yahoo standard: 4-stellig, Codenummer bleibt gleich
-        add(f"{digits}.HK")
-        add(f"{digits}.HKG")
-    if symbol.upper().endswith('.US'):
-        add(symbol[:-3])
+    _add_structural_variants(symbol, add)
+
+    if original_symbol and original_symbol != symbol:
+        add(original_symbol)
+        _add_structural_variants(original_symbol, add)
 
     return candidates
 

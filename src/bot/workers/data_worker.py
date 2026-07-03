@@ -272,7 +272,7 @@ def _apply_alias(symbol: str) -> str:
 _MAX_FALLBACK_CANDIDATES = 3   # extra yfinance calls per failed symbol, per run
 
 
-def _fallback_single_fetch(sym: str) -> Optional[Any]:
+def _fallback_single_fetch(sym: str, original_sym: str | None = None) -> Optional[Any]:
     """Rescue a symbol that failed in the batch by trying alternative tickers.
 
     fix/yfinance-fallback-resolution: symbols like 00027.HK or CVX.US fail with
@@ -281,11 +281,18 @@ def _fallback_single_fetch(sym: str) -> Optional[Any]:
     ohlcv_cache.generate_symbol_candidates() (capped at _MAX_FALLBACK_CANDIDATES
     extra calls to keep rate-limit pressure bounded). Successful resolutions
     are logged and cached in SYMBOL_ALIAS_MAP for the rest of the session.
+
+    fix/eu-yfinance-fallback: *original_sym* (the eToro symbol *sym* was
+    derived from) is passed through so EU instruments whose stored
+    yfinance_symbol is simply wrong (not a structural variant of anything)
+    get the original symbol tried too, not just mutations of the broken one.
     """
     import yfinance as yf
     from bot.core.ohlcv_cache import generate_symbol_candidates
 
-    alternatives = [c for c in generate_symbol_candidates(sym) if c != sym]
+    alternatives = [
+        c for c in generate_symbol_candidates(sym, original_symbol=original_sym) if c != sym
+    ]
     for cand in alternatives[:_MAX_FALLBACK_CANDIDATES]:
         try:
             df = yf.Ticker(cand).history(period="3mo", auto_adjust=True)
@@ -303,9 +310,11 @@ def _fallback_single_fetch(sym: str) -> Optional[Any]:
     return None
 
 
-def _rescue_or_mark_failed(sym: str, result: dict, reason: str) -> None:
+def _rescue_or_mark_failed(
+    sym: str, result: dict, reason: str, original_sym: str | None = None
+) -> None:
     """Try alternative tickers for a batch-failed symbol; else cache as failed."""
-    fallback_df = _fallback_single_fetch(sym)
+    fallback_df = _fallback_single_fetch(sym, original_sym=original_sym)
     if fallback_df is not None:
         result[sym] = fallback_df
         return
@@ -313,7 +322,11 @@ def _rescue_or_mark_failed(sym: str, result: dict, reason: str) -> None:
     logger.debug("[%s] %s: %s → cached as failed", WORKER_NAME, sym, reason)
 
 
-def _batch_fetch(symbols: list[str], batch_size: int = BATCH_SIZE) -> dict[str, Any]:
+def _batch_fetch(
+    symbols: list[str],
+    batch_size: int = BATCH_SIZE,
+    sym_to_original: dict[str, str] | None = None,
+) -> dict[str, Any]:
     """
     Download 3 months of OHLCV data for all symbols via yf.download().
 
@@ -322,6 +335,11 @@ def _batch_fetch(symbols: list[str], batch_size: int = BATCH_SIZE) -> dict[str, 
     - Exponential backoff retry on failed batches (up to MAX_BATCH_RETRIES)
     - Failed-symbol cache to skip known-bad tickers on subsequent runs
     - Rate limiting between batches (BATCH_PAUSE_S)
+
+    Args:
+        sym_to_original: {yf_symbol: original eToro symbol}, passed through to
+            the fallback resolver so a wrong yfinance_symbol can fall back to
+            the (usually correct) eToro symbol — see _fallback_single_fetch.
 
     Returns:
         {symbol: DataFrame(Open, High, Low, Close, Volume)} for symbols
@@ -403,7 +421,10 @@ def _batch_fetch(symbols: list[str], batch_size: int = BATCH_SIZE) -> dict[str, 
                 if len(df) >= 30:
                     result[sym] = df
                 else:
-                    _rescue_or_mark_failed(sym, result, f"only {len(df)} rows")
+                    _rescue_or_mark_failed(
+                        sym, result, f"only {len(df)} rows",
+                        original_sym=(sym_to_original or {}).get(sym),
+                    )
             except Exception as exc:
                 logger.warning("[%s] %s: single-symbol extraction failed — %s", WORKER_NAME, sym, exc)
         else:
@@ -418,10 +439,16 @@ def _batch_fetch(symbols: list[str], batch_size: int = BATCH_SIZE) -> dict[str, 
                         result[sym] = df
                     else:
                         # Symbol in response but no valid data (all NaN / delisted)
-                        _rescue_or_mark_failed(sym, result, f"{len(df)} rows after dropna (delisted/no-data)")
+                        _rescue_or_mark_failed(
+                            sym, result, f"{len(df)} rows after dropna (delisted/no-data)",
+                            original_sym=(sym_to_original or {}).get(sym),
+                        )
                 except KeyError:
                     # Symbol not in response — likely invalid ticker (eToro CFD)
-                    _rescue_or_mark_failed(sym, result, "not found in batch response")
+                    _rescue_or_mark_failed(
+                        sym, result, "not found in batch response",
+                        original_sym=(sym_to_original or {}).get(sym),
+                    )
                 except Exception as exc:
                     logger.warning("[%s] %s: extraction failed — %s", WORKER_NAME, sym, exc)
 
@@ -667,7 +694,7 @@ def run(project_root: Path | None = None) -> dict:
         return {"symbols_fetched": 0, "signals_generated": 0, "elapsed_s": 0.0}
 
     # 3. Batch fetch OHLCV data -----------------------------------------------
-    price_data = _batch_fetch(all_yf_symbols)
+    price_data = _batch_fetch(all_yf_symbols, sym_to_original=alias_to_original)
     n_fetched = len(price_data)
 
     # 4–6. Compute indicators + generate signals per symbol -------------------
