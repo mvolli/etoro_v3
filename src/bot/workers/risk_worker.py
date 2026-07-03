@@ -544,7 +544,32 @@ def main() -> None:
         except Exception as _ts_exc:
             logger.error('RiskWorker: Trailing stop failed: %s', _ts_exc)
             log_repo.write('ERROR', 'risk_worker', f'Trailing stop crashed: {_ts_exc}')
-    
+
+        # ── SELL-Signal-Exits (Bible V4 SELL Rule 1) ──────────────────────────────
+        # fix/sell-signal-exits: FRESH SELL/OVERBOUGHT-Signale auf gehaltene
+        # Instrumente → Partial-Close (Gewinnmitnahme bei Überhitzung).
+        # Vorher wurden SELL-Signale generiert und gespeichert, aber von
+        # keinem Worker konsumiert.
+        try:
+            from bot.core.sell_exits import process_sell_exits
+            from bot.db.repo import SignalRepo as _SignalRepo
+            sell_stats = process_sell_exits(client, _SignalRepo(db), raw_positions)
+            if sell_stats['closed'] > 0:
+                closed_count += sell_stats['closed']
+                logger.info('RiskWorker: SELL-Exits: %d Partial-Close(s) ausgeführt',
+                            sell_stats['closed'])
+                log_repo.write('INFO', 'risk_worker',
+                               f"SELL-Exits: {sell_stats['closed']} Partial-Close(s)")
+            if sell_stats.get('errors'):
+                for err in sell_stats['errors']:
+                    logger.warning('RiskWorker: SELL-Exit error: %s', err)
+                log_repo.write('WARN', 'risk_worker',
+                               f"SELL-Exits: {len(sell_stats['errors'])} Fehler",
+                               {'errors': sell_stats['errors']})
+        except Exception as _se_exc:
+            logger.error('RiskWorker: SELL-Exits failed: %s', _se_exc)
+            log_repo.write('ERROR', 'risk_worker', f'SELL-Exits crashed: {_se_exc}')
+
         # ── 5. Summary ────────────────────────────────────────────────────────────
         print(f"RiskWorker: checked {checked_count} positions, closed {closed_count}, regime={regime}")
         log_repo.write(
