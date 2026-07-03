@@ -75,6 +75,43 @@ def _utcnow() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
 
+def _position_ids_for_instrument(positions: list, instrument_id) -> set[str]:
+    """Return the positionIDs of all positions for *instrument_id*."""
+    ids: set[str] = set()
+    for pos in positions:
+        pos_iid = pos.get("instrumentID") or pos.get("instrumentId")
+        if pos_iid == instrument_id:
+            pid = str(pos.get("positionID") or pos.get("positionId") or "")
+            if pid:
+                ids.add(pid)
+    return ids
+
+
+def _find_new_position(positions: list, instrument_id, pre_existing_ids: set[str]):
+    """Find a position for *instrument_id* whose positionID was NOT present
+    before the order was submitted.
+
+    fix/ghost-order-id-diff: the old check matched ANY position with the
+    right instrument_id. With pyramiding (multiple fragments per instrument
+    allowed in NORMAL/CAUTION), the OLD fragment matched immediately — a
+    ghost order was booked as FILLED with the old position's entry price.
+    Comparing against the pre-submit snapshot only accepts a genuinely NEW
+    position. Positions without a positionID are only accepted when the
+    instrument had no positions before (conservative fallback).
+    """
+    for pos in positions:
+        pos_iid = pos.get("instrumentID") or pos.get("instrumentId")
+        if pos_iid != instrument_id:
+            continue
+        pid = str(pos.get("positionID") or pos.get("positionId") or "")
+        if pid:
+            if pid not in pre_existing_ids:
+                return pos
+        elif not pre_existing_ids:
+            return pos
+    return None
+
+
 def main() -> None:
     # ── Worker lock: prevent overlapping cron invocations ────────────────────
     from bot.core.worker_lock import worker_lock
@@ -304,6 +341,29 @@ def main() -> None:
                 failed_count += 1
                 continue
 
+            # d0. Snapshot existing positionIDs for this instrument BEFORE
+            #     submitting (fix/ghost-order-id-diff). Verification below
+            #     only accepts a position whose ID is NOT in this set —
+            #     an existing pyramiding fragment must never confirm a
+            #     ghost order as FILLED.
+            pre_existing_pos_ids: set[str] = set()
+            try:
+                _pre_positions = (
+                    client.get_portfolio()
+                    .get("clientPortfolio", {})
+                    .get("positions", [])
+                )
+                pre_existing_pos_ids = _position_ids_for_instrument(
+                    _pre_positions, instrument_id
+                )
+            except Exception as _pre_exc:
+                # Fail-open: empty set = legacy behaviour (any position matches).
+                logger.warning(
+                    "ExecutionWorker: pre-submit portfolio snapshot failed (%s) — "
+                    "falling back to any-position match for trade #%d",
+                    _pre_exc, trade_id,
+                )
+
             # d. Call eToro API to open the position
             try:
                 result = client.open_position(
@@ -395,14 +455,14 @@ def main() -> None:
     
                     portfolio = client.get_portfolio()
                     positions = portfolio.get("clientPortfolio", {}).get("positions", [])
-    
-                    # Check if a new position appeared for this instrument
-                    for pos in positions:
-                        pos_iid = pos.get("instrumentID") or pos.get("instrumentId")
-                        if pos_iid == instrument_id:
-                            matching_pos = pos
-                            break
-    
+
+                    # Check if a NEW position appeared for this instrument
+                    # (positionID not in the pre-submit snapshot — an existing
+                    # pyramiding fragment must not count as fill confirmation)
+                    matching_pos = _find_new_position(
+                        positions, instrument_id, pre_existing_pos_ids
+                    )
+
                     if matching_pos:
                         logger.info(
                             "ExecutionWorker: trade #%d position verified after %.1fs (%d attempts)",
