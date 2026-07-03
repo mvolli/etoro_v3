@@ -110,7 +110,15 @@ def main() -> None:
 
         closed_count = 0
         checked_count = 0
+        sl_warning_count = 0
+        trailing_be_count = 0
+        trailing_partial_count = 0
+        trailing_error_list: list[str] = []
+        sell_exit_closed = 0
+        conc_closed = 0
+        conc_warned = 0
         regime = "NORMAL"
+        positions_summary: list[dict] = []
     
         # ── 2. Fetch live positions from eToro ────────────────────────────────────
         try:
@@ -327,6 +335,7 @@ def main() -> None:
                     )
     
             elif sl_action.action == "WARNING":
+                sl_warning_count += 1
                 logger.info(
                     "RiskWorker: SL WARNING for %s (pos=%s) — %s",
                     symbol, position_id, sl_action.reason,
@@ -337,7 +346,15 @@ def main() -> None:
                     f"SL WARNING: {symbol} position {position_id}",
                     {"reason": sl_action.reason, "pnl_pct": pnl_pct},
                 )
-    
+
+            # ── Collect position summary for embed ────────────────────────────
+            positions_summary.append({
+                "symbol": symbol,
+                "pnl_pct": pnl_pct,
+                "amount_usd": float(pos.get("amount", 0)),
+                "trailing_status": sl_action.reason if sl_action.action in ("WARNING", "CLOSE") else "",
+            })
+
         # ── 4. Kill Switch check (V5) — BEFORE regime detection ──────────────────
         from bot.core.kill_switch import is_kill_switch_active, KILL_SWITCH_FILE
         if is_kill_switch_active():
@@ -488,6 +505,8 @@ def main() -> None:
             violations = check_concentration_violations(raw_positions, equity, instrument_map)
             if violations:
                 conc_stats = close_concentration_excess(client, violations)
+                conc_closed += conc_stats["closed"]
+                conc_warned += conc_stats["warned"]
                 if conc_stats["closed"] > 0:
                     closed_count += conc_stats["closed"]
                     logger.warning(
@@ -519,12 +538,15 @@ def main() -> None:
             trailing_actions = evaluate_trailing(raw_positions, regime=regime, db=db)
             if trailing_actions:
                 ts_stats = execute_trailing_actions(client, trailing_actions, regime=regime, db=db)
+                trailing_be_count += ts_stats.get('break_evens', 0)
+                trailing_partial_count += ts_stats['partial_closes']
                 if ts_stats['partial_closes'] > 0 or ts_stats.get('be_closes', 0) > 0:
                     logger.info('RiskWorker: Trailing Stop: %d partial closes, %d BE-closes, %d break-evens',
                                ts_stats['partial_closes'], ts_stats.get('be_closes', 0), ts_stats['break_evens'])
                     closed_count += ts_stats.get('be_closes', 0)
                 if ts_stats.get('errors'):
                     for err in ts_stats['errors']:
+                        trailing_error_list.append(str(err))
                         logger.warning('RiskWorker: Trailing Stop error: %s', err)
                     log_repo.write(
                         'WARN',
@@ -556,6 +578,7 @@ def main() -> None:
             from bot.db.repo import SignalRepo as _SignalRepo
             sell_stats = process_sell_exits(client, _SignalRepo(db), raw_positions)
             if sell_stats['closed'] > 0:
+                sell_exit_closed += sell_stats['closed']
                 closed_count += sell_stats['closed']
                 logger.info('RiskWorker: SELL-Exits: %d Partial-Close(s) ausgeführt',
                             sell_stats['closed'])
@@ -571,13 +594,35 @@ def main() -> None:
             logger.error('RiskWorker: SELL-Exits failed: %s', _se_exc)
             log_repo.write('ERROR', 'risk_worker', f'SELL-Exits crashed: {_se_exc}')
 
-        # ── 5. Summary ────────────────────────────────────────────────────────────
+        # ── 5. Summary + Discord Embed ────────────────────────────────────────────
         print(f"RiskWorker: checked {checked_count} positions, closed {closed_count}, regime={regime}")
         log_repo.write(
             "INFO",
             "risk_worker",
             f"Run complete: checked={checked_count} closed={closed_count} regime={regime}",
         )
+
+        # ── Post Risk Worker Embed → #etoro-trading ──────────────────────────────
+        _ks_active = is_kill_switch_active()
+        try:
+            _discord(
+                "post_risk_worker_embed",
+                checked=checked_count,
+                closed=closed_count,
+                regime=regime,
+                equity=equity,
+                trailing_break_evens=trailing_be_count,
+                trailing_partials=trailing_partial_count,
+                trailing_errors=trailing_error_list,
+                sl_warnings=sl_warning_count,
+                sell_exits_closed=sell_exit_closed,
+                concentration_closed=conc_closed,
+                concentration_warned=conc_warned,
+                kill_switch_active=_ks_active,
+                positions_summary=positions_summary,
+            )
+        except Exception as _emb_exc:
+            logger.debug("RiskWorker: Discord embed failed: %s", _emb_exc)
     
         client.close()
 

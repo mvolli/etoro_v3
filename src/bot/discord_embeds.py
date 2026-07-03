@@ -1664,6 +1664,118 @@ def _portfolio_fit(symbol: str) -> str:
         return "—"
 
 
+def post_risk_worker_embed(
+    checked: int,
+    closed: int,
+    regime: str,
+    equity: float,
+    trailing_break_evens: int = 0,
+    trailing_partials: int = 0,
+    trailing_errors: list = None,
+    sl_warnings: int = 0,
+    sell_exits_closed: int = 0,
+    concentration_closed: int = 0,
+    concentration_warned: int = 0,
+    kill_switch_active: bool = False,
+    positions_summary: list = None,
+    dry_run: bool = False,
+) -> bool:
+    """Risk Worker Summary — data-rich Embed mit allen Risikometriken → #etoro-trading.
+
+    Wird am Ende jedes Risk-Worker-Runs aufgerufen (alle 5min).
+    Nur posten bei Events (closed > 0, trailing actions, regime change, kill switch)
+    ODER als periodischer Status alle ~6 Ticks (~30min).
+    """
+    if positions_summary is None:
+        positions_summary = []
+    if trailing_errors is None:
+        trailing_errors = []
+
+    # ── Color based on regime / events ──────────────────────────────────────
+    if kill_switch_active:
+        color = COLOR_RED
+    elif closed > 0:
+        color = COLOR_ORANGE
+    elif regime in ("CRITICAL", "CIRCUIT_BREAKER"):
+        color = COLOR_RED
+    elif regime == "CAUTION":
+        color = COLOR_YELLOW
+    else:
+        color = COLOR_TEAL
+
+    # ── Description: Equity + Regime ────────────────────────────────────────
+    ks_badge = "🛑 KILL SWITCH AKTIV" if kill_switch_active else ""
+    desc = f"Equity: **${equity:,.2f}** · Regime: **{regime}** {ks_badge}"
+
+    # ── Fields ──────────────────────────────────────────────────────────────
+    fields = []
+
+    # 1) Risk Summary
+    risk_lines = [
+        f"Positionen geprüft: **{checked}**",
+        f"SL geschlossen:     **{closed}**",
+        f"SL Warnungen:       **{sl_warnings}**",
+    ]
+    if sell_exits_closed > 0:
+        risk_lines.append(f"SELL-Exits:         **{sell_exits_closed}**")
+    if concentration_closed > 0:
+        risk_lines.append(f"Konzentration Fix:  **{concentration_closed}**")
+    if concentration_warned > 0:
+        risk_lines.append(f"Konzentr. Warnung:  **{concentration_warned}**")
+    fields.append({
+        "name": "🛡️ Risiko-Status",
+        "value": "\n".join(risk_lines),
+        "inline": True,
+    })
+
+    # 2) Trailing Stop / Profit-Taking
+    trailing_lines = [
+        f"Break-Evens armed: **{trailing_break_evens}**",
+        f"Partial Closes:    **{trailing_partials}**",
+    ]
+    if trailing_errors:
+        trailing_lines.append(f"⚠️ Fehler:         **{len(trailing_errors)}**")
+        for err in trailing_errors[:3]:
+            trailing_lines.append(f"  • {str(err)[:100]}")
+    fields.append({
+        "name": "📈 Trailing Stop",
+        "value": "\n".join(trailing_lines),
+        "inline": True,
+    })
+
+    # 3) Positionen Overview (Top PnL)
+    if positions_summary:
+        pos_lines = []
+        for p in positions_summary[:8]:
+            sym = p.get("symbol", "?")
+            pnl = p.get("pnl_pct", 0.0)
+            amt = p.get("amount_usd", 0.0)
+            emoji = _pnl_emoji(pnl)
+            trailing = p.get("trailing_status", "")
+            line = f"{emoji} **{sym}** {pnl:+.1f}% (${amt:,.0f})"
+            if trailing:
+                line += f" — {trailing}"
+            pos_lines.append(line)
+        fields.append({
+            "name": "💼 Positionen",
+            "value": "\n".join(pos_lines),
+            "inline": False,
+        })
+
+    embed = {
+        "title":       f"🛡️ Risk Worker — {regime}" + (f" ({closed} geschlossen)" if closed > 0 else ""),
+        "description": desc,
+        "color":       color,
+        "fields":      fields,
+        "footer":      {"text": "eToro RoBoCop · Risk Worker · alle 5min"},
+        "timestamp":   _ts(),
+    }
+    ok = _post_embed(embed, DISCORD_MAIN_CHANNEL, dry_run)
+    if ok:
+        insert_system_log("INFO", "discord_embeds", f"P7 Risk Worker gepostet regime={regime} closed={closed}")
+    return ok
+
+
 def post_discovery_embed(
     candidates: list,
     scanned: int = 0,
