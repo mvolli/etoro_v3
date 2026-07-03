@@ -163,6 +163,30 @@ def main() -> int:
             tick=tick,
         )
         print(f"[monitor] Tick #{tick} | Discord embed: {'OK ✓' if ok else 'SKIP (no embeds module)' if embeds is None else 'FAILED'}")
+
+        # ── Cash-Emergency-Floor (fix/cash-emergency-floor) ───────────────────────
+        # Unter dem Hard-Floor sollte der Cash nie liegen — der 15%-Soft-Floor
+        # blockt Buys deutlich früher. Ist er es doch, stimmen Positionsgrößen
+        # oder Reconcile nicht → alarmieren.
+        try:
+            _emergency_pct = float(getattr(cfg.trading, "cash_emergency_pct", 10.0))
+            if equity > 0 and cash_pct < _emergency_pct:
+                msg = (
+                    f"Cash {cash_pct:.1f}% liegt unter dem {_emergency_pct:.0f}%-Hard-Floor "
+                    f"(${cash:.2f} / ${equity:.2f}). Der 15%-Soft-Floor hätte Buys längst "
+                    f"blockieren müssen — Positionsgrößen/Reconcile prüfen!"
+                )
+                print(f"[monitor] CASH EMERGENCY: {msg}")
+                log_repo.write("ERROR", "monitor_worker", f"Cash-Emergency: {cash_pct:.1f}%",
+                               {"cash": cash, "equity": equity})
+                _post_alert_embed(
+                    embeds,
+                    title="🚨 Cash-Emergency-Floor verletzt",
+                    description=msg,
+                    severity="CRITICAL",
+                )
+        except Exception as _cash_exc:
+            print(f"[monitor] Cash-emergency check failed: {_cash_exc}")
     
         # ── Dead-man's switch: alert on stale workers (fix/autonomy-hardening) ───
         try:

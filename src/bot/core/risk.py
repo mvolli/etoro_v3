@@ -146,6 +146,11 @@ MAX_POSITIONS = 21
 MIN_BUY_USD = 50.0
 CASH_TARGET_MIN_PCT = 15.0
 CASH_TARGET_MAX_PCT = 30.0
+# fix/cash-emergency-floor: Bible-Hard-Floor unterhalb des Soft-Floors.
+# Buys blockt bereits der 15%-Soft-Floor; unter 10% ist der Cash-Stand
+# ein Incident (Positionen ueber Plan / Reconcile-Drift) → Gate meldet
+# EMERGENCY, monitor_worker alarmiert.
+CASH_EMERGENCY_PCT = 10.0
 MAX_TOTAL_EXPOSURE_PCT = 75.0
 MAX_CORRELATION = 0.85
 
@@ -178,6 +183,7 @@ CRYPTO_DEFAULT_SL_PCT = 3.0
 def apply_config(cfg: dict) -> None:
     """Override risk constants from config.yaml. Idempotent, fail-safe."""
     global MAX_POSITIONS, MIN_BUY_USD, CASH_TARGET_MIN_PCT, CASH_TARGET_MAX_PCT
+    global CASH_EMERGENCY_PCT
     global SL_HARD_CLOSE_PCT, SL_EMERGENCY_PCT, SL_WARNING_PCT
     global MAX_FRAGMENTS_PER_INSTRUMENT
 
@@ -191,6 +197,7 @@ def apply_config(cfg: dict) -> None:
         MIN_BUY_USD = float(trading.get("min_buy_usd", MIN_BUY_USD))
         CASH_TARGET_MIN_PCT = float(trading.get("cash_target_min_pct", CASH_TARGET_MIN_PCT))
         CASH_TARGET_MAX_PCT = float(trading.get("cash_target_max_pct", CASH_TARGET_MAX_PCT))
+        CASH_EMERGENCY_PCT = float(trading.get("cash_emergency_pct", CASH_EMERGENCY_PCT))
         MAX_FRAGMENTS_PER_INSTRUMENT = int(
             trading.get("max_fragments_per_instrument", MAX_FRAGMENTS_PER_INSTRUMENT)
         )
@@ -379,10 +386,22 @@ def calculate_sl_price(
 
 
 def check_cash_gate(cash: float, equity: float) -> GateResult:
-    """Rule: Cash must be ≥ CASH_TARGET_MIN_PCT of equity."""
+    """Rule: Cash must be ≥ CASH_TARGET_MIN_PCT of equity (soft floor).
+
+    Unter CASH_EMERGENCY_PCT (hard floor) meldet das Gate EMERGENCY —
+    funktional blockt beides, aber der Emergency-Fall ist ein Incident
+    (Cash sollte durch den Soft-Floor nie so tief fallen) und wird vom
+    monitor_worker separat alarmiert.
+    """
     if equity <= 0:
         return GateResult(False, ["Cash-Gate: Equity = 0"])
     cash_pct = (cash / equity) * 100
+    if cash_pct < CASH_EMERGENCY_PCT:
+        return GateResult(False, [
+            f"🚨 Cash-EMERGENCY: {cash_pct:.1f}% < {CASH_EMERGENCY_PCT:.0f}% Hard-Floor "
+            f"(${cash:.2f} / ${equity:.2f}) — Cash-Stand ist ein Incident, "
+            f"Reconcile/Positionsgrößen prüfen"
+        ])
     if cash_pct < CASH_TARGET_MIN_PCT:
         return GateResult(False, [
             f"Cash-Gate: {cash_pct:.1f}% < {CASH_TARGET_MIN_PCT:.0f}% Minimum "

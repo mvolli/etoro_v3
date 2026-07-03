@@ -78,6 +78,32 @@ def test_empty_and_bad_config_are_safe():
     assert risk.MAX_POSITIONS == before
 
 
+def test_cash_emergency_floor():
+    # < 10% → EMERGENCY-Meldung; 10–15% → normaler Soft-Floor-Block; ≥15% → OK
+    emergency = risk.check_cash_gate(cash=900, equity=10_000)
+    assert not emergency.allowed
+    assert "EMERGENCY" in emergency.summary()
+
+    soft = risk.check_cash_gate(cash=1_200, equity=10_000)
+    assert not soft.allowed
+    assert "EMERGENCY" not in soft.summary()
+
+    assert risk.check_cash_gate(cash=1_600, equity=10_000).allowed
+
+
+def test_cash_emergency_configurable():
+    saved = risk.CASH_EMERGENCY_PCT
+    try:
+        risk.apply_config({"trading": {"cash_emergency_pct": 5.0}})
+        assert risk.CASH_EMERGENCY_PCT == 5.0
+        # 8% liegt jetzt über dem Hard-Floor → normaler Soft-Floor-Block
+        result = risk.check_cash_gate(cash=800, equity=10_000)
+        assert not result.allowed
+        assert "EMERGENCY" not in result.summary()
+    finally:
+        risk.CASH_EMERGENCY_PCT = saved
+
+
 def test_real_config_yaml_roundtrip():
     import yaml
     from pathlib import Path
