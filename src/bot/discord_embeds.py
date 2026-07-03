@@ -921,6 +921,106 @@ def post_pipeline_performance_dashboard(dry_run: bool = False) -> bool:
 # P7 — DATA INGESTION (yfinance)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def post_data_worker_embed(
+    tier1_count: int,
+    tier2_open: int,
+    tier2_closed: int,
+    tier2_total: int,
+    total_symbols: int,
+    symbols_fetched: int,
+    signals_generated: int,
+    signals_expired: int,
+    failed_cache_size: int,
+    elapsed_s: float,
+    new_signals: list = None,
+    market_status: str = "",
+    dry_run: bool = False,
+) -> bool:
+    """Data Worker Summary — data-rich Embed mit Fetch-Stats, Signalen und Märkten → #etoro-trading.
+
+    Wird am Ende jedes Data-Worker-Runs aufgerufen (alle 5min).
+    """
+    if new_signals is None:
+        new_signals = []
+
+    # ── Color based on activity ─────────────────────────────────────────────
+    if signals_generated > 0:
+        color = COLOR_GREEN
+    elif symbols_fetched < total_symbols * 0.5:
+        color = COLOR_ORANGE
+    else:
+        color = COLOR_BLUE
+
+    # ── Description: Fetch summary + timing ─────────────────────────────────
+    fetch_pct = (symbols_fetched / total_symbols * 100) if total_symbols else 0
+    desc_parts = [
+        f"OHLCV geladen: **{symbols_fetched}/{total_symbols}** ({fetch_pct:.0f}%)",
+        f"Dauer: **{elapsed_s:.1f}s**",
+    ]
+    if market_status:
+        desc_parts.append(f"Märkte: {market_status}")
+    desc = " · ".join(desc_parts)
+
+    # ── Fields ──────────────────────────────────────────────────────────────
+    fields = []
+
+    # 1) Data Pipeline Stats
+    pipeline_lines = [
+        f"Tier 1 (Portfolio): **{tier1_count}** Symbole",
+        f"Tier 2 (Watchlist): **{tier2_open}** offen / {tier2_closed} closed ({tier2_total} total)",
+        f"Failed-Cache: **{failed_cache_size}** Symbole (cooldown 7d)",
+    ]
+    fields.append({
+        "name": "📡 Data Pipeline",
+        "value": "\n".join(pipeline_lines),
+        "inline": True,
+    })
+
+    # 2) Signals
+    signal_lines = [
+        f"Neue Signale: **{signals_generated}**",
+        f"Expired: **{signals_expired}**",
+    ]
+    fields.append({
+        "name": "📊 Signale",
+        "value": "\n".join(signal_lines),
+        "inline": True,
+    })
+
+    # 3) New Signals Detail (if any)
+    if new_signals:
+        sig_lines = []
+        for s in new_signals[:8]:
+            sym = s.get("symbol", "?")
+            direction = s.get("direction", "?").upper()
+            score = s.get("score", 0)
+            conviction = s.get("conviction", "?")
+            rsi = s.get("rsi")
+            dir_emoji = "🟢" if direction == "BUY" else "🔴"
+            line = f"{dir_emoji} **{sym}** {direction} (Score: {score:.0f}, {conviction})"
+            if rsi is not None:
+                line += f" | RSI: {rsi:.1f}"
+            sig_lines.append(line)
+        fields.append({
+            "name": "🎯 Neue Signale",
+            "value": "\n".join(sig_lines),
+            "inline": False,
+        })
+
+    embed = {
+        "title":       f"📡 Data Worker — {symbols_fetched} Symbole geladen" + (f" ({signals_generated} Signale)" if signals_generated > 0 else ""),
+        "description": desc,
+        "color":       color,
+        "fields":      fields,
+        "footer":      {"text": "eToro RoBoCop · Data Worker · alle 5min"},
+        "timestamp":   _ts(),
+    }
+    ok = _post_embed(embed, DISCORD_MAIN_CHANNEL, dry_run)
+    if ok:
+        insert_system_log("INFO", "discord_embeds", f"P8 Data Worker gepostet fetched={symbols_fetched} signals={signals_generated}")
+    return ok
+
+
 def post_data_ingestion_embed(
     results: list,
     dry_run: bool = False,

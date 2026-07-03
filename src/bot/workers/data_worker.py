@@ -639,6 +639,7 @@ def run(project_root: Path | None = None) -> dict:
     # Invert for symbol → id lookup (case-insensitive handled inside symbol_to_id)
     signal_repo = SignalRepo(db)
     n_signals = 0
+    new_signals_list: list[dict] = []
 
     for yf_sym, df in price_data.items():
         original_sym = alias_to_original.get(yf_sym, yf_sym)
@@ -717,6 +718,13 @@ def run(project_root: Path | None = None) -> dict:
                 ttl_minutes=signal_ttl,
             )
             n_signals += 1
+            new_signals_list.append({
+                "symbol": original_sym,
+                "direction": result.direction,
+                "score": result.score,
+                "conviction": result.conviction,
+                "rsi": result.rsi,
+            })
             logger.info(
                 "[%s] SIGNAL %s %s conviction=%s score=%.1f",
                 WORKER_NAME, result.direction, original_sym, result.conviction, result.score,
@@ -737,6 +745,7 @@ def run(project_root: Path | None = None) -> dict:
             # Per-symbol error: continue with remaining symbols
 
     # 8. Expire stale signals -------------------------------------------------
+    n_expired = 0
     try:
         n_expired = signal_repo.expire_old()
         if n_expired:
@@ -759,22 +768,26 @@ def run(project_root: Path | None = None) -> dict:
         f"{n_signals} signals written ({elapsed:.1f}s, failed_cache={len(_FAILED_SYMBOLS_CACHE)})"
     )
 
-    # Discord: data worker summary (only if interesting)
-    if n_signals > 0:
+    # Discord: Data Worker Embed → #etoro-trading
+    try:
         open_regions = get_market_status()
-        _post('post_alert_embed',
-            title=f'📊 Data Worker: {n_signals} Signal(s) generated',
-            description=(
-                f'Symbole: {n_fetched}/{len(all_yf_symbols)} | '
-                f'Signale: {n_signals} | '
-                f'Dauer: {elapsed:.1f}s\n'
-                f'Offene Märkte: {open_regions}\n'
-                f'Failed-Cache: {len(_FAILED_SYMBOLS_CACHE)} Symbole (abgesprungen)'
-            ),
-            severity='INFO',
-            dry_run=False
+        _post(
+            "post_data_worker_embed",
+            tier1_count=len(tier1_symbols),
+            tier2_open=len(tier2_items),
+            tier2_closed=skipped_count,
+            tier2_total=len(db_watchlist),
+            total_symbols=len(all_yf_symbols),
+            symbols_fetched=n_fetched,
+            signals_generated=n_signals,
+            signals_expired=n_expired,
+            failed_cache_size=len(_FAILED_SYMBOLS_CACHE),
+            elapsed_s=elapsed,
+            new_signals=new_signals_list,
+            market_status=str(open_regions),
         )
-    # Market closed — no post (too noisy every 5min at night)
+    except Exception as _emb_exc:
+        logger.debug("DataWorker: Discord embed failed: %s", _emb_exc)
 
     return {
         "symbols_fetched": n_fetched,
