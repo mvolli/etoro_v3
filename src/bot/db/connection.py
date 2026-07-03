@@ -35,7 +35,10 @@ class DB:
     ) -> None:
         self.db_path = Path(db_path)
         self.busy_timeout_ms = busy_timeout_ms
-        # Holds the connection while inside a `with` block; None otherwise.
+        # Persistent per-instance connection (lazily opened, reused by all
+        # helpers). fix/db-connection-reuse: vorher oeffnete JEDE Query eine
+        # neue Connection inkl. 4 PRAGMAs — bei hunderten Queries pro
+        # Worker-Lauf reiner Overhead.
         self._conn: sqlite3.Connection | None = None
 
     # ── low-level ─────────────────────────────────────────────────────────────
@@ -62,10 +65,16 @@ class DB:
         conn.execute("PRAGMA synchronous=NORMAL")
         return conn
 
+    def _get_persistent(self) -> sqlite3.Connection:
+        """Return the per-instance connection, opening it lazily."""
+        if self._conn is None:
+            self._conn = self.connect()
+        return self._conn
+
     # ── context manager ───────────────────────────────────────────────────────
 
     def __enter__(self) -> "DB":
-        self._conn = self.connect()
+        self._get_persistent()
         return self
 
     def __exit__(
@@ -86,15 +95,20 @@ class DB:
             self._conn = None
         return False  # do not suppress exceptions
 
-    # ── convenience helpers (short-lived connections) ─────────────────────────
+    # ── convenience helpers (persistent connection, per-statement commits) ────
+    # Semantik wie vorher (jedes Statement ist seine eigene Transaktion),
+    # nur ohne den connect+PRAGMA-Overhead pro Query. Cursor werden explizit
+    # geschlossen, damit kein SELECT eine WAL-Read-Transaktion offen haelt
+    # (fetchone ohne Cursor-Erschoepfung wuerde sonst einen veralteten
+    # Snapshot gegen parallel schreibende Worker festhalten).
 
     def execute(self, sql: str, params: tuple | list = ()) -> sqlite3.Cursor:
         """
-        Execute a single statement in a short-lived connection.
+        Execute a single statement on the persistent connection.
         Commits on success; rolls back and re-raises on error.
         Returns the cursor (useful for lastrowid / rowcount).
         """
-        conn = self.connect()
+        conn = self._get_persistent()
         try:
             cur = conn.execute(sql, params)
             conn.commit()
@@ -102,39 +116,33 @@ class DB:
         except Exception:
             conn.rollback()
             raise
-        finally:
-            conn.close()
 
     def fetchone(self, sql: str, params: tuple | list = ()) -> sqlite3.Row | None:
         """Return the first row of a SELECT query, or None."""
-        conn = self.connect()
+        cur = self._get_persistent().execute(sql, params)
         try:
-            return conn.execute(sql, params).fetchone()
+            return cur.fetchone()
         finally:
-            conn.close()
+            cur.close()
 
     def fetchall(self, sql: str, params: tuple | list = ()) -> list[sqlite3.Row]:
         """Return all rows of a SELECT query as a list."""
-        conn = self.connect()
+        cur = self._get_persistent().execute(sql, params)
         try:
-            return conn.execute(sql, params).fetchall()
+            return cur.fetchall()
         finally:
-            conn.close()
+            cur.close()
 
     # ── internal helper used by repos for multi-statement transactions ─────────
 
     def _get_conn(self) -> sqlite3.Connection:
         """
-        Return the active context-manager connection, or open a new one.
-        Used internally by repos that need a single connection for a transaction.
-        Callers are responsible for commit/rollback/close when not in a `with` block.
+        Return the persistent connection (kept for backward compatibility).
         """
-        if self._conn is not None:
-            return self._conn
-        return self.connect()
+        return self._get_persistent()
 
     def close(self) -> None:
-        """Close the active context-manager connection if open."""
+        """Close the persistent connection if open (reopens lazily on next use)."""
         if self._conn is not None:
             try:
                 self._conn.close()
