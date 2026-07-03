@@ -341,6 +341,20 @@ def main() -> None:
                 continue
     
             # c. Run master buy gate V5
+            # fix/sl-gate-wiring: entry_price/sl_price wurden als 0 übergeben —
+            # das SL-Quality-Gate (Bible Rule 1) prüfte damit NIE etwas.
+            # Jetzt: Signalpreis als Entry, SL daraus mit derselben Formel
+            # berechnet, die später open_position() verwendet.
+            from bot.core.risk import calculate_sl_price
+            gate_entry_price = float(signal.get("price") or 0.0)
+            gate_sl_price = (
+                calculate_sl_price(
+                    gate_entry_price, symbol,
+                    float(cfg.get("sl", {}).get("default_pct", 3.0)),
+                )
+                if gate_entry_price > 0 else 0.0
+            )
+
             gate = check_buy_gate(
                 symbol=symbol,
                 buy_amount=buy_amount,
@@ -354,6 +368,8 @@ def main() -> None:
                 open_positions=open_positions,
                 conviction=conviction,                   # V5: conviction gate
                 existing_fragments=existing_fragments,   # V5: pyramiding gate
+                entry_price=gate_entry_price,            # fix/sl-gate-wiring
+                sl_price=gate_sl_price,
                 max_fragments=int(cfg.get("trading", {}).get(
                     "max_fragments_per_instrument", 3)),  # Bible: Fragment-Limit
             )
