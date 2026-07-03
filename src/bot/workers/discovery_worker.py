@@ -149,13 +149,22 @@ MAX_PER_SECTOR = 3
 EU_DISCOVERY_CHUNK_COUNT = 16
 EU_DISCOVERY_CHUNK_STATE_KEY = "discovery_eu_chunk_idx"
 
-# Discovery's signal_repo.create() is a one-shot, 6h-TTL entry — a genuinely
-# promising EU candidate would otherwise vanish from active tracking after
-# one cycle. Promote it into the watchlist (5-min tracking) instead, capped
-# so EU can't crowd out US/Asia watchlist slots; only displaces the weakest
-# existing EU slot when full, and only if the new candidate scores higher.
-EU_WATCHLIST_CAP = 60
-EU_WATCHLIST_CATEGORY = "eu.discovered"
+# fix/watchlist-promotion-all-regions: discovery's signal_repo.create() is a
+# one-shot, 6h-TTL entry — a genuinely promising candidate from ANY region
+# would otherwise vanish from active tracking after one cycle, not just EU
+# ones. Promote it into the watchlist (5-min tracking) instead, capped
+# per-region so one region can't crowd out another's watchlist slots; only
+# displaces the weakest existing same-region slot when full, and only if the
+# new candidate scores higher.
+WATCHLIST_DISCOVERY_CAP = 60
+_UNKNOWN_REGION_CATEGORY = "global.discovered"
+
+
+def _discovery_category_for_region(market_region: str | None) -> str:
+    """Map an instruments.market_region value to its watchlist category."""
+    if not market_region:
+        return _UNKNOWN_REGION_CATEGORY
+    return f"{market_region.lower()}.discovered"
 
 
 def _get_eu_discovery_chunk(
@@ -196,23 +205,28 @@ def _ensure_watchlist_score_columns(db: Any) -> None:
             pass  # column already exists
 
 
-def _promote_to_eu_watchlist(
-    db: Any, instrument_id: int, symbol: str, score: float, cap: int = EU_WATCHLIST_CAP
+def _promote_to_watchlist(
+    db: Any, instrument_id: int, symbol: str, score: float, cap: int = WATCHLIST_DISCOVERY_CAP
 ) -> None:
-    """Promote a verified EU BUY-candidate into the watchlist for ongoing
-    5-min tracking. No-op for non-EU instruments. Never raises."""
+    """Promote a verified BUY-candidate into the watchlist for ongoing 5-min
+    tracking, regardless of region. Never raises.
+
+    Each region gets its own capped pool (category '<region>.discovered') so
+    e.g. a flood of EU candidates can't crowd out US/Asia watchlist slots.
+    """
     try:
         row = db.fetchone(
             "SELECT market_region FROM instruments WHERE instrument_id = ?", (instrument_id,)
         )
-        if row is None or row["market_region"] != "EU":
+        if row is None:
             return
+        category = _discovery_category_for_region(row["market_region"])
 
         _ensure_watchlist_score_columns(db)
 
         existing = db.fetchone(
             "SELECT id FROM watchlist WHERE instrument_id = ? AND category = ?",
-            (instrument_id, EU_WATCHLIST_CATEGORY),
+            (instrument_id, category),
         )
         if existing is not None:
             db.execute(
@@ -223,7 +237,7 @@ def _promote_to_eu_watchlist(
             return
 
         count_row = db.fetchone(
-            "SELECT count(*) AS n FROM watchlist WHERE category = ?", (EU_WATCHLIST_CATEGORY,)
+            "SELECT count(*) AS n FROM watchlist WHERE category = ?", (category,)
         )
         count = count_row["n"] if count_row else 0
 
@@ -231,19 +245,20 @@ def _promote_to_eu_watchlist(
             db.execute(
                 "INSERT INTO watchlist (symbol, instrument_id, category, last_score, last_signal_at) "
                 "VALUES (?, ?, ?, ?, datetime('now','utc'))",
-                (symbol, instrument_id, EU_WATCHLIST_CATEGORY, score),
+                (symbol, instrument_id, category, score),
             )
             logger.info(
-                "[%s] EU watchlist: added %s (score=%.1f, %d/%d slots)",
-                WORKER_NAME, symbol, score, count + 1, cap,
+                "[%s] watchlist(%s): added %s (score=%.1f, %d/%d slots)",
+                WORKER_NAME, category, symbol, score, count + 1, cap,
             )
             return
 
-        # At cap — only displace the weakest existing slot, and only if we beat it.
+        # At cap — only displace the weakest existing same-region slot, and
+        # only if we beat it.
         weakest = db.fetchone(
             "SELECT id, symbol, last_score FROM watchlist WHERE category = ? "
             "ORDER BY COALESCE(last_score, -1e9) ASC LIMIT 1",
-            (EU_WATCHLIST_CATEGORY,),
+            (category,),
         )
         if weakest is None:
             return
@@ -255,14 +270,14 @@ def _promote_to_eu_watchlist(
         db.execute(
             "INSERT INTO watchlist (symbol, instrument_id, category, last_score, last_signal_at) "
             "VALUES (?, ?, ?, ?, datetime('now','utc'))",
-            (symbol, instrument_id, EU_WATCHLIST_CATEGORY, score),
+            (symbol, instrument_id, category, score),
         )
         logger.info(
-            "[%s] EU watchlist: %s (score=%.1f) displaced %s (score=%s) — cap %d reached",
-            WORKER_NAME, symbol, score, weakest["symbol"], weakest_score, cap,
+            "[%s] watchlist(%s): %s (score=%.1f) displaced %s (score=%s) — cap %d reached",
+            WORKER_NAME, category, symbol, score, weakest["symbol"], weakest_score, cap,
         )
     except Exception as exc:
-        logger.warning("[%s] EU watchlist promotion failed for %s: %s", WORKER_NAME, symbol, exc)
+        logger.warning("[%s] watchlist promotion failed for %s: %s", WORKER_NAME, symbol, exc)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -779,10 +794,11 @@ def main() -> int:
                     WORKER_NAME, symbol, cand["score"], cand["conviction"], instrument_id,
                 )
 
-                # fix/eu-watchlist-expansion: a discovery signal is a one-shot
-                # with a 6h TTL — promote EU candidates into the watchlist so
-                # they keep getting tracked every 5 min instead of vanishing.
-                _promote_to_eu_watchlist(db, instrument_id, symbol, cand["score"])
+                # fix/watchlist-promotion-all-regions: a discovery signal is
+                # a one-shot with a 6h TTL — promote the candidate into the
+                # watchlist (region-capped) so it keeps getting tracked every
+                # 5 min instead of vanishing.
+                _promote_to_watchlist(db, instrument_id, symbol, cand["score"])
     
             except Exception as exc:
                 logger.warning(
