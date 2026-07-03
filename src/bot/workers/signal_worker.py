@@ -85,7 +85,8 @@ def main() -> None:
     
         from bot.core.market_hours import is_market_open
         from bot.core.regime import get_regime_params
-        from bot.core.risk import check_buy_gate, get_score_boost
+        from bot.core.risk import apply_config, check_buy_gate, get_score_boost
+        apply_config(cfg)  # fix/risk-config-wiring: Limits/Schwellen aus config.yaml
         from bot.db.connection import DB
         from bot.db.repo import LogRepo, PortfolioRepo, SignalRepo, StateRepo, TradeRepo
     

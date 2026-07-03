@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-# ─── Constants (overridden by config) ────────────────────────────────────────
+# ─── Constants (Defaults — Overrides via apply_config(cfg) weiter unten) ────
 
 INSTRUMENT_LIMITS: dict[str, float] = {
     "NVDA": 25.0, "QQQ": 25.0, "SPY": 20.0,
@@ -167,6 +167,53 @@ SL_MAX_DISTANCE_PCT = 50.0
 # V5: Default SL percentage for crypto (always relative)
 CRYPTO_DEFAULT_SL_PCT = 3.0
 
+# ─── Config-Wiring ────────────────────────────────────────────────────────────
+# fix/risk-config-wiring: der Kommentar "overridden by config" oben war eine
+# Luege — KEINE der Konstanten las jemals config.yaml. Eine Config-Aenderung
+# (z.B. neues Instrument-Limit) war wirkungslos, ohne dass es jemand merkte.
+# apply_config() wird von den Workern nach dem Config-Load aufgerufen.
+# Dicts werden IN-PLACE mutiert (andere Module halten importierte Referenzen,
+# z.B. concentration_monitor auf INSTRUMENT_LIMITS).
+
+def apply_config(cfg: dict) -> None:
+    """Override risk constants from config.yaml. Idempotent, fail-safe."""
+    global MAX_POSITIONS, MIN_BUY_USD, CASH_TARGET_MIN_PCT, CASH_TARGET_MAX_PCT
+    global SL_HARD_CLOSE_PCT, SL_EMERGENCY_PCT, SL_WARNING_PCT
+    global MAX_FRAGMENTS_PER_INSTRUMENT
+
+    if not cfg:
+        return
+    trading = cfg.get("trading", {}) or {}
+    sl = cfg.get("sl", {}) or {}
+
+    try:
+        MAX_POSITIONS = int(trading.get("max_positions", MAX_POSITIONS))
+        MIN_BUY_USD = float(trading.get("min_buy_usd", MIN_BUY_USD))
+        CASH_TARGET_MIN_PCT = float(trading.get("cash_target_min_pct", CASH_TARGET_MIN_PCT))
+        CASH_TARGET_MAX_PCT = float(trading.get("cash_target_max_pct", CASH_TARGET_MAX_PCT))
+        MAX_FRAGMENTS_PER_INSTRUMENT = int(
+            trading.get("max_fragments_per_instrument", MAX_FRAGMENTS_PER_INSTRUMENT)
+        )
+        # SL-Schwellen: config fuehrt positive Distanzen, evaluate_sl arbeitet
+        # mit negativen PnL-Schwellen.
+        if "default_pct" in sl:
+            SL_HARD_CLOSE_PCT = -abs(float(sl["default_pct"]))
+        if "emergency_pct" in sl:
+            SL_EMERGENCY_PCT = -abs(float(sl["emergency_pct"]))
+        if "warning_pct" in sl:
+            SL_WARNING_PCT = -abs(float(sl["warning_pct"]))
+
+        # Instrument-Limits: in-place mergen (importierte Referenzen behalten)
+        cfg_limits = cfg.get("instrument_limits", {}) or {}
+        for sym, limit in cfg_limits.items():
+            INSTRUMENT_LIMITS[str(sym).upper()] = float(limit)
+    except (TypeError, ValueError) as exc:
+        import logging
+        logging.getLogger(__name__).error(
+            "apply_config: ungueltiger Config-Wert — Teilanwendung gestoppt: %s", exc
+        )
+
+
 # ─── Result dataclass ─────────────────────────────────────────────────────────
 
 @dataclass
@@ -237,7 +284,7 @@ def check_pyramiding_gate(
     symbol: str,
     regime: str,
     existing_fragments: int,
-    max_fragments: int = MAX_FRAGMENTS_PER_INSTRUMENT,
+    max_fragments: int | None = None,
 ) -> GateResult:
     """V5: Pyramiding forbidden in DEFENSIVE and CRITICAL regimes.
 
@@ -248,7 +295,13 @@ def check_pyramiding_gate(
     (Bible: max_fragments_per_instrument, default 3) — gilt UNABHÄNGIG
     vom Regime. Vorher wurde das Limit nirgends geprüft: in NORMAL/CAUTION
     waren unbegrenzte Fragmente möglich, bis das %-Limit griff.
+
+    max_fragments=None → Laufzeit-Auflösung über die (per apply_config
+    überschreibbare) Modul-Konstante; ein Definitionszeit-Default würde
+    Config-Overrides ignorieren.
     """
+    if max_fragments is None:
+        max_fragments = MAX_FRAGMENTS_PER_INSTRUMENT
     if max_fragments > 0 and existing_fragments >= max_fragments:
         return GateResult(False, [
             f"Fragment-Limit: {symbol} hat bereits {existing_fragments} Fragment(e) "
@@ -554,7 +607,7 @@ def check_buy_gate(
     existing_fragments: int = 0,
     entry_price: float = 0.0,
     sl_price: float = 0.0,
-    max_fragments: int = MAX_FRAGMENTS_PER_INSTRUMENT,
+    max_fragments: int | None = None,
 ) -> GateResult:
     """Master gate V5 — all rules in sequence. Returns on first block.
 

@@ -128,8 +128,10 @@ def main() -> None:
     
         from bot.api.client import APIError, ClientConfig, EToroClient
         from bot.core.market_hours import is_market_open, get_market_status
+        from bot.core.risk import apply_config as _apply_risk_config
         from bot.db.connection import DB
         from bot.db.repo import LogRepo, StateRepo, TradeRepo
+        _apply_risk_config(cfg)  # fix/risk-config-wiring
     
         db_path = PROJECT_ROOT / cfg["db"]["path"]
         busy_timeout = cfg["db"].get("busy_timeout_ms", 5000)

@@ -86,7 +86,8 @@ def main() -> None:
     
         from bot.api.client import APIError, ClientConfig, EToroClient
         from bot.core.regime import update_regime
-        from bot.core.risk import evaluate_sl
+        from bot.core.risk import apply_config, evaluate_sl
+        apply_config(cfg)  # fix/risk-config-wiring: SL-Schwellen/Limits aus config.yaml
         from bot.db.connection import DB
         from bot.db.repo import LogRepo, PortfolioRepo, StateRepo
     
