@@ -100,8 +100,13 @@ SYMBOL_ALIAS_MAP: dict[str, str] = {
     "UNI-USD":  "UNI7083-USD",
 }
 
-# Minimum signal score to store
-MIN_SIGNAL_SCORE = 20.0
+# Minimum signal score to store.
+# fix/signal-quality-alignment: von 20 auf 30 angehoben — Discovery speichert
+# erst ab 30 (MIN_BUY_SCORE) UND verifiziert Kandidaten gegen eToro; der
+# data_worker-Pfad schrieb schwaechere, unverifizierte Signale in DENSELBEN
+# Pool. Identity-Schutz am Execution-Boundary bleibt zusaetzlich aktiv
+# (open_position: verify_instrument_identity + Slippage-Gate vs Live-Preis).
+MIN_SIGNAL_SCORE = 30.0
 
 # Signal TTL in minutes
 SIGNAL_TTL_MINUTES = 60
