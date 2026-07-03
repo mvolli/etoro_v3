@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+"""Trading Bible Constants — SINGLE SOURCE OF TRUTH (v5.0)
+
+Alle Trading-Bible-Konstanten an EINER Stelle definiert.
+Wird importiert von: execution_module.py, trading_bible_enforcement.py, cash_strategy.py, consolidation_worker.py
+
+Änderungen HIER → automatisch in allen Modulen wirksam.
+"""
+
+# ─── Position Limits ─────────────────────────────────────────────
+MAX_OPEN_POSITIONS = 21          # Max offene Fragmente (7 Instrumente × 3 Fragmente)
+
+# ─── Cash Management (Trading Bible v5.0) ────────────────────────
+CASH_TARGET_MIN_PCT = 15.0       # Min. Cash als % der Equity (unterhalb → SELL_PARTIAL)
+MIN_CASH_PCT = CASH_TARGET_MIN_PCT  # Alias für trading_bible_enforcement compat
+CASH_TARGET_MAX_PCT = 30.0       # Max. Cash als % der Equity (oberhalb → BUY aggressiver)
+CASH_EMERGENCY_PCT = 10.0        # Notfall-Cash (unterhalb → alle profitablen Positionen teilweise schließen)
+MIN_FREE_CASH = 100.0            # Absoluter Mindest-Cash in USD
+
+# ─── Trade Size Limits ───────────────────────────────────────────
+MAX_SINGLE_TRADE_PCT = 5.0       # Max. Einzeltrade als % der Equity
+MAX_TOTAL_EXPOSURE = 75.0        # Max. Gesamt-Exposure als % der Equity
+MIN_BUY_AMOUNT = 50.0            # Mindestkauf in USD (vermeide Mikro-Fragmente)
+
+# ─── Instrument Concentration Limits (Trading Bible v4.2) ────────
+# Default limit für Instrumente ohne Override
+DEFAULT_INSTRUMENT_LIMIT = 10.0
+
+# Instrument-spezifische Limits (überschreiben DEFAULT_INSTRUMENT_LIMIT)
+INSTRUMENT_LIMITS = {
+    # Core portfolio
+    "NVDA": 25.0, "META": 15.0, "MSFT": 15.0, "AMZN": 12.0, "TSLA": 5.0,
+    # ETFs
+    "QQQ": 25.0, "SPY": 20.0,
+    # Crypto — BEIDE Key-Varianten (eToro API liefert 'BTC', intern oft 'BTC/USD')
+    "BTC": 5.0, "BTC/USD": 5.0, "ETH": 5.0, "ETH/USD": 5.0,
+    "XRP": 3.0, "XRP/USD": 3.0,
+    # Commodities & Bonds
+    "GLD": 15.0, "TLT": 15.0, "CPER": 10.0,
+    # Commodities (eToro-spezifisch)
+    "CC.US": 10.0,   # F3: explizit gesetzt
+    "RTX": 6.0,      # Defense — low volatility, kleines Limit
+}
+
+# ─── Asset Classes & Sector Limits ───────────────────────────────
+ASSET_CLASSES = {
+    "US Tech": ["NVDA", "META", "MSFT", "AMZN"],
+    "US Broad ETFs": ["QQQ", "SPY"],
+    "Crypto": ["BTC/USD", "ETH/USD", "XRP/USD", "BTC", "ETH", "XRP"],
+    "Rohstoffe": ["GLD", "CPER"],
+    "Bonds": ["TLT"],
+}
+
+# ─── Correlation & Diversification Limits ──────────────────────────────
+CORRELATION_THRESHOLD = 0.7     # Max. erlaubte Korrelation zwischen Positionen (aus portfolio_correlation.py)
+MAX_ASSET_CLASS_PCT = {
+    "US Tech": 40.0,
+    "US Broad ETFs": 25.0,
+    "Crypto": 10.0,
+    "Rohstoffe": 15.0,
+    "Bonds": 15.0,
+}
+
+# ─── Stop-Loss / Risk Parameters ─────────────────────────────────
+DEFAULT_SL_PCT = 3.0             # Hard SL at -3% (Trading Bible)
+DEFAULT_TP_PCT = 6.0             # TP at +6% (2:1 risk/reward)
+ATR_RISK_PCT = 0.01
+ATR_STOP_MULTIPLIER = 3.0
+ATR_BASED_CAP_PCT = 3.0
+
+SL_WARNING_PCT = 2.0
+SL_HARDCODE_PCT = 3.0
+SL_EMERGENCY_PCT = 4.0
+
+# ─── Break-Even Stop-Loss (Trading Bible v5.2) ───────────────────
+BREAK_EVEN_TRIGGER_PCT = 5.0     # Nach +5% Gewinn → SL auf Einstandspreis setzen
+
+# ─── Profit-Taking Stufen (Trading Bible v5.1) ───────────────────
+PROFIT_TAKE_LEVELS = [
+    {'pnl_pct': 10.0, 'close_pct': 15.0, 'break_even_sl': True,  'label': 'Stufe 1: +10% Gewinn'},
+    {'pnl_pct': 20.0, 'close_pct': 20.0, 'break_even_sl': False, 'label': 'Stufe 2: +20% Gewinn'},
+    {'pnl_pct': 30.0, 'close_pct': 25.0, 'break_even_sl': False, 'label': 'Stufe 3: +30% Gewinn'},
+    {'pnl_pct': 40.0, 'close_pct': 30.0, 'break_even_sl': False, 'label': 'Stufe 4: +40% Gewinn'},
+    {'pnl_pct': 50.0, 'close_pct': 35.0, 'break_even_sl': False, 'label': 'Stufe 5: +50% Gewinn'},
+    {'pnl_pct': 75.0, 'close_pct': 40.0, 'break_even_sl': False, 'label': 'Stufe 6: +75% Gewinn'},
+    {'pnl_pct': 100.0, 'close_pct': 50.0, 'break_even_sl': False, 'label': 'Stufe 7: +100% Gewinn'},
+]
+
+# ─── Correlation Risk (Phase 3) ──────────────────────────────────
+CORRELATION_BLOCK_THRESHOLD = 0.85   # BUY blockieren wenn Korrelation > 0.85 zu bestehender Position
+CORRELATION_REDUCE_THRESHOLD = 0.70  # Buy-Amount reduzieren wenn Korrelation > 0.70
+
+# ─── MDD Schutz (Trading Bible v5.3) ─────────────────────────────
+MDD_DAILY_PCT = 2.0
+MDD_WEEKLY_PCT = 5.0
+MDD_MONTHLY_PCT = 10.0
+
+# ─── Order Execution Constants ────────────────────────────────────
+GHOST_ORDER_WAIT_SECONDS = 10
+GHOST_ORDER_MAX_RETRIES = 2
