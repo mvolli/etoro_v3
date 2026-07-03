@@ -518,9 +518,10 @@ def main() -> None:
             trailing_actions = evaluate_trailing(raw_positions, regime=regime, db=db)
             if trailing_actions:
                 ts_stats = execute_trailing_actions(client, trailing_actions, regime=regime, db=db)
-                if ts_stats['partial_closes'] > 0:
-                    logger.info('RiskWorker: Trailing Stop: %d partial closes, %d break-evens',
-                               ts_stats['partial_closes'], ts_stats['break_evens'])
+                if ts_stats['partial_closes'] > 0 or ts_stats.get('be_closes', 0) > 0:
+                    logger.info('RiskWorker: Trailing Stop: %d partial closes, %d BE-closes, %d break-evens',
+                               ts_stats['partial_closes'], ts_stats.get('be_closes', 0), ts_stats['break_evens'])
+                    closed_count += ts_stats.get('be_closes', 0)
                 if ts_stats.get('errors'):
                     for err in ts_stats['errors']:
                         logger.warning('RiskWorker: Trailing Stop error: %s', err)

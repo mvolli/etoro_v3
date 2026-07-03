@@ -17,6 +17,11 @@ logger = logging.getLogger(__name__)
 
 # ── Profit-Taking Thresholds (Trading Bible V5) ──────────────────────────────
 BREAK_EVEN_TRIGGER_PCT = 5.0    # +5% PnL → move SL to entry (software tracking)
+# fix/break-even-enforcement: Schwelle, unter die eine BE-armierte Position
+# nicht zurückfallen darf. Leicht über 0, damit Spread/Fees den Close nicht
+# in einen Mini-Verlust drehen. eToro hat kein SL-Update-Endpoint, daher
+# Software-Enforcement: BE aktiv + PnL ≤ Floor → Full Close.
+BREAK_EVEN_FLOOR_PCT = 0.3
 PROFIT_TAKE_LEVELS = [
     {'threshold': 15.0, 'close_pct': 20},   # +15% → close 20% of position
     {'threshold': 25.0, 'close_pct': 20},   # +25% → close another 20%
@@ -103,6 +108,43 @@ def mark_level_taken(db: Any, position_id: str, symbol: str, threshold: float) -
                        position_id, threshold, exc)
 
 
+def load_be_active(db: Any, position_ids: list[str]) -> set[str]:
+    """Return the subset of *position_ids* whose break-even is armed."""
+    if db is None or not position_ids:
+        return set()
+    try:
+        _ensure_position_state_table(db)
+        placeholders = ",".join("?" * len(position_ids))
+        rows = db.fetchall(
+            f"SELECT position_id FROM position_state "
+            f"WHERE be_active = 1 AND position_id IN ({placeholders})",
+            list(position_ids),
+        )
+        return {row[0] for row in rows}
+    except Exception as exc:
+        logger.warning("[trailing] load_be_active failed: %s", exc)
+        return set()
+
+
+def mark_break_even_active(db: Any, position_id: str, symbol: str) -> None:
+    """Arm break-even for *position_id* (idempotent)."""
+    if db is None or not position_id:
+        return
+    try:
+        _ensure_position_state_table(db)
+        db.execute("""
+            INSERT INTO position_state (position_id, symbol, be_active, be_triggered_at, updated_at)
+            VALUES (?, ?, 1, datetime('now','utc'), datetime('now','utc'))
+            ON CONFLICT(position_id) DO UPDATE SET
+                symbol = excluded.symbol,
+                be_active = 1,
+                be_triggered_at = COALESCE(position_state.be_triggered_at, excluded.be_triggered_at),
+                updated_at = excluded.updated_at
+        """, (position_id, symbol))
+    except Exception as exc:
+        logger.warning("[trailing] mark_break_even_active(%s) failed: %s", position_id, exc)
+
+
 def cleanup_position_state(db: Any, live_position_ids: set[str]) -> int:
     """Remove state rows for positions that no longer exist. Returns count."""
     if db is None:
@@ -136,6 +178,7 @@ def evaluate_trailing(
     """
     pos_ids = [str(p.get('positionID', '')) for p in positions if p.get('positionID')]
     levels_taken = load_levels_taken(db, pos_ids)
+    be_armed = load_be_active(db, pos_ids)
 
     actions = []
     for pos in positions:
@@ -152,7 +195,24 @@ def evaluate_trailing(
         pnl_pct = (pnl_usd / amount) * 100
 
         if pnl_pct < BREAK_EVEN_TRIGGER_PCT:
-            continue  # No action needed
+            # fix/break-even-enforcement: eine BE-armierte Position (war
+            # schon ≥ +5%) darf nicht zurück unter Entry fallen — Full
+            # Close am Floor, statt bis zum -3%-Hard-SL durchzurutschen.
+            if pos_id in be_armed and pnl_pct <= BREAK_EVEN_FLOOR_PCT:
+                actions.append(TrailingAction(
+                    action='BE_CLOSE',
+                    symbol=symbol,
+                    position_id=pos_id,
+                    pnl_pct=pnl_pct,
+                    reason=(
+                        f"Break-Even-Enforcement: war ≥ +{BREAK_EVEN_TRIGGER_PCT:.0f}%, "
+                        f"jetzt {pnl_pct:+.1f}% ≤ +{BREAK_EVEN_FLOOR_PCT:.1f}% Floor — Full Close"
+                    ),
+                    instrument_id=instrument_id,
+                    amount_usd=amount,
+                    open_rate=open_rate,
+                ))
+            continue  # No profit-taking below the BE trigger
 
         taken = levels_taken.get(pos_id, set())
 
@@ -188,6 +248,27 @@ def evaluate_trailing(
                 instrument_id=instrument_id,
             ))
     return actions
+
+
+def _post_closed_embed(symbol: str, position_id: str, reason: str, pnl_pct: float = 0.0) -> None:
+    """Best-effort Discord embed for a (partial) close. Never raises."""
+    try:
+        from pathlib import Path as _Path
+        import importlib.util
+        _embed_file = str(_Path(__file__).resolve().parent.parent / 'discord_embeds.py')
+        spec = importlib.util.spec_from_file_location('discord_embeds', _embed_file)
+        de = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(de)
+        if hasattr(de, 'post_position_closed_embed'):
+            de.post_position_closed_embed(
+                symbol=symbol,
+                amount_usd=0,
+                position_id=position_id,
+                pnl_pct=pnl_pct,
+                reason=reason,
+            )
+    except Exception:
+        pass
 
 
 def _find_position(client: Any, instrument_id: int, position_id: str) -> dict | None:
@@ -325,16 +406,58 @@ def execute_trailing_actions(
     order (not only after verification) — if the close settles slowly, the
     next 5-min cycle must NOT fire the same level again (double-sell risk
     outweighs the risk of losing one level to a never-executed order).
-    BREAK_EVEN: Software tracking only (logged, no API call — eToro has no SL update).
+    BREAK_EVEN: arms persistent break-even state (position was ≥ +5%).
+    BE_CLOSE: full close because an armed position fell back to entry —
+    executes in ALL regimes (loss protection, not profit-taking).
     """
     import time
-    stats = {'partial_closes': 0, 'break_evens': 0, 'errors': []}
+    stats = {'partial_closes': 0, 'break_evens': 0, 'be_closes': 0, 'errors': []}
 
     for action in actions:
         if action.action == 'BREAK_EVEN':
-            # Software tracking — log only, no API call
-            print(f'[trailing] BREAK-EVEN tracked: {action.symbol} {action.pnl_pct:+.1f}% — SL conceptually at entry')
+            # fix/break-even-enforcement: persist armed state — the next
+            # cycles enforce the entry floor via BE_CLOSE (eToro has no
+            # SL-update endpoint, so this is software enforcement).
+            mark_break_even_active(db, action.position_id, action.symbol)
+            print(f'[trailing] BREAK-EVEN armed: {action.symbol} {action.pnl_pct:+.1f}% — floor at entry (+{BREAK_EVEN_FLOOR_PCT:.1f}%)')
             stats['break_evens'] += 1
+            continue
+
+        if action.action == 'BE_CLOSE':
+            # Loss protection — runs in ALL regimes (unlike profit-taking).
+            print(f'[trailing] BE_CLOSE: {action.symbol} {action.pnl_pct:+.1f}% — {action.reason}')
+            if dry_run:
+                stats['be_closes'] += 1
+                continue
+            try:
+                result = client.close_position(
+                    position_id=action.position_id,
+                    instrument_id=action.instrument_id,
+                )
+                if result:
+                    verified, detail = verify_full_close(
+                        client, action.instrument_id, action.position_id
+                    )
+                    if verified:
+                        logger.info('[trailing] BE_CLOSE verified: %s', detail)
+                        stats['be_closes'] += 1
+                        _post_closed_embed(
+                            action.symbol, action.position_id,
+                            f'Break-Even-Schutz: {action.reason}',
+                            pnl_pct=action.pnl_pct,
+                        )
+                    else:
+                        logger.warning('[trailing] BE_CLOSE unverified: %s', detail)
+                        stats['errors'].append(f'{action.symbol}: BE_CLOSE unverified — {detail}')
+                else:
+                    stats['errors'].append(
+                        f'{action.symbol}: BE_CLOSE close_position() returned empty/falsy result'
+                    )
+                time.sleep(0.5)
+            except Exception as e:
+                msg = f'{action.symbol}: BE_CLOSE API call failed — {e}'
+                logger.error('[trailing] %s', msg)
+                stats['errors'].append(msg)
             continue
 
         if action.action == 'PARTIAL_CLOSE':
@@ -397,26 +520,12 @@ def execute_trailing_actions(
                         logger.warning('[trailing] %s', detail)
                         stats['errors'].append(detail)
                     # Post Discord embed
-                    try:
-                        from pathlib import Path as _Path
-                        _embed_file = str(_Path(__file__).resolve().parent.parent / 'discord_embeds.py')
-                        import importlib.util
-                        spec = importlib.util.spec_from_file_location(
-                            'discord_embeds',
-                            _embed_file
-                        )
-                        de = importlib.util.module_from_spec(spec)
-                        spec.loader.exec_module(de)
-                        if hasattr(de, 'post_position_closed_embed'):
-                            de.post_position_closed_embed(
-                                symbol=action.symbol,
-                                amount_usd=0,
-                                position_id=action.position_id,
-                                reason=f'Profit-Taking: {action.reason}'
-                                + ('' if verified else ' [UNVERIFIED — siehe Log]'),
-                            )
-                    except Exception:
-                        pass
+                    _post_closed_embed(
+                        action.symbol, action.position_id,
+                        f'Profit-Taking: {action.reason}'
+                        + ('' if verified else ' [UNVERIFIED — siehe Log]'),
+                        pnl_pct=action.pnl_pct,
+                    )
                 else:
                     stats['errors'].append(
                         f'{action.symbol}: close_position() returned empty/falsy result'
