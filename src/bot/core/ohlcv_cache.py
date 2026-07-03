@@ -16,6 +16,40 @@ logger = logging.getLogger(__name__)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 DB_PATH = str(PROJECT_ROOT / 'data' / 'trading.db')
 
+# ── Ticker alias map: eToro symbol → correct yfinance ticker ─────────────────
+# fix/yfinance-ticker-resolution: several instruments have a different ticker
+# on Yahoo Finance than their eToro display symbol. This map is consulted in
+# fetch_ohlcv() and ensure_ohlcv() BEFORE any yfinance call so the wrong
+# ticker is never sent to Yahoo.
+#
+# Known mismatches (verified 2026-07-03):
+#   00027.HK / 0027.HK → 0728.HK  (China Telecom HK; 0027.HK = Galaxy Ent!)
+#   CVX.US             → CVX      (Chevron; Yahoo Finance has no .US suffix)
+#   AAPL.US etc.       → AAPL     (US stocks — eToro adds .US, Yahoo doesn't need it)
+YFINANCE_TICKER_MAP: dict[str, str] = {
+    # Hong Kong stocks (eToro uses leading zeros, Yahoo strips them)
+    "00027.HK": "0728.HK",   # China Telecom HK — 0027.HK is Galaxy Entertainment!
+    "0027.HK":  "0728.HK",   # Same instrument under wrong DB yfinance_symbol
+    # US stocks with .US suffix (eToro adds it, Yahoo doesn't need it)
+    "CVX.US":   "CVX",       # Chevron
+    "AAPL.US":  "AAPL",
+    "MSFT.US":  "MSFT",
+    "GOOGL.US": "GOOGL",
+    "AMZN.US":  "AMZN",
+    "META.US":  "META",
+    "TSLA.US":  "TSLA",
+    "NVDA.US":  "NVDA",
+}
+
+
+def _resolve_yf_symbol(symbol: str) -> str:
+    """Resolve an eToro symbol to the correct yfinance ticker.
+
+    Checks YFINANCE_TICKER_MAP first, then falls back to the raw symbol.
+    This prevents sending wrong tickers (e.g. CVX.US instead of CVX) to Yahoo.
+    """
+    return YFINANCE_TICKER_MAP.get(symbol, symbol)
+
 
 def get_db():
     """SQLite connection mit RowFactory."""
@@ -82,15 +116,22 @@ def update_yahoo_status(conn, instrument_id: int, yf_symbol: str, success: bool)
 
 def fetch_ohlcv(yf_symbol: str, start_date: str, end_date: str) -> Optional[Any]:
     """FETCH: Hole OHLCV-Daten via yfinance für den fehlenden Zeitraum.
-    
+
     Returns tuple: (df_or_None, is_delisted_bool)
     is_delisted=True wenn der Error klar auf delisted hindeutet.
+
+    fix/yfinance-ticker-resolution: resolves yf_symbol through YFINANCE_TICKER_MAP
+    before calling yfinance so eToro-style symbols (CVX.US, 00027.HK) are mapped
+    to their correct Yahoo Finance tickers.
     """
+    # Resolve ticker alias BEFORE yfinance call
+    resolved_symbol = _resolve_yf_symbol(yf_symbol)
+
     try:
         import pandas as pd
         import yfinance as yf
-        
-        ticker = yf.Ticker(yf_symbol)
+
+        ticker = yf.Ticker(resolved_symbol)
         df = ticker.history(start=start_date, end=end_date, interval='1d')
         
         if df.empty:
@@ -160,6 +201,32 @@ def get_ohlcv(conn, instrument_id: int, days: int = 50) -> list:
     rows = c.fetchall()
     # Reverse to get chronological order
     return [dict(row) for row in reversed(rows)]
+
+
+def get_cached_ohlcv_df(conn, instrument_id: int, days: int = 90) -> Optional[Any]:
+    """Return cached OHLCV data as a pandas DataFrame (for signals.py).
+
+    fix/double-fetch: allows analyze_batch() to use already-cached DB data
+    instead of re-downloading from yfinance. Returns None if insufficient data.
+    """
+    try:
+        import pandas as pd
+    except ImportError:
+        return None
+
+    rows = get_ohlcv(conn, instrument_id, days)
+    if len(rows) < 30:
+        return None
+
+    df = pd.DataFrame(rows)
+    # Convert numeric columns
+    for col in ['open', 'high', 'low', 'close', 'volume']:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+    # Capitalize column names to match signals.py expectations
+    df.columns = [col.capitalize() if col != 'date' else 'Date' for col in df.columns]
+    df['Date'] = pd.to_datetime(df['Date'])
+    df.set_index('Date', inplace=True)
+    return df[['Open', 'High', 'Low', 'Close', 'Volume']]
 
 
 def ensure_ohlcv(conn, instrument_id: int, yf_symbol: str, required_days: int = 50):
@@ -267,11 +334,14 @@ def bulk_ensure_ohlcv(conn, instruments: list, required_days: int = 50, batch_si
                 continue
             
             yf_sym = inst.get('yfinance_symbol', inst.get('symbol'))
-            
+
             if not yf_sym:
                 results[iid] = {'has_data': False, 'days': 0, 'error': 'no_yf_symbol'}
                 continue
-            
+
+            # fix/yfinance-ticker-resolution: resolve alias before passing to ensure_ohlcv
+            yf_sym = _resolve_yf_symbol(yf_sym)
+
             has_data, days = ensure_ohlcv(conn, iid, yf_sym, required_days)
             results[iid] = {'has_data': has_data, 'days': days}
             

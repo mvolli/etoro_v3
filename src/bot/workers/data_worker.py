@@ -84,11 +84,25 @@ DEFAULT_WATCHLIST: list[str] = [
 ]
 
 # yfinance ticker aliases (eToro symbol → Yahoo Finance ticker)
+# fix/yfinance-ticker-resolution: eToro symbols often differ from Yahoo Finance tickers.
+# This map ensures the correct ticker is sent to yfinance.
 SYMBOL_ALIAS_MAP: dict[str, str] = {
+    # Crypto
     "BTC-USD":  "BTC-USD",
     "ETH-USD":  "ETH-USD",
     "XRP-USD":  "XRP-USD",
     "UNI-USD":  "UNI7083-USD",
+    # US stocks with .US suffix (eToro adds it, Yahoo doesn't need it)
+    "CVX.US":   "CVX",
+    "AAPL.US":  "AAPL",
+    "MSFT.US":  "MSFT",
+    "GOOGL.US": "GOOGL",
+    "AMZN.US":  "AMZN",
+    "META.US":  "META",
+    "TSLA.US":  "TSLA",
+    "NVDA.US":  "NVDA",
+    # Hong Kong stocks (eToro uses leading zeros, Yahoo doesn't)
+    "00027.HK": "0728.HK",   # China Telecom HK — 0027.HK is Galaxy Entertainment!
 }
 
 # Minimum signal score to store
