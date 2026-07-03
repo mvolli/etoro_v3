@@ -761,11 +761,11 @@ def run(project_root: Path | None = None) -> dict:
         _cache_failed_symbol(sym, db)
     _cleanup_old_failed_symbols(db)
 
-    # 11. Summary -------------------------------------------------------------
+    # 11. Summary (logged at WARNING so it still shows on stdout if needed) ─────
     elapsed = time.monotonic() - t_start
-    print(
-        f"DataWorker: {n_fetched} symbols fetched, "
-        f"{n_signals} signals written ({elapsed:.1f}s, failed_cache={len(_FAILED_SYMBOLS_CACHE)})"
+    logger.warning(
+        "DataWorker: %d symbols fetched, %d signals written (%.1fs, failed_cache=%d)",
+        n_fetched, n_signals, elapsed, len(_FAILED_SYMBOLS_CACHE),
     )
 
     # Discord: Data Worker Embed → #etoro-trading
@@ -812,7 +812,7 @@ def main() -> int:
         # (indentation bug), so the flock was released immediately and the
         # lock never actually prevented overlapping data_worker runs.
         logging.basicConfig(
-            level=logging.INFO,
+            level=logging.WARNING,  # INFO→Embed via Discord; nur Warnings/Errors auf stdout
             format="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
             datefmt="%Y-%m-%dT%H:%M:%S",
         )

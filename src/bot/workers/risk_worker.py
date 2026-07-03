@@ -42,7 +42,7 @@ def _discord(fn_name: str, **kwargs) -> None:
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.WARNING,  # INFO→Embed via Discord; nur Warnings/Errors auf stdout
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger("risk_worker")
@@ -595,7 +595,7 @@ def main() -> None:
             log_repo.write('ERROR', 'risk_worker', f'SELL-Exits crashed: {_se_exc}')
 
         # ── 5. Summary + Discord Embed ────────────────────────────────────────────
-        print(f"RiskWorker: checked {checked_count} positions, closed {closed_count}, regime={regime}")
+        logger.warning("RiskWorker: checked %d positions, closed %d, regime=%s", checked_count, closed_count, regime)
         log_repo.write(
             "INFO",
             "risk_worker",
