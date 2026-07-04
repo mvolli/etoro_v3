@@ -175,6 +175,17 @@ MAX_SLIPPAGE_PCT_CRYPTO = 3.0    # crypto is more volatile between cycles
 # 0.0 disables the check. Overridable via config risk.daily_loss_limit_pct.
 DAILY_LOSS_LIMIT_PCT_DEFAULT = 5.0
 
+# fix/multi-horizon-loss-limits: the daily kill switch is intraday only
+# (resets each UTC day against DAY_START_EQUITY), so a slow bleed of e.g.
+# -4.9%/day never trips it. The rolling-peak regime reduces sizing over 30
+# days but never HARD-stops. These add hard weekly/monthly circuit breakers,
+# measured as max drawdown from the trailing-window equity high (MDD
+# semantics, matching the old Trading Bible's MDD_WEEKLY/MONTHLY intent) —
+# strictly more conservative than a point-to-point 7/30-days-ago compare and
+# reuses regime.get_rolling_peak(). 0.0 disables. Overridable via config.
+WEEKLY_LOSS_LIMIT_PCT_DEFAULT = 8.0
+MONTHLY_LOSS_LIMIT_PCT_DEFAULT = 12.0
+
 SL_HARD_CLOSE_PCT = -3.0
 SL_EMERGENCY_PCT = -4.0
 SL_WARNING_PCT = -2.0
@@ -618,6 +629,28 @@ def check_daily_loss_breach(
         return (False, 0.0)
     day_pnl_pct = (current_equity - day_start_equity) / day_start_equity * 100.0
     return (day_pnl_pct <= -abs(limit_pct), day_pnl_pct)
+
+
+def check_trailing_loss_breach(
+    window_peak_equity: float,
+    current_equity: float,
+    limit_pct: float,
+) -> tuple[bool, float]:
+    """fix/multi-horizon-loss-limits: hard weekly/monthly circuit breaker.
+
+    Returns (breached, drawdown_pct). breached=True when current_equity is
+    more than limit_pct below the trailing-window equity high (7- or 30-day
+    peak, supplied by regime.get_rolling_peak). This is max-drawdown-from-peak
+    semantics, not a point-to-point compare — a single low reading N days ago
+    can never mask an ongoing bleed. limit_pct <= 0 disables the check.
+
+    drawdown_pct is signed (negative = loss) for symmetry with
+    check_daily_loss_breach's day_pnl_pct.
+    """
+    if limit_pct <= 0 or window_peak_equity <= 0 or current_equity <= 0:
+        return (False, 0.0)
+    drawdown_pct = (current_equity - window_peak_equity) / window_peak_equity * 100.0
+    return (drawdown_pct <= -abs(limit_pct), drawdown_pct)
 
 
 # ─── Master BUY Gate ──────────────────────────────────────────────────────────

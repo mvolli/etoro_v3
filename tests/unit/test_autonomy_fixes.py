@@ -22,9 +22,12 @@ from bot.core.heartbeat import (
 )
 from bot.core.risk import (
     DAILY_LOSS_LIMIT_PCT_DEFAULT,
+    WEEKLY_LOSS_LIMIT_PCT_DEFAULT,
+    MONTHLY_LOSS_LIMIT_PCT_DEFAULT,
     MAX_SLIPPAGE_PCT_CRYPTO,
     MAX_SLIPPAGE_PCT_DEFAULT,
     check_daily_loss_breach,
+    check_trailing_loss_breach,
     check_slippage_gate,
     get_max_slippage_pct,
 )
@@ -129,6 +132,61 @@ class TestDailyLossBreach:
 
     def test_default_constant_sane(self):
         assert 0.0 < DAILY_LOSS_LIMIT_PCT_DEFAULT <= 10.0
+
+
+class TestTrailingLossBreach:
+    """fix/multi-horizon-loss-limits: hard weekly/monthly circuit breakers,
+    measured as max drawdown from the trailing-window equity high."""
+
+    def test_no_breach(self):
+        breached, dd = check_trailing_loss_breach(10_000.0, 9_500.0, 8.0)
+        assert not breached
+        assert dd == pytest.approx(-5.0)
+
+    def test_weekly_breach(self):
+        # -8.5% below the 7-day peak, limit 8% → breach
+        breached, dd = check_trailing_loss_breach(10_000.0, 9_150.0, 8.0)
+        assert breached
+        assert dd == pytest.approx(-8.5)
+
+    def test_exact_limit_breaches(self):
+        breached, dd = check_trailing_loss_breach(10_000.0, 8_800.0, 12.0)
+        assert breached
+        assert dd == pytest.approx(-12.0)
+
+    def test_slow_bleed_scenario(self):
+        # The audit failure case: -4.9%/day compounding never trips the
+        # intraday DAILY gate, but the weekly peak-drawdown catches it.
+        peak = 10_000.0
+        eq = peak
+        for _ in range(3):
+            eq *= (1 - 0.049)
+        # eq ~= 8600 → -14% from the weekly peak, well past the 8% weekly limit
+        breached, dd = check_trailing_loss_breach(peak, eq, 8.0)
+        assert breached
+        assert dd < -13.0
+
+    def test_gain_never_breaches(self):
+        breached, _ = check_trailing_loss_breach(10_000.0, 10_500.0, 8.0)
+        assert not breached
+
+    def test_disabled_via_zero_limit(self):
+        breached, _ = check_trailing_loss_breach(10_000.0, 5_000.0, 0.0)
+        assert not breached
+
+    def test_negative_limit_disables(self):
+        breached, _ = check_trailing_loss_breach(10_000.0, 8_000.0, -8.0)
+        assert not breached
+
+    def test_invalid_equities_never_breach(self):
+        assert not check_trailing_loss_breach(0.0, 9_000.0, 8.0)[0]
+        assert not check_trailing_loss_breach(10_000.0, 0.0, 8.0)[0]
+
+    def test_default_constants_ordered(self):
+        # daily < weekly < monthly — a longer horizon must tolerate a
+        # larger drawdown, else the shorter one is redundant.
+        assert DAILY_LOSS_LIMIT_PCT_DEFAULT < WEEKLY_LOSS_LIMIT_PCT_DEFAULT
+        assert WEEKLY_LOSS_LIMIT_PCT_DEFAULT < MONTHLY_LOSS_LIMIT_PCT_DEFAULT
 
 
 # ─── Heartbeat / Dead-Man's Switch ───────────────────────────────────────────

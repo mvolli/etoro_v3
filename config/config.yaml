@@ -30,6 +30,8 @@ trading:
 
 risk:
   daily_loss_limit_pct: 5.0   # Auto-kill-switch: intraday equity drop from day start (%; 0 = disabled)
+  weekly_loss_limit_pct: 8.0  # Auto-kill-switch: max drawdown from 7-day equity high (%; 0 = disabled)
+  monthly_loss_limit_pct: 12.0 # Auto-kill-switch: max drawdown from 30-day equity high (%; 0 = disabled)
 
 regime:
   drawdown_soft_cb_pct: 4.0   # Intraday drawdown % → triggers soft circuit-breaker (reduce sizing)

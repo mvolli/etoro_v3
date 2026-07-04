@@ -413,7 +413,14 @@ def main() -> None:
         # switch when the intraday drop exceeds risk.daily_loss_limit_pct.
         if equity > 0.0:
             from datetime import datetime as _dt, timezone as _tz
-            from bot.core.risk import check_daily_loss_breach, DAILY_LOSS_LIMIT_PCT_DEFAULT
+            from bot.core.risk import (
+                check_daily_loss_breach,
+                check_trailing_loss_breach,
+                DAILY_LOSS_LIMIT_PCT_DEFAULT,
+                WEEKLY_LOSS_LIMIT_PCT_DEFAULT,
+                MONTHLY_LOSS_LIMIT_PCT_DEFAULT,
+            )
+            from bot.core.regime import get_rolling_peak
             from bot.core import kill_switch as _ks
 
             _today = _dt.now(_tz.utc).strftime("%Y-%m-%d")
@@ -423,18 +430,52 @@ def main() -> None:
                 state_repo.set("DAY_START_EQUITY", str(equity))
                 logger.info("RiskWorker: neuer Handelstag %s — DAY_START_EQUITY=%.2f", _today, equity)
 
+            _risk_cfg = cfg.get("risk", {})
             _day_start_equity = state_repo.get_float("DAY_START_EQUITY", 0.0)
-            _loss_limit_pct = float(
-                cfg.get("risk", {}).get("daily_loss_limit_pct", DAILY_LOSS_LIMIT_PCT_DEFAULT)
+
+            # Evaluate all three horizons. Weekly/monthly use the trailing
+            # equity high (7d / 30d) from equity_history via get_rolling_peak,
+            # so they measure max drawdown over the window, not intraday.
+            # fix/multi-horizon-loss-limits.
+            _daily_limit = float(_risk_cfg.get("daily_loss_limit_pct", DAILY_LOSS_LIMIT_PCT_DEFAULT))
+            _weekly_limit = float(_risk_cfg.get("weekly_loss_limit_pct", WEEKLY_LOSS_LIMIT_PCT_DEFAULT))
+            _monthly_limit = float(_risk_cfg.get("monthly_loss_limit_pct", MONTHLY_LOSS_LIMIT_PCT_DEFAULT))
+
+            _breaches: list[str] = []
+
+            _d_breached, _day_pnl_pct = check_daily_loss_breach(
+                _day_start_equity, equity, _daily_limit
             )
-            _breached, _day_pnl_pct = check_daily_loss_breach(
-                _day_start_equity, equity, _loss_limit_pct
-            )
-            if _breached and not is_kill_switch_active():
-                _reason = (
-                    f"AUTO: Tagesverlust {_day_pnl_pct:.2f}% überschreitet Limit "
-                    f"-{_loss_limit_pct:.1f}% (Start ${_day_start_equity:.2f} → ${equity:.2f})"
+            if _d_breached:
+                _breaches.append(
+                    f"Tagesverlust {_day_pnl_pct:.2f}% > -{_daily_limit:.1f}% "
+                    f"(Start ${_day_start_equity:.2f} → ${equity:.2f})"
                 )
+
+            try:
+                _week_peak = get_rolling_peak(state_repo.db, equity, days=7)
+                _month_peak = get_rolling_peak(state_repo.db, equity, days=30)
+            except Exception as _peak_exc:
+                logger.warning("RiskWorker: get_rolling_peak fehlgeschlagen (%s) — "
+                               "Wochen/Monats-Check übersprungen", _peak_exc)
+                _week_peak = _month_peak = 0.0
+
+            _w_breached, _week_dd = check_trailing_loss_breach(_week_peak, equity, _weekly_limit)
+            if _w_breached:
+                _breaches.append(
+                    f"Wochenverlust {_week_dd:.2f}% > -{_weekly_limit:.1f}% "
+                    f"(7-Tage-Hoch ${_week_peak:.2f} → ${equity:.2f})"
+                )
+
+            _m_breached, _month_dd = check_trailing_loss_breach(_month_peak, equity, _monthly_limit)
+            if _m_breached:
+                _breaches.append(
+                    f"Monatsverlust {_month_dd:.2f}% > -{_monthly_limit:.1f}% "
+                    f"(30-Tage-Hoch ${_month_peak:.2f} → ${equity:.2f})"
+                )
+
+            if _breaches and not is_kill_switch_active():
+                _reason = "AUTO: " + " | ".join(_breaches)
                 logger.critical("RiskWorker: %s — Kill Switch wird aktiviert", _reason)
                 _ks.activate(_reason)
                 state_repo.set_regime("CRITICAL")
