@@ -529,6 +529,7 @@ def main() -> None:
             from bot.core.concentration_monitor import (
                 check_concentration_violations,
                 close_concentration_excess,
+                check_asset_class_violations,
             )
             # Load instrument map for symbol resolution
             instrument_map: dict = {}
@@ -561,6 +562,29 @@ def main() -> None:
                         "RiskWorker: %d concentration warnings (below immediate threshold)",
                         conc_stats["warned"],
                     )
+
+            # fix/asset-class-concentration (audit H7): detect asset-class
+            # drift post-trade (price appreciation past a sector cap). Warn
+            # only — no auto-close; surfaces for a human rebalance decision.
+            ac_violations = check_asset_class_violations(raw_positions, equity, instrument_map)
+            for _acv in ac_violations:
+                _acmsg = (
+                    f"{_acv['asset_class']} at {_acv['actual_pct']:.1f}% "
+                    f"(limit {_acv['limit_pct']:.0f}%, {_acv['breach_pct']:.1f}% over) — "
+                    f"{', '.join(_acv['symbols'])}"
+                )
+                logger.warning("RiskWorker: asset-class concentration drift — %s", _acmsg)
+                log_repo.write("WARN", "risk_worker",
+                               f"Asset-Klassen-Konzentration: {_acmsg}", _acv)
+                _discord(
+                    "post_alert_embed",
+                    title="⚠️ Asset-Klassen-Konzentration über Limit",
+                    description=(
+                        f"{_acmsg}\n\nKein Auto-Close — Rebalancing ist eine "
+                        f"manuelle Entscheidung. Prüfen, ob Position(en) getrimmt werden sollen."
+                    ),
+                    severity="WARNING",
+                )
         except Exception as _conc_exc:
             logger.debug("RiskWorker: Concentration check skipped: %s", _conc_exc)
     

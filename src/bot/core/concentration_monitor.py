@@ -21,7 +21,13 @@ from typing import Any
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from bot.core.risk import INSTRUMENT_LIMITS, DEFAULT_INSTRUMENT_LIMIT
+from bot.core.risk import (
+    INSTRUMENT_LIMITS,
+    DEFAULT_INSTRUMENT_LIMIT,
+    ASSET_CLASS_LIMITS,
+    ASSET_CLASS_DEFAULT_LIMIT_PCT,
+    ASSET_CLASS_MAP,
+)
 
 # ── Discord Embeds ─────────────────────────────────────────────────────────────
 try:
@@ -106,6 +112,56 @@ def check_concentration_violations(
                 "action": "CLOSE_EXCESS" if severity == "IMMEDIATE" else "WARN",
             })
 
+    return violations
+
+
+def check_asset_class_violations(
+    positions: list[dict],
+    equity: float,
+    instrument_map: dict,
+) -> list[dict]:
+    """Detect ASSET-CLASS-level concentration drift (audit H7).
+
+    check_asset_class_gate blocks NEW buys that would breach an asset-class
+    cap, but a portfolio can still drift past the cap purely via price
+    appreciation after entry — which nothing detected post-trade (only the
+    per-instrument check_concentration_violations existed).
+
+    Detection-only, WARNING severity: unlike the per-instrument monitor this
+    does NOT auto-close. Forcing sells to rebalance a whole asset class is a
+    materially bigger, behaviour-changing lever than trimming a single
+    over-limit instrument — it should surface for a human decision, not fire
+    automatically. Returns [{asset_class, actual_pct, limit_pct, breach_pct,
+    total_amount, symbols}].
+    """
+    if equity <= 0:
+        return []
+
+    class_totals: dict[str, float] = {}
+    class_symbols: dict[str, set[str]] = {}
+    for pos in positions:
+        iid = int(pos.get("instrumentID", 0))
+        sym = get_symbol_from_instrument_id(iid, instrument_map)
+        asset_class = ASSET_CLASS_MAP.get(sym.upper())
+        if not asset_class:
+            continue  # unmapped symbol → no asset-class attribution
+        amt = float(pos.get("amount", 0))
+        class_totals[asset_class] = class_totals.get(asset_class, 0.0) + amt
+        class_symbols.setdefault(asset_class, set()).add(sym)
+
+    violations = []
+    for asset_class, total in class_totals.items():
+        actual_pct = (total / equity) * 100
+        limit_pct = ASSET_CLASS_LIMITS.get(asset_class, ASSET_CLASS_DEFAULT_LIMIT_PCT)
+        if actual_pct > limit_pct:
+            violations.append({
+                "asset_class": asset_class,
+                "total_amount": total,
+                "actual_pct": actual_pct,
+                "limit_pct": limit_pct,
+                "breach_pct": actual_pct - limit_pct,
+                "symbols": sorted(class_symbols[asset_class]),
+            })
     return violations
 
 

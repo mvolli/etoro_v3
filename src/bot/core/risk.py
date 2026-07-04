@@ -570,8 +570,21 @@ def check_correlation_gate_risk(
         allowed, reason = check_correlation_gate(symbol, open_positions)
         return GateResult(allowed, [reason])
     except Exception as e:
-        # Fail-open: correlation check failed, don't block trading
-        return GateResult(True, [f'Correlation check skipped: {e}'])
+        # fix/correlation-gate-observability: still fail-open (a correlation
+        # outage must not halt trading), BUT the legitimate no-data path is
+        # handled *inside* check_correlation_gate (it returns allowed=True
+        # with a logged warning, never raising). Reaching this except means
+        # an UNEXPECTED failure — a code regression (e.g. a pandas API change
+        # raising AttributeError), not missing data. Log it loudly with a
+        # stack trace so a persistent bug that silently disables the gate
+        # is visible, instead of being swallowed into the reason string.
+        import logging
+        logging.getLogger(__name__).error(
+            "check_correlation_gate_risk: UNEXPECTED failure for %s — gate "
+            "failing open (allowing trade). This is a code bug, not missing "
+            "data; investigate: %s", symbol, e, exc_info=True,
+        )
+        return GateResult(True, [f'Correlation check skipped (unexpected error): {e}'])
 
 
 def get_max_slippage_pct(symbol: str, cfg: dict | None = None) -> float:
