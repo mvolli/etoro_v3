@@ -61,9 +61,15 @@ class TradingConfig:
 
 @dataclass
 class RegimeConfig:
-    drawdown_soft_cb_pct: float = 4.0
-    drawdown_recovery_pct: float = 2.0
-    normal_upper_pct: float = 3.5
+    # 4-state drawdown regime thresholds (see bot.core.regime). Kept in sync
+    # with config.yaml's regime block; the authoritative consumer is
+    # regime.apply_config (raw-dict path), this dataclass mirrors it.
+    caution_pct: float = 4.0
+    defensive_pct: float = 8.0
+    critical_pct: float = 15.0
+    caution_exit_pct: float = 3.5
+    defensive_exit_pct: float = 7.0
+    critical_exit_pct: float = 13.0
 
 
 @dataclass

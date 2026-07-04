@@ -93,3 +93,43 @@ def test_aqr_no_drawdown(): assert aqr_risk_scalar(0) == 1.0
 def test_aqr_10pct_dd(): assert abs(aqr_risk_scalar(10) - 0.80) < 0.01
 def test_aqr_25pct_dd(): assert abs(aqr_risk_scalar(25) - 0.50) < 0.01
 def test_aqr_minimum(): assert aqr_risk_scalar(50) == 0.25  # Capped at 0.25
+
+
+# ─── fix/regime-config-wiring: apply_config actually overrides thresholds ────
+from src.bot.core import regime as _regime_mod
+
+
+@pytest.fixture
+def _restore_regime_thresholds():
+    saved = {k: getattr(_regime_mod, k) for k in (
+        "CAUTION_THRESHOLD", "DEFENSIVE_THRESHOLD", "CRITICAL_THRESHOLD",
+        "CAUTION_EXIT", "DEFENSIVE_EXIT", "CRITICAL_EXIT",
+    )}
+    yield
+    for k, v in saved.items():
+        setattr(_regime_mod, k, v)
+
+
+def test_apply_config_overrides_thresholds(_restore_regime_thresholds):
+    _regime_mod.apply_config({"regime": {
+        "caution_pct": 3.0, "defensive_pct": 6.0, "critical_pct": 12.0,
+        "caution_exit_pct": 2.5, "defensive_exit_pct": 5.0, "critical_exit_pct": 10.0,
+    }})
+    assert _regime_mod.CAUTION_THRESHOLD == 3.0
+    assert _regime_mod.CRITICAL_THRESHOLD == 12.0
+    # detect_regime must reflect the new (tighter) thresholds at runtime:
+    # 6.5% DD is now DEFENSIVE (was only CAUTION under the 8% default).
+    assert detect_regime(9350, 10000)[0] == "DEFENSIVE"
+
+
+def test_apply_config_empty_is_noop(_restore_regime_thresholds):
+    before = _regime_mod.CAUTION_THRESHOLD
+    _regime_mod.apply_config({})
+    _regime_mod.apply_config(None)
+    assert _regime_mod.CAUTION_THRESHOLD == before
+
+
+def test_apply_config_bad_value_keeps_defaults(_restore_regime_thresholds):
+    before = _regime_mod.CRITICAL_THRESHOLD
+    _regime_mod.apply_config({"regime": {"critical_pct": "not-a-number"}})
+    assert _regime_mod.CRITICAL_THRESHOLD == before

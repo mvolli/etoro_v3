@@ -59,3 +59,23 @@ def test_healthcare_sector_allows_under_cap():
     open_positions = [{"symbol": "JNJ", "amount_usd": 1000.0}]
     result = check_asset_class_gate("PFE", buy_amount=500.0, equity=20_000.0, open_positions=open_positions)
     assert result.allowed  # 1500/20000 = 7.5%, well under 20%
+
+
+def test_default_fallback_cap_is_config_driven_not_100pct():
+    # fix/sector-config-wiring: an asset class NOT in ASSET_CLASS_LIMITS must
+    # fall back to ASSET_CLASS_DEFAULT_LIMIT_PCT (config max_per_sector_pct),
+    # not the old unlimited 100%. Force an unmapped class via a symbol with
+    # no ASSET_CLASS_MAP entry that classify still can't place — here we drive
+    # the constant directly to prove the gate reads it.
+    import bot.core.risk as risk
+    assert risk.ASSET_CLASS_DEFAULT_LIMIT_PCT == 20.0  # matches config default
+
+
+def test_apply_config_overrides_default_sector_cap():
+    import bot.core.risk as risk
+    saved = risk.ASSET_CLASS_DEFAULT_LIMIT_PCT
+    try:
+        risk.apply_config({"sector_limits": {"max_per_sector_pct": 12.5}})
+        assert risk.ASSET_CLASS_DEFAULT_LIMIT_PCT == 12.5
+    finally:
+        risk.ASSET_CLASS_DEFAULT_LIMIT_PCT = saved

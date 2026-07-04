@@ -33,10 +33,15 @@ risk:
   weekly_loss_limit_pct: 8.0  # Auto-kill-switch: max drawdown from 7-day equity high (%; 0 = disabled)
   monthly_loss_limit_pct: 12.0 # Auto-kill-switch: max drawdown from 30-day equity high (%; 0 = disabled)
 
-regime:
-  drawdown_soft_cb_pct: 4.0   # Intraday drawdown % → triggers soft circuit-breaker (reduce sizing)
-  drawdown_recovery_pct: 2.0  # Drawdown must recover to this % before resuming normal ops
-  normal_upper_pct: 3.5       # Daily P&L % above which regime is tagged "euphoric" (size down)
+regime:                       # Drawdown-from-rolling-peak → 4-state regime (reduces sizing)
+  # Entry thresholds — regime escalates immediately on breach.
+  caution_pct: 4.0            # DD ≥ 4%  → CAUTION   (risk_scalar 0.75, MEDIUM+ only)
+  defensive_pct: 8.0          # DD ≥ 8%  → DEFENSIVE (risk_scalar 0.50, HIGH+ only)
+  critical_pct: 15.0          # DD ≥ 15% → CRITICAL  (risk_scalar 0.25, VERY_HIGH only)
+  # Exit thresholds — sticky hysteresis: de-escalate only below these.
+  caution_exit_pct: 3.5       # DD < 3.5% → back to NORMAL
+  defensive_exit_pct: 7.0     # DD < 7.0% → back to CAUTION
+  critical_exit_pct: 13.0     # DD < 13.0% → back to DEFENSIVE
 
 sl:                           # Stop-loss configuration
   default_pct: 3.0            # Default stop-loss distance from entry (%)
@@ -61,8 +66,10 @@ instrument_limits:            # Maximum allocation per instrument as % of portfo
   XRP:   3.0
 
 sector_limits:
-  max_per_sector_pct: 20.0    # Maximum combined exposure to any single GICS sector (%)
-  max_active_sectors: 3       # Maximum number of sectors with open positions simultaneously
+  # Fallback per-asset-class exposure cap for classes not explicitly listed
+  # in risk.ASSET_CLASS_LIMITS (US_TECH 40 / BROAD_ETF 25 / CRYPTO 10 / …).
+  # Wired via risk.apply_config → check_asset_class_gate.
+  max_per_sector_pct: 20.0
 
 discovery:
   max_price_deviation_pct: 25.0  # Identity guard: max yfinance↔eToro price deviation (scale-aware GBp/GBP)

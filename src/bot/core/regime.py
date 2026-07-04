@@ -38,6 +38,36 @@ CRITICAL_EXIT:   float = 13.0  # < 13.0% from CRITICAL → DEFENSIVE
 
 REGIMES = frozenset({"NORMAL", "CAUTION", "DEFENSIVE", "CRITICAL"})
 
+
+def apply_config(cfg: dict) -> None:
+    """Override the drawdown regime thresholds from config.yaml's `regime:`
+    block. Idempotent, fail-safe (bad values leave the defaults intact).
+
+    fix/regime-config-wiring: detect_regime reads these module globals
+    directly, but nothing ever overrode them from config — editing the
+    config had zero effect on regime detection (the same 'config wiring lie'
+    already fixed for risk.py's own constants). Keys map 1:1 to the 4-state
+    model; the old drawdown_soft_cb_pct/normal_upper_pct keys were leftovers
+    from the pre-V5 3-state model and mapped to nothing.
+    """
+    global CAUTION_THRESHOLD, DEFENSIVE_THRESHOLD, CRITICAL_THRESHOLD
+    global CAUTION_EXIT, DEFENSIVE_EXIT, CRITICAL_EXIT
+    if not cfg:
+        return
+    rc = cfg.get("regime", {}) or {}
+    try:
+        CAUTION_THRESHOLD = float(rc.get("caution_pct", CAUTION_THRESHOLD))
+        DEFENSIVE_THRESHOLD = float(rc.get("defensive_pct", DEFENSIVE_THRESHOLD))
+        CRITICAL_THRESHOLD = float(rc.get("critical_pct", CRITICAL_THRESHOLD))
+        CAUTION_EXIT = float(rc.get("caution_exit_pct", CAUTION_EXIT))
+        DEFENSIVE_EXIT = float(rc.get("defensive_exit_pct", DEFENSIVE_EXIT))
+        CRITICAL_EXIT = float(rc.get("critical_exit_pct", CRITICAL_EXIT))
+    except (TypeError, ValueError):
+        import logging
+        logging.getLogger(__name__).error(
+            "regime.apply_config: ungültiger Config-Wert — Defaults bleiben aktiv"
+        )
+
 # ─── Risk Scalars per Regime ─────────────────────────────────────────────────
 
 RISK_SCALARS: dict[str, float] = {

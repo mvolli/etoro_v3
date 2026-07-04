@@ -49,6 +49,12 @@ ASSET_CLASS_LIMITS: dict[str, float] = {
     "ENERGY":       20.0,
 }
 
+# fix/sector-config-wiring: fallback cap for any asset class not explicitly
+# listed in ASSET_CLASS_LIMITS above. Was a hardcoded 100.0 (i.e. no limit) —
+# the last unlimited-concentration loophole. Now driven by config.yaml
+# sector_limits.max_per_sector_pct (default 20%) via apply_config.
+ASSET_CLASS_DEFAULT_LIMIT_PCT = 20.0
+
 # V5: Explicit crypto symbols for SL relative-calculation enforcement
 CRYPTO_SYMBOLS: frozenset[str] = frozenset({
     "BTC", "BTC-USD", "ETH", "ETH-USD", "XRP", "XRP-USD",
@@ -215,11 +221,13 @@ def apply_config(cfg: dict) -> None:
     global CASH_EMERGENCY_PCT
     global SL_HARD_CLOSE_PCT, SL_EMERGENCY_PCT, SL_WARNING_PCT
     global MAX_FRAGMENTS_PER_INSTRUMENT
+    global ASSET_CLASS_DEFAULT_LIMIT_PCT
 
     if not cfg:
         return
     trading = cfg.get("trading", {}) or {}
     sl = cfg.get("sl", {}) or {}
+    sector = cfg.get("sector_limits", {}) or {}
 
     try:
         MAX_POSITIONS = int(trading.get("max_positions", MAX_POSITIONS))
@@ -237,6 +245,10 @@ def apply_config(cfg: dict) -> None:
             SL_EMERGENCY_PCT = -abs(float(sl["emergency_pct"]))
         if "warning_pct" in sl:
             SL_WARNING_PCT = -abs(float(sl["warning_pct"]))
+
+        # fix/sector-config-wiring: fallback asset-class cap from config.
+        if "max_per_sector_pct" in sector:
+            ASSET_CLASS_DEFAULT_LIMIT_PCT = float(sector["max_per_sector_pct"])
 
         # Instrument-Limits: in-place mergen (importierte Referenzen behalten)
         cfg_limits = cfg.get("instrument_limits", {}) or {}
@@ -526,7 +538,7 @@ def check_asset_class_gate(
     if not asset_class:
         return GateResult(True, [f"Asset-Class OK: {symbol} (kein Mapping)"])
 
-    limit_pct = ASSET_CLASS_LIMITS.get(asset_class, 100.0)
+    limit_pct = ASSET_CLASS_LIMITS.get(asset_class, ASSET_CLASS_DEFAULT_LIMIT_PCT)
     current_class_total = sum(
         p["amount_usd"] for p in open_positions
         if ASSET_CLASS_MAP.get(p.get("symbol", "").upper()) == asset_class
