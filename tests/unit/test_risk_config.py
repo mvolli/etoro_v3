@@ -18,7 +18,6 @@ def _restore_constants():
         "MAX_POSITIONS": risk.MAX_POSITIONS,
         "MIN_BUY_USD": risk.MIN_BUY_USD,
         "CASH_TARGET_MIN_PCT": risk.CASH_TARGET_MIN_PCT,
-        "CASH_TARGET_MAX_PCT": risk.CASH_TARGET_MAX_PCT,
         "SL_HARD_CLOSE_PCT": risk.SL_HARD_CLOSE_PCT,
         "SL_EMERGENCY_PCT": risk.SL_EMERGENCY_PCT,
         "SL_WARNING_PCT": risk.SL_WARNING_PCT,

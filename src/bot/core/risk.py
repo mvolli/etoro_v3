@@ -157,14 +157,20 @@ def get_score_boost(symbol: str) -> float:
 MAX_POSITIONS = 21
 MIN_BUY_USD = 50.0
 CASH_TARGET_MIN_PCT = 15.0
-CASH_TARGET_MAX_PCT = 30.0
 # fix/cash-emergency-floor: Bible-Hard-Floor unterhalb des Soft-Floors.
 # Buys blockt bereits der 15%-Soft-Floor; unter 10% ist der Cash-Stand
 # ein Incident (Positionen ueber Plan / Reconcile-Drift) → Gate meldet
 # EMERGENCY, monitor_worker alarmiert.
+# (There is no CASH_TARGET_MAX gate: idle cash above the target band is
+# not a reason to BLOCK buys — the config's cash_target_max_pct is an
+# informational band bound, not enforced here.)
 CASH_EMERGENCY_PCT = 10.0
 MAX_TOTAL_EXPOSURE_PCT = 75.0
-MAX_CORRELATION = 0.85
+# NB: the enforced correlation thresholds live in bot.core.correlation
+# (CORRELATION_BLOCK_THRESHOLD=0.80 / CORRELATION_REDUCE_THRESHOLD=0.60),
+# which is what check_correlation_gate_risk actually calls. A duplicate
+# MAX_CORRELATION constant used to sit here, read by nothing — removed so
+# nobody "tunes" a dead value expecting it to change gate behaviour.
 
 # fix/autonomy-hardening: execution-time slippage guard.
 # Max allowed deviation between signal price and live price at execution.
@@ -205,7 +211,7 @@ CRYPTO_DEFAULT_SL_PCT = 3.0
 
 def apply_config(cfg: dict) -> None:
     """Override risk constants from config.yaml. Idempotent, fail-safe."""
-    global MAX_POSITIONS, MIN_BUY_USD, CASH_TARGET_MIN_PCT, CASH_TARGET_MAX_PCT
+    global MAX_POSITIONS, MIN_BUY_USD, CASH_TARGET_MIN_PCT
     global CASH_EMERGENCY_PCT
     global SL_HARD_CLOSE_PCT, SL_EMERGENCY_PCT, SL_WARNING_PCT
     global MAX_FRAGMENTS_PER_INSTRUMENT
@@ -219,7 +225,6 @@ def apply_config(cfg: dict) -> None:
         MAX_POSITIONS = int(trading.get("max_positions", MAX_POSITIONS))
         MIN_BUY_USD = float(trading.get("min_buy_usd", MIN_BUY_USD))
         CASH_TARGET_MIN_PCT = float(trading.get("cash_target_min_pct", CASH_TARGET_MIN_PCT))
-        CASH_TARGET_MAX_PCT = float(trading.get("cash_target_max_pct", CASH_TARGET_MAX_PCT))
         CASH_EMERGENCY_PCT = float(trading.get("cash_emergency_pct", CASH_EMERGENCY_PCT))
         MAX_FRAGMENTS_PER_INSTRUMENT = int(
             trading.get("max_fragments_per_instrument", MAX_FRAGMENTS_PER_INSTRUMENT)
