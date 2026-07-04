@@ -1,0 +1,64 @@
+instrument_id,symbol,resolved_symbol,etoro_name,yahoo_name,verdict
+2353,00006.HK,0006.HK,Power Assets Holdings Ltd,Power Assets Holdings Limited,MATCH
+2356,00017.HK,0017.HK,New World Development Co Ltd,New World Development Company Limited,MATCH
+2357,00019.HK,0019.HK,Swire Pacific Ltd,Swire Pacific Limited,MATCH
+2359,00135.HK,0135.HK,Kunlun Energy Co Ltd,Kunlun Energy Company Limited,MATCH
+2362,00257.HK,0257.HK,China Everbright Environment Group Ltd,China Everbright Environment Group Limited,MATCH
+2363,00268.HK,0268.HK,Kingdee International Software,Kingdee International Software Group Company Limited,MATCH
+2365,00322.HK,0322.HK,Tingyi Cayman Islands Holding,Tingyi (Cayman Islands) Holding Corp.,MATCH
+2366,00384.HK,0384.HK,China Gas Holdings Ltd,China Gas Holdings Limited,MATCH
+2367,00388.HK,0388.HK,Hong Kong Exchanges & Clearing,Hong Kong Exchanges and Clearing Limited,MATCH
+2368,00763.HK,0763.HK,ZTE Corp,ZTE Corporation,MATCH
+2369,788.HK,0788.HK,China Tower Corp Ltd,China Tower Corporation Limited,MATCH
+2370,00857.HK,0857.HK,PetroChina Co Ltd,PetroChina Company Limited,MATCH
+2371,00880.HK,0880.HK,SJM Holdings Ltd,SJM Holdings Limited,MATCH
+2372,00966.HK,0966.HK,China Taiping Insurance Holdin,China Taiping Insurance Holdings Company Limited,MATCH
+2373,00981.HK,0981.HK,Semiconductor Manufacturing International Corporation,Semiconductor Manufacturing International Corporation,MATCH
+2374,01055.HK,1055.HK,China Southern Airlines Co Ltd,China Southern Airlines Company Limited,MATCH
+2375,01093.HK,1093.HK,CSPC Pharmaceutical Group Ltd,CSPC Pharmaceutical Group Limited,MATCH
+2377,01114.HK,1114.HK,Brilliance China Automotive,Brilliance China Automotive Holdings Limited,MATCH
+2378,01128.HK,1128.HK,Wynn Macau Ltd,"Wynn Macau, Limited",MATCH
+2379,01177.HK,1177.HK,Sino Biopharmaceutical Ltd,Sino Biopharmaceutical Limited,MATCH
+2380,01211.HK,1211.HK,BYD Co Ltd,BYD Company Limited,MATCH
+2381,01336.HK,1336.HK,New China Life Insurance Co Ltd,New China Life Insurance Company Ltd.,MATCH
+2383,02018.HK,2018.HK,AAC Technologies Holdings Inc,AAC Technologies Holdings Inc.,MATCH
+2385,02196.HK,2196.HK,Shanghai Fosun Pharmaceutical,"Shanghai Fosun Pharmaceutical (Group) Co., Ltd.",MATCH
+2386,02269.HK,2269.HK,Wuxi Biologics Cayman Inc,WuXi Biologics (Cayman) Inc.,MATCH
+2387,02313.HK,2313.HK,Shenzhou International Group,Shenzhou International Group Holdings Limited,MATCH
+2388,02319.HK,2319.HK,China Mengniu Dairy Co Ltd,China Mengniu Dairy Company Limited,MATCH
+2389,02382.HK,2382.HK,Sunny Optical Technology Group,Sunny Optical Technology (Group) Company Limited,MATCH
+2390,02386.HK,2386.HK,Sinopec Engineering Group Co,"SINOPEC Engineering (Group) Co., Ltd.",MATCH
+2391,02388.HK,2388.HK,BOC Hong Kong Holdings Ltd,BOC Hong Kong (Holdings) Limited,MATCH
+2392,02688.HK,2688.HK,ENN Energy Holdings Ltd,ENN Energy Holdings Limited,MATCH
+2395,03908.HK,3908.HK,China International Capital Co,China International Capital Corporation Limited,MATCH
+2396,03993.HK,3993.HK,China Molybdenum Co Ltd,CMOC Group Limited,MISMATCH
+2397,06060.HK,6060.HK,ZhongAn Online P&C Insurance,"ZhongAn Online P & C Insurance Co., Ltd.",MATCH
+2399,06862.HK,6862.HK,Haidilao International Holding,Haidilao International Holding Ltd.,MATCH
+2401,06886.HK,6886.HK,Huatai Securities Co Ltd,"Huatai Securities Co., Ltd.",MATCH
+2403,01122.HK,1122.HK,Qingling Motors Co Ltd,"Qingling Motors Co., Ltd.",MATCH
+2406,3.HK,0003.HK,Hong Kong & China Gas Co Ltd,The Hong Kong and China Gas Company Limited,MATCH
+2407,12.HK,0012.HK,Henderson Land Development Co Ltd,Henderson Land Development Company Limited,MATCH
+2408,83.HK,0083.HK,Sino Land Co Ltd,Sino Land Company Limited,MATCH
+2409,101.HK,0101.HK,Hang Lung Properties Ltd,Hang Lung Properties Limited,MATCH
+2410,151.HK,0151.HK,Want Want China Holdings Ltd,Want Want China Holdings Limited,MATCH
+2413,341.HK,0341.HK,Cafe de Coral Holdings Ltd,Café de Coral Holdings Limited,MATCH
+2426,778.HK,0778.HK,Fortune Real Estate Investment Trust,Fortune Real Estate Investment Trust,MATCH
+2430,200.HK,0200.HK,Melco International Development Ltd,Melco International Development Limited,MATCH
+3361,300.HK,0300.HK,Midea Group Co Ltd,"Midea Group Co., Ltd.",MATCH
+6054,288.HK,0288.HK,WH Group Ltd,WH Group Limited,MATCH
+13664,267.HK,0267.HK,CITIC Limited,CITIC Limited,MATCH
+13695,168.HK,0168.HK,Tsingtao Brewery Company Limited,Tsingtao Brewery Company Limited,MATCH
+13696,836.HK,0836.HK,China Resources Power Holdings Company Limited,China Resources Power Holdings Company Limited,MATCH
+13698,291.HK,0291.HK,China Resources Beer (Holdings) Company Limited,China Resources Beer (Holdings) Company Limited,MATCH
+13705,670.HK,0670.HK,China Eastern Airlines Corporation Limited,China Eastern Airlines Corporation Limited,MATCH
+13711,177.HK,0177.HK,Jiangsu Expressway Company Limited,Jiangsu Expressway Company Limited,MATCH
+13714,316.HK,0316.HK,Orient Overseas International Ltd,Orient Overseas (International) Limited,MATCH
+13717,960.HK,0960.HK,Longfor Group Holdings Ltd,Longfor Group Holdings Limited,MATCH
+13718,358.HK,0358.HK,Jiangxi Copper Co Ltd H,Jiangxi Copper Company Limited,MATCH
+13723,486.HK,0486.HK,United Co Rusal International,"United Company RUSAL, International Public Joint-Stock Company",MATCH
+13727,293.HK,0293.HK,Cathay Pacific Airways,Cathay Pacific Airways Limited,MATCH
+13733,4.HK,0004.HK,Wharf Holdings Ltd,The Wharf (Holdings) Limited,MATCH
+13736,144.HK,0144.HK,China Merchants Port Holding,China Merchants Port Holdings Company Limited,MATCH
+13746,991.HK,0991.HK,Datang Intl Power Gen Co H,"Datang International Power Generation Co., Ltd.",MATCH
+13750,780.HK,0780.HK,Tongcheng Travel Holdings Lt,Tongcheng Travel Holdings Limited,MATCH
+13755,874.HK,0874.HK,Guangzhou Baiyunshan Pharmaceutical Holdings Co Ltd,Guangzhou Baiyunshan Pharmaceutical Holdings Company Limited,MATCH
