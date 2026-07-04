@@ -43,8 +43,9 @@ def activate(reason: str = 'Manual kill switch') -> None:
 
 def deactivate() -> None:
     """Remove the kill switch file to resume normal operation."""
-    if _KILL_SWITCH_FILE.exists():
-        _KILL_SWITCH_FILE.unlink()
+    # missing_ok=True avoids a TOCTOU race: a concurrent deactivation between
+    # an exists() check and unlink() would otherwise raise FileNotFoundError.
+    _KILL_SWITCH_FILE.unlink(missing_ok=True)
 
 
 # ── Backward compatibility alias (risk_worker imports KILL_SWITCH_FILE) ────────

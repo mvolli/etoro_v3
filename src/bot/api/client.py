@@ -740,10 +740,14 @@ class EToroClient:
             project_root = Path(__file__).resolve().parent.parent.parent.parent  # → etoro_v3/
             db_path = project_root / "data" / "trading.db"
             
+            # fix/conn-leak: close() must run even if a query raises — the
+            # old code called conn.close() only on the success path, leaking
+            # the handle on every failed DB fallback.
+            conn = None
             try:
                 conn = sqlite3.connect(str(db_path))
                 conn.row_factory = sqlite3.Row
-                
+
                 # Try portfolio_snapshot first (has current_price) — only works for existing positions
                 snapshot_rows = conn.execute(
                     "SELECT current_price FROM portfolio_snapshot WHERE instrument_id=? AND current_price > 0 ORDER BY last_synced DESC LIMIT 1",
@@ -757,7 +761,7 @@ class EToroClient:
                             "Using portfolio_snapshot price for %s: %.6f",
                             instrument_id, current_price
                         )
-                
+
                 # Fallback to latest signal price
                 if current_price is None:
                     signal_rows = conn.execute(
@@ -770,10 +774,11 @@ class EToroClient:
                             "Using signal price for %s: %.6f",
                             instrument_id, current_price
                         )
-                
-                conn.close()
             except Exception as db_exc:
                 logger.warning("DB price lookup failed for %s: %s", instrument_id, db_exc)
+            finally:
+                if conn is not None:
+                    conn.close()
         
         if current_price is None:
             raise APIError(

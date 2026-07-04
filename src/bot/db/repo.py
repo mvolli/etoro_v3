@@ -298,18 +298,20 @@ class SignalRepo:
         ttl_minutes: int = 60,
     ) -> int:
         """Insert a new signal with status='FRESH' and expiry = now + ttl_minutes. Returns signal id."""
-        expires_at = (
-            f"datetime('now','+{ttl_minutes} minutes','utc')"
-        )
+        # fix/sql-hardening: bind the TTL modifier as a parameter instead of
+        # f-stringing it into the SQL text. int() coerces so a non-numeric
+        # ttl can never inject SQLite date-modifier syntax, even if a future
+        # caller sources ttl_minutes from signal/API data instead of config.
+        ttl_modifier = f"+{int(ttl_minutes)} minutes"
         cur = self.db.execute(
-            f"""
+            """
             INSERT INTO signals
                 (instrument_id, signal_type, conviction, score,
                  rsi, macd_hist, bb_pct, price, expires_at, status)
             VALUES
-                (?, ?, ?, ?, ?, ?, ?, ?, {expires_at}, 'FRESH')
+                (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', ?, 'utc'), 'FRESH')
             """,
-            (instrument_id, signal_type, conviction, score, rsi, macd_hist, bb_pct, price),
+            (instrument_id, signal_type, conviction, score, rsi, macd_hist, bb_pct, price, ttl_modifier),
         )
         return cur.lastrowid  # type: ignore[return-value]
 
