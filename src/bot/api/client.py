@@ -325,26 +325,6 @@ class EToroClient:
         """
         return self.get("/trading/info/real/pnl")
 
-    def get_positions(self) -> list[dict]:
-        """Return the list of open positions from the portfolio snapshot.
-
-        Parses ``portfolio["positions"]`` (falls back to empty list if the
-        key is absent so callers never need to guard against None).
-
-        Returns
-        -------
-        list[dict]
-            Each dict is one open position as returned by eToro.
-        """
-        portfolio = self.get_portfolio()
-        # eToro nests positions under different keys depending on API version
-        positions = (
-            portfolio.get("positions")
-            or portfolio.get("openPositions")
-            or []
-        )
-        return positions
-
     def get_instrument_metadata(self, instrument_id: int) -> dict:
         """Fetch live instrument metadata (symbol/name/exchange) by ID.
 

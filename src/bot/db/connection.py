@@ -4,7 +4,6 @@ src/bot/db/connection.py
 
 Provides:
   DB      — thin wrapper around sqlite3 with WAL configuration.
-  DBPool  — simple named-connection wrapper (single-connection "pool").
 """
 from __future__ import annotations
 
@@ -153,34 +152,3 @@ class DB:
 
     def __repr__(self) -> str:
         return f"DB({self.db_path})"
-
-
-# ── DBPool ────────────────────────────────────────────────────────────────────
-
-class DBPool:
-    """
-    Simple named-connection wrapper that acts as a 'pool' of one.
-
-    For a single-process bot a true connection pool is unnecessary.
-    DBPool stores a configured DB instance and provides get() for callers
-    that prefer the pool pattern without pulling in a heavy library.
-
-    Example::
-        pool = DBPool(db_path="/data/trading.db", busy_timeout_ms=5000)
-        db = pool.get()
-        rows = db.fetchall("SELECT * FROM trades")
-    """
-
-    def __init__(
-        self,
-        db_path: str | Path,
-        busy_timeout_ms: int = 5000,
-    ) -> None:
-        self._db = DB(db_path=db_path, busy_timeout_ms=busy_timeout_ms)
-
-    def get(self) -> DB:
-        """Return the underlying DB instance."""
-        return self._db
-
-    def __repr__(self) -> str:
-        return f"DBPool({self._db.db_path})"

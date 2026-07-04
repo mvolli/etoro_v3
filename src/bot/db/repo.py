@@ -60,10 +60,6 @@ _TRADE_UPDATE_FIELDS = frozenset(
     }
 )
 
-# Statuses considered "active" for position-count / exposure checks.
-_ACTIVE_STATUSES = ("APPROVED", "SUBMITTING", "ACTIVE", "CLOSING")
-
-
 class TradeRepo:
     """Repository for the `trades` table."""
 
@@ -159,29 +155,6 @@ class TradeRepo:
         rows = self.db.fetchall(
             f"SELECT * FROM trades WHERE status IN ({placeholders}) ORDER BY created_at",
             status,
-        )
-        return _rows_to_dicts(rows)
-
-    def get_active_count(self) -> int:
-        """Count trades in any 'live' status (APPROVED/SUBMITTING/ACTIVE/CLOSING)."""
-        placeholders = ",".join("?" * len(_ACTIVE_STATUSES))
-        row = self.db.fetchone(
-            f"SELECT COUNT(*) AS cnt FROM trades WHERE status IN ({placeholders})",
-            list(_ACTIVE_STATUSES),
-        )
-        return row["cnt"] if row else 0  # type: ignore[index]
-
-    def get_active_by_instrument(self, instrument_id: int) -> list[dict]:
-        """Return all live trades for a specific instrument."""
-        placeholders = ",".join("?" * len(_ACTIVE_STATUSES))
-        rows = self.db.fetchall(
-            f"""
-            SELECT * FROM trades
-             WHERE instrument_id = ?
-               AND status IN ({placeholders})
-             ORDER BY created_at
-            """,
-            [instrument_id, *_ACTIVE_STATUSES],
         )
         return _rows_to_dicts(rows)
 
@@ -418,18 +391,6 @@ class PortfolioRepo:
             (instrument_id,),
         )
         return _rows_to_dicts(rows)
-
-    def delete_stale(self, synced_before: str) -> int:
-        """
-        Remove positions that haven't been synced since `synced_before`
-        (ISO-8601 string). These are positions that no longer exist at eToro.
-        Returns the number of rows deleted.
-        """
-        cur = self.db.execute(
-            "DELETE FROM portfolio_snapshot WHERE last_synced < ?",
-            (synced_before,),
-        )
-        return cur.rowcount
 
     def get_total_exposure(self) -> float:
         """Sum of amount_usd across all tracked positions."""
