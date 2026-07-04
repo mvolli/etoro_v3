@@ -341,9 +341,9 @@ def _save_instrument_map_update(instrument_map: dict[int, str], new_ids: dict[in
             json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8"
         )
         tmp_file.rename(cache_file)  # atomic on same filesystem
-        logger.info("[\1] INFO: Updated instrument_map.json with {len(new_ids)} new entries")
+        logger.info(f"[{WORKER_NAME}] Updated instrument_map.json with {len(new_ids)} new entries")
     except OSError as exc:
-        logger.warning("[{WORKER_NAME}] WARNING: Failed to update instrument_map.json: {exc}")
+        logger.warning(f"[{WORKER_NAME}] WARNING: Failed to update instrument_map.json: {exc}")
 
     # Also persist to instruments table in trading.db
     try:
@@ -368,9 +368,9 @@ def _save_instrument_map_update(instrument_map: dict[int, str], new_ids: dict[in
                    VALUES (?, ?, ?, ?)""",
                 (iid, sym, asset_class, _utcnow()),
             )
-        logger.info("[\1] INFO: Upserted {len(new_ids)} instruments into trading.db")
+        logger.info(f"[{WORKER_NAME}] Upserted {len(new_ids)} instruments into trading.db")
     except Exception as exc:
-        logger.warning("[{WORKER_NAME}] WARNING: Failed to update instruments table: {exc}")
+        logger.warning(f"[{WORKER_NAME}] WARNING: Failed to update instruments table: {exc}")
 
 
 # ── main reconciliation logic ─────────────────────────────────────────────────
@@ -385,7 +385,7 @@ def main() -> int:
 
     with worker_lock("reconciler") as acquired:
         if not acquired:
-            logger.info("[{WORKER_NAME}] SKIPPED (already running)")
+            logger.info(f"[{WORKER_NAME}] SKIPPED (already running)")
             return 0
 
         # ── Logging (WARNING only — INFO goes to Discord embed) ──────────────
@@ -398,7 +398,7 @@ def main() -> int:
         try:
             cfg = _load_config()
         except Exception as exc:
-            logger.critical("[{WORKER_NAME}] FATAL: Cannot load config: {exc}")
+            logger.critical(f"[{WORKER_NAME}] FATAL: Cannot load config: {exc}")
             return 1
     
         # ── 2. Initialise DB ───────────────────────────────────────────────────────
@@ -438,13 +438,13 @@ def main() -> int:
             portfolio_payload = client.get_portfolio()
         except APIError as exc:
             msg = f"API call failed: GET /trading/info/real/pnl → {exc}"
-            logger.error("[{WORKER_NAME}] ERROR: {msg}")
+            logger.error(f"[{WORKER_NAME}] ERROR: {msg}")
             log_repo.write("ERROR", WORKER_NAME, msg, {"status_code": exc.status_code, "endpoint": exc.endpoint})
             client.close()
             return 1
         except Exception as exc:
             msg = f"Unexpected error fetching portfolio: {exc}"
-            logger.error("[{WORKER_NAME}] ERROR: {msg}")
+            logger.error(f"[{WORKER_NAME}] ERROR: {msg}")
             log_repo.write("ERROR", WORKER_NAME, msg)
             client.close()
             return 1
@@ -477,7 +477,7 @@ def main() -> int:
                     f"{EMPTY_STREAK_ACCEPT_AFTER}). Skipping trade-closure and "
                     f"equity-update logic this cycle — likely transient API glitch."
                 )
-                logger.error("[{WORKER_NAME}] ERROR: {msg}")
+                logger.error(f"[{WORKER_NAME}] ERROR: {msg}")
                 log_repo.write("ERROR", WORKER_NAME, msg,
                                {"previous_count": previous_position_count,
                                 "empty_streak": empty_streak})
@@ -496,7 +496,7 @@ def main() -> int:
                 f"(vorher {previous_position_count}) — akzeptiere leeres "
                 f"Portfolio als real und synchronisiere. Manuelle Prüfung empfohlen!"
             )
-            logger.warning("[{WORKER_NAME}] WARNING: {msg}")
+            logger.warning(f"[{WORKER_NAME}] WARNING: {msg}")
             log_repo.write("WARNING", WORKER_NAME, msg,
                            {"previous_count": previous_position_count,
                             "empty_streak": empty_streak})
@@ -540,13 +540,13 @@ def main() -> int:
                 synced_count += 1
             except Exception as exc:
                 msg = f"Failed to upsert position {pos_id}: {exc}"
-                logger.warning("[{WORKER_NAME}] WARNING: {msg}")
+                logger.warning(f"[{WORKER_NAME}] WARNING: {msg}")
                 log_repo.write("WARNING", WORKER_NAME, msg, {"position_id": pos_id})
 
         # ── 7.5 Persist any newly resolved instrument IDs ────────────────────────
         if all_api_resolved_ids:
             _save_instrument_map_update(instrument_map, all_api_resolved_ids)
-            logger.info("[\1] INFO: Resolved {len(all_api_resolved_ids)} new instrument IDs via API")
+            logger.info(f"[{WORKER_NAME}] Resolved {len(all_api_resolved_ids)} new instrument IDs via API")
 
         # Close client after all API lookups are done
         client.close()
@@ -571,11 +571,11 @@ def main() -> int:
                 )
                 orphan_count += 1
                 msg = f"Orphan position removed: {orphan_id}"
-                logger.warning("[{WORKER_NAME}] WARNING: {msg}")
+                logger.warning(f"[{WORKER_NAME}] WARNING: {msg}")
                 log_repo.write("WARNING", WORKER_NAME, msg, {"api_position_id": orphan_id})
             except Exception as exc:
                 msg = f"Failed to delete orphan position {orphan_id}: {exc}"
-                logger.warning("[{WORKER_NAME}] WARNING: {msg}")
+                logger.warning(f"[{WORKER_NAME}] WARNING: {msg}")
                 log_repo.write("WARNING", WORKER_NAME, msg)
     
         # ── 9. Trade reconciliation: mark ACTIVE trades CLOSED if no API match ────
@@ -585,7 +585,7 @@ def main() -> int:
             active_trades = trade_repo.get_by_status("ACTIVE")
         except Exception as exc:
             msg = f"Failed to query ACTIVE trades: {exc}"
-            logger.warning("[{WORKER_NAME}] WARNING: {msg}")
+            logger.warning(f"[{WORKER_NAME}] WARNING: {msg}")
             log_repo.write("WARNING", WORKER_NAME, msg)
             active_trades = []
     
@@ -607,11 +607,11 @@ def main() -> int:
                                 entry_price=float(open_price),
                             )
                             msg = f"Trade {trade['id']} ({trade.get('symbol')}) backfilled entry_price={open_price}"
-                            logger.info("[\1] INFO: {msg}")
+                            logger.info(f"[{WORKER_NAME}] {msg}")
                             log_repo.write("INFO", WORKER_NAME, msg, {"trade_id": trade["id"], "entry_price": open_price})
                         except Exception as exc:
                             msg = f"Failed to backfill entry_price for trade {trade['id']}: {exc}"
-                            logger.warning("[{WORKER_NAME}] WARNING: {msg}")
+                            logger.warning(f"[{WORKER_NAME}] WARNING: {msg}")
                             log_repo.write("WARNING", WORKER_NAME, msg)
                 continue  # still live — leave alone
     
@@ -658,7 +658,7 @@ def main() -> int:
                     f"Trade {trade_id} ({trade.get('symbol')}) marked CLOSED "
                     f"— no matching API position (api_position_id={pos_id!r})"
                 )
-                logger.info("[\1] INFO: {msg}")
+                logger.info(f"[{WORKER_NAME}] {msg}")
                 log_repo.write(
                     "INFO", WORKER_NAME, msg,
                     {"trade_id": trade_id, "api_position_id": pos_id,
@@ -676,7 +676,7 @@ def main() -> int:
                 )
             except Exception as exc:
                 msg = f"Failed to close trade {trade_id}: {exc}"
-                logger.warning("[{WORKER_NAME}] WARNING: {msg}")
+                logger.warning(f"[{WORKER_NAME}] WARNING: {msg}")
                 log_repo.write("WARNING", WORKER_NAME, msg, {"trade_id": trade_id})
     
         # ── 10. Update system_state ────────────────────────────────────────────────
@@ -689,7 +689,7 @@ def main() -> int:
             state_repo.set("POSITION_COUNT", str(position_count))
         except Exception as exc:
             msg = f"Failed to update system_state: {exc}"
-            logger.warning("[{WORKER_NAME}] WARNING: {msg}")
+            logger.warning(f"[{WORKER_NAME}] WARNING: {msg}")
             log_repo.write("WARNING", WORKER_NAME, msg)
     
         # ── 11. Update peak equity ─────────────────────────────────────────────────
@@ -700,7 +700,7 @@ def main() -> int:
                 peak_equity = current_equity
         except Exception as exc:
             msg = f"Failed to update PEAK_EQUITY: {exc}"
-            logger.warning("[{WORKER_NAME}] WARNING: {msg}")
+            logger.warning(f"[{WORKER_NAME}] WARNING: {msg}")
             log_repo.write("WARNING", WORKER_NAME, msg)
             peak_equity = current_equity
     
@@ -718,7 +718,7 @@ def main() -> int:
                 state_repo.set("DRAWDOWN_PCT", f"{drawdown_pct:.4f}")
         except Exception as exc:
             msg = f"Failed to update regime: {exc}"
-            logger.warning("[{WORKER_NAME}] WARNING: {msg}")
+            logger.warning(f"[{WORKER_NAME}] WARNING: {msg}")
             log_repo.write("WARNING", WORKER_NAME, msg)
             regime = state_repo.get_regime()
     
