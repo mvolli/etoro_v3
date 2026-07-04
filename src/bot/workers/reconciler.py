@@ -88,6 +88,38 @@ def _utcnow_minus(minutes: int) -> str:
     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
+def is_fresh_fill_protected(confirmed_at: str | None, orphan_cutoff: str) -> bool:
+    """True when an ACTIVE trade was confirmed too recently to orphan-close.
+
+    fix/fresh-fill-orphan-guard (audit crit #4): a just-filled trade has no
+    portfolio_snapshot row yet (execution_worker writes none on ACTIVE), so a
+    single missing cycle must not close it. Timestamps are lexicographically
+    comparable ISO-8601 strings; confirmed_at > orphan_cutoff means "within
+    the last ORPHAN_THRESHOLD_MINUTES".
+    """
+    return bool(confirmed_at and confirmed_at > orphan_cutoff)
+
+
+def classify_stale_submitting(
+    pos_id: str | None,
+    live_position_ids: set[str] | list[str],
+    submitted_at: str | None,
+    orphan_cutoff: str,
+) -> str | None:
+    """Recovery verdict for a stranded SUBMITTING trade (audit crit #6).
+
+    Returns 'ACTIVE' (a confirmed position id is live → the fill went through,
+    only the status transition was interrupted), 'FAILED' (past the orphan
+    window with no live position → interrupted submit), or None (still within
+    the grace window — execution_worker may still be verifying; leave it).
+    """
+    if pos_id and pos_id in live_position_ids:
+        return "ACTIVE"
+    if submitted_at and submitted_at < orphan_cutoff:
+        return "FAILED"
+    return None
+
+
 def _load_config() -> dict:
     """Load config/config.yaml relative to project root. Raises on missing file."""
     config_path = PROJECT_ROOT / "config" / "config.yaml"
@@ -615,6 +647,24 @@ def main() -> int:
                             log_repo.write("WARNING", WORKER_NAME, msg)
                 continue  # still live — leave alone
     
+            # ── Fresh-fill grace (fix/fresh-fill-orphan-guard, audit crit #4) ─────
+            # A trade confirmed within the orphan window must NEVER be closed on
+            # a single missing cycle: execution_worker writes no portfolio_snapshot
+            # row when it marks ACTIVE, so a just-filled trade has no snapshot yet.
+            # If the live API momentarily omits its position (one transient hiccup,
+            # not the all-empty case the circuit breaker guards), the old code fell
+            # straight through to CLOSED with a fabricated $0 PnL while the position
+            # was still open at the broker. Anchor the grace on confirmed_at age so
+            # every fresh fill gets a full window regardless of snapshot presence.
+            if is_fresh_fill_protected(trade.get("confirmed_at"), orphan_cutoff):
+                logger.info(
+                    "[%s] Trade %s (%s) confirmed %s — within %dmin orphan window, "
+                    "too new to close on a missing cycle, deferring",
+                    WORKER_NAME, trade["id"], trade.get("symbol"),
+                    trade.get("confirmed_at"), ORPHAN_THRESHOLD_MINUTES,
+                )
+                continue
+
             # ── Grace-Period: only close if position is confirmed orphaned ────────
             # Position missing this cycle but portfolio_snapshot row still exists
             # (< ORPHAN_THRESHOLD_MINUTES old → not yet confirmed orphaned).
@@ -678,7 +728,56 @@ def main() -> int:
                 msg = f"Failed to close trade {trade_id}: {exc}"
                 logger.warning(f"[{WORKER_NAME}] WARNING: {msg}")
                 log_repo.write("WARNING", WORKER_NAME, msg, {"trade_id": trade_id})
-    
+
+        # ── 9b. Recover stranded SUBMITTING trades (fix/submitting-recovery, ─────────
+        #        audit crit #6). execution_worker sets SUBMITTING before it
+        #        confirms the fill; a crash/OOM/kill between there and the final
+        #        ACTIVE/FAILED transition strands the trade forever — reconciler
+        #        only ever queried ACTIVE, so nothing revisited it. Recover here:
+        #        a confirmed position id that is live → ACTIVE; otherwise, once
+        #        past the orphan window (execution's own verify loop caps at
+        #        ~2min, so >5min is unambiguously stuck) → FAILED. If it did fill
+        #        untracked, the position is still captured by the snapshot upsert
+        #        above + risk_worker (which reads live positions, not trade rows).
+        try:
+            submitting_trades = trade_repo.get_by_status("SUBMITTING")
+        except Exception as exc:
+            logger.warning(f"[{WORKER_NAME}] WARNING: Failed to query SUBMITTING trades: {exc}")
+            submitting_trades = []
+
+        recovered_active = recovered_failed = 0
+        for trade in submitting_trades:
+            t_id = trade["id"]
+            pos_id = trade.get("api_position_id")
+            try:
+                verdict = classify_stale_submitting(
+                    pos_id, live_position_ids, trade.get("submitted_at"), orphan_cutoff
+                )
+                if verdict == "ACTIVE":
+                    trade_repo.update_status(t_id, "ACTIVE", confirmed_at=_utcnow())
+                    recovered_active += 1
+                    msg = f"Trade {t_id} ({trade.get('symbol')}) recovered SUBMITTING→ACTIVE (position {pos_id} is live)"
+                    logger.warning(f"[{WORKER_NAME}] {msg}")
+                    log_repo.write("WARN", WORKER_NAME, msg, {"trade_id": t_id, "api_position_id": pos_id})
+                elif verdict == "FAILED":
+                    trade_repo.update_status(
+                        t_id, "FAILED",
+                        rejection_reason="Recovered from stale SUBMITTING — interrupted submit, no confirmed live position",
+                        closed_at=_utcnow(),
+                    )
+                    recovered_failed += 1
+                    msg = f"Trade {t_id} ({trade.get('symbol')}) recovered SUBMITTING→FAILED (stale, no live position)"
+                    logger.warning(f"[{WORKER_NAME}] {msg}")
+                    log_repo.write("WARN", WORKER_NAME, msg, {"trade_id": t_id, "submitted_at": trade.get("submitted_at")})
+                # else (None): still within the grace window — execution_worker may be verifying; leave it.
+            except Exception as exc:
+                logger.warning(f"[{WORKER_NAME}] WARNING: SUBMITTING recovery failed for trade {t_id}: {exc}")
+        if recovered_active or recovered_failed:
+            logger.warning(
+                "[%s] SUBMITTING recovery: %d→ACTIVE, %d→FAILED",
+                WORKER_NAME, recovered_active, recovered_failed,
+            )
+
         # ── 10. Update system_state ────────────────────────────────────────────────
         now_str       = _utcnow()
         position_count = portfolio_repo.get_position_count()
