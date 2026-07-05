@@ -1,5 +1,10 @@
 # eToro Trading System — Architektur-Dokumentation
 
+> ## ⚠️ SUPERSEDED — HISTORISCHES DOKUMENT (V2, tot seit 2026-06-24)
+> Beschreibt das ARCHIVIERTE Alt-System. NICHTS hieraus ausführen oder zitieren.
+> Alle Pfade (`workspace/etoro/`, `db/etoro_trading.db`) existieren NICHT mehr.
+> Das Live-System ist etoro_v3 mit der EINZIGEN DB `etoro_v3/data/trading.db`.
+
 **Version:** 7.0 | **Stand:** 2026-06-22 | **Portfolio:** ~$10k Agent Portfolio (GCID 48535175 / RoBoCoP-ZDCENBUT)
 
 ---
