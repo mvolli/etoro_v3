@@ -57,13 +57,14 @@ Spot-checked against this repo's `config/config.yaml` and
    regression — but worth knowing the original had finer granularity if the
    3-stage ladder ever looks too coarse.
 3. **`MDD_DAILY_PCT` / `MDD_WEEKLY_PCT` / `MDD_MONTHLY_PCT`** (2%/5%/10%
-   max drawdown, Bible v5.3): this repo only has a **daily** loss limit
-   (`config.yaml: risk.daily_loss_limit_pct`, currently 5.0% — looser than
-   the Bible's 2% daily figure) and **no weekly or monthly drawdown
-   circuit-breaker at all**. This looks like a genuine gap rather than an
-   intentional simplification — worth a deliberate decision (keep daily-only,
-   or port the weekly/monthly tiers) rather than leaving it as an accident
-   of the v2→v3 rewrite.
+   max drawdown, Bible v5.3): ~~gap~~ **RESOLVED 2026-07-04** — this repo now
+   implements all three horizons (`config.yaml: risk.daily/weekly/monthly_
+   loss_limit_pct` = 5/8/12%, looser than the Bible's figures by deliberate
+   user decision). Weekly/monthly measure max drawdown from the 7d/30d
+   equity high (`risk.check_trailing_loss_breach`); breaches trip the
+   kill-switch. Daily trips auto-clear on the next UTC day
+   (`kill_switch.auto_clear_if_new_day`, 2026-07-05); weekly/monthly stay
+   until manual review.
 
 Everything else in the old project (incident reports, optimization-plan
 docs, historical `.db` files, `post_*.py` scripts) is archived at

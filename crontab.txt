@@ -4,7 +4,8 @@
 # Managed via Hermes cron jobs (see ~/.hermes/cron/).
 # This file is the versioned source of truth for all schedules.
 #
-# IMPORTANT: All workers use scripts/v3_*.sh wrappers which:
+# IMPORTANT: All worker wrappers live in ~/.hermes/scripts/v3_*.sh (NOT in
+# etoro_v3/scripts/ — only the kill-switch watchdog lives there). Wrappers:
 #   1. Source ~/.hermes/.env (EToro API keys)
 #   2. cd to project root
 #   3. Run the Python worker with proper error handling
@@ -21,22 +22,22 @@
 # ──────────────────────────────────────────────────────────────────────────────
 
 # Data Worker — every 5 minutes at :00
-*/5 * * * *    cd /home/mvolli/.hermes/workspace/etoro_v3 && bash scripts/v3_data_worker.sh >> logs/data_worker.log 2>&1
+*/5 * * * *    cd /home/mvolli/.hermes/workspace/etoro_v3 && bash /home/mvolli/.hermes/scripts/v3_data_worker.sh >> logs/data_worker.log 2>&1
 
 # Risk Worker — every 5 minutes at :01
-1-59/5 * * * * cd /home/mvolli/.hermes/workspace/etoro_v3 && bash scripts/v3_risk_worker.sh >> logs/risk_worker.log 2>&1
+1-59/5 * * * * cd /home/mvolli/.hermes/workspace/etoro_v3 && bash /home/mvolli/.hermes/scripts/v3_risk_worker.sh >> logs/risk_worker.log 2>&1
 
 # Reconciler — every 5 minutes at :02
-2-59/5 * * * * cd /home/mvolli/.hermes/workspace/etoro_v3 && bash scripts/v3_reconciler.sh >> logs/reconciler.log 2>&1
+2-59/5 * * * * cd /home/mvolli/.hermes/workspace/etoro_v3 && bash /home/mvolli/.hermes/scripts/v3_reconciler.sh >> logs/reconciler.log 2>&1
 
 # Signal Worker — every 15 minutes at :03
-3-59/15 * * * * cd /home/mvolli/.hermes/workspace/etoro_v3 && bash scripts/v3_signal_worker.sh >> logs/signal_worker.log 2>&1
+3-59/15 * * * * cd /home/mvolli/.hermes/workspace/etoro_v3 && bash /home/mvolli/.hermes/scripts/v3_signal_worker.sh >> logs/signal_worker.log 2>&1
 
 # Execution Worker — every 15 minutes at :04
-4-59/15 * * * * cd /home/mvolli/.hermes/workspace/etoro_v3 && bash scripts/v3_execution_worker.sh >> logs/execution_worker.log 2>&1
+4-59/15 * * * * cd /home/mvolli/.hermes/workspace/etoro_v3 && bash /home/mvolli/.hermes/scripts/v3_execution_worker.sh >> logs/execution_worker.log 2>&1
 
 # Monitor Worker — every 30 minutes
-*/30 * * * *   cd /home/mvolli/.hermes/workspace/etoro_v3 && bash scripts/v3_monitor_worker.sh >> logs/monitor_worker.log 2>&1
+*/30 * * * *   cd /home/mvolli/.hermes/workspace/etoro_v3 && bash /home/mvolli/.hermes/scripts/v3_monitor_worker.sh >> logs/monitor_worker.log 2>&1
 
 # Discovery Worker — every 2 hours (raised from 4x/day — see
 # fix/signal-pool-exhaustion: at 3 signals/15min-cycle, the old 15-signal
@@ -49,7 +50,7 @@
 # parallelen Legacy-Job 33bd244c3e65 ("eToro Discovery Pipeline",
 # scripts/discovery_cron.py alle 6h, agent-basiert) deaktiviert — zwei
 # konkurrierende Discovery-Systeme schrieben in denselben Signal-Pool.
-0 */2 * * * cd /home/mvolli/.hermes/workspace/etoro_v3 && bash scripts/v3_discovery_worker.sh >> logs/discovery_worker.log 2>&1
+0 */2 * * * cd /home/mvolli/.hermes/workspace/etoro_v3 && bash /home/mvolli/.hermes/scripts/v3_discovery_worker.sh >> logs/discovery_worker.log 2>&1
 
 # Kill Switch Watchdog — every 5 minutes
 */5 * * * *    cd /home/mvolli/.hermes/workspace/etoro_v3 && bash scripts/etoro_kill_switch_watchdog.sh >> logs/kill_switch.log 2>&1
