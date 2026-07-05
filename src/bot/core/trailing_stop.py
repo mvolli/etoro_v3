@@ -52,18 +52,102 @@ ATR_PROFIT_LEVELS = [
 ]
 
 
-def _resolve_profit_levels(atr_pct: float | None) -> list[dict]:
+# ── Dynamic Quick-Profit (Stufe 1) ────────────────────────────────────────────
+# Zwei Mechaniken, beide auf der LIVE-PnL jedes risk_worker-Zyklus (~5 min) —
+# kein Intraday-Feed noetig, greift daher sofort auch fuer Bestandspositionen.
+#
+# ① MOMENTUM-FADE (universell): trackt das PnL-Hoch je Position (peak_pnl_pct).
+#    Baut eine Position Gewinn auf und gibt ihn wieder ab, wird EINMALIG ein
+#    Teil realisiert + Break-Even auf dem Rest armiert. Fuellt genau die Luecke
+#    zwischen BE-Floor (+0.3%) und der ersten Profit-Stufe (+6%), die heute
+#    voellig ungeschuetzt ist.
+# ② SCALP-TIER (opt-in per strategy='scalp'): eine sehr fruehe erste Profit-
+#    Stufe (ATR×2, clamp [2%,5%]), damit ein bewusst kurzfristiger Trade schnell
+#    einen Teilgewinn sichert, statt auf die Swing-Leiter (+6/+10/+18%) zu warten.
+MOMENTUM_FADE_ENABLED = True
+MOMENTUM_ARM_PCT = 2.0          # Peak muss dieses PnL erreichen, bevor Fade-Schutz armiert
+MOMENTUM_RETRACE_FRAC = 0.40    # Rueckgabe dieses Anteils vom Peak → feuert
+MOMENTUM_MIN_LOCK_PCT = 1.0     # unter diesem aktuellen PnL nie feuern (BE/SL-Revier)
+MOMENTUM_FADE_CLOSE_PCT = 50.0  # % der Position, das ein Fade realisiert
+
+SCALP_ENABLED = True
+SCALP_ATR_MULT = 2.0
+SCALP_MIN_PCT = 2.0
+SCALP_MAX_PCT = 5.0
+SCALP_CLOSE_PCT = 25
+
+
+def apply_config(cfg: dict) -> None:
+    """Wire the `trailing:` config block into module thresholds (idempotent).
+
+    Called once per risk_worker run before evaluate_trailing(). Missing keys
+    keep the conservative code defaults above.
+    """
+    global MOMENTUM_FADE_ENABLED, MOMENTUM_ARM_PCT, MOMENTUM_RETRACE_FRAC
+    global MOMENTUM_MIN_LOCK_PCT, MOMENTUM_FADE_CLOSE_PCT
+    global SCALP_ENABLED, SCALP_ATR_MULT, SCALP_MIN_PCT, SCALP_MAX_PCT, SCALP_CLOSE_PCT
+    t = ((cfg or {}).get('trailing') or {})
+    mf = (t.get('momentum_fade') or {})
+    if 'enabled' in mf:
+        MOMENTUM_FADE_ENABLED = bool(mf['enabled'])
+    MOMENTUM_ARM_PCT = float(mf.get('arm_pct', MOMENTUM_ARM_PCT))
+    MOMENTUM_RETRACE_FRAC = float(mf.get('retrace_frac', MOMENTUM_RETRACE_FRAC))
+    MOMENTUM_MIN_LOCK_PCT = float(mf.get('min_lock_pct', MOMENTUM_MIN_LOCK_PCT))
+    MOMENTUM_FADE_CLOSE_PCT = float(mf.get('close_pct', MOMENTUM_FADE_CLOSE_PCT))
+    sc = (t.get('scalp') or {})
+    if 'enabled' in sc:
+        SCALP_ENABLED = bool(sc['enabled'])
+    SCALP_ATR_MULT = float(sc.get('atr_mult', SCALP_ATR_MULT))
+    SCALP_MIN_PCT = float(sc.get('min_pct', SCALP_MIN_PCT))
+    SCALP_MAX_PCT = float(sc.get('max_pct', SCALP_MAX_PCT))
+    SCALP_CLOSE_PCT = float(sc.get('close_pct', SCALP_CLOSE_PCT))
+
+
+def should_momentum_fade(pnl_pct: float, peak_pnl_pct: float, already_faded: bool) -> bool:
+    """Pure decision: has a built-up gain faded enough to lock a partial?
+
+    True iff momentum-fade is enabled, the position isn't already faded, the
+    peak reached the arm threshold, current PnL is still a real gain (≥ min-lock)
+    AND has given back at least RETRACE_FRAC of the peak. Kept pure/side-effect-
+    free so the trigger can be unit-tested without a DB or the eToro API.
+    """
+    if not MOMENTUM_FADE_ENABLED or already_faded:
+        return False
+    if peak_pnl_pct < MOMENTUM_ARM_PCT:
+        return False
+    if pnl_pct < MOMENTUM_MIN_LOCK_PCT:
+        return False
+    floor = peak_pnl_pct * (1.0 - MOMENTUM_RETRACE_FRAC)
+    return pnl_pct <= floor
+
+
+def _scalp_rung(atr_pct: float | None) -> dict:
+    """First, early profit rung for a scalp-tagged position (ATR-scaled)."""
+    base = (atr_pct if atr_pct and atr_pct > 0 else SCALP_MIN_PCT) * SCALP_ATR_MULT
+    threshold = min(max(base, SCALP_MIN_PCT), SCALP_MAX_PCT)
+    return {'threshold': round(threshold, 2), 'close_pct': SCALP_CLOSE_PCT}
+
+
+def _resolve_profit_levels(atr_pct: float | None, strategy: str = 'swing') -> list[dict]:
     """Return the profit-take ladder to use for a position.
 
     ATR-scaled when *atr_pct* is known (> 0), else the fixed fallback ladder.
+    A scalp-tagged position gets an extra early first rung (deduped/sorted so a
+    scalp rung never sits at or above the first swing rung).
     """
     if not atr_pct or atr_pct <= 0:
-        return PROFIT_TAKE_LEVELS
-    levels = []
-    for lv in ATR_PROFIT_LEVELS:
-        threshold = min(max(lv['atr_mult'] * atr_pct, lv['min_pct']), lv['max_pct'])
-        levels.append({'threshold': round(threshold, 2), 'close_pct': lv['close_pct']})
-    return levels
+        base = list(PROFIT_TAKE_LEVELS)
+    else:
+        base = []
+        for lv in ATR_PROFIT_LEVELS:
+            threshold = min(max(lv['atr_mult'] * atr_pct, lv['min_pct']), lv['max_pct'])
+            base.append({'threshold': round(threshold, 2), 'close_pct': lv['close_pct']})
+    if strategy == 'scalp' and SCALP_ENABLED:
+        scalp = _scalp_rung(atr_pct)
+        # Only prepend if it's genuinely earlier than the first swing rung.
+        if not base or scalp['threshold'] < base[0]['threshold']:
+            base = [scalp] + base
+    return base
 
 @dataclass
 class TrailingAction:
@@ -99,11 +183,18 @@ def _ensure_position_state_table(db: Any) -> None:
             updated_at      TEXT NOT NULL DEFAULT (datetime('now','utc'))
         )
     """)
-    # Migration for existing installs (idempotent):
-    try:
-        db.execute("ALTER TABLE position_state ADD COLUMN profit_levels_json TEXT")
-    except Exception:
-        pass  # column already exists
+    # Migration for existing installs (idempotent). Each ALTER is isolated so
+    # one already-existing column never blocks the others.
+    for ddl in (
+        "ALTER TABLE position_state ADD COLUMN profit_levels_json TEXT",
+        "ALTER TABLE position_state ADD COLUMN peak_pnl_pct REAL NOT NULL DEFAULT 0",
+        "ALTER TABLE position_state ADD COLUMN momentum_faded INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE position_state ADD COLUMN strategy TEXT NOT NULL DEFAULT 'swing'",
+    ):
+        try:
+            db.execute(ddl)
+        except Exception:
+            pass  # column already exists
 
 
 def load_atr_pct(db: Any, instrument_ids: list[int]) -> dict[int, float]:
@@ -249,6 +340,96 @@ def mark_break_even_active(db: Any, position_id: str, symbol: str) -> None:
         logger.warning("[trailing] mark_break_even_active(%s) failed: %s", position_id, exc)
 
 
+def load_position_dynamic(db: Any, position_ids: list[str]) -> dict[str, dict]:
+    """Return {position_id: {'peak': float, 'faded': bool, 'strategy': str}}.
+
+    Powers momentum-fade (peak/faded) and the scalp ladder (strategy). Positions
+    with no state row default to peak 0 / not-faded / 'swing' at the call site.
+    """
+    if db is None or not position_ids:
+        return {}
+    try:
+        _ensure_position_state_table(db)
+        placeholders = ",".join("?" * len(position_ids))
+        rows = db.fetchall(
+            f"SELECT position_id, peak_pnl_pct, momentum_faded, strategy "
+            f"FROM position_state WHERE position_id IN ({placeholders})",
+            list(position_ids),
+        )
+        result: dict[str, dict] = {}
+        for pid, peak, faded, strat in rows:
+            result[pid] = {
+                'peak': float(peak or 0.0),
+                'faded': bool(faded),
+                'strategy': (strat or 'swing'),
+            }
+        return result
+    except Exception as exc:
+        logger.warning("[trailing] load_position_dynamic failed: %s", exc)
+        return {}
+
+
+def update_peak_pnl(db: Any, position_id: str, symbol: str, pnl_pct: float) -> None:
+    """Raise the stored PnL high-water-mark for *position_id* (never lowers it)."""
+    if db is None or not position_id:
+        return
+    try:
+        _ensure_position_state_table(db)
+        db.execute("""
+            INSERT INTO position_state (position_id, symbol, peak_pnl_pct, updated_at)
+            VALUES (?, ?, ?, datetime('now','utc'))
+            ON CONFLICT(position_id) DO UPDATE SET
+                symbol = excluded.symbol,
+                peak_pnl_pct = MAX(position_state.peak_pnl_pct, excluded.peak_pnl_pct),
+                updated_at = excluded.updated_at
+        """, (position_id, symbol, float(pnl_pct)))
+    except Exception as exc:
+        logger.warning("[trailing] update_peak_pnl(%s) failed: %s", position_id, exc)
+
+
+def mark_momentum_faded(db: Any, position_id: str, symbol: str) -> None:
+    """Persist that momentum-fade has fired once for *position_id* (one-shot)."""
+    if db is None or not position_id:
+        return
+    try:
+        _ensure_position_state_table(db)
+        db.execute("""
+            INSERT INTO position_state (position_id, symbol, momentum_faded, updated_at)
+            VALUES (?, ?, 1, datetime('now','utc'))
+            ON CONFLICT(position_id) DO UPDATE SET
+                symbol = excluded.symbol,
+                momentum_faded = 1,
+                updated_at = excluded.updated_at
+        """, (position_id, symbol))
+    except Exception as exc:
+        logger.warning("[trailing] mark_momentum_faded(%s) failed: %s", position_id, exc)
+
+
+def set_strategy(db: Any, position_id: str, symbol: str, strategy: str) -> None:
+    """Tag *position_id* as 'scalp' or 'swing' (drives the early scalp rung).
+
+    Resets the frozen profit_levels_json so the ladder re-resolves under the new
+    strategy on the next cycle — otherwise a position frozen as 'swing' would
+    never gain the early scalp rung when retro-tagged. Levels already TAKEN stay
+    recorded, so re-resolving cannot re-fire a rung that was already realized.
+    """
+    if db is None or not position_id or strategy not in ('scalp', 'swing'):
+        return
+    try:
+        _ensure_position_state_table(db)
+        db.execute("""
+            INSERT INTO position_state (position_id, symbol, strategy, profit_levels_json, updated_at)
+            VALUES (?, ?, ?, NULL, datetime('now','utc'))
+            ON CONFLICT(position_id) DO UPDATE SET
+                symbol = excluded.symbol,
+                strategy = excluded.strategy,
+                profit_levels_json = NULL,
+                updated_at = excluded.updated_at
+        """, (position_id, symbol, strategy))
+    except Exception as exc:
+        logger.warning("[trailing] set_strategy(%s,%s) failed: %s", position_id, strategy, exc)
+
+
 def cleanup_position_state(db: Any, live_position_ids: set[str]) -> int:
     """Remove state rows for positions that no longer exist. Returns count."""
     if db is None:
@@ -284,6 +465,7 @@ def evaluate_trailing(
     levels_taken = load_levels_taken(db, pos_ids)
     be_armed = load_be_active(db, pos_ids)
     frozen_levels = load_profit_levels(db, pos_ids)
+    dynamic = load_position_dynamic(db, pos_ids)
     instrument_ids = [
         int(p.get('instrumentID') or p.get('instrumentId') or 0) for p in positions
     ]
@@ -303,7 +485,41 @@ def evaluate_trailing(
             continue
         pnl_pct = (pnl_usd / amount) * 100
 
-        if pnl_pct < BREAK_EVEN_TRIGGER_PCT:
+        # ── Momentum-Fade state: peak high-water-mark je Position ─────────────
+        meta = dynamic.get(pos_id, {})
+        prev_peak = float(meta.get('peak', 0.0))
+        faded = bool(meta.get('faded', False))
+        strategy = meta.get('strategy', 'swing')
+        peak = max(prev_peak, pnl_pct)
+        if peak > prev_peak:
+            update_peak_pnl(db, pos_id, symbol, pnl_pct)  # SQL raises the mark
+
+        atr_pct = atr_by_instrument.get(instrument_id)
+        # Scalp-Positionen duerfen ihren fruehen ersten Rung unterhalb des
+        # normalen BE-Trigger-Gates (3%) nehmen — sonst waere ein Scalp-Rung
+        # < 3% praktisch tot. Swing bleibt exakt beim bisherigen 3%-Gate.
+        is_scalp = strategy == 'scalp' and SCALP_ENABLED
+        effective_gate = BREAK_EVEN_TRIGGER_PCT
+        if is_scalp:
+            effective_gate = min(effective_gate, _scalp_rung(atr_pct)['threshold'])
+
+        def _fade_action() -> TrailingAction:
+            return TrailingAction(
+                action='MOMENTUM_FADE',
+                symbol=symbol,
+                position_id=pos_id,
+                pnl_pct=pnl_pct,
+                reason=(
+                    f"Momentum-Fade: Peak +{peak:.1f}% → jetzt {pnl_pct:+.1f}% "
+                    f"(≥{MOMENTUM_RETRACE_FRAC*100:.0f}% abgegeben) — {MOMENTUM_FADE_CLOSE_PCT:.0f}% sichern + BE"
+                ),
+                close_pct=MOMENTUM_FADE_CLOSE_PCT,
+                instrument_id=instrument_id,
+                amount_usd=amount,
+                open_rate=open_rate,
+            )
+
+        if pnl_pct < effective_gate:
             # fix/break-even-enforcement: eine BE-armierte Position (war
             # schon ≥ BREAK_EVEN_TRIGGER_PCT) darf nicht zurück unter Entry
             # fallen — Full Close am Floor, statt bis zum Hard-SL durchzurutschen.
@@ -321,7 +537,11 @@ def evaluate_trailing(
                     amount_usd=amount,
                     open_rate=open_rate,
                 ))
-            continue  # No profit-taking below the BE trigger
+            # Quick-profit lock in the +min_lock..+BE_trigger gap that the
+            # ladder never reaches — the whole point of momentum-fade.
+            elif should_momentum_fade(pnl_pct, peak, faded):
+                actions.append(_fade_action())
+            continue  # No structured profit-taking below the BE trigger
 
         taken = levels_taken.get(pos_id, set())
 
@@ -333,7 +553,7 @@ def evaluate_trailing(
         # anderen threshold ergeben und erneut feuern (Doppel-Verkauf).
         profit_levels = frozen_levels.get(pos_id)
         if profit_levels is None:
-            profit_levels = _resolve_profit_levels(atr_by_instrument.get(instrument_id))
+            profit_levels = _resolve_profit_levels(atr_pct, strategy)
             save_profit_levels(db, pos_id, symbol, profit_levels)
 
         # Fälliges, noch NICHT genommenes Level suchen — das NIEDRIGSTE zuerst
@@ -344,6 +564,7 @@ def evaluate_trailing(
             if pnl_pct >= lv['threshold'] and lv['threshold'] not in taken
         ]
         if pending:
+            # Structured ladder profit-taking takes priority over the fade.
             level = pending[0]
             actions.append(TrailingAction(
                 action='PARTIAL_CLOSE',
@@ -357,8 +578,11 @@ def evaluate_trailing(
                 open_rate=open_rate,
                 level_threshold=level['threshold'],
             ))
-        else:
-            # Only break-even (5-15% range, or all due levels already taken)
+        elif should_momentum_fade(pnl_pct, peak, faded):
+            # No ladder level due, but a built-up gain is fading back → lock it.
+            actions.append(_fade_action())
+        elif pnl_pct >= BREAK_EVEN_TRIGGER_PCT:
+            # Only break-even (BE-trigger..first-rung range, or all due levels taken)
             actions.append(TrailingAction(
                 action='BREAK_EVEN',
                 symbol=symbol,
@@ -367,6 +591,8 @@ def evaluate_trailing(
                 reason=f"+{pnl_pct:.1f}% ≥ +{BREAK_EVEN_TRIGGER_PCT:.0f}% — break-even tracked",
                 instrument_id=instrument_id,
             ))
+        # else: scalp position in [scalp_gate, BE_trigger) with its rung already
+        # taken and no fade due → nothing to do this cycle.
     return actions
 
 
@@ -551,7 +777,8 @@ def execute_trailing_actions(
     executes in ALL regimes (loss protection, not profit-taking).
     """
     import time
-    stats = {'partial_closes': 0, 'break_evens': 0, 'be_closes': 0, 'errors': []}
+    stats = {'partial_closes': 0, 'break_evens': 0, 'be_closes': 0,
+             'momentum_fades': 0, 'errors': []}
 
     for action in actions:
         if action.action == 'BREAK_EVEN':
@@ -600,9 +827,13 @@ def execute_trailing_actions(
                 stats['errors'].append(msg)
             continue
 
-        if action.action == 'PARTIAL_CLOSE':
-            if regime in ('DEFENSIVE', 'CRITICAL'):
-                # In stressed regimes, let existing winners run — don't force sells
+        if action.action in ('PARTIAL_CLOSE', 'MOMENTUM_FADE'):
+            is_fade = action.action == 'MOMENTUM_FADE'
+            # Structured ladder-taking (PARTIAL_CLOSE) is suppressed in stressed
+            # regimes ("let winners run"). MOMENTUM_FADE is protective de-risking
+            # — locking a gain that is actively fading — so it runs in ALL
+            # regimes, like BE_CLOSE and SELL-exits.
+            if not is_fade and regime in ('DEFENSIVE', 'CRITICAL'):
                 print(f'[trailing] PARTIAL_CLOSE skipped in {regime}: {action.symbol} {action.pnl_pct:+.1f}%')
                 continue
 
@@ -626,7 +857,7 @@ def execute_trailing_actions(
                 stats['errors'].append(msg)
                 continue
 
-            print(f'[trailing] PARTIAL_CLOSE {action.close_pct}%: {action.symbol} {action.pnl_pct:+.1f}% — {action.reason} (units={units_to_deduct:.6f})')
+            print(f'[trailing] {action.action} {action.close_pct}%: {action.symbol} {action.pnl_pct:+.1f}% — {action.reason} (units={units_to_deduct:.6f})')
 
             if dry_run:
                 stats['partial_closes'] += 1
@@ -639,11 +870,15 @@ def execute_trailing_actions(
                     units_to_deduct=units_to_deduct,
                 )
                 if result:
-                    # Level SOFORT als genommen markieren (Order wurde von
-                    # eToro akzeptiert) — verhindert Endlos-Feuer desselben
-                    # Levels im nächsten 5-min-Zyklus, selbst wenn die
-                    # Verifikation unten wegen Settlement-Latenz fehlschlägt.
-                    if action.level_threshold > 0:
+                    # State SOFORT persistieren (Order wurde von eToro
+                    # akzeptiert) — verhindert Endlos-Feuer im nächsten
+                    # 5-min-Zyklus, selbst wenn die Verifikation unten wegen
+                    # Settlement-Latenz fehlschlägt.
+                    if is_fade:
+                        # One-shot: nie erneut faden; Rest per BE absichern.
+                        mark_momentum_faded(db, action.position_id, action.symbol)
+                        mark_break_even_active(db, action.position_id, action.symbol)
+                    elif action.level_threshold > 0:
                         mark_level_taken(db, action.position_id, action.symbol,
                                          action.level_threshold)
                     # ── Verify the partial-close actually took effect ──────
@@ -656,6 +891,8 @@ def execute_trailing_actions(
                     if verified:
                         logger.info('[trailing] %s', detail)
                         stats['partial_closes'] += 1
+                        if is_fade:
+                            stats['momentum_fades'] += 1
                     else:
                         logger.warning('[trailing] %s', detail)
                         stats['errors'].append(detail)

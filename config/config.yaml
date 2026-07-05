@@ -54,6 +54,20 @@ sizing:                       # Position size as % of portfolio equity
   medium_pct: 6.0             # Conviction tier: MEDIUM
   low_pct: 2.0                # Conviction tier: LOW / speculative
 
+trailing:                     # Dynamic profit-taking (runs each risk_worker cycle on LIVE PnL)
+  momentum_fade:              # Universal quick-profit lock — protects a gain that starts fading
+    enabled: true             # false → disable momentum-fade entirely (ladder/BE unchanged)
+    arm_pct: 2.0              # Peak PnL must reach this before fade protection arms (%)
+    retrace_frac: 0.40        # Fire when PnL gives back this fraction of its peak (0.40 = 40%)
+    min_lock_pct: 1.0         # Never fire below this current PnL — leave it to BE/SL (%)
+    close_pct: 50.0           # % of the position to realize when a fade fires
+  scalp:                      # Early first profit rung — only for positions tagged strategy='scalp'
+    enabled: true             # false → tagged positions behave like swing (no early rung)
+    atr_mult: 2.0             # First rung = atr_mult × ATR%, clamped to [min_pct, max_pct]
+    min_pct: 2.0              # Floor for the scalp rung (%)
+    max_pct: 5.0              # Cap for the scalp rung (%)
+    close_pct: 25.0           # % of the position the scalp rung realizes
+
 instrument_limits:            # Maximum allocation per instrument as % of portfolio equity
   NVDA: 25.0
   QQQ:  25.0

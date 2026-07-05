@@ -591,10 +591,13 @@ def main() -> None:
         # ── V5: Trailing Stop / Profit-Taking ─────────────────────────────────────
         try:
             from bot.core.trailing_stop import (
+                apply_config as apply_trailing_config,
                 cleanup_position_state,
                 evaluate_trailing,
                 execute_trailing_actions,
             )
+            apply_trailing_config(cfg)  # wire trailing.momentum_fade / trailing.scalp
+
             # Stale State-Zeilen geschlossener Positionen entsorgen
             _live_ids = {
                 str(p.get("positionID") or p.get("positionId") or "")
@@ -608,8 +611,9 @@ def main() -> None:
                 trailing_be_count += ts_stats.get('break_evens', 0)
                 trailing_partial_count += ts_stats['partial_closes']
                 if ts_stats['partial_closes'] > 0 or ts_stats.get('be_closes', 0) > 0:
-                    logger.info('RiskWorker: Trailing Stop: %d partial closes, %d BE-closes, %d break-evens',
-                               ts_stats['partial_closes'], ts_stats.get('be_closes', 0), ts_stats['break_evens'])
+                    logger.info('RiskWorker: Trailing Stop: %d partial closes (%d momentum-fades), %d BE-closes, %d break-evens',
+                               ts_stats['partial_closes'], ts_stats.get('momentum_fades', 0),
+                               ts_stats.get('be_closes', 0), ts_stats['break_evens'])
                     closed_count += ts_stats.get('be_closes', 0)
                 if ts_stats.get('errors'):
                     for err in ts_stats['errors']:
