@@ -358,9 +358,25 @@ def main() -> None:
             })
 
         # ── 4. Kill Switch check (V5) — BEFORE regime detection ──────────────────
-        from bot.core.kill_switch import is_kill_switch_active, KILL_SWITCH_FILE
+        from bot.core.kill_switch import (
+            is_kill_switch_active,
+            get_reason as get_kill_switch_reason,
+            auto_clear_if_new_day,
+        )
+        # fix/kill-switch-daily-auto-reset: ein DAILY-Loss-Trip cleared am
+        # naechsten UTC-Tag automatisch — weekly/monthly/manual NIE.
+        _cleared, _clear_detail = auto_clear_if_new_day()
+        if _cleared:
+            logger.warning('RiskWorker: %s', _clear_detail)
+            log_repo.write('WARNING', 'kill_switch', _clear_detail)
+            _discord(
+                'post_alert_embed',
+                title='🟢 Kill-Switch auto-cleared (neuer Handelstag)',
+                description=_clear_detail,
+                severity='WARNING',
+            )
         if is_kill_switch_active():
-            _ks_reason = KILL_SWITCH_FILE.read_text().strip() if KILL_SWITCH_FILE.exists() else 'Manual kill switch'
+            _ks_reason = get_kill_switch_reason() or 'Manual kill switch'
             logger.warning('RiskWorker: KILL SWITCH ACTIVE — forcing CRITICAL regime (%s)', _ks_reason)
             # fix/autonomy-hardening: capture the regime BEFORE overwriting it,
             # otherwise the embed always showed CRITICAL→CRITICAL.
@@ -478,18 +494,32 @@ def main() -> None:
 
             if _breaches and not is_kill_switch_active():
                 _reason = "AUTO: " + " | ".join(_breaches)
-                logger.critical("RiskWorker: %s — Kill Switch wird aktiviert", _reason)
-                _ks.activate(_reason)
+                # Scope = schwerster ausgeloester Horizont. Nur ein REINER
+                # Daily-Trip bekommt scope='daily' (Auto-Clear am naechsten
+                # UTC-Tag) — sobald weekly/monthly beteiligt ist, bleibt der
+                # Kill-Switch bis zur manuellen Pruefung stehen.
+                if _m_breached:
+                    _scope = "monthly"
+                elif _w_breached:
+                    _scope = "weekly"
+                else:
+                    _scope = "daily"
+                logger.critical("RiskWorker: %s — Kill Switch wird aktiviert (scope=%s)", _reason, _scope)
+                _ks.activate(_reason, scope=_scope)
                 state_repo.set_regime("CRITICAL")
                 state_repo.set("RISK_SCALAR", "0.25")
-                log_repo.write("CRITICAL", "risk_worker", f"Auto-Kill-Switch: {_reason}")
+                log_repo.write("CRITICAL", "risk_worker", f"Auto-Kill-Switch ({_scope}): {_reason}")
+                _reactivation_note = (
+                    "Auto-Reset am nächsten UTC-Handelstag."
+                    if _scope == "daily"
+                    else "Reaktivierung: `rm data/kill_switch.flag` nach manueller Prüfung."
+                )
                 _discord(
                     "post_alert_embed",
                     title="🛑 AUTO-KILL-SWITCH ausgelöst",
                     description=(
                         f"{_reason}\n"
-                        f"Alle neuen Trades gestoppt. Reaktivierung: "
-                        f"`rm data/kill_switch.flag` nach manueller Prüfung."
+                        f"Alle neuen Trades gestoppt. {_reactivation_note}"
                     ),
                     severity="CRITICAL",
                 )

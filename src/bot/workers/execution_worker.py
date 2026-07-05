@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -112,6 +113,67 @@ def _find_new_position(positions: list, instrument_id, pre_existing_ids: set[str
     return None
 
 
+# ── FAILED-Trade Requeue (fix/failed-trade-requeue) ──────────────────────────
+# Ein transient gescheiterter Trade (API-Timeout, 5xx, Netzabriss) war bisher
+# terminal: das Signal ist bei Trade-Erstellung CONSUMED, es gab keinen
+# Cross-Cycle-Retry. Jetzt: EINMALIGER Requeue (requeue_count 0→1) innerhalb
+# von REQUEUE_MAX_AGE_MIN. Bewusst NICHT requeued werden strukturelle Fehler:
+# REJECTED (Gates/Regime), "Ghost order:" (eigene Blacklist-Maschinerie),
+# "Blocked:" (allowOpenPosition=false etc.), "Market closed:". Der requeued
+# Trade durchlaeuft im selben Zyklus ALLE Execution-Gates erneut (Regime,
+# Market-Hours, Slippage, Duplicate-Guard).
+REQUEUE_MAX_AGE_MIN = 60
+
+_TRANSIENT_HTTP_RE = re.compile(r"HTTP 5\d\d\b")
+_TRANSIENT_MARKERS = ("timeout", "timed out", "connection", "temporarily unavailab")
+
+
+def is_transient_failure(rejection_reason: str | None) -> bool:
+    """Pure classifier: True nur fuer transiente API-/Netzfehler.
+
+    Akzeptiert werden ausschliesslich Reasons aus dem APIError-Pfad
+    ("APIError: HTTP 5xx …" / Timeout / Connection) und dem
+    Unexpected-Pfad mit eindeutigen Netz-Markern. Alles andere
+    (Ghost order, Blocked, Market closed, Regime, Slippage) ist strukturell.
+    """
+    if not rejection_reason:
+        return False
+    reason = rejection_reason.strip()
+    lowered = reason.lower()
+    if reason.startswith("APIError"):
+        return bool(_TRANSIENT_HTTP_RE.search(reason)) or any(
+            m in lowered for m in _TRANSIENT_MARKERS
+        )
+    if reason.startswith("Unexpected error"):
+        return any(m in lowered for m in _TRANSIENT_MARKERS)
+    return False
+
+
+def _age_minutes(created_at: str | None, now: datetime | None = None) -> float | None:
+    """Age of a `trades.created_at` UTC timestamp in minutes (None if unparseable)."""
+    if not created_at:
+        return None
+    try:
+        ts = datetime.strptime(str(created_at).strip(), "%Y-%m-%d %H:%M:%S").replace(
+            tzinfo=timezone.utc
+        )
+    except ValueError:
+        return None
+    if now is None:
+        now = datetime.now(timezone.utc)
+    return (now - ts).total_seconds() / 60.0
+
+
+def classify_requeue(trade: dict, now: datetime | None = None) -> bool:
+    """Pure decision: darf dieser FAILED-Trade genau einmal requeued werden?"""
+    if int(trade.get("requeue_count") or 0) != 0:
+        return False
+    if not is_transient_failure(trade.get("rejection_reason")):
+        return False
+    age = _age_minutes(trade.get("created_at"), now)
+    return age is not None and 0 <= age <= REQUEUE_MAX_AGE_MIN
+
+
 def main() -> None:
     # ── Worker lock: prevent overlapping cron invocations ────────────────────
     from bot.core.worker_lock import worker_lock
@@ -177,7 +239,38 @@ def main() -> None:
         user_key = os.environ.get("ETORO_USER_KEY", "")
         client_cfg = ClientConfig.from_dict(cfg.get("api", {}))
         client = EToroClient(api_key=api_key, user_key=user_key, config=client_cfg)
-    
+
+        # ── 2a. One-shot Requeue transient gescheiterter Trades ──────────────────
+        # (fix/failed-trade-requeue — Details siehe classify_requeue oben.)
+        try:
+            _requeued = 0
+            for _ft in trade_repo.get_by_status("FAILED"):
+                if not classify_requeue(_ft):
+                    continue
+                _prev_reason = str(_ft.get("rejection_reason") or "")[:150]
+                trade_repo.update_status(
+                    _ft["id"],
+                    "APPROVED",
+                    requeue_count=1,
+                    rejection_reason=f"REQUEUED (transient): {_prev_reason}",
+                )
+                logger.warning(
+                    "ExecutionWorker: trade #%d (%s) REQUEUED after transient failure — %s",
+                    _ft["id"], _ft.get("symbol", "?"), _prev_reason,
+                )
+                log_repo.write(
+                    "WARN",
+                    "execution_worker",
+                    f"Trade #{_ft['id']} REQUEUED (one-shot) after transient failure",
+                    {"symbol": _ft.get("symbol"), "prev_reason": _prev_reason},
+                )
+                _requeued += 1
+            if _requeued:
+                print(f"ExecutionWorker: {_requeued} transient FAILED trade(s) requeued")
+        except Exception as _rq_exc:
+            # Requeue ist Komfort, nie kritisch — darf den Zyklus nicht brechen.
+            logger.error("ExecutionWorker: requeue scan failed: %s", _rq_exc)
+
         # ── 2. Fetch all APPROVED trades ──────────────────────────────────────────
         approved_trades = trade_repo.get_by_status("APPROVED")
     

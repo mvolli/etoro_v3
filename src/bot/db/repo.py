@@ -57,6 +57,7 @@ _TRADE_UPDATE_FIELDS = frozenset(
         "submitted_at",
         "confirmed_at",
         "closed_at",
+        "requeue_count",   # fix/failed-trade-requeue: one-shot retry marker
     }
 )
 
@@ -65,6 +66,16 @@ class TradeRepo:
 
     def __init__(self, db: DB) -> None:
         self.db = db
+        self._ensure_requeue_column()
+
+    def _ensure_requeue_column(self) -> None:
+        """Idempotent migration: trades.requeue_count (fix/failed-trade-requeue)."""
+        try:
+            self.db.execute(
+                "ALTER TABLE trades ADD COLUMN requeue_count INTEGER NOT NULL DEFAULT 0"
+            )
+        except Exception:
+            pass  # column already exists (or trades table absent in bare tests)
 
     # ── write ──────────────────────────────────────────────────────────────────
 
@@ -164,12 +175,20 @@ class TradeRepo:
     # b) Eskalierende Blacklist-Dauer:
     #    3-5 failures  → 6h cooldown
     #    6-8 failures  → 7 Tage cooldown
-    #    9+ failures   → permanent (NULL = bis manueller Reset via reset_ghost_failures())
+    #    9+ failures   → 7 Tage cooldown, ROLLIEREND (fix/ghost-blacklist-auto-expiry:
+    #                    vorher permanent bis manueller DB-Reset — ein einmal
+    #                    kaputtes Instrument blieb fuer immer gesperrt, auch wenn
+    #                    eToro es laengst repariert hatte. Jetzt: nach 7 Tagen ein
+    #                    Versuch; schlaegt der fehl, eskaliert der Zaehler sofort
+    #                    wieder auf 7 Tage. Risiko: max. 1 Fehlversuch pro Woche.)
+
+    PERMANENT_TIER_EXPIRY_HOURS = 7 * 24   # 9+ Fails: rollierende 7-Tage-Sperre
 
     def _blacklist_duration_hours(self, count: int) -> float | None:
-        """Return blacklist duration in hours, or None for permanent."""
+        """Return blacklist duration in hours (None is no longer produced;
+        kept in the signature for backward compatibility of callers/tests)."""
         if count >= 9:
-            return None          # permanent — requires manual reset
+            return self.PERMANENT_TIER_EXPIRY_HOURS
         if count >= 6:
             return 7 * 24       # 7 days = 168 hours
         if count >= 3:
@@ -197,14 +216,17 @@ class TradeRepo:
         blacklisted_until: str | None = None
         status_label = "none"
         if duration_hours is None:
-            # Permanent blacklist — set to far future (9999-12-31)
-            blacklisted_until = "9999-12-31 23:59:59"
-            status_label = "permanent"
-        elif duration_hours > 0:
+            # Defensive: sollte seit fix/ghost-blacklist-auto-expiry nicht mehr
+            # vorkommen — behandle wie rollierende 7-Tage-Sperre statt ewig.
+            duration_hours = self.PERMANENT_TIER_EXPIRY_HOURS
+        if duration_hours > 0:
             blacklisted_until = (
                 datetime.now(timezone.utc) + timedelta(hours=duration_hours)
             ).strftime("%Y-%m-%d %H:%M:%S")
-            status_label = "7d" if duration_hours >= 168 else "6h"
+            if new_count >= 9:
+                status_label = "7d-rolling"   # frueher: permanent
+            else:
+                status_label = "7d" if duration_hours >= 168 else "6h"
 
         self.db.execute(
             """

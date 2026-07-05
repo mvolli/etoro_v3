@@ -1645,7 +1645,7 @@ def post_watchdog_alert_embed(
         action_text = (
             "⚠️ Manuelle Prüfung empfohlen: Check eToro-Instrument-Status, API-Limits, Account-Restriktionen."
             if severity != "critical"
-            else "💀 PERMANENT BLACKLIST — Instrument dauerhaft gesperrt bis manueller Reset via DB."
+            else "💀 BLACKLIST (9+ Fails) — rollierende 7-Tage-Sperre, danach automatisch 1 neuer Versuch (Auto-Expiry)."
         )
         fields.append({"name": "🔧 Aktion", "value": action_text, "inline": False})
 

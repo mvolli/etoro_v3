@@ -127,7 +127,13 @@ def main() -> int:
         portfolio_repo = PortfolioRepo(db)
         state_repo = StateRepo(db)
         log_repo = LogRepo(db)
-    
+
+        # ── Heartbeat (dead-man's switch) ─────────────────────────────────────
+        # fix/monitor-self-heartbeat: der Monitor war der einzige Worker ohne
+        # eigenen Heartbeat — sein Ausfall blieb unsichtbar.
+        from bot.core.heartbeat import record_heartbeat
+        record_heartbeat(state_repo, "monitor_worker")
+
         # Load Discord embed module
         embeds = _try_import_embeds()
         if embeds is None:

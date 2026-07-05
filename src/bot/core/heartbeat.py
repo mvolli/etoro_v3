@@ -19,6 +19,11 @@ EXPECTED_INTERVALS_MIN: dict[str, int] = {
     "reconciler": 5,
     "signal_worker": 15,
     "execution_worker": 15,
+    # fix/monitor-self-heartbeat: der Monitor prueft alle anderen, war aber
+    # selbst unueberwacht (blinder Fleck des Dead-Man's-Switch). Er schreibt
+    # jetzt einen eigenen Heartbeat; Staleness wird zusaetzlich extern vom
+    # Kill-Switch-Watchdog (5-min-Cron) geprueft.
+    "monitor_worker": 30,
     "discovery_worker": 120,
 }
 
