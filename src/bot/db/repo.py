@@ -77,6 +77,54 @@ class TradeRepo:
         except Exception:
             pass  # column already exists (or trades table absent in bare tests)
 
+    # ── Slippage-Blacklist (fix/slippage-blacklist, 2026-07-06) ────────────────
+    # LSE-Micro-Caps (VALT.L 13×, KRS.L 5×, CNS.L 5× in 7 Tagen) haben eToro-
+    # Spreads von 7-22% — das ±1.5%-Gate koennen sie STRUKTURELL nie passieren.
+    # Jeder Versuch verbrannte einen der 12 Trade-Slots/Tag (7 ACTIVE vs. 145
+    # FAILED/REJECTED in 7 Tagen). Jeder Slippage-Block (signal_worker-Pre-Check
+    # ODER execution-Gate) wird hier gezaehlt; ab SLIPPAGE_BLACKLIST_THRESHOLD
+    # Rejects im Fenster ist das Instrument fuer neue BUYs gesperrt. Rollierend
+    # und selbstheilend: alte Eintraege fallen aus dem 7-Tage-Fenster heraus.
+
+    SLIPPAGE_BLACKLIST_THRESHOLD = 3
+    SLIPPAGE_WINDOW_DAYS = 7
+
+    def _ensure_slippage_table(self) -> None:
+        self.db.execute("""
+            CREATE TABLE IF NOT EXISTS slippage_rejects (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                instrument_id INTEGER NOT NULL,
+                symbol        TEXT,
+                source        TEXT,
+                rejected_at   TEXT NOT NULL DEFAULT (datetime('now','utc'))
+            )
+        """)
+
+    def record_slippage_reject(self, instrument_id: int, symbol: str,
+                               source: str = "execution") -> None:
+        """Persist one slippage block (source: 'signal_precheck'|'execution')."""
+        try:
+            self._ensure_slippage_table()
+            self.db.execute(
+                "INSERT INTO slippage_rejects (instrument_id, symbol, source) VALUES (?, ?, ?)",
+                (instrument_id, symbol, source),
+            )
+        except Exception:
+            pass  # Zählung ist Komfort — darf keinen Trade-Pfad brechen
+
+    def is_slippage_blacklisted(self, instrument_id: int) -> bool:
+        """True wenn das Instrument im Fenster >= THRESHOLD Slippage-Blocks hat."""
+        try:
+            self._ensure_slippage_table()
+            row = self.db.fetchone(
+                "SELECT COUNT(*) AS n FROM slippage_rejects "
+                "WHERE instrument_id = ? AND rejected_at > datetime('now', ?, 'utc')",
+                (instrument_id, f"-{self.SLIPPAGE_WINDOW_DAYS} days"),
+            )
+            return bool(row and row["n"] >= self.SLIPPAGE_BLACKLIST_THRESHOLD)
+        except Exception:
+            return False  # fail-open: Gate in execution_worker bleibt letzte Linie
+
     # ── write ──────────────────────────────────────────────────────────────────
 
     def create(

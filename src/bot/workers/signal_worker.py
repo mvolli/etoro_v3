@@ -100,6 +100,22 @@ def main() -> None:
         state_repo = StateRepo(db)
         log_repo = LogRepo(db)
 
+        # ── API-Client für Pre-Trade-Preischeck (fix/slippage-precheck) ───────────
+        # Best-effort: ohne Client/Keys läuft der Worker wie bisher — das
+        # Execution-Gate bleibt die letzte Verteidigungslinie.
+        _price_client = None
+        try:
+            from bot.api.client import ClientConfig, EToroClient
+            _api_key = os.environ.get("ETORO_API_KEY", "")
+            _user_key = os.environ.get("ETORO_USER_KEY", "")
+            if _api_key and _user_key:
+                _price_client = EToroClient(
+                    api_key=_api_key, user_key=_user_key,
+                    config=ClientConfig.from_dict(cfg.get("api", {})),
+                )
+        except Exception as _pc_exc:
+            logger.warning("SignalWorker: Preis-Client nicht verfügbar (%s) — Pre-Check übersprungen", _pc_exc)
+
         # ── Heartbeat (dead-man's switch) — before kill-switch exit so an
         #    active kill switch does not look like a dead worker ─────────────
         from bot.core.heartbeat import record_heartbeat
@@ -404,7 +420,50 @@ def main() -> None:
 
                 # d. Get signal price for execution (yfinance data)
                 signal_price = float(signal.get("price") or 0.0) if signal.get("price") else None
-    
+
+                # d1. Slippage-Blacklist (fix/slippage-blacklist): Instrumente,
+                #     die im 7-Tage-Fenster >=3x am Slippage-Gate scheiterten
+                #     (LSE-Micro-Caps mit 7-22% Spread), bekommen KEINEN neuen
+                #     Trade — sie können das Gate strukturell nie passieren
+                #     und verbrannten nur Trade-Slots (VALT.L 13x/Woche).
+                if trade_repo.is_slippage_blacklisted(instrument_id):
+                    signal_repo.update_signal_status(signal_id, "REJECTED")
+                    blocked_reasons.append(
+                        f"{symbol}: Slippage-Blacklist (≥{trade_repo.SLIPPAGE_BLACKLIST_THRESHOLD} "
+                        f"Rejects in {trade_repo.SLIPPAGE_WINDOW_DAYS}d — Spread unhandelbar)"
+                    )
+                    logger.info("SignalWorker: %s auf Slippage-Blacklist — Signal REJECTED, kein Trade", symbol)
+                    continue
+
+                # d2. Pre-Trade-Preischeck (fix/slippage-precheck): Live-Preis
+                #     SCHON JETZT gegen den Signalpreis prüfen statt erst im
+                #     execution_worker — ein unhandelbares Signal erzeugt so
+                #     gar keinen Trade (kein Slot-Verbrauch, kein 15-min-Spam).
+                if _price_client is not None and signal_price:
+                    try:
+                        from bot.core.risk import check_slippage_gate, get_max_slippage_pct
+                        _live_price = _price_client.get_current_price(instrument_id)
+                        _slip = check_slippage_gate(
+                            symbol=symbol,
+                            signal_price=signal_price,
+                            current_price=_live_price,
+                            max_slippage_pct=get_max_slippage_pct(symbol, cfg),
+                        )
+                        if not _slip.allowed:
+                            trade_repo.record_slippage_reject(
+                                instrument_id, symbol, source="signal_precheck"
+                            )
+                            signal_repo.update_signal_status(signal_id, "REJECTED")
+                            blocked_reasons.append(f"{symbol}: Pre-Check {_slip.summary()[:120]}")
+                            logger.info(
+                                "SignalWorker: %s Pre-Trade-Preischeck BLOCK — %s (Signal REJECTED, kein Trade)",
+                                symbol, _slip.summary(),
+                            )
+                            continue
+                    except Exception as _slip_exc:
+                        # Fail-open: Preis nicht ermittelbar → execution-Gate entscheidet
+                        logger.debug("SignalWorker: Pre-Check für %s übersprungen (%s)", symbol, _slip_exc)
+
                 # e. Create trade PENDING_APPROVAL → immediately APPROVED
                 trade_id = trade_repo.create(
                     instrument_id=instrument_id,

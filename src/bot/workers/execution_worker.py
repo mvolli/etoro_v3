@@ -408,6 +408,9 @@ def main() -> None:
             )
             if not slippage_gate.allowed:
                 reason = slippage_gate.summary()
+                # fix/slippage-blacklist: Block zählen — ab 3 Blocks/7d wird
+                # das Instrument im signal_worker gar nicht mehr getradet.
+                trade_repo.record_slippage_reject(instrument_id, symbol, source="execution")
                 logger.warning(
                     "ExecutionWorker: trade #%d (%s) BLOCKED by slippage gate — %s",
                     trade_id, symbol, reason,

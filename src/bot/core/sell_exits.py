@@ -275,6 +275,8 @@ def execute_sell_exits(
                 action.symbol, action.position_id,
                 action.reason + ("" if verified else " [UNVERIFIED — siehe Log]"),
                 pnl_pct=action.pnl_pct,
+                amount_usd=action.amount_usd,
+                close_pct=action.close_pct,
             )
             time.sleep(0.5)
         except Exception as exc:

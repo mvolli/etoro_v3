@@ -120,6 +120,37 @@ def classify_stale_submitting(
     return None
 
 
+LATE_FILL_WINDOW_HOURS = 48
+LATE_FILL_AMOUNT_TOLERANCE = 0.25  # ±25% (Spread/Fees/Rundung)
+
+
+def match_late_fill(
+    trade_amount_usd: float,
+    unclaimed_positions: list[dict],
+) -> dict | None:
+    """fix/late-fill-recovery (KTA.DE-Klasse, 2026-07-06): eToro füllt Orders
+    teils NACH dem 120s-Verify-Fenster des execution_workers. Der Trade wurde
+    dann fälschlich als Ghost FAILED klassifiziert, obwohl die Position real
+    entstand — sie lief 'untracked' (10 Positionen/~$2.700 gefunden) und der
+    Ghost-Blacklist-Zähler wurde unverdient erhöht.
+
+    Pure Matching-Regel (bewusst konservativ):
+      - GENAU EINE unbeanspruchte Live-Position des Instruments (eindeutig),
+      - Betrag innerhalb ±LATE_FILL_AMOUNT_TOLERANCE des Trade-Betrags
+        (eine bereits teilverkaufte oder fremde Position matcht nicht).
+    Sonst None — im Zweifel kein Auto-Repair.
+    """
+    if len(unclaimed_positions) != 1 or trade_amount_usd <= 0:
+        return None
+    pos = unclaimed_positions[0]
+    pos_amount = float(pos.get("amount_usd") or 0.0)
+    if pos_amount <= 0:
+        return None
+    if abs(pos_amount - trade_amount_usd) / trade_amount_usd > LATE_FILL_AMOUNT_TOLERANCE:
+        return None
+    return pos
+
+
 def _load_config() -> dict:
     """Load config/config.yaml relative to project root. Raises on missing file."""
     config_path = PROJECT_ROOT / "config" / "config.yaml"
@@ -777,6 +808,71 @@ def main() -> int:
                 "[%s] SUBMITTING recovery: %d→ACTIVE, %d→FAILED",
                 WORKER_NAME, recovered_active, recovered_failed,
             )
+
+        # ── 9c. Late-Fill-Recovery (fix/late-fill-recovery) ──────────────────────
+        # FAILED-Ghost-Trades (<48h, mit order_id), deren Order sich NACH dem
+        # Verify-Fenster doch materialisierte: die Live-Position existiert,
+        # gehört aber keinem ACTIVE/CLOSING-Trade. Eindeutige Matches werden
+        # auf ACTIVE repariert + der unverdiente Ghost-Zähler zurückgesetzt.
+        late_fill_recovered = 0
+        try:
+            claimed_pos_ids = {
+                str(t.get("api_position_id") or "")
+                for t in trade_repo.get_by_status(["ACTIVE", "CLOSING"])
+                if t.get("api_position_id")
+            }
+            _lf_cutoff = _utcnow_minus(LATE_FILL_WINDOW_HOURS * 60)
+            ghost_failed = [
+                t for t in trade_repo.get_by_status("FAILED")
+                if (t.get("rejection_reason") or "").startswith("Ghost order")
+                and t.get("order_id")
+                and (t.get("created_at") or "") > _lf_cutoff
+            ]
+            for trade in ghost_failed:
+                iid = trade.get("instrument_id")
+                unclaimed = [
+                    s for s in all_snapshots
+                    if s.get("instrument_id") == iid
+                    and s["api_position_id"] in live_position_ids
+                    and s["api_position_id"] not in claimed_pos_ids
+                ]
+                pos = match_late_fill(float(trade.get("amount_usd") or 0.0), unclaimed)
+                if pos is None:
+                    continue
+                t_id = trade["id"]
+                pos_id = pos["api_position_id"]
+                trade_repo.update_status(
+                    t_id, "ACTIVE",
+                    api_position_id=pos_id,
+                    entry_price=float(pos.get("open_price") or 0.0) or None,
+                    confirmed_at=_utcnow(),
+                    rejection_reason=(
+                        f"LATE FILL recovered: {(trade.get('rejection_reason') or '')[:120]}"
+                    ),
+                )
+                trade_repo.reset_ghost_failures(int(iid))
+                claimed_pos_ids.add(pos_id)  # nicht doppelt vergeben
+                late_fill_recovered += 1
+                msg = (
+                    f"Trade {t_id} ({trade.get('symbol')}) LATE-FILL recovered "
+                    f"FAILED→ACTIVE (position {pos_id}, ${pos.get('amount_usd'):.0f}) "
+                    f"— Ghost-Zähler zurückgesetzt"
+                )
+                logger.warning(f"[{WORKER_NAME}] {msg}")
+                log_repo.write("WARN", WORKER_NAME, msg,
+                               {"trade_id": t_id, "api_position_id": pos_id})
+                _discord(
+                    "post_alert_embed",
+                    title=f"🔁 Late-Fill erkannt: {trade.get('symbol')}",
+                    description=(
+                        f"Order füllte NACH dem Verify-Fenster — Trade #{t_id} "
+                        f"wurde FAILED→ACTIVE repariert (Position {pos_id}). "
+                        f"Ghost-Blacklist-Zähler zurückgesetzt."
+                    ),
+                    severity="WARNING",
+                )
+        except Exception as exc:
+            logger.warning(f"[{WORKER_NAME}] WARNING: Late-Fill-Recovery fehlgeschlagen: {exc}")
 
         # ── 10. Update system_state ────────────────────────────────────────────────
         now_str       = _utcnow()

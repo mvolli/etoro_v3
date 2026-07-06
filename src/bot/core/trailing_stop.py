@@ -627,15 +627,26 @@ def _get_discord_embeds() -> Any:
         return None
 
 
-def _post_closed_embed(symbol: str, position_id: str, reason: str, pnl_pct: float = 0.0) -> None:
-    """Best-effort Discord embed for a (partial) close. Never raises."""
+def _post_closed_embed(symbol: str, position_id: str, reason: str,
+                       pnl_pct: float = 0.0, amount_usd: float = 0.0,
+                       close_pct: float = 100.0) -> None:
+    """Best-effort Discord embed for a (partial) close. Never raises.
+
+    fix/embed-real-amounts (KTA.DE 2026-07-06): amount_usd war hartkodiert 0 —
+    jedes Close-Embed zeigte '$0.00 Betrag / $+0.00 Gewinn' und erweckte den
+    Eindruck, die Position existiere nicht. Jetzt: tatsächlich geschlossener
+    Anteil (amount × close_pct) + daraus abgeleiteter realisierter Gewinn.
+    """
     try:
+        closed_amount = float(amount_usd) * float(close_pct) / 100.0
+        pnl_usd = closed_amount * float(pnl_pct) / 100.0
         de = _get_discord_embeds()
         if de is not None and hasattr(de, 'post_position_closed_embed'):
             de.post_position_closed_embed(
                 symbol=symbol,
-                amount_usd=0,
+                amount_usd=closed_amount,
                 position_id=position_id,
+                pnl_usd=pnl_usd,
                 pnl_pct=pnl_pct,
                 reason=reason,
             )
@@ -818,6 +829,7 @@ def execute_trailing_actions(
                             action.symbol, action.position_id,
                             f'Break-Even-Schutz: {action.reason}',
                             pnl_pct=action.pnl_pct,
+                            amount_usd=action.amount_usd,   # Full Close
                         )
                     else:
                         logger.warning('[trailing] BE_CLOSE unverified: %s', detail)
@@ -908,6 +920,8 @@ def execute_trailing_actions(
                         f'Profit-Taking: {action.reason}'
                         + ('' if verified else ' [UNVERIFIED — siehe Log]'),
                         pnl_pct=action.pnl_pct,
+                        amount_usd=action.amount_usd,
+                        close_pct=action.close_pct,
                     )
                 else:
                     stats['errors'].append(
