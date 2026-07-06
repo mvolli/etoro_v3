@@ -31,6 +31,64 @@ logger = logging.getLogger(__name__)
 SELL_EXIT_CLOSE_PCT = 50.0   # % der Position, die ein SELL-Signal realisiert
 SELL_SIGNAL_MARKERS = ("SELL", "OVERBOUGHT")
 
+# fix/sell-exit-cooldown (KTA.DE-Vorfall 2026-07-06): CONSUMED-Markierung
+# allein reicht NICHT — data_worker erzeugt bei anhaltender Überhitzung auf
+# Tages-Bars alle 5 min ein NEUES FRESH-Signal (39 Stück an einem Vormittag),
+# und jeder risk_worker-Zyklus halbierte die Position erneut. Ein SELL-Exit
+# ist EIN De-Risking pro Überhitzungs-Episode: nach einem Exit ist das
+# Instrument für SELL_EXIT_COOLDOWN_H gesperrt (persistiert in
+# position_state.sell_exit_at, überlebt Worker-Neustarts).
+SELL_EXIT_COOLDOWN_H = 24.0
+
+
+def load_blocked_instruments(db: Any, positions: list[dict],
+                             cooldown_h: float = SELL_EXIT_COOLDOWN_H) -> set[int]:
+    """Instrument-IDs, deren Positionen innerhalb der Cooldown-Frist bereits
+    einen SELL-Exit hatten. Fail-open (leere Menge) bei DB-Problemen — die
+    CONSUMED-Markierung bleibt als erste Verteidigungslinie bestehen."""
+    if db is None or not positions:
+        return set()
+    pos_to_instr: dict[str, int] = {}
+    for p in positions:
+        pid = str(p.get("positionID") or p.get("positionId") or "")
+        iid = p.get("instrumentID") or p.get("instrumentId")
+        if pid and iid is not None:
+            pos_to_instr[pid] = int(iid)
+    if not pos_to_instr:
+        return set()
+    try:
+        placeholders = ",".join("?" * len(pos_to_instr))
+        rows = db.fetchall(
+            f"SELECT position_id FROM position_state "
+            f"WHERE position_id IN ({placeholders}) "
+            f"  AND sell_exit_at IS NOT NULL "
+            f"  AND sell_exit_at > datetime('now', ?, 'utc')",
+            list(pos_to_instr) + [f"-{cooldown_h:.4f} hours"],
+        )
+        return {pos_to_instr[r[0]] for r in rows if r[0] in pos_to_instr}
+    except Exception as exc:
+        logger.warning("[sell_exits] load_blocked_instruments fehlgeschlagen: %s", exc)
+        return set()
+
+
+def mark_sell_exit(db: Any, position_id: str, symbol: str) -> None:
+    """Persistiert den SELL-Exit-Zeitpunkt (startet die Cooldown-Frist)."""
+    if db is None or not position_id:
+        return
+    try:
+        from bot.core.trailing_stop import _ensure_position_state_table
+        _ensure_position_state_table(db)
+        db.execute("""
+            INSERT INTO position_state (position_id, symbol, sell_exit_at, updated_at)
+            VALUES (?, ?, datetime('now','utc'), datetime('now','utc'))
+            ON CONFLICT(position_id) DO UPDATE SET
+                symbol = excluded.symbol,
+                sell_exit_at = excluded.sell_exit_at,
+                updated_at = excluded.updated_at
+        """, (position_id, symbol))
+    except Exception as exc:
+        logger.warning("[sell_exits] mark_sell_exit(%s) fehlgeschlagen: %s", position_id, exc)
+
 
 @dataclass
 class SellExitAction:
@@ -54,12 +112,15 @@ def is_sell_signal(signal: dict) -> bool:
 def evaluate_sell_exits(
     fresh_signals: list[dict],
     positions: list[dict],
+    blocked_instruments: set[int] | frozenset = frozenset(),
 ) -> list[SellExitAction]:
     """Match FRESH SELL-Signale gegen offene Positionen (pure Logik).
 
     Args:
         fresh_signals: SignalRepo.get_fresh()-Zeilen (dicts)
         positions: Raw eToro-Positionen (clientPortfolio.positions)
+        blocked_instruments: Instrumente in der SELL-Exit-Cooldown-Frist
+            (bereits de-riskt — nicht erneut zerlegen)
     Returns:
         Eine Aktion pro Instrument mit SELL-Signal und profitabler Position.
     """
@@ -81,6 +142,9 @@ def evaluate_sell_exits(
         if iid is None or int(iid) in seen_instruments:
             continue
         iid = int(iid)
+        if iid in blocked_instruments:
+            # Cooldown aktiv: diese Episode wurde bereits de-riskt.
+            continue
 
         candidates = []
         for pos in by_instrument.get(iid, []):
@@ -129,6 +193,7 @@ def execute_sell_exits(
     signal_repo: Any,
     actions: list[SellExitAction],
     dry_run: bool = False,
+    db: Any = None,
 ) -> dict:
     """Execute SELL-Exit-Aktionen mit Verifikation.
 
@@ -181,6 +246,11 @@ def execute_sell_exits(
                 logger.warning("[sell_exits] Signal %d CONSUMED-Markierung fehlgeschlagen: %s",
                                action.signal_id, exc)
 
+            # Cooldown SOFORT starten (Order akzeptiert) — auch wenn die
+            # Verifikation unten wegen Settlement-Latenz scheitert, darf der
+            # nächste 5-min-Zyklus dieselbe Position nicht erneut halbieren.
+            mark_sell_exit(db, action.position_id, action.symbol)
+
             # Verifikation über das bestehende Partial-Close-Polling
             verify_action = TrailingAction(
                 action="PARTIAL_CLOSE",
@@ -220,6 +290,7 @@ def process_sell_exits(
     signal_repo: Any,
     positions: list[dict],
     dry_run: bool = False,
+    db: Any = None,
 ) -> dict:
     """Convenience-Wrapper für den risk_worker: fetch → evaluate → execute."""
     try:
@@ -228,7 +299,8 @@ def process_sell_exits(
         logger.warning("[sell_exits] get_fresh() fehlgeschlagen: %s", exc)
         return {"closed": 0, "errors": [f"get_fresh failed: {exc}"]}
 
-    actions = evaluate_sell_exits(fresh, positions)
+    blocked = load_blocked_instruments(db, positions)
+    actions = evaluate_sell_exits(fresh, positions, blocked_instruments=blocked)
     if not actions:
         return {"closed": 0, "errors": []}
-    return execute_sell_exits(client, signal_repo, actions, dry_run=dry_run)
+    return execute_sell_exits(client, signal_repo, actions, dry_run=dry_run, db=db)

@@ -310,6 +310,30 @@ class SignalRepo:
         )
         return cur.lastrowid  # type: ignore[return-value]
 
+    def has_recent_signal(self, instrument_id: int, signal_type: str,
+                          within_minutes: int) -> bool:
+        """True, wenn für instrument_id bereits ein identisches Signal
+        (gleicher signal_type) innerhalb der letzten within_minutes erzeugt
+        wurde — egal ob FRESH oder CONSUMED (konsumiert = auf diese Episode
+        wurde schon reagiert).
+
+        fix/signal-dedup (KTA.DE 2026-07-06): data_worker läuft alle 5 min
+        auf Tages-Bars — eine anhaltende Überhitzung erzeugte 39 identische
+        Signale an einem Vormittag, die der SELL-Exit-Pfad einzeln konsumierte
+        und die Position dabei in 50%-Schritten zerlegte.
+        """
+        row = self.db.fetchone(
+            """
+            SELECT 1 FROM signals
+             WHERE instrument_id = ?
+               AND signal_type = ?
+               AND generated_at > datetime('now', ?, 'utc')
+             LIMIT 1
+            """,
+            (instrument_id, signal_type, f"-{int(within_minutes)} minutes"),
+        )
+        return row is not None
+
     def update_signal_status(self, signal_id: int, new_status: str) -> None:
         """Update signal status to CONSUMED, REJECTED, or EXPIRED."""
         if new_status not in _SIGNAL_STATUSES:

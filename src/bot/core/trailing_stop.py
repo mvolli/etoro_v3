@@ -190,6 +190,12 @@ def _ensure_position_state_table(db: Any) -> None:
         "ALTER TABLE position_state ADD COLUMN peak_pnl_pct REAL NOT NULL DEFAULT 0",
         "ALTER TABLE position_state ADD COLUMN momentum_faded INTEGER NOT NULL DEFAULT 0",
         "ALTER TABLE position_state ADD COLUMN strategy TEXT NOT NULL DEFAULT 'swing'",
+        # fix/sell-exit-cooldown: Zeitstempel des letzten SELL-Exits pro
+        # Position — verhindert das Endlos-Zerlegen einer Position, wenn
+        # data_worker die Überhitzungs-Bedingung jeden Zyklus neu signalisiert
+        # (KTA.DE-Vorfall 2026-07-06: 39 Signale, Position in 50%-Schritten
+        # von ~$500 auf $14.75 zerlegt).
+        "ALTER TABLE position_state ADD COLUMN sell_exit_at TEXT",
     ):
         try:
             db.execute(ddl)

@@ -779,6 +779,19 @@ def run(project_root: Path | None = None) -> dict:
 
             # 7. Store signal in DB
             signal_types_str = ",".join(result.signal_types) if result.signal_types else result.direction
+
+            # fix/signal-dedup: auf Tages-Bars bleibt eine Signal-Bedingung
+            # oft stundenlang wahr — ohne Dedup entsteht alle 5 min ein
+            # identisches Signal (KTA.DE 2026-07-06: 39 Stück/Vormittag, vom
+            # SELL-Exit einzeln konsumiert → Position endlos halbiert).
+            # Ein identisches Signal pro Instrument pro TTL-Fenster genügt.
+            if signal_repo.has_recent_signal(instrument_id, signal_types_str, signal_ttl):
+                logger.debug(
+                    "[%s] %s: identisches Signal (%s) innerhalb %d min existiert — Dedup-Skip",
+                    WORKER_NAME, original_sym, signal_types_str, signal_ttl,
+                )
+                continue
+
             signal_repo.create(
                 instrument_id=instrument_id,
                 signal_type=signal_types_str,

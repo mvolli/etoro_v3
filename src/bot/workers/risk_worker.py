@@ -677,7 +677,7 @@ def main() -> None:
         try:
             from bot.core.sell_exits import process_sell_exits
             from bot.db.repo import SignalRepo as _SignalRepo
-            sell_stats = process_sell_exits(client, _SignalRepo(db), raw_positions)
+            sell_stats = process_sell_exits(client, _SignalRepo(db), raw_positions, db=db)
             if sell_stats['closed'] > 0:
                 sell_exit_closed += sell_stats['closed']
                 closed_count += sell_stats['closed']
