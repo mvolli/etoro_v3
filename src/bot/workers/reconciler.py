@@ -877,7 +877,7 @@ def main() -> int:
         # ── 9d. Finalize unverified closes (fix/sl-close-embed) ────────────────
         # Trades marked CLOSED with verification_status='PENDING' by risk_worker
         # when eToro API was too slow to confirm within the polling window.
-        # Reconciler checks if position is truly gone now and marks VERIFIED.
+        # Reconciler fetches final trade data from eToro history and updates DB.
         pending_verifications = trade_repo.get_pending_verification()
         finalized_count = 0
         for trade in pending_verifications:
@@ -885,38 +885,80 @@ def main() -> int:
             symbol = trade.get("symbol", "?")
             pos_id = trade.get("api_position_id")
             try:
-                # Check if position is still in live API — if not, close confirmed
-                if pos_id and pos_id in live_position_ids:
-                    # Position STILL exists — eToro really was slow. Give it another cycle.
-                    msg = f"Trade {t_id} ({symbol}): position {pos_id} still in API — waiting another cycle"
+                # Fetch trade history to find the exact close data
+                from datetime import date, timedelta
+                min_date = (date.today() - timedelta(days=7)).isoformat()
+                
+                history_trades = client.get_trade_history(
+                    min_date=min_date, page_size=50
+                )
+                
+                # Find matching trade by positionId or orderId
+                matched = None
+                if pos_id:
+                    for ht in history_trades:
+                        if ht.get("positionId") == int(pos_id):
+                            matched = ht
+                            break
+                
+                if not matched and trade.get("order_id"):
+                    for ht in history_trades:
+                        if ht.get("orderId") == int(trade["order_id"]):
+                            matched = ht
+                            break
+                
+                if matched:
+                    # We have the exact API data — use it!
+                    final_pnl_usd = float(matched.get("netProfit", 0) or 0)
+                    final_close_price = float(matched.get("closeRate", 0) or 0)
+                    investment = float(matched.get("investment", 0) or 0)
+                    final_pnl_pct = (final_pnl_usd / investment * 100) if investment > 0 else 0
+                    
+                    trade_repo.update_status(
+                        t_id, "CLOSED",
+                        exit_price=final_close_price or None,
+                        pnl_usd=final_pnl_usd,
+                        pnl_pct=final_pnl_pct,
+                        verification_status="VERIFIED",
+                    )
+                    finalized_count += 1
+                    
+                    # Send finalization embed to Discord
+                    _discord(
+                        "post_position_closed_embed",
+                        symbol=symbol,
+                        amount_usd=investment or float(trade.get("amount_usd", 0)),
+                        position_id=str(pos_id or ""),
+                        entry_price=float(matched.get("openRate", 0) or trade.get("entry_price", 0) or 0),
+                        close_price=final_close_price,
+                        pnl_usd=final_pnl_usd,
+                        pnl_pct=final_pnl_pct,
+                        reason=f"✅ Finalisiert (Reconciler): Trade #{t_id} — API bestätigt",
+                    )
+                    
+                    msg = f"Trade {t_id} ({symbol}) finalized from API: PnL=${final_pnl_usd:.2f} ({final_pnl_pct:+.2f}%)"
                     logger.info(f"[{WORKER_NAME}] {msg}")
                     log_repo.write("INFO", WORKER_NAME, msg, {"trade_id": t_id})
-                    continue
-                
-                # Position confirmed gone — mark as VERIFIED. The estimated PnL
-                # from risk_worker is already in the DB (exit_price, pnl_usd, pnl_pct).
-                trade_repo.update_status(
-                    t_id, "CLOSED",
-                    verification_status="VERIFIED",
-                )
-                finalized_count += 1
-                
-                # Send finalization embed to Discord
-                _discord(
-                    "post_position_closed_embed",
-                    symbol=symbol,
-                    amount_usd=float(trade.get("amount_usd", 0)),
-                    position_id=str(pos_id or ""),
-                    entry_price=float(trade.get("entry_price", 0) or 0),
-                    close_price=float(trade.get("exit_price", 0) or 0),
-                    pnl_usd=float(trade.get("pnl_usd", 0) or 0),
-                    pnl_pct=float(trade.get("pnl_pct", 0) or 0),
-                    reason=f"✅ Finalisiert (Reconciler): Trade #{t_id} — Close bestätigt",
-                )
-                
-                msg = f"Trade {t_id} ({symbol}) verification finalized: position confirmed closed, PnL=${trade.get('pnl_usd', 0) or 0:.2f}"
-                logger.info(f"[{WORKER_NAME}] {msg}")
-                log_repo.write("INFO", WORKER_NAME, msg, {"trade_id": t_id})
+                    
+                else:
+                    # No history match yet — position may still be settling.
+                    # Check if position is gone from live API as fallback
+                    if not pos_id or pos_id not in live_position_ids:
+                        # Position confirmed gone but no history yet — mark VERIFIED with estimate
+                        trade_repo.update_status(
+                            t_id, "CLOSED",
+                            verification_status="VERIFIED",
+                        )
+                        finalized_count += 1
+                        msg = f"Trade {t_id} ({symbol}) marked VERIFIED (position gone, no API history yet — using estimate)"
+                        logger.info(f"[{WORKER_NAME}] {msg}")
+                        log_repo.write("INFO", WORKER_NAME, msg, {"trade_id": t_id})
+                    else:
+                        # Position STILL exists — wait another cycle
+                        msg = f"Trade {t_id} ({symbol}): position {pos_id} still in API — waiting another cycle"
+                        logger.info(f"[{WORKER_NAME}] {msg}")
+                        log_repo.write("INFO", WORKER_NAME, msg, {"trade_id": t_id})
+                        continue
                 
             except Exception as exc:
                 msg = f"Failed to finalize trade {t_id} ({symbol}): {exc}"

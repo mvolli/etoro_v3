@@ -325,6 +325,62 @@ class EToroClient:
         """
         return self.get("/trading/info/real/pnl")
 
+    def get_trade_history(
+        self,
+        min_date: str | None = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> list[dict]:
+        """Return closed trades from eToro history.
+
+        Endpoint: GET /trading/info/trade/history
+
+        Parameters
+        ----------
+        min_date : str | None
+            Start date (``YYYY-MM-DD``). Trades from this date onwards are
+            returned. If *None*, defaults to 90 days ago.
+        page : int
+            Page number for pagination (default: 1).
+        page_size : int
+            Number of trades per page (default: 50, max: 100).
+
+        Returns
+        -------
+        list[dict]
+            Each dict contains: ``orderId``, ``positionId``, ``instrumentId``,
+            ``isBuy``, ``openRate``, ``closeRate``, ``openTimestamp``,
+            ``closeTimestamp``, ``units``, ``initialInvestment``, ``investment``,
+            ``netProfit``, ``fees``, ``leverage``, ``stopLossRate``,
+            ``takeProfitRate``, ``trailingStopLoss``.
+
+        Raises
+        ------
+        APIError
+            On non-2xx responses.
+        """
+        from datetime import date, timedelta
+        if min_date is None:
+            min_date = (date.today() - timedelta(days=90)).isoformat()
+
+        resp = self.get(
+            "/trading/info/trade/history",
+            params={
+                "minDate": min_date,
+                "page": page,
+                "pageSize": min(page_size, 100),
+            },
+        )
+        # API returns a list directly
+        if isinstance(resp, list):
+            return resp
+        # Some responses wrap in a dict — try common wrapper keys
+        if isinstance(resp, dict):
+            for key in ("trades", "data", "items"):
+                if key in resp and isinstance(resp[key], list):
+                    return resp[key]
+        return []
+
     def get_instrument_metadata(self, instrument_id: int) -> dict:
         """Fetch live instrument metadata (symbol/name/exchange) by ID.
 
