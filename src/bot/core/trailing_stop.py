@@ -753,26 +753,35 @@ def verify_full_close(
     client: Any,
     instrument_id: int,
     position_id: str,
-    max_attempts: int = 6,
+    max_attempts: int = 8,
     initial_wait_s: float = 3.0,
-) -> tuple[bool, str]:
+) -> tuple[bool, str, dict | None]:
     """Poll until a position after a full-close has actually disappeared,
     instead of trusting the immediate 200 response (which only means the
     order was accepted). For SL-close (risk_worker) and concentration-close.
 
-    Returns (confirmed, detail).
+    Returns (confirmed, detail, pnl_data) where pnl_data is a dict with
+    exit_price, pnl_usd, pnl_pct if available, else None.
+    
+    fix/sl-close-embed: increased max_attempts from 6 to 8 for ~165s total
+    (was 105s) to handle HK/ASIA markets with slower API response times.
     """
     import time as _time
 
     waited = 0.0
+    final_pnl_data = None
+    
     for attempt in range(max_attempts):
         wait_s = min(initial_wait_s * (2 ** attempt), 30)
         _time.sleep(wait_s)
         waited += wait_s
         pos = _find_position(client, instrument_id, position_id)
         if pos is None:
-            return True, f"Full-close CONFIRMED after {waited:.0f}s"
-    return False, f"Full-close NOT confirmed after {waited:.0f}s — position may still be open"
+            # Position gone — close confirmed. Try to get final PnL from the
+            # last known state (caller should pass it). Return None here;
+            # risk_worker fills it from the pre-close snapshot.
+            return True, f"Full-close CONFIRMED after {waited:.0f}s", final_pnl_data
+    return False, f"Full-close NOT confirmed after {waited:.0f}s — position may still be open", None
 
 
 def execute_trailing_actions(
@@ -819,7 +828,7 @@ def execute_trailing_actions(
                     instrument_id=action.instrument_id,
                 )
                 if result:
-                    verified, detail = verify_full_close(
+                    verified, detail, _pnl_data = verify_full_close(
                         client, action.instrument_id, action.position_id
                     )
                     if verified:

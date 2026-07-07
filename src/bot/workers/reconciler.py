@@ -874,6 +874,58 @@ def main() -> int:
         except Exception as exc:
             logger.warning(f"[{WORKER_NAME}] WARNING: Late-Fill-Recovery fehlgeschlagen: {exc}")
 
+        # ── 9d. Finalize unverified closes (fix/sl-close-embed) ────────────────
+        # Trades marked CLOSED with verification_status='PENDING' by risk_worker
+        # when eToro API was too slow to confirm within the polling window.
+        # Reconciler checks if position is truly gone now and marks VERIFIED.
+        pending_verifications = trade_repo.get_pending_verification()
+        finalized_count = 0
+        for trade in pending_verifications:
+            t_id = trade["id"]
+            symbol = trade.get("symbol", "?")
+            pos_id = trade.get("api_position_id")
+            try:
+                # Check if position is still in live API — if not, close confirmed
+                if pos_id and pos_id in live_position_ids:
+                    # Position STILL exists — eToro really was slow. Give it another cycle.
+                    msg = f"Trade {t_id} ({symbol}): position {pos_id} still in API — waiting another cycle"
+                    logger.info(f"[{WORKER_NAME}] {msg}")
+                    log_repo.write("INFO", WORKER_NAME, msg, {"trade_id": t_id})
+                    continue
+                
+                # Position confirmed gone — mark as VERIFIED. The estimated PnL
+                # from risk_worker is already in the DB (exit_price, pnl_usd, pnl_pct).
+                trade_repo.update_status(
+                    t_id, "CLOSED",
+                    verification_status="VERIFIED",
+                )
+                finalized_count += 1
+                
+                # Send finalization embed to Discord
+                _discord(
+                    "post_position_closed_embed",
+                    symbol=symbol,
+                    amount_usd=float(trade.get("amount_usd", 0)),
+                    position_id=str(pos_id or ""),
+                    entry_price=float(trade.get("entry_price", 0) or 0),
+                    close_price=float(trade.get("exit_price", 0) or 0),
+                    pnl_usd=float(trade.get("pnl_usd", 0) or 0),
+                    pnl_pct=float(trade.get("pnl_pct", 0) or 0),
+                    reason=f"✅ Finalisiert (Reconciler): Trade #{t_id} — Close bestätigt",
+                )
+                
+                msg = f"Trade {t_id} ({symbol}) verification finalized: position confirmed closed, PnL=${trade.get('pnl_usd', 0) or 0:.2f}"
+                logger.info(f"[{WORKER_NAME}] {msg}")
+                log_repo.write("INFO", WORKER_NAME, msg, {"trade_id": t_id})
+                
+            except Exception as exc:
+                msg = f"Failed to finalize trade {t_id} ({symbol}): {exc}"
+                logger.warning(f"[{WORKER_NAME}] WARNING: {msg}")
+                log_repo.write("WARNING", WORKER_NAME, msg, {"trade_id": t_id})
+
+        if finalized_count > 0:
+            logger.info(f"[{WORKER_NAME}] Finalized {finalized_count} pending verifications")
+
         # ── 10. Update system_state ────────────────────────────────────────────────
         now_str       = _utcnow()
         position_count = portfolio_repo.get_position_count()

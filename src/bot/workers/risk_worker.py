@@ -281,10 +281,16 @@ def main() -> None:
     
                 try:
                     client.close_position(position_id, instrument_id)
-    
+
                     # ── Verify the full-close actually took effect ──────────────
                     from bot.core.trailing_stop import verify_full_close
-                    verified, detail = verify_full_close(client, int(instrument_id or 0), str(position_id))
+                    verified, detail, _pnl_data = verify_full_close(client, int(instrument_id or 0), str(position_id))
+                    
+                    # ── Extract PnL data for DB + embed (always available) ────
+                    upnl = pos.get("unrealizedPnL") or {}
+                    close_price = float(upnl.get("closeRate", 0) if isinstance(upnl, dict) else 0)
+                    pnl_usd_est = float(upnl.get("pnL", 0) if isinstance(upnl, dict) else 0)
+                    
                     if verified:
                         closed_count += 1
                         logger.warning("RiskWorker: %s", detail)
@@ -297,33 +303,73 @@ def main() -> None:
                             "RiskWorker: Closed position %s (%s) — pnl=%.2f%%",
                             position_id, symbol, pnl_pct,
                         )
+                        # ── Update trade record with verified close data ───────
+                        try:
+                            db.execute(
+                                """UPDATE trades SET status='CLOSED', exit_price=?, pnl_usd=?, pnl_pct=?, 
+                                   closed_at=datetime('now','utc'), verification_status='VERIFIED'
+                                   WHERE api_position_id=? AND status IN ('ACTIVE','SUBMITTING','CONFIRMED')""",
+                                (close_price, pnl_usd_est, pnl_pct, str(position_id)),
+                            )
+                        except Exception as _db_exc:
+                            logger.debug("Trade DB update failed: %s", _db_exc)
+                        
                         # ── Discord: CLOSE Embed → #etoro-trades ────────────────
                         try:
-                            upnl = pos.get("unrealizedPnL") or {}
                             _discord(
                                 "post_position_closed_embed",
                                 symbol=symbol,
                                 amount_usd=float(pos.get("amount", 0)),
                                 position_id=str(position_id),
                                 entry_price=float(pos.get("openRate", 0)),
-                                close_price=float(upnl.get("closeRate", 0)),
-                                pnl_usd=float(upnl.get("pnL", 0)),
+                                close_price=close_price,
+                                pnl_usd=pnl_usd_est,
                                 pnl_pct=pnl_pct,
                                 reason=sl_action.reason,
                             )
                         except Exception as _emb_exc:
                             logger.debug("Discord close embed failed: %s", _emb_exc)
                     else:
+                        # ── UNVERIFIED: still send embed + save estimated PnL ───
                         logger.error("RiskWorker: SL-Close NOT verified — %s", detail)
                         log_repo.write(
                             "ERROR",
                             "risk_worker",
                             f"SL-Close unverified: {symbol} ({position_id}) — {detail}",
                         )
+                        
+                        # ── Save estimated PnL to DB (PENDING verification) ────
+                        try:
+                            db.execute(
+                                """UPDATE trades SET status='CLOSED', exit_price=?, pnl_usd=?, pnl_pct=?, 
+                                   closed_at=datetime('now','utc'), verification_status='PENDING'
+                                   WHERE api_position_id=? AND status IN ('ACTIVE','SUBMITTING','CONFIRMED')""",
+                                (close_price, pnl_usd_est, pnl_pct, str(position_id)),
+                            )
+                        except Exception as _db_exc:
+                            logger.debug("Trade DB update (PENDING) failed: %s", _db_exc)
+                        
+                        # ── Discord: Provisional CLOSE Embed → #etoro-trades ────
+                        try:
+                            _discord(
+                                "post_position_closed_embed",
+                                symbol=symbol,
+                                amount_usd=float(pos.get("amount", 0)),
+                                position_id=str(position_id),
+                                entry_price=float(pos.get("openRate", 0)),
+                                close_price=close_price,
+                                pnl_usd=pnl_usd_est,
+                                pnl_pct=pnl_pct,
+                                reason=f"{sl_action.reason} (⚠️ PnL geschätzt — Reconciler finalisiert)",
+                            )
+                        except Exception as _emb_exc:
+                            logger.debug("Discord provisional close embed failed: %s", _emb_exc)
+                        
+                        # ── Additional alert for unverified status ──────────────
                         _discord(
                             "post_alert_embed",
                             title="🔴 SL-Close unverifiziert",
-                            description=f"{symbol}: {detail}",
+                            description=f"{symbol}: {detail} — Embed mit geschätztem PnL gesendet, Reconciler wird finalisieren.",
                             severity="CRITICAL",
                         )
                 except APIError as exc:

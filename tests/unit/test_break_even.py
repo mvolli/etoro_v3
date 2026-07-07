@@ -97,7 +97,7 @@ def test_break_even_action_arms_state(db):
 
 def test_be_close_executes_and_verifies(db, monkeypatch):
     import bot.core.trailing_stop as ts
-    monkeypatch.setattr(ts, "verify_full_close", lambda *a, **k: (True, "gone"))
+    monkeypatch.setattr(ts, "verify_full_close", lambda *a, **k: (True, "gone", None))
     monkeypatch.setattr(ts, "_post_closed_embed", lambda *a, **k: None)
 
     client = FakeClient()

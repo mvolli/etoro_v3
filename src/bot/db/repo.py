@@ -58,6 +58,7 @@ _TRADE_UPDATE_FIELDS = frozenset(
         "confirmed_at",
         "closed_at",
         "requeue_count",   # fix/failed-trade-requeue: one-shot retry marker
+        "verification_status",  # fix/sl-close-embed: PENDING | VERIFIED | FAILED
     }
 )
 
@@ -67,12 +68,28 @@ class TradeRepo:
     def __init__(self, db: DB) -> None:
         self.db = db
         self._ensure_requeue_column()
+        self._ensure_verification_status_column()
 
     def _ensure_requeue_column(self) -> None:
         """Idempotent migration: trades.requeue_count (fix/failed-trade-requeue)."""
         try:
             self.db.execute(
                 "ALTER TABLE trades ADD COLUMN requeue_count INTEGER NOT NULL DEFAULT 0"
+            )
+        except Exception:
+            pass  # column already exists (or trades table absent in bare tests)
+
+    def _ensure_verification_status_column(self) -> None:
+        """Idempotent migration: trades.verification_status (fix/sl-close-embed).
+        
+        Tracks whether a closed trade's PnL has been verified by eToro API:
+        - 'VERIFIED' (default): Close confirmed, PnL is final
+        - 'PENDING': Close initiated but verification timed out — PnL is estimated
+        - 'FAILED': Close attempt itself failed
+        """
+        try:
+            self.db.execute(
+                "ALTER TABLE trades ADD COLUMN verification_status TEXT NOT NULL DEFAULT 'VERIFIED'"
             )
         except Exception:
             pass  # column already exists (or trades table absent in bare tests)
@@ -214,6 +231,16 @@ class TradeRepo:
         rows = self.db.fetchall(
             f"SELECT * FROM trades WHERE status IN ({placeholders}) ORDER BY created_at",
             status,
+        )
+        return _rows_to_dicts(rows)
+
+    def get_pending_verification(self) -> list[dict]:
+        """Return CLOSED trades whose verification_status is still PENDING.
+        
+        Used by reconciler to finalize unverified closes with real eToro data.
+        """
+        rows = self.db.fetchall(
+            "SELECT * FROM trades WHERE status = 'CLOSED' AND verification_status = 'PENDING' ORDER BY closed_at"
         )
         return _rows_to_dicts(rows)
 
