@@ -355,11 +355,123 @@ def post_heartbeat_embed(
 # P2 — RECONCILIATION
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def post_reconciler_embed(
+    equity: float,
+    peak_equity: float,
+    position_count: int,
+    synced_count: int,
+    orphan_count: int,
+    trades_closed: int,
+    regime: str,
+    drawdown_pct: float,
+    available_cash: float,
+    positions_summary: list[dict] | None = None,
+    dry_run: bool = False,
+) -> bool:
+    """Reconciler-Ergebnis mit Positions-Übersicht — in #etoro-trading.
+
+    Zeigt Portfolio-Statistik, Regime, Drawdown und alle offenen Positionen
+    als scannbare Tabelle.
+    """
+    positions_summary = positions_summary or []
+    cash_pct = (available_cash / equity * 100) if equity else 0
+    pnl_total = equity - 10_000
+    pnl_pct = (pnl_total / 10_000 * 100) if equity else 0
+    dd_emoji = _pnl_emoji(-drawdown_pct)
+    color = _severity_color(regime)
+
+    # Build positions table
+    pos_lines = []
+    for p in positions_summary:
+        symbol = resolve_instrument_display(p.get("symbol", "?"))
+        amount = p.get("amount_usd") or 0
+        pnl_pct_v = p.get("unrealized_pnl_pct")
+        sl = p.get("stop_loss_rate")
+        nol = p.get("is_no_stop_loss", 0)
+
+        if pnl_pct_v is not None:
+            emoji = _pnl_emoji(pnl_pct_v)
+            pnl_str = f"{pnl_pct_v:+.2f}%"
+        else:
+            emoji = "⚪"
+            pnl_str = "—"
+
+        sl_str = f"SL: {sl}" if sl else "NO SL"
+        if nol:
+            sl_str += " (no SL)"
+
+        pos_lines.append(
+            f"{emoji} **{symbol}**  "
+            f"💰 ${amount:,.0f}  "
+            f"📈 {pnl_str}  "
+            f"🛡️ {sl_str}"
+        )
+
+    if pos_lines:
+        pos_text = "\n".join(pos_lines)
+    else:
+        pos_text = "_Keine offenen Positionen_"
+
+    # Summary stats
+    summary_parts = []
+    if orphan_count > 0:
+        summary_parts.append(f"🗑️ Orphans: {orphan_count}")
+    if trades_closed > 0:
+        summary_parts.append(f"📦 Geschlossene Trades: {trades_closed}")
+    summary_parts.append(f"🔄 Synced: {synced_count}")
+    summary_text = "\n".join(summary_parts) if summary_parts else "✅ Alles synchron"
+
+    fields = [
+        {
+            "name":   "💰 Portfolio",
+            "value":  (
+                f"Equity:  **${equity:,.2f}**\n"
+                f"Peak:    **${peak_equity:,.2f}**\n"
+                f"Cash:    **${available_cash:,.2f}** ({cash_pct:.1f}%)\n"
+                f"Pos:     **{position_count}**"
+            ),
+            "inline": True,
+        },
+        {
+            "name":   "📉 Drawdown",
+            "value":  (
+                f"{dd_emoji} **{drawdown_pct:.2f}%**\n"
+                f"Regime:  `{regime}`\n"
+                f"Total PnL: {_pnl_emoji(pnl_pct)} **${pnl_total:+,.2f}** ({pnl_pct:+.2f}%)"
+            ),
+            "inline": True,
+        },
+        {
+            "name":   f"📋 Offene Positionen ({position_count})",
+            "value":  pos_text,
+            "inline": False,
+        },
+        {
+            "name":   "🔧 Sync-Status",
+            "value":  summary_text,
+            "inline": False,
+        },
+    ]
+
+    embed = {
+        "title":       "🔄 Reconciler — Portfolio Sync",
+        "description": f"Letzter Sync: {_ts()}",
+        "color":       color,
+        "fields":      fields,
+        "footer":      {"text": f"eToro RoBoCop · Reconciler · alle 5min"},
+        "timestamp":   _ts(),
+    }
+    ok = _post_embed(embed, DISCORD_MAIN_CHANNEL, dry_run)
+    if ok:
+        insert_system_log("INFO", "discord_embeds", f"Reconciler Embed gepostet equity={equity:.2f} pos={position_count}")
+    return ok
+
+
 def post_reconciliation_embed(
     result: dict,
     dry_run: bool = False,
 ) -> bool:
-    """Portfolio Reconciliation Ergebnis — in #etoro-trading.
+    """Legacy reconciliation embed (alt, wird nicht mehr vom Reconciler genutzt).
 
     `result` ist das Return-Dict von portfolio_module.reconcile().
     """
@@ -375,7 +487,7 @@ def post_reconciliation_embed(
         return _post_embed(embed, DISCORD_MAIN_CHANNEL, dry_run)
 
     equity      = result.get("api_equity", 0)
-    cash_raw    = result.get("api_credit", 0)   # credit = verfügbares Cash in eToro
+    cash_raw    = result.get("api_credit", 0)
     pos_count   = result.get("api_position_count", 0)
     equity_gap  = result.get("equity_gap", 0)
     pos_gap     = result.get("position_gap", 0)

@@ -1020,7 +1020,7 @@ def main() -> int:
 
         # Build positions summary for embed
         positions_for_embed = []
-        for snap in all_snapshots[:8]:
+        for snap in all_snapshots:
             positions_for_embed.append({
                 "symbol": snap.get("symbol", "?"),
                 "amount_usd": snap.get("amount_usd"),
