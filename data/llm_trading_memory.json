@@ -1,0 +1,59 @@
+{
+  "self_improvement_runs": [
+    {
+      "timestamp": "2026-07-08T23:55:46.807652+00:00",
+      "run_number": 1,
+      "findings": {
+        "critical_bugs_fixed": [
+          "_llm_blacklist und _llm_signal_weights in signal_worker.py main() nie zugewiesen — beide Load-Funktionen existierten, wurden aber nie aufgerufen. LLM-Blocklist und Signal-Weights waren komplett toter Code.",
+          "Kein Signal-Type-Cooldown pro Instrument — BB_EXTREME_RSI_OVERSOLD feuerte 146x mit 70% Fail-Rate, DOGE-USD 64 Fails"
+        ],
+        "data_analysis": {
+          "total_trades": 347,
+          "failed": 243,
+          "closed": 56,
+          "rejected": 36,
+          "failed_rate": 70.0,
+          "top_failing_signal": "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD (146 trades)",
+          "top_failing_symbols": [
+            "DOGE-USD (64 fails)",
+            "CM.HK (43 fails)",
+            "DOT-USD (15 fails)"
+          ],
+          "llm_ghost_blacklist_exchanges": [
+            ".DE",
+            ".HE",
+            ".ST",
+            "_FOREX",
+            "_FUT"
+          ],
+          "worst_exchange_rate": {
+            ".HE": 1.0,
+            "_FUT": 1.0,
+            ".DE": 0.75,
+            ".ST": 0.75,
+            "_FOREX": 0.77
+          }
+        }
+      },
+      "changes": [
+        {
+          "file": "src/bot/workers/signal_worker.py",
+          "fix_1": "Added _llm_blacklist = _load_llm_ghost_blacklist() und _llm_signal_weights = _load_llm_signal_weights() in main() — LLM-Blocklist und Signal-Weights sind nun aktiv",
+          "fix_2": "Added signal-type cooldown check (default 60 min) using existing signal_repo.has_recent_signal() — gleiche signal_type auf gleichem Instrument braucht Mindestdauer zwischen Wiederholung"
+        }
+      ],
+      "config_changes": {
+        "new_config_key": "trading.signal_type_cooldown_minutes",
+        "default_value": 60,
+        "description": "Minuten die eine signal_type auf einem Instrument nicht wiederholt werden darf"
+      },
+      "test_result": "373 passed",
+      "next_focus": [
+        "Cooldown-Wert optimieren (60 min default — evtl. 120 min für BB_EXTREME_RSI_OVERSOLD)",
+        "LLM-Review Worker Signal-Weights für BB_EXTREME_RSI_OVERSOLD auf score_multiplier=0.7 setzen",
+        "DOGE-USD und DOT-USD separaten Cooldown prüfen (Crypto = immer offen, mehr Signale möglich)"
+      ]
+    }
+  ]
+}

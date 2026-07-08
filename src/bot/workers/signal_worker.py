@@ -28,6 +28,76 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger("signal_worker")
+import json as _json_mod
+from datetime import datetime as _dt, timezone as _tz
+
+_LLM_GHOST_BLACKLIST_PATH = PROJECT_ROOT / "data" / "llm_ghost_blacklist.json"
+
+
+def _load_llm_ghost_blacklist() -> dict:
+    try:
+        if not _LLM_GHOST_BLACKLIST_PATH.exists():
+            return {}
+        data = _json_mod.loads(_LLM_GHOST_BLACKLIST_PATH.read_text())
+        expires = data.get("auto_expires_at")
+        if expires:
+            from datetime import datetime, timezone
+            if datetime.fromisoformat(expires) < datetime.now(timezone.utc):
+                return {}
+        return data
+    except Exception:
+        return {}
+
+
+_LLM_SIGNAL_WEIGHTS_PATH = PROJECT_ROOT / "data" / "llm_signal_weights.json"
+
+
+def _load_llm_signal_weights() -> dict:
+    """Laedt LLM-Signal-Gewichtungen (autonom von llm_review_worker gesetzt)."""
+    try:
+        if not _LLM_SIGNAL_WEIGHTS_PATH.exists():
+            return {}
+        data = _json_mod.loads(_LLM_SIGNAL_WEIGHTS_PATH.read_text())
+        expires = data.get("auto_expires_at")
+        if expires:
+            if _dt.fromisoformat(expires) < _dt.now(_tz.utc):
+                return {}
+        return data
+    except Exception:
+        return {}
+
+
+def _get_signal_score_multiplier(signal_type: str, weights: dict) -> float:
+    """Gibt Score-Multiplikator fuer Signal-Typ zurueck (1.0 = unveraendert)."""
+    if not weights:
+        return 1.0
+    adj = weights.get("adjustments", {}).get(signal_type)
+    if adj is None:
+        return 1.0
+    return float(adj.get("score_multiplier", 1.0))
+
+
+def _is_signal_type_skipped(signal_type: str, weights: dict) -> tuple[bool, str]:
+    """Prueft ob Signal-Typ durch LLM gesperrt wurde. Gibt (skip, reason) zurueck."""
+    if not weights:
+        return False, ""
+    adj = weights.get("adjustments", {}).get(signal_type)
+    if adj and adj.get("skip"):
+        return True, adj.get("reason", "LLM: Signal-Typ deaktiviert")
+    return False, ""
+
+
+def _is_llm_ghost_blocked(symbol: str, blacklist: dict) -> bool:
+    if not blacklist:
+        return False
+    if symbol in blacklist.get("symbols", []):
+        return True
+    suffix = "." + symbol.rsplit(".", 1)[-1] if "." in symbol else None
+    if suffix and suffix in blacklist.get("exchanges", []):
+        return True
+    return False
+
+
 
 # ── Discord Embeds ─────────────────────────────────────────────────────────
 try:
@@ -99,6 +169,32 @@ def main() -> None:
         portfolio_repo = PortfolioRepo(db)
         state_repo = StateRepo(db)
         log_repo = LogRepo(db)
+
+        # ── LLM Blacklist & Signal Weights (fix/llm-blacklist-wiring:
+        #    beide Load-Funktionen existierten, wurden aber nie in main()
+        #    aufgerufen — LLM-Blocklist und Signal-Weights waren toter Code) ──
+        _llm_blacklist = _load_llm_ghost_blacklist()
+        _llm_signal_weights = _load_llm_signal_weights()
+        if _llm_blacklist:
+            logger.info(
+                "SignalWorker: LLM-Blackload geladen — %d Exchanges, %d Symbole, %d Stats",
+                len(_llm_blacklist.get("exchanges", [])),
+                len(_llm_blacklist.get("symbols", [])),
+                len(_llm_blacklist.get("stats", {})),
+            )
+        if _llm_signal_weights:
+            logger.info("SignalWorker: LLM-Signal-Weights geladen")
+
+        # ── Signal-Type Cooldown pro Instrument (fix/signal-type-cooldown:
+        #    BB_EXTREME_RSI_OVERSOLD feuerte 146x mit 70% Fail-Rate —
+        #    gleiche Signale auf gleichem Instrument brauchen Mindestdauer
+        #    zwischen Wiederholung) ──
+        SIGNAL_TYPE_COOLDOWN_MINUTES = int(
+            cfg.get("trading", {}).get("signal_type_cooldown_minutes", 60)
+        )
+        logger.info(
+            "SignalWorker: Signal-Type-Cooldown = %d min", SIGNAL_TYPE_COOLDOWN_MINUTES
+        )
 
         # ── API-Client für Pre-Trade-Preischeck (fix/slippage-precheck) ───────────
         # Best-effort: ohne Client/Keys läuft der Worker wie bisher — das
@@ -289,7 +385,35 @@ def main() -> None:
                 continue
     
             symbol = _resolve_symbol(instrument_id)
-    
+
+            if _is_llm_ghost_blocked(symbol, _llm_blacklist):
+                logger.info("SignalWorker: %s LLM-Exchange-Blacklist", symbol)
+                signal_repo.update_signal_status(signal_id, "REJECTED")
+                continue
+
+            # LLM Signal-Type Blacklist (deaktivierte Signal-Typen)
+            _sig_type = signal.get("signal_type", "")
+            _sig_skip, _sig_reason = _is_signal_type_skipped(_sig_type, _llm_signal_weights)
+            if _sig_skip:
+                logger.info("SignalWorker: %s Signal-Typ gesperrt (%s): %s",
+                            symbol, _sig_type[:40], _sig_reason[:60])
+                signal_repo.update_signal_status(signal_id, "REJECTED")
+                continue
+
+            # Signal-Type Cooldown (fix/signal-type-cooldown: gleiche
+            # signal_type auf gleichem Instrument braucht Mindestdauer)
+            _sig_type = signal.get("signal_type", "")
+            if SIGNAL_TYPE_COOLDOWN_MINUTES > 0:
+                if signal_repo.has_recent_signal(
+                    instrument_id, _sig_type, SIGNAL_TYPE_COOLDOWN_MINUTES
+                ):
+                    logger.info(
+                        "SignalWorker: %s signal_type '%s' im Cooldown (%d min) — REJECTED",
+                        symbol, _sig_type[:60], SIGNAL_TYPE_COOLDOWN_MINUTES,
+                    )
+                    signal_repo.update_signal_status(signal_id, "REJECTED")
+                    continue
+
             # Market hours check (Crypto = always open)
             if not is_market_open(symbol):
                 skipped_closed.append(f'{symbol} (market closed)')
@@ -303,7 +427,11 @@ def main() -> None:
         # changing the underlying exposure caps (ASSET_CLASS_LIMITS in
         # risk.py still applies at the gate stage further down).
         eligible.sort(
-            key=lambda t: float(t[0].get("score", 0)) * get_score_boost(t[1]),
+            key=lambda t: (
+                float(t[0].get("score", 0))
+                * get_score_boost(t[1])
+                * _get_signal_score_multiplier(t[0].get("signal_type", ""), _llm_signal_weights)
+            ),
             reverse=True,
         )
     
