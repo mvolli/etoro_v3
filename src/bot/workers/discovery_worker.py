@@ -65,6 +65,8 @@ MAX_STORE = 30          # final candidates stored as signals in DB
 MAX_CANDIDATES = 40     # pre-sector-filter pool size (raised alongside MAX_STORE)
 MIN_BUY_SCORE = 30.0    # minimum score to qualify
 MIN_VOLUME_USD = 500_000  # Mindest-Tagesvolumen in USD (20-Tage-Avg) — illiquide Symbole ueberspringen
+MIN_PRICE = 5.0           # Mindestpreis in nativer yfinance-Einheit — filtert Sub-Penny-Stocks mit
+                          # strukturell unhandelbarem Bid-Ask-Spread (z.B. HAYD.L 0.28p, PXC.L 0.45p)
 SIGNAL_TTL_MINUTES = 1440  # 24 hours — voller EU-Rotationszyklus (16h) mit Puffer
 
 # Full 80-symbol universe (stocks/ETFs/crypto)
@@ -790,11 +792,26 @@ def main() -> int:
                     )
                     continue
     
-                # Prio 5a: Liquiditaets-Filter — geringe Liquiditaet fuehrt zu Ghost-Orders
+                # Prio 5a: Preis- + Liquiditaets-Filter — illiquide Sub-Penny-Stocks
+                #          und Titel mit unzureichendem USD-Volumen ueberspringen.
                 try:
                     avg_vol = float(df["Volume"].iloc[-20:].mean())
                     _price = indicators.get("price") or float(df["Close"].iloc[-1])
-                    vol_usd = avg_vol * _price
+
+                    # Mindestpreis-Filter: sub-5-Einheit-Stocks haben strukturell
+                    # zu grosse Bid-Ask-Spreads fuer den 1.5%-Slippage-Gate.
+                    if _price < MIN_PRICE:
+                        logger.debug(
+                            "[%s] %s: price=%.4f < %.1f — skipped (sub-penny)",
+                            WORKER_NAME, symbol, _price, MIN_PRICE,
+                        )
+                        continue
+
+                    # GBX-Korrektur: yfinance gibt .L-Preise in Pence (GBX), nicht GBP.
+                    # avg_vol * GBX_price = GBX-Wert, nicht USD. Faktor: 0.01 (GBX->GBP)
+                    # * ~1.27 (GBP->USD) = 0.0127. Fuer alle anderen Symbole: 1.0.
+                    _currency_factor = 0.0127 if symbol.upper().endswith(".L") else 1.0
+                    vol_usd = avg_vol * _price * _currency_factor
                     if vol_usd < MIN_VOLUME_USD:
                         logger.debug(
                             "[%s] %s: vol_usd=%.0f < %.0f — skipped (illiquid)",
@@ -802,7 +819,7 @@ def main() -> int:
                         )
                         continue
                 except Exception:
-                    pass  # Volume-Berechnung fehlgeschlagen — Symbol trotzdem zulassen
+                    pass  # Berechnung fehlgeschlagen — Symbol trotzdem zulassen
     
                 buy_candidates.append({
                     "symbol":     symbol,
