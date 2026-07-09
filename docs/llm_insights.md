@@ -129,3 +129,134 @@
 - GOLDEN_CROSS Signal komplett ausgefallen (0% Success Rate)
 
 **LLM-Fazit:** Das Portfolio läuft im NORMAL-Regime mit 9340€ Equity. Auffällig ist die hohe Ghost-Order-Rate bei Forex und skandinavischen/deutschen Small Caps (>75%). Das RSI-Extrem-Signal mit VERY_HIGH Conviction verliert aktuell durchschnittlich 4.17% pro Trade, was auf zu enge Stops oder schlechte Timing hinweist. MACD-Turn unter SMA20 zeigt sich als zuverlässigerer Bestätigungsfilter.
+
+## 2026-07-09 02:10 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_FOREX`: 100% (7/7) ← GEBLOCKT
+- `.HE`: 100% (5/5) ← GEBLOCKT
+- `_FUT`: 100% (4/4) ← GEBLOCKT
+- `.ST`: 75% (3/4) ← GEBLOCKT
+- `.DE`: 71% (5/7) ← GEBLOCKT
+- `.L`: 47% (27/58) ⚠ CAUTION
+- `_OTHER`: 45% (31/69) ⚠ CAUTION
+- `_ASIA`: 28% (2/7)
+- `_CRYPTO`: 28% (27/96)
+- `.PA`: 25% (2/8)
+- `.AX`: 14% (2/14)
+- `.HK`: 12% (6/49)
+- `.T`: 0% (0/2)
+
+**Symbol-Blacklist:** ABB.ST, ACE.ST, EURGBP, EURJPY, KTA.DE, LiveCattle.FUT, NLG1V.HE, SIE.DE, TELIA1.HE
+
+**Schwache Signaltypen:** BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD, BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING, MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING, TREND_PULLBACK
+
+**Anomalien:**
+- GOLDEN_CROSS Signal hat 0% Success Rate bei 8 Trades (alle FAILED)
+- VERY_HIGH Conviction Trades (RSI-Extrem) zeigen negative PnL im Durchschnitt
+- Forex-Exchanges haben 100% Ghost-Rate bei tradable Instrumenten
+
+**LLM-Fazit:** CAUTION-Regime aktiv: Ghost-Raten bei Forex und DE/ST-Exchanges kritisch hoch (>70%). RSI-Extrem-Signale verlieren aktuell an Effizienz, MACD-Kombinationen stabiler. Portfolio-Drawdown prüfen, da sehr hohe Conviction-Trades negativ ausschlagen.
+
+## 2026-07-09 02:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_FOREX`: 100% (7/7) ← GEBLOCKT
+- `.HE`: 100% (5/5) ← GEBLOCKT
+- `_FUT`: 100% (4/4) ← GEBLOCKT
+- `.ST`: 75% (3/4) ← GEBLOCKT
+- `.DE`: 71% (5/7) ← GEBLOCKT
+- `.L`: 47% (27/58) ⚠ CAUTION
+- `_OTHER`: 45% (31/69) ⚠ CAUTION
+- `_ASIA`: 28% (2/7)
+- `_CRYPTO`: 28% (27/96)
+- `.PA`: 25% (2/8)
+- `.AX`: 14% (2/14)
+- `.HK`: 12% (6/49)
+- `.T`: 0% (0/2)
+
+**Symbol-Blacklist:** EURGBP, EURJPY, KTA.DE, LUS1.DE, LiveCattle.FUT, NLG1V.HE, SB1.DE, SIE.DE, TELIA1.HE, V3V.DE
+
+**Schwache Signaltypen:** BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD, BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING, TREND_PULLBACK, MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING
+
+**Anomalien:**
+- GOLDEN_CROSS: 100% Failed-Rate, ineffizient im aktuellen Regime
+- VERY_HIGH Conviction Signale (BB+RSI) zeigen systematisch negative PnL (-0.5 bis -3.6%)
+- Forex-Exchanges (_FOREX) haben 100% Ghost-Rate bei kleinen Volumina
+
+**LLM-Fazit:** CAUTION-Regime bestätigt: Ghost-Raten bei Forex und HE/DE Exchanges kritisch (>70%). Die robustesten Signale sind MACD-Kombinationen, während GOLDEN_CROSS und reine RSI-Extrema oft fehlschlagen. Portfolio-Drawdown stabil, aber Slippage bei LSE-Symbolen beachten.
+
+## 2026-07-09 02:34 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_FOREX`: 100% (7/7) ← GEBLOCKT
+- `.HE`: 100% (5/5) ← GEBLOCKT
+- `_FUT`: 100% (4/4) ← GEBLOCKT
+- `.ST`: 75% (3/4) ← GEBLOCKT
+- `.DE`: 71% (5/7) ← GEBLOCKT
+- `.L`: 47% (27/58) ⚠ CAUTION
+- `_OTHER`: 45% (31/69) ⚠ CAUTION
+- `_ASIA`: 28% (2/7)
+- `_CRYPTO`: 28% (27/96)
+- `.PA`: 25% (2/8)
+- `.AX`: 14% (2/14)
+- `.HK`: 12% (6/49)
+- `.T`: 0% (0/2)
+
+**Symbol-Blacklist:** ABB.ST, ACE.ST, EURGBP, EURJPY, KTA.DE, LUS1.DE, LiveCattle.FUT, NLG1V.HE, SB1.DE, SIE.DE, TELIA1.HE, V3V.DE
+
+**Schwache Signaltypen:** BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD, BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING, TREND_PULLBACK
+
+**Anomalien:**
+- GOLDEN_CROSS alleinige Signale haben 0% Success Rate
+- MACD_TURN_BELOW_SMA20 alleinige Signale haben 0% Success Rate
+- Sehr hohe Ghost-Rate bei .DE und .ST trotz tradable Status
+
+**LLM-Fazit:** CAUTION-Regime: Hohe Ghost-Raten bei Forex und skandinavischen/deutschen Aktien. Das Signal 'BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD' ist mit 40% Success Rate und negativen PnLs schwach. MACD-Kombis zeigen sich stabiler.
+
+## 2026-07-09 13:13 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `.HE`: 100% (5/5) ← GEBLOCKT
+- `_FUT`: 100% (4/4) ← GEBLOCKT
+- `_FOREX`: 82% (14/17) ← GEBLOCKT
+- `.ST`: 75% (3/4) ← GEBLOCKT
+- `.DE`: 71% (5/7) ← GEBLOCKT
+- `_ASIA`: 53% (8/15) ⚠ CAUTION
+- `.L`: 49% (30/61) ⚠ CAUTION
+- `_OTHER`: 35% (18/51) ⚠ CAUTION
+- `_CRYPTO`: 28% (27/96)
+- `.PA`: 25% (2/8)
+- `.AX`: 14% (2/14)
+- `.HK`: 12% (6/49)
+- `.T`: 0% (0/2)
+
+*LLM nicht verfügbar — nur algorithmische Analyse.*
+
+## 2026-07-09 13:20 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `.HE`: 100% (5/5) ← GEBLOCKT
+- `_FUT`: 100% (4/4) ← GEBLOCKT
+- `_FOREX`: 82% (14/17) ← GEBLOCKT
+- `.ST`: 75% (3/4) ← GEBLOCKT
+- `.DE`: 71% (5/7) ← GEBLOCKT
+- `_ASIA`: 53% (8/15) ⚠ CAUTION
+- `.L`: 49% (30/61) ⚠ CAUTION
+- `_OTHER`: 35% (18/51) ⚠ CAUTION
+- `_CRYPTO`: 28% (27/96)
+- `.PA`: 25% (2/8)
+- `.AX`: 14% (2/14)
+- `.HK`: 12% (6/49)
+- `.T`: 0% (0/2)
+
+**Symbol-Blacklist:** .HE, ACE.ST, EURGBP, EURJPY, LiveCattle.FUT, SIE.DE
+
+**Schwache Signaltypen:** BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD, BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING, TREND_PULLBACK, MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING
+
+**Anomalien:**
+- GOLDEN_CROSS: 0% Success Rate bei 8 Trades, alle FAILED
+- VERY_HIGH Conviction Signale zeigen systematisch negative PnL (z.B. -3.69% bis -5.49%)
+- Asien-Markt (_ASIA) Ghost-Rate steigt stark (+0.24 Delta)
+
+**LLM-Fazit:** CAUTION-Regime aktiv: Ghost-Raten bei Forex und HE steigen leicht, aber stabil. Signale mit 'VERY_HIGH' Conviction (RSI/BB) verlieren systematisch; MACD-Kombis bleiben stabiler. Portfolio-Exposure wird im CAUTION-Modus reduziert.

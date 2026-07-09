@@ -66,13 +66,13 @@
   "runs": [
     {
       "date": "2026-07-09",
-      "closed_trades": 56,
+      "closed_trades": 14,
       "insights": 3,
       "adjustments": [
         "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD",
         "TREND_PULLBACK",
-        "GOLDEN_CROSS",
-        "MACD_TURN_BELOW_SMA20"
+        "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING",
+        "GOLDEN_CROSS"
       ]
     },
     {
@@ -147,6 +147,12 @@
         "score_multiplier": 0.7,
         "skip": false,
         "reason": "Niedrige Success Rate (2%), aber hohe Frequenz; Filter schärfen."
+      },
+      {
+        "date": "2026-07-09",
+        "score_multiplier": 0.6,
+        "skip": false,
+        "reason": "Niedrige Success Rate (0.02), aber hohe Frequenz; Gewichtung senken, um False Positives zu reduzieren."
       }
     ],
     "GOLDEN_CROSS": [
@@ -185,6 +191,12 @@
         "score_multiplier": 0.5,
         "skip": true,
         "reason": "Alleinige Signale fallen aus, nur in Kombination mit MACD/RSI verwenden."
+      },
+      {
+        "date": "2026-07-09",
+        "score_multiplier": 0.2,
+        "skip": false,
+        "reason": "Alleinige Nutzung führt zu 0% Success Rate; nur in Kombination mit MACD/RSI verwenden."
       }
     ],
     "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD": [
@@ -223,6 +235,12 @@
         "score_multiplier": 0.6,
         "skip": false,
         "reason": "Hohe Ghost-Rate und negative PnLs; Gewicht senken."
+      },
+      {
+        "date": "2026-07-09",
+        "score_multiplier": 0.4,
+        "skip": false,
+        "reason": "Hohe Ghost-Rate und negative PnL bei CLOSED Trades; Signal ist zu aggressiv im aktuellen Markt."
       }
     ],
     "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": [
@@ -231,6 +249,12 @@
         "score_multiplier": 1.2,
         "skip": false,
         "reason": "Beste Stabilitaet und positive Performance bei wenigen Trades; Gewicht erhohen."
+      },
+      {
+        "date": "2026-07-09",
+        "score_multiplier": 1.2,
+        "skip": false,
+        "reason": "Stabilstes Signal im CAUTION-Regime mit positiver Performance-Tendenz."
       }
     ],
     "MACD_TURN_BELOW_SMA20": [
@@ -283,6 +307,12 @@
         "sl.default_pct: 4.0 -> 3.0 (Erhöhung von 4.0% auf 3.0% im CAUTION-Regime, um Slippage be)",
         "sizing.very_high_pct: 6.0 -> 5.0 (Reduktion von 6.0% auf 5.0%, da VERY_HIGH Conviction Signale)"
       ]
+    },
+    {
+      "date": "2026-07-09",
+      "changes": [
+        "regime.caution_pct: 4.0 -> 3.0 (Leichte Absenkung von 4.0 auf 3.0, um im CAUTION-Regime kons)"
+      ]
     }
   ],
   "ghost_rate_history": [
@@ -333,6 +363,24 @@
         ".ST": 0.75,
         ".PA": 0.25,
         ".L": 0.47,
+        ".DE": 0.71,
+        ".HK": 0.12,
+        ".AX": 0.14,
+        ".T": 0.0,
+        "_CRYPTO": 0.28
+      }
+    },
+    {
+      "ts": "2026-07-09T13:20:52.706001+00:00",
+      "rates": {
+        ".L": 0.49,
+        "_OTHER": 0.35,
+        "_FOREX": 0.82,
+        ".HE": 1.0,
+        "_ASIA": 0.53,
+        "_FUT": 1.0,
+        ".ST": 0.75,
+        ".PA": 0.25,
         ".DE": 0.71,
         ".HK": 0.12,
         ".AX": 0.14,

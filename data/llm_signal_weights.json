@@ -1,28 +1,35 @@
 {
-  "updated_at": "2026-07-09T00:27:46.269479+00:00",
-  "auto_expires_at": "2026-07-23T00:27:46.269487+00:00",
+  "updated_at": "2026-07-09T13:20:52.707408+00:00",
+  "auto_expires_at": "2026-07-23T13:20:52.707417+00:00",
   "adjustments": {
     "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD": {
+      "score_multiplier": 0.4,
+      "skip": false,
+      "reason": "Hohe Ghost-Rate und negative PnL bei CLOSED Trades; Signal ist zu aggressiv im aktuellen Markt."
+    },
+    "TREND_PULLBACK": {
       "score_multiplier": 0.6,
       "skip": false,
-      "reason": "Hohe Ghost-Rate und negative PnL bei VERY_HIGH Conviction; Gewicht senken, um Fehlsignale zu filtern."
+      "reason": "Niedrige Success Rate (0.02), aber hohe Frequenz; Gewichtung senken, um False Positives zu reduzieren."
+    },
+    "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": {
+      "score_multiplier": 1.2,
+      "skip": false,
+      "reason": "Stabilstes Signal im CAUTION-Regime mit positiver Performance-Tendenz."
     },
     "GOLDEN_CROSS": {
       "score_multiplier": 0.2,
       "skip": false,
-      "reason": "0% Success Rate bei 8 Trades; Signal vorübergehend stark gewichtet reduzieren."
-    },
-    "TREND_PULLBACK": {
-      "score_multiplier": 0.4,
-      "skip": false,
-      "reason": "2% Success Rate bei 44 Trades; sehr hohe Fehlerrate, Gewicht stark reduzieren."
+      "reason": "Alleinige Nutzung führt zu 0% Success Rate; nur in Kombination mit MACD/RSI verwenden."
     }
   },
   "strategy_notes": [
-    "MACD_TURN_BELOW_SMA20 in Kombination mit BB_LOW_MACD_IMPROVING zeigt bei wenigen Trades (n=13) eine bessere Stabilität als reine RSI-Signale.",
-    "Forex-Paare (EURJPY, EURGBP) benötigen zwingend einen breiteren Stop oder einen Filter, der Ghost-Orders ausschließt."
+    "MACD_TURN_BELOW_SMA20 in Kombination mit BB_LOW_MACD_IMPROVING ist das robusteste Signal im CAUTION-Regime.",
+    "Forex-Paare (EURGBP, EURJPY) nur bei hoher Liquidität oder mit erweitertem SL handeln.",
+    "GOLDEN_Cross nicht als alleiniges Entry-Signal nutzen, sondern nur in Kombination mit MACD/RSI."
   ],
   "conviction_issues": [
-    "VERY_HIGH Conviction (RSI-Extrem) hat 80% Verlustrate in den letzten abgeschlossenen Trades (HDF.PA, V3V.DE, RWAY.MI) mit avg_pnl von -4.17%."
+    "VERY_HIGH Conviction hat 80% Verlustrate bei abgeschlossenen Trades — Score-Multiplikator senken.",
+    "HIGH Conviction Signale zeigen gemischte Ergebnisse, aber TREND_PULLBACK ist hier besonders anfällig."
   ]
 }

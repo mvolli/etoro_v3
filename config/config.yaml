@@ -35,7 +35,7 @@ risk:
 
 regime:                       # Drawdown-from-rolling-peak → 4-state regime (reduces sizing)
   # Entry thresholds — regime escalates immediately on breach.
-  caution_pct: 4.0            # DD ≥ 4%  → CAUTION   (risk_scalar 0.75, MEDIUM+ only)
+  caution_pct: 3.0            # DD ≥ 4%  → CAUTION   (risk_scalar 0.75, MEDIUM+ only)
   defensive_pct: 8.0          # DD ≥ 8%  → DEFENSIVE (risk_scalar 0.50, HIGH+ only)
   critical_pct: 15.0          # DD ≥ 15% → CRITICAL  (risk_scalar 0.25, VERY_HIGH only)
   # Exit thresholds — sticky hysteresis: de-escalate only below these.
@@ -49,7 +49,7 @@ sl:                           # Stop-loss configuration
   warning_pct: 2.0            # SL proximity warning threshold (% from current price)
 
 sizing:                       # Position size as % of portfolio equity
-  very_high_pct: 8.0          # Conviction tier: VERY HIGH
+  very_high_pct: 5.0          # Conviction tier: VERY HIGH
   high_pct: 7.0               # Conviction tier: HIGH
   medium_pct: 5.0             # Conviction tier: MEDIUM
   low_pct: 2.0                # Conviction tier: LOW / speculative

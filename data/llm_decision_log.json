@@ -551,5 +551,463 @@
     "reason": "Reduktion von 6.0% auf 5.0%, da die aktuellen Signale (RSI-Extrem) hohe Verlustraten aufweisen und das Risiko pro Trade gesenkt werden soll.",
     "outcome": null,
     "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T02:10:59.886317+00:00",
+    "type": "ghost_blacklist",
+    "key": ".DE",
+    "old_value": false,
+    "new_value": true,
+    "reason": "CAUTION-Regime aktiv: Ghost-Raten bei Forex und DE/ST-Exchanges kritisch hoch (>",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T02:10:59.887591+00:00",
+    "type": "ghost_blacklist",
+    "key": ".HE",
+    "old_value": false,
+    "new_value": true,
+    "reason": "CAUTION-Regime aktiv: Ghost-Raten bei Forex und DE/ST-Exchanges kritisch hoch (>",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T02:10:59.888414+00:00",
+    "type": "ghost_blacklist",
+    "key": ".ST",
+    "old_value": false,
+    "new_value": true,
+    "reason": "CAUTION-Regime aktiv: Ghost-Raten bei Forex und DE/ST-Exchanges kritisch hoch (>",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T02:10:59.889180+00:00",
+    "type": "ghost_blacklist",
+    "key": "_FOREX",
+    "old_value": false,
+    "new_value": true,
+    "reason": "CAUTION-Regime aktiv: Ghost-Raten bei Forex und DE/ST-Exchanges kritisch hoch (>",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T02:10:59.890057+00:00",
+    "type": "ghost_blacklist",
+    "key": "_FUT",
+    "old_value": false,
+    "new_value": true,
+    "reason": "CAUTION-Regime aktiv: Ghost-Raten bei Forex und DE/ST-Exchanges kritisch hoch (>",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T02:10:59.892343+00:00",
+    "type": "signal_weight",
+    "key": "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.6,
+      "skip": false,
+      "reason": "Hohe Ghost-Rate und negative PnL bei CLOSED Trades; Gewicht senken."
+    },
+    "reason": "Hohe Ghost-Rate und negative PnL bei CLOSED Trades; Gewicht senken.",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T02:10:59.893138+00:00",
+    "type": "signal_weight",
+    "key": "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 1.2,
+      "skip": false,
+      "reason": "Beste Stabilitaet und positive Performance bei wenigen Trades; Gewicht erhohen."
+    },
+    "reason": "Beste Stabilitaet und positive Performance bei wenigen Trades; Gewicht erhohen.",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T02:10:59.893844+00:00",
+    "type": "signal_weight",
+    "key": "GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "Aktuell 0% Success Rate; vorerst gewichtsenken bis Muster sich stabilisiert."
+    },
+    "reason": "Aktuell 0% Success Rate; vorerst gewichtsenken bis Muster sich stabilisiert.",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T02:10:59.895603+00:00",
+    "type": "config",
+    "key": "sl.default_pct",
+    "old_value": 3.0,
+    "new_value": 4.0,
+    "reason": "Erhoehung von 3.0 auf 4.0, um Slippage-Rejects und Ghost-Orders bei volatilen Exchanges (Forex, DE) abzufedern.",
+    "baseline": {
+      "avg_pnl_pct": -2.95,
+      "win_rate": 0.17,
+      "n_trades": 6,
+      "ghost_rate_total": 0.36
+    },
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T02:10:59.897487+00:00",
+    "type": "config",
+    "key": "sizing.very_high_pct",
+    "old_value": 8.0,
+    "new_value": 6.0,
+    "reason": "Reduktion von 8.0 auf 6.0, da VERY_HIGH Conviction (RSI-Extrem) aktuell hohe Verlustraten aufweist.",
+    "baseline": {
+      "avg_pnl_pct": -2.95,
+      "win_rate": 0.17,
+      "n_trades": 6,
+      "ghost_rate_total": 0.36
+    },
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T02:30:13.408857+00:00",
+    "type": "ghost_blacklist",
+    "key": ".DE",
+    "old_value": false,
+    "new_value": true,
+    "reason": "CAUTION-Regime bestätigt: Ghost-Raten bei Forex und HE/DE Exchanges kritisch (>7",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T02:30:13.410516+00:00",
+    "type": "ghost_blacklist",
+    "key": ".HE",
+    "old_value": false,
+    "new_value": true,
+    "reason": "CAUTION-Regime bestätigt: Ghost-Raten bei Forex und HE/DE Exchanges kritisch (>7",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T02:30:13.411937+00:00",
+    "type": "ghost_blacklist",
+    "key": ".ST",
+    "old_value": false,
+    "new_value": true,
+    "reason": "CAUTION-Regime bestätigt: Ghost-Raten bei Forex und HE/DE Exchanges kritisch (>7",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T02:30:13.413095+00:00",
+    "type": "ghost_blacklist",
+    "key": "_FOREX",
+    "old_value": false,
+    "new_value": true,
+    "reason": "CAUTION-Regime bestätigt: Ghost-Raten bei Forex und HE/DE Exchanges kritisch (>7",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T02:30:13.414439+00:00",
+    "type": "ghost_blacklist",
+    "key": "_FUT",
+    "old_value": false,
+    "new_value": true,
+    "reason": "CAUTION-Regime bestätigt: Ghost-Raten bei Forex und HE/DE Exchanges kritisch (>7",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T02:30:13.418493+00:00",
+    "type": "signal_weight",
+    "key": "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.6,
+      "skip": false,
+      "reason": "Hohe Ghost-Rate und negative PnL, aber noch aktive Trades vorhanden."
+    },
+    "reason": "Hohe Ghost-Rate und negative PnL, aber noch aktive Trades vorhanden.",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T02:30:13.419946+00:00",
+    "type": "signal_weight",
+    "key": "GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.3,
+      "skip": false,
+      "reason": "100% Failed-Rate, nur als Filter-Komponente nutzen."
+    },
+    "reason": "100% Failed-Rate, nur als Filter-Komponente nutzen.",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T02:30:13.421484+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.7,
+      "skip": false,
+      "reason": "Hohe Failed-Rate, aber einzelne Wins zeigen Potenzial bei strenger Filterung."
+    },
+    "reason": "Hohe Failed-Rate, aber einzelne Wins zeigen Potenzial bei strenger Filterung.",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T02:30:13.423937+00:00",
+    "type": "config",
+    "key": "sl.default_pct",
+    "old_value": 4.0,
+    "new_value": 3.0,
+    "reason": "Erhöhung von 4.0% auf 3.0% im CAUTION-Regime, um Slippage bei Ghost-Orders zu kompensieren, ohne zu eng zu sein.",
+    "baseline": {
+      "avg_pnl_pct": -1.78,
+      "win_rate": 0.1,
+      "n_trades": 20,
+      "ghost_rate_total": 0.36
+    },
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T02:30:13.426055+00:00",
+    "type": "config",
+    "key": "sizing.very_high_pct",
+    "old_value": 6.0,
+    "new_value": 5.0,
+    "reason": "Reduktion von 6.0% auf 5.0%, da VERY_HIGH Conviction Signale aktuell hohe Verlustraten aufweisen.",
+    "baseline": {
+      "avg_pnl_pct": -1.78,
+      "win_rate": 0.1,
+      "n_trades": 20,
+      "ghost_rate_total": 0.36
+    },
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T02:34:32.301564+00:00",
+    "type": "signal_weight",
+    "key": "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.6,
+      "skip": false,
+      "reason": "Hohe Ghost-Rate und negative PnLs; Gewicht senken."
+    },
+    "reason": "Hohe Ghost-Rate und negative PnLs; Gewicht senken.",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T02:34:32.302892+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.7,
+      "skip": false,
+      "reason": "Niedrige Success Rate (2%), aber hohe Frequenz; Filter schärfen."
+    },
+    "reason": "Niedrige Success Rate (2%), aber hohe Frequenz; Filter schärfen.",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T02:34:32.304036+00:00",
+    "type": "signal_weight",
+    "key": "GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.5,
+      "skip": true,
+      "reason": "Alleinige Signale fallen aus, nur in Kombination mit MACD/RSI verwenden."
+    },
+    "reason": "Alleinige Signale fallen aus, nur in Kombination mit MACD/RSI verwenden.",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T02:34:32.305704+00:00",
+    "type": "signal_weight",
+    "key": "MACD_TURN_BELOW_SMA20",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.8,
+      "skip": false,
+      "reason": "Alleinige Signale schwach, aber mit BB_LOW_MACD_IMPROVING stabil (siehe Bible Hard Limits)."
+    },
+    "reason": "Alleinige Signale schwach, aber mit BB_LOW_MACD_IMPROVING stabil (siehe Bible Ha",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T13:20:52.708418+00:00",
+    "type": "signal_weight",
+    "key": "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.4,
+      "skip": false,
+      "reason": "Hohe Ghost-Rate und negative PnL bei CLOSED Trades; Signal ist zu aggressiv im aktuellen Markt."
+    },
+    "reason": "Hohe Ghost-Rate und negative PnL bei CLOSED Trades; Signal ist zu aggressiv im a",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T13:20:52.710599+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.6,
+      "skip": false,
+      "reason": "Niedrige Success Rate (0.02), aber hohe Frequenz; Gewichtung senken, um False Positives zu reduzieren."
+    },
+    "reason": "Niedrige Success Rate (0.02), aber hohe Frequenz; Gewichtung senken, um False Po",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T13:20:52.712313+00:00",
+    "type": "signal_weight",
+    "key": "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 1.2,
+      "skip": false,
+      "reason": "Stabilstes Signal im CAUTION-Regime mit positiver Performance-Tendenz."
+    },
+    "reason": "Stabilstes Signal im CAUTION-Regime mit positiver Performance-Tendenz.",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T13:20:52.714101+00:00",
+    "type": "signal_weight",
+    "key": "GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.2,
+      "skip": false,
+      "reason": "Alleinige Nutzung führt zu 0% Success Rate; nur in Kombination mit MACD/RSI verwenden."
+    },
+    "reason": "Alleinige Nutzung führt zu 0% Success Rate; nur in Kombination mit MACD/RSI verw",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T13:20:52.718677+00:00",
+    "type": "config",
+    "key": "regime.caution_pct",
+    "old_value": 4.0,
+    "new_value": 3.0,
+    "reason": "Leichte Absenkung von 4.0 auf 3.0, um im CAUTION-Regime konservativer zu positionieren.",
+    "baseline": {
+      "avg_pnl_pct": -2.44,
+      "win_rate": 0.21,
+      "n_trades": 14,
+      "ghost_rate_total": 0.37
+    },
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
   }
 ]
