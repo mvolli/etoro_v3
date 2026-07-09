@@ -264,10 +264,14 @@ def generate_signal(symbol: str, indicators: dict) -> SignalResult:
         if bb_pct < 0.1 and macd_hist > macd_hist_prev:
             signals.append(("BB_LOW_MACD_IMPROVING", CONVICTION_HIGH, 20.0))
 
-    # Rule 6: Trend pullback
-    if all(x is not None for x in [rsi, sma20, sma50, price]):
+    # Rule 6: Trend pullback — MACD-Histogramm Floor (fix/trend-pullback-macd-floor)
+    # MACD muss > -0.01 sein → filtert starke Downtrends heraus.
+    # Vorher: 63.6% Fail-Rate (28/44), weil TREND_PULLBACK auch bei stark
+    # negativem MACD feuerte → Preis unter SMA50, aber Signal ignorierte Trendkraft.
+    if all(x is not None for x in [rsi, sma20, sma50, price, macd_hist]):
         if (price > sma50 and price <= sma20 * 1.02  # near/below SMA20
-                and 35 <= rsi <= 55):
+                and 35 <= rsi <= 55
+                and macd_hist > -0.01):  # MACD Floor: nicht im starken Abwärtstrend
             signals.append(("TREND_PULLBACK", CONVICTION_HIGH, 20.0))
 
     # Rule 7: Golden Cross
@@ -349,3 +353,4 @@ def analyze_batch(symbols: list[str]) -> dict[str, SignalResult]:
         if indicators:
             results[sym] = generate_signal(sym, indicators)
     return results
+

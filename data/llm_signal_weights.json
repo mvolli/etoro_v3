@@ -1,35 +1,31 @@
 {
-  "updated_at": "2026-07-09T13:20:52.707408+00:00",
-  "auto_expires_at": "2026-07-23T13:20:52.707417+00:00",
+  "updated_at": "2026-07-09T14:30:00.000000+00:00",
+  "auto_expires_at": "2026-07-23T13:46:36.119667+00:00",
   "adjustments": {
-    "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD": {
-      "score_multiplier": 0.4,
+    "GOLDEN_CROSS": {
+      "score_multiplier": 0.5,
       "skip": false,
-      "reason": "Hohe Ghost-Rate und negative PnL bei CLOSED Trades; Signal ist zu aggressiv im aktuellen Markt."
+      "reason": "0% Success isoliert, aber 0.2 war zu aggressiv. In Kombination mit MACD/RSI funktioniert es besser. 0.5 als Kompromiss."
     },
     "TREND_PULLBACK": {
       "score_multiplier": 0.6,
       "skip": false,
-      "reason": "Niedrige Success Rate (0.02), aber hohe Frequenz; Gewichtung senken, um False Positives zu reduzieren."
+      "reason": "63.6% Fail-Rate (28/44). MACD-Histogramm > 0 als Best\u00e4tigung erh\u00f6ht Trefferquote."
     },
-    "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": {
-      "score_multiplier": 1.2,
+    "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD": {
+      "score_multiplier": 0.6,
       "skip": false,
-      "reason": "Stabilstes Signal im CAUTION-Regime mit positiver Performance-Tendenz."
-    },
-    "GOLDEN_CROSS": {
-      "score_multiplier": 0.2,
-      "skip": false,
-      "reason": "Alleinige Nutzung führt zu 0% Success Rate; nur in Kombination mit MACD/RSI verwenden."
+      "reason": "Niedrige Success Rate (38%) und negative PnL bei Closed Trades, SL-\u00dcberwachung erforderlich."
     }
   },
   "strategy_notes": [
-    "MACD_TURN_BELOW_SMA20 in Kombination mit BB_LOW_MACD_IMPROVING ist das robusteste Signal im CAUTION-Regime.",
-    "Forex-Paare (EURGBP, EURJPY) nur bei hoher Liquidität oder mit erweitertem SL handeln.",
-    "GOLDEN_Cross nicht als alleiniges Entry-Signal nutzen, sondern nur in Kombination mit MACD/RSI."
+    "MACD_TURN_BELOW_SMA20 in Kombination mit BB_LOW_MACD_IMPROVING bleibt das robusteste Signal im CAUTION-Regime.",
+    "GOLDEN_Cross sollte nicht mehr als alleiniges Entry-Signal genutzt werden.",
+    "GOLDEN_CROSS score_multiplier von 0.2 auf 0.5 erh\u00f6ht \u2014 zu aggressiv gedrosselt, in Kombination brauchbar.",
+    "TREND_PULLBACK score_multiplier von 0.5 auf 0.6 erh\u00f6ht \u2014 MACD-Histogramm > 0 als implizite Best\u00e4tigung."
   ],
   "conviction_issues": [
-    "VERY_HIGH Conviction hat 80% Verlustrate bei abgeschlossenen Trades — Score-Multiplikator senken.",
-    "HIGH Conviction Signale zeigen gemischte Ergebnisse, aber TREND_PULLBACK ist hier besonders anfällig."
+    "VERY_HIGH Conviction bei BB/RSI-Strategie hat 80% Verlustrate bei abgeschlossenen Trades (avg PnL -0.45% bis -5.49%)",
+    "HIGH Conviction bei TREND_PULLBACK f\u00fchrt oft zu schnellen Stops (avg PnL -3.09% bei Einzeltrade)"
   ]
 }

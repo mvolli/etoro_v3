@@ -1009,5 +1009,124 @@
     "outcome": null,
     "outcome_grade": null,
     "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T13:24:05.298837+00:00",
+    "type": "signal_weight",
+    "key": "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.4,
+      "skip": false,
+      "reason": "Hohe Rejection-Rate (7) und negative PnL bei Closed Trades."
+    },
+    "reason": "Hohe Rejection-Rate (7) und negative PnL bei Closed Trades.",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T13:24:05.299845+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.6,
+      "skip": false,
+      "reason": "Sehr hohe Rejection-Rate (15) und niedrige Success Rate (0.02)."
+    },
+    "reason": "Sehr hohe Rejection-Rate (15) und niedrige Success Rate (0.02).",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T13:24:05.374642+00:00",
+    "type": "signal_weight",
+    "key": "GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.3,
+      "skip": true,
+      "reason": "Alle 8 Trades FAILED, isoliert fast unbrauchbar."
+    },
+    "reason": "Alle 8 Trades FAILED, isoliert fast unbrauchbar.",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T13:24:05.376513+00:00",
+    "type": "signal_weight",
+    "key": "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 1.2,
+      "skip": false,
+      "reason": "Bestes Signal im CAUTION-Regime, trotz niedriger Success Rate (0.08) positive PnL bei Closed Trades."
+    },
+    "reason": "Bestes Signal im CAUTION-Regime, trotz niedriger Success Rate (0.08) positive Pn",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T13:46:36.120057+00:00",
+    "type": "signal_weight",
+    "key": "GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.2,
+      "skip": false,
+      "reason": "0% Success Rate bei isolierter Nutzung, nur in Kombination mit MACD/RSI verwenden."
+    },
+    "reason": "0% Success Rate bei isolierter Nutzung, nur in Kombination mit MACD/RSI verwende",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T13:46:36.121093+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "Hohe Fail-Rate (28/44), nur bei zusätzlicher Bestätigung (z.B. MACD Turn) gewichten."
+    },
+    "reason": "Hohe Fail-Rate (28/44), nur bei zusätzlicher Bestätigung (z.B. MACD Turn) gewich",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T13:46:36.122106+00:00",
+    "type": "signal_weight",
+    "key": "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.6,
+      "skip": false,
+      "reason": "Niedrige Success Rate (38%) und negative PnL bei Closed Trades, SL-Überwachung erforderlich."
+    },
+    "reason": "Niedrige Success Rate (38%) und negative PnL bei Closed Trades, SL-Überwachung e",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
   }
 ]

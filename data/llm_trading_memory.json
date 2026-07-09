@@ -54,6 +54,84 @@
         "LLM-Review Worker Signal-Weights für BB_EXTREME_RSI_OVERSOLD auf score_multiplier=0.7 setzen",
         "DOGE-USD und DOT-USD separaten Cooldown prüfen (Crypto = immer offen, mehr Signale möglich)"
       ]
+    },
+    {
+      "timestamp": "2026-07-09T17:33:37.935311+00:00",
+      "run_number": 2,
+      "findings": {
+        "critical_bugs_fixed": [
+          "GOLDEN_CROSS score_multiplier von 0.2 auf 0.5 erhöht — zu aggressiv gedrosselt, in Kombination mit MACD/RSI brauchbar.",
+          "TREND_PULLBACK mit MACD-Histogramm Floor (-0.01) versehen — filtert starke Downtrends heraus, wo die 63.6% Fail-Rate herkam."
+        ],
+        "data_analysis": {
+          "total_trades": 347,
+          "failed": 243,
+          "closed": 56,
+          "GOLDEN_CROSS": {
+            "total": 8,
+            "failed": 8,
+            "success_rate": 0.0,
+            "note": "100% Failed isoliert, score_multiplier jetzt 0.5 statt 0.2"
+          },
+          "TREND_PULLBACK": {
+            "total": 44,
+            "failed": 28,
+            "closed": 1,
+            "avg_pnl_closed": -3.09,
+            "note": "63.6% Fail-Rate, MACD Floor soll Downtrend-False-Positives filtern"
+          },
+          "MACD_TURN_BELOW_SMA20": {
+            "total": 4,
+            "failed": 2,
+            "note": "Kleinere Basis, MACD Floor sollte keine Auswirkung haben"
+          },
+          "ghost_blacklist_exchanges": [
+            ".DE",
+            ".HE",
+            ".ST",
+            "_FOREX",
+            "_FUT"
+          ],
+          "ghost_stats_latest": {
+            ".L": {
+              "total": 34,
+              "ghost": 3,
+              "rate": 0.09
+            },
+            ".HK": {
+              "total": 43,
+              "ghost": 0,
+              "rate": 0.0
+            },
+            ".AX": {
+              "total": 12,
+              "ghost": 0,
+              "rate": 0.0
+            },
+            "_CRYPTO": {
+              "total": 69,
+              "ghost": 0,
+              "rate": 0.0
+            }
+          }
+        }
+      },
+      "changes": [
+        {
+          "file": "data/llm_signal_weights.json",
+          "detail": "GOLDEN_CROSS score_multiplier: 0.2 → 0.5. TREND_PULLBACK score_multiplier: 0.5 → 0.6."
+        },
+        {
+          "file": "src/bot/core/signals.py",
+          "detail": "Rule 6 (TREND_PULLBACK): MACD-Histogramm Floor macd_hist > -0.01 hinzugefügt. Filtert Signale in starken Downtrends (macd_hist << -0.01) die früher als TREND_PULLBACK durchgingen."
+        }
+      ],
+      "test_result": "373 passed",
+      "next_focus": [
+        "MACD-Histogramm Floor Threshold (-0.01) über nächste 10 Runs validieren",
+        "GOLDEN_CROSS Performance nach score_multiplier-Erhöhung beobachten",
+        "Signal-Type Cooldown default (60min) in system_state persistieren"
+      ]
     }
   ],
   "decision_outcomes": [
@@ -66,13 +144,12 @@
   "runs": [
     {
       "date": "2026-07-09",
-      "closed_trades": 14,
-      "insights": 3,
+      "closed_trades": 11,
+      "insights": 2,
       "adjustments": [
-        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD",
+        "GOLDEN_CROSS",
         "TREND_PULLBACK",
-        "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING",
-        "GOLDEN_CROSS"
+        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD"
       ]
     },
     {
@@ -153,6 +230,18 @@
         "score_multiplier": 0.6,
         "skip": false,
         "reason": "Niedrige Success Rate (0.02), aber hohe Frequenz; Gewichtung senken, um False Positives zu reduzieren."
+      },
+      {
+        "date": "2026-07-09",
+        "score_multiplier": 0.6,
+        "skip": false,
+        "reason": "Sehr hohe Rejection-Rate (15) und niedrige Success Rate (0.02)."
+      },
+      {
+        "date": "2026-07-09",
+        "score_multiplier": 0.5,
+        "skip": false,
+        "reason": "Hohe Fail-Rate (28/44), nur bei zusätzlicher Bestätigung (z.B. MACD Turn) gewichten."
       }
     ],
     "GOLDEN_CROSS": [
@@ -197,6 +286,18 @@
         "score_multiplier": 0.2,
         "skip": false,
         "reason": "Alleinige Nutzung führt zu 0% Success Rate; nur in Kombination mit MACD/RSI verwenden."
+      },
+      {
+        "date": "2026-07-09",
+        "score_multiplier": 0.3,
+        "skip": true,
+        "reason": "Alle 8 Trades FAILED, isoliert fast unbrauchbar."
+      },
+      {
+        "date": "2026-07-09",
+        "score_multiplier": 0.2,
+        "skip": false,
+        "reason": "0% Success Rate bei isolierter Nutzung, nur in Kombination mit MACD/RSI verwenden."
       }
     ],
     "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD": [
@@ -241,6 +342,18 @@
         "score_multiplier": 0.4,
         "skip": false,
         "reason": "Hohe Ghost-Rate und negative PnL bei CLOSED Trades; Signal ist zu aggressiv im aktuellen Markt."
+      },
+      {
+        "date": "2026-07-09",
+        "score_multiplier": 0.4,
+        "skip": false,
+        "reason": "Hohe Rejection-Rate (7) und negative PnL bei Closed Trades."
+      },
+      {
+        "date": "2026-07-09",
+        "score_multiplier": 0.6,
+        "skip": false,
+        "reason": "Niedrige Success Rate (38%) und negative PnL bei Closed Trades, SL-Überwachung erforderlich."
       }
     ],
     "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": [
@@ -255,6 +368,12 @@
         "score_multiplier": 1.2,
         "skip": false,
         "reason": "Stabilstes Signal im CAUTION-Regime mit positiver Performance-Tendenz."
+      },
+      {
+        "date": "2026-07-09",
+        "score_multiplier": 1.2,
+        "skip": false,
+        "reason": "Bestes Signal im CAUTION-Regime, trotz niedriger Success Rate (0.08) positive PnL bei Closed Trades."
       }
     ],
     "MACD_TURN_BELOW_SMA20": [
@@ -386,6 +505,36 @@
         ".AX": 0.14,
         ".T": 0.0,
         "_CRYPTO": 0.28
+      }
+    },
+    {
+      "ts": "2026-07-09T13:24:05.297370+00:00",
+      "rates": {
+        ".L": 0.09,
+        "_OTHER": 0.0,
+        ".PA": 0.0,
+        ".DE": 0.0,
+        "_ASIA": 0.0,
+        ".HK": 0.0,
+        ".AX": 0.0,
+        ".T": 0.0,
+        "_CRYPTO": 0.0,
+        "_FOREX": 0.0
+      }
+    },
+    {
+      "ts": "2026-07-09T13:46:36.119021+00:00",
+      "rates": {
+        ".L": 0.09,
+        "_OTHER": 0.0,
+        ".PA": 0.0,
+        ".DE": 0.0,
+        "_ASIA": 0.0,
+        ".HK": 0.0,
+        ".AX": 0.0,
+        ".T": 0.0,
+        "_CRYPTO": 0.0,
+        "_FOREX": 0.0
       }
     }
   ]
