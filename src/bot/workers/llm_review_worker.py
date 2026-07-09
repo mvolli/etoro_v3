@@ -450,7 +450,7 @@ Ergaenze das JSON um folgende zusaetzliche Felder:
             {"role": "system", "content": "Du bist ein JSON-API fuer Trading-Analyse. Antworte AUSSCHLIESSLICH mit validem JSON ohne jede weitere Erklaerung."},
             {"role": "user", "content": prompt},
         ],
-        "max_tokens": 1024,
+        "max_tokens": 2048,  # 1024 war zu klein — JSON-Response ~2300 chars
         "temperature": 0.1,
         "response_format": {"type": "json_object"},
         "chat_template_kwargs": {"enable_thinking": False},
@@ -471,12 +471,25 @@ Ergaenze das JSON um folgende zusaetzliche Felder:
             start = content.find("{")
             end = content.rfind("}") + 1
             if start >= 0 and end > start:
-                return json.loads(content[start:end])
-            print(f"[llm_review] Kein JSON in Antwort (len={len(content)}): {content[:120]!r}")
+                raw = content[start:end]
+                try:
+                    return json.loads(raw)
+                except json.JSONDecodeError:
+                    # Truncated response: close any open object at last complete comma
+                    last_comma = raw.rfind(",")
+                    if last_comma > 0:
+                        try:
+                            recovered = raw[:last_comma] + "}"
+                            result = json.loads(recovered)
+                            print("[llm_review] Truncated JSON recovered (last-comma strategy)")
+                            return result
+                        except json.JSONDecodeError:
+                            pass
+                    print(f"[llm_review] JSON-Parse-Fehler (unrecoverable), raw[:200]={raw[:200]!r}")
+            else:
+                print(f"[llm_review] Kein JSON in Antwort (len={len(content)}): {content[:120]!r}")
     except urllib.error.URLError as e:
         print(f"[llm_review] LLM nicht erreichbar: {e}")
-    except json.JSONDecodeError as e:
-        print(f"[llm_review] JSON-Parse-Fehler: {e}")
     except Exception as e:
         print(f"[llm_review] LLM-Fehler: {e}")
     return None
