@@ -311,6 +311,9 @@ def _call_llm(ghost_rates: dict, signal_perf: dict, state: dict, positions: list
     notable_ghosts = {
         k: v for k, v in ghost_rates.items() if v["rate"] >= 0.3
     }
+    # Pre-compute JSON strings to avoid {{}} anti-pattern inside f-string expressions
+    # ({{}} inside {expr} creates a set containing {}, which is unhashable)
+    _ghost_trends_str = json.dumps(ghost_trends if ghost_trends else {}, ensure_ascii=False)
 
     prompt = f"""/no_think
 Du bist Trading-Analyst für einen autonomen eToro-Bot. Analysiere die Daten und gib NUR valides JSON zurück.
@@ -338,7 +341,7 @@ Positionen: {json.dumps([p['symbol'] for p in positions[:10]])}
 Regime-Hinweis: Im {regime}-Regime gelten verschaerfte Conviction-Filter. Weights anpassen.
 
 ## Ghost-Rate Trends (STEIGEND/FALLEND vs. 7-Tage-Avg)
-{json.dumps(ghost_trends or {{}}, ensure_ascii=False)}
+{_ghost_trends_str}
 
 ## Symbole mit Slippage-Rejects (letzte 30 Tage)
 {json.dumps(slippage_top or {{}}, ensure_ascii=False)}
