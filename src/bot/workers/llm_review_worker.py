@@ -634,6 +634,19 @@ def _update_config_yaml(adjustments: dict, baseline: dict | None = None) -> list
             skipped.append(f"{key}: unveraendert ({validated}) — kein Update")
             continue
 
+        # 24h-Cooldown: Config-Key nicht mehrfach am selben Tag aendern
+        from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+        _cutoff = (_dt.now(_tz.utc) - _td(hours=24)).isoformat()
+        _recent = [
+            e for e in _load_decision_log()
+            if e.get("type") == "config"
+            and e.get("key") == key
+            and (e.get("timestamp") or "") >= _cutoff
+        ]
+        if _recent:
+            skipped.append(f"{key}: 24h-Cooldown aktiv (zuletzt geaendert {_recent[-1]["timestamp"][:16]})")
+            continue
+
         new_content, n = re.subn(pattern, rf"\g<1>{val_str}", content, count=1)
         if n == 0:
             skipped.append(f"{key}: Pattern nicht gefunden in YAML")
@@ -697,8 +710,15 @@ def _update_ghost_blacklist(
 
     GHOST_BLACKLIST_PATH.write_text(json.dumps(blacklist, indent=2, ensure_ascii=False))
     print(f"[llm_review] Ghost-Blacklist aktualisiert: {combined_exchanges}")
+    # Nur NEUE Exchanges loggen (nicht bei jedem Run die gleichen 5 wiederholen)
+    try:
+        _prev = json.loads(GHOST_BLACKLIST_PATH.read_text()) if GHOST_BLACKLIST_PATH.exists() else {}
+        _prev_exchanges = set(_prev.get("exchanges", []))
+    except Exception:
+        _prev_exchanges = set()
     for ex in combined_exchanges:
-        _record_decision("ghost_blacklist", ex, False, True, blacklist.get("reason", "")[:80])
+        if ex not in _prev_exchanges:
+            _record_decision("ghost_blacklist", ex, False, True, blacklist.get("reason", "")[:80])
     return blacklist
 
 
@@ -732,10 +752,17 @@ def _update_trading_memory(llm_analysis: dict, trade_perf: dict,
     memory = _load_trading_memory()
     now = datetime.now(timezone.utc).isoformat()
 
-    # Neue Erkenntnisse anhaengen
+    # Neue Erkenntnisse anhaengen — semantisches Dedup: Note ueberspringen
+    # wenn ein signifikantes Keyword (>5 Zeichen) schon in einer bestehenden Note vorkommt.
     new_notes = (llm_analysis or {}).get("new_strategy_notes", [])
-    memory["strategy_notes"].extend(new_notes)
-    memory["strategy_notes"] = memory["strategy_notes"][-50:]  # max 50 behalten
+    existing_notes_text = " ".join(memory["strategy_notes"]).lower()
+    for note in new_notes:
+        keywords = [w for w in note.lower().split() if len(w) > 5]
+        is_dupe = any(kw in existing_notes_text for kw in keywords[:3])
+        if not is_dupe:
+            memory["strategy_notes"].append(note)
+            existing_notes_text += " " + note.lower()
+    memory["strategy_notes"] = memory["strategy_notes"][-15:]  # max 15 kompakte Erkenntnisse
 
     # Signal-Insights akkumulieren
     adjustments = (llm_analysis or {}).get("signal_weight_adjustments", {})
@@ -755,18 +782,25 @@ def _update_trading_memory(llm_analysis: dict, trade_perf: dict,
     if ghost_rates:
         memory.setdefault("ghost_rate_history", [])
         memory["ghost_rate_history"].append({
-            "ts": now[:10],
+            "ts": now,  # voller ISO-Timestamp fuer intra-day Trend-Granularitaet
             "rates": {s: v["rate"] for s, v in ghost_rates.items()},
         })
         memory["ghost_rate_history"] = memory["ghost_rate_history"][-30:]
 
-    # Run-Protokoll
-    memory["runs"].append({
+    # Run-Protokoll: update-in-place wenn gleicher Tag (kein Dedup-Bloat)
+    _run_entry = {
         "date": now[:10],
         "closed_trades": len(trade_perf.get("closed", [])),
         "insights": len(new_notes),
         "adjustments": list(adjustments.keys()),
-    })
+    }
+    _today_idx = next(
+        (i for i, r in enumerate(memory["runs"]) if r.get("date") == now[:10]), None
+    )
+    if _today_idx is not None:
+        memory["runs"][_today_idx] = _run_entry
+    else:
+        memory["runs"].append(_run_entry)
     memory["runs"] = memory["runs"][-30:]  # max 30 Runs
 
     TRADING_MEMORY_PATH.parent.mkdir(parents=True, exist_ok=True)
