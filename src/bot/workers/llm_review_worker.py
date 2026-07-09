@@ -101,6 +101,7 @@ def _collect_trade_performance(db_path: Path) -> dict:
         FROM trades t
         LEFT JOIN signals s ON t.signal_id = s.id
         WHERE t.status = 'CLOSED' AND t.closed_at IS NOT NULL
+          AND t.entry_price IS NOT NULL
         ORDER BY t.closed_at DESC
         LIMIT 100
     """)
@@ -213,9 +214,17 @@ def _exchange_suffix(symbol: str) -> str:
     # Crypto: Symbole mit Bindestrich (BTC-USD, ETH-USD, DOT-USD)
     if "-" in symbol:
         return "_CRYPTO"
+    # yfinance Forex-Format: AUDNZD=X, EURUSD=X
+    if symbol.endswith("=X"):
+        return "_FOREX"
     # Asiatische Boersen: Symbole mit fuehrender Ziffer (7203.T=Toyota, 005930.KS=Samsung)
     if symbol and symbol[0].isdigit():
         return "_ASIA"
+    # HK-Lot-Symbole: BABA_2402, HSBC_0005 — Unterstrich gefolgt von rein numerischem Suffix
+    if "_" in symbol:
+        _parts = symbol.rsplit("_", 1)
+        if len(_parts) == 2 and _parts[1].isdigit():
+            return "_ASIA"
     # Futures: explizit .FUT Endung
     if symbol.endswith(".FUT"):
         return "_FUT"
@@ -314,6 +323,7 @@ def _call_llm(ghost_rates: dict, signal_perf: dict, state: dict, positions: list
     # Pre-compute JSON strings to avoid {{}} anti-pattern inside f-string expressions
     # ({{}} inside {expr} creates a set containing {}, which is unhashable)
     _ghost_trends_str = json.dumps(ghost_trends if ghost_trends else {}, ensure_ascii=False)
+    _slippage_str = json.dumps(slippage_top if slippage_top else {}, ensure_ascii=False)
 
     prompt = f"""/no_think
 Du bist Trading-Analyst für einen autonomen eToro-Bot. Analysiere die Daten und gib NUR valides JSON zurück.
@@ -344,7 +354,7 @@ Regime-Hinweis: Im {regime}-Regime gelten verschaerfte Conviction-Filter. Weight
 {_ghost_trends_str}
 
 ## Symbole mit Slippage-Rejects (letzte 30 Tage)
-{json.dumps(slippage_top or {{}}, ensure_ascii=False)}
+{_slippage_str}
 
 ## Aufgabe
 Gib JSON mit genau diesen Feldern zurück:
@@ -539,19 +549,26 @@ def _evaluate_past_decisions(trades: list, log: list) -> tuple[list, list]:
                and t.get("pnl_pct") is not None
         ]
 
-        if not post_trades:
+        # Mind. 3 echte Trades fuer aussagekraeftige Auswertung
+        if len(post_trades) < 3:
             continue
 
         avg_pnl = sum(t["pnl_pct"] for t in post_trades) / len(post_trades)
         win_rate = sum(1 for t in post_trades if t.get("pnl_pct", 0) > 0) / len(post_trades)
 
-        if dtype == "config" and "sl" in key:
-            outcome = f"Nach SL-Aenderung ({key}={new_val}): avg_pnl={avg_pnl:.2f}%, win_rate={win_rate:.0%} ({len(post_trades)} Trades)"
+        if dtype == "config":
+            outcome = (
+                f"Nach {key}={new_val}: avg_pnl={avg_pnl:.2f}%, "
+                f"win_rate={win_rate:.0%} ({len(post_trades)} Trades)"
+            )
         elif dtype == "signal_weight":
-            # Pruefen ob Trades mit diesem Signal-Typ noch vorkommen
+            # Signal-spezifische PnL (nicht portfolio-weit)
             sig_trades = [t for t in post_trades if key in (t.get("signal_type") or "")]
-            outcome = (f"Signal {key}: {len(sig_trades)} Trades nach Gewichtung="
-                      f"{new_val} — {'erwuenscht: weniger ghost-prone' if isinstance(new_val, dict) and new_val.get('skip') else f'avg_pnl={avg_pnl:.2f}%'}")
+            if sig_trades:
+                sig_avg = sum(t["pnl_pct"] for t in sig_trades) / len(sig_trades)
+                outcome = f"Signal {key[:40]}: {len(sig_trades)} Trades, avg_pnl={sig_avg:.2f}% (Gewicht={new_val})"
+            else:
+                outcome = f"Signal {key[:40]}: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert"
         elif dtype == "ghost_blacklist":
             ghost_after = sum(1 for t in post_trades if "Ghost order" in (t.get("rejection_reason") or ""))
             outcome = f"Ghost-Blacklist '{key}': {ghost_after} Ghost-Failures nach Einfuehrung (erwartet: 0)"
