@@ -719,7 +719,8 @@ def check_buy_gate(
         check_conviction_gate(conviction, regime),           # V5: conviction filter
         check_pyramiding_gate(symbol, regime, existing_fragments, max_fragments),  # V5 + Fragment-Limit
         check_cash_gate(cash, equity),
-        check_max_positions_gate(open_count),
+        # check_max_positions_gate removed: exposure gate (75%) + cash floor (15%)
+        # are the correct economic constraints — position count is redundant.
         check_instrument_limit_gate(symbol, buy_amount, current_symbol_amount, equity),
         check_min_buy_gate(buy_amount),
         check_exposure_gate(total_exposed, equity, buy_amount),
