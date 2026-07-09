@@ -899,19 +899,24 @@ def main() -> int:
             symbol = trade.get("symbol", "?")
             pos_id = trade.get("api_position_id")
             try:
-                # Fetch trade history to find the exact close data
-                from datetime import date, timedelta
-                min_date = (date.today() - timedelta(days=7)).isoformat()
-                
-                history_trades = client.get_trade_history(
-                    min_date=min_date, page_size=50
-                )
+                # Fetch trade history to find the exact close data.
+                # Use default 90-day window (no min_date override) and paginate
+                # to handle many recent closes. Page size capped at 100 by the API.
+                history_trades = client.get_trade_history(page_size=100)
+                # Fetch page 2 as well — avoids missing matches when many trades closed
+                page2 = client.get_trade_history(page=2, page_size=100)
+                if page2:
+                    history_trades = history_trades + page2
                 
                 # Find matching trade by positionId or orderId
                 matched = None
                 if pos_id:
+                    try:
+                        _pos_id_int = int(pos_id)
+                    except (ValueError, TypeError):
+                        _pos_id_int = None
                     for ht in history_trades:
-                        if ht.get("positionId") == int(pos_id):
+                        if _pos_id_int and ht.get("positionId") == _pos_id_int:
                             matched = ht
                             break
                 
