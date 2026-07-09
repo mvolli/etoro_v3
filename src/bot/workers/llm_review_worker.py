@@ -661,7 +661,7 @@ def _update_config_yaml(adjustments: dict, baseline: dict | None = None) -> list
             and (e.get("timestamp") or "") >= _cutoff
         ]
         if _recent:
-            skipped.append(f"{key}: 24h-Cooldown aktiv (zuletzt geaendert {_recent[-1]["timestamp"][:16]})")
+            skipped.append(f"{key}: 24h-Cooldown aktiv (zuletzt geaendert {_recent[-1]['timestamp'][:16]})")
             continue
 
         new_content, n = re.subn(pattern, rf"\g<1>{val_str}", content, count=1)
