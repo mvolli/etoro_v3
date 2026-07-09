@@ -387,21 +387,24 @@ class SignalRepo:
 
     def has_recent_signal(self, instrument_id: int, signal_type: str,
                           within_minutes: int) -> bool:
-        """True, wenn für instrument_id bereits ein identisches Signal
-        (gleicher signal_type) innerhalb der letzten within_minutes erzeugt
-        wurde — egal ob FRESH oder CONSUMED (konsumiert = auf diese Episode
-        wurde schon reagiert).
+        """True wenn instrument_id in den letzten within_minutes ein CONSUMED
+        Signal desselben signal_type hatte (= Trade wurde tatsächlich platziert).
 
-        fix/signal-dedup (KTA.DE 2026-07-06): data_worker läuft alle 5 min
-        auf Tages-Bars — eine anhaltende Überhitzung erzeugte 39 identische
-        Signale an einem Vormittag, die der SELL-Exit-Pfad einzeln konsumierte
-        und die Position dabei in 50%-Schritten zerlegte.
+        fix/signal-dedup (KTA.DE 2026-07-06): verhindert dass 39 identische
+        Signale die Position in 50%-Schritten zerteilen.
+
+        fix/cooldown-self-block (2026-07-09): ursprünglich kein status-Filter
+        → Signal fand sich selbst in der DB → Cooldown feuerte auf dem ERSTEN
+        Signal für jedes Instrument → permanente Blockade durch Kaskaden-Effekt.
+        Lösung: nur CONSUMED prüfen (nicht FRESH/REJECTED) — FRESH findet sich
+        selbst nicht mehr, REJECTED signale blockieren keinen Retry.
         """
         row = self.db.fetchone(
             """
             SELECT 1 FROM signals
              WHERE instrument_id = ?
                AND signal_type = ?
+               AND status = 'CONSUMED'
                AND generated_at > datetime('now', ?, 'utc')
              LIMIT 1
             """,

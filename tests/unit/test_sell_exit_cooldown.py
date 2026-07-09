@@ -107,9 +107,12 @@ def test_load_blocked_fails_open_without_db():
 # ── B) Signal-Dedup ───────────────────────────────────────────────────────────
 
 def test_has_recent_signal_blocks_duplicate(db):
+    # fix/cooldown-self-block: FRESH signals must NOT self-block (they found
+    # themselves in the DB under the old query, causing permanent rejection
+    # cascades). Only CONSUMED signals (trade placed) trigger the cooldown.
     repo = SignalRepo(db)
     repo.create(42, "BB_UPPER_RSI_OVERBOUGHT", "HIGH", 75.0, ttl_minutes=360)
-    assert repo.has_recent_signal(42, "BB_UPPER_RSI_OVERBOUGHT", 360) is True
+    assert repo.has_recent_signal(42, "BB_UPPER_RSI_OVERBOUGHT", 360) is False
 
 
 def test_consumed_signal_still_blocks_duplicate(db):
