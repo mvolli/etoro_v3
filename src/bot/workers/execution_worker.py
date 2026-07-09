@@ -364,35 +364,17 @@ def main() -> None:
                 failed_count += 1
                 continue
     
-            # c. Market hours gate — prevent ghost orders on closed markets.
-            #    fail_open=False: ein unbekannter/unmappbarer Markt gilt am
-            #    BUY-Boundary als GESCHLOSSEN (fix/market-hours-fail-closed).
+            # c. Market hours gate — statischer Check als Schnell-Skip ohne API-Call.
+            #    Aktion: DEFER (bleibt APPROVED) statt FAILED — Execution-Worker
+            #    wiederholt alle 15min. Wenn eToro öffnet, schlägt allowEntryOrders
+            #    in open_position() an und die Order geht durch.
             if not is_market_open(symbol, fail_open=False):
                 mkt_status = get_market_status(symbol)
-                logger.warning(
-                    'ExecutionWorker: %s market closed (%s) — skipping BUY to prevent ghost order',
+                logger.debug(
+                    'ExecutionWorker: %s — Markt statisch geschlossen (%s), DEFER bis Marktöffnung',
                     symbol, mkt_status,
                 )
-                trade_repo.update_status(
-                    trade_id,
-                    'FAILED',
-                    rejection_reason=f'Market closed: {mkt_status}',
-                )
-                log_repo.write(
-                    'WARN',
-                    'execution_worker',
-                    f'Trade #{trade_id} FAILED — market closed: {mkt_status}',
-                    {'symbol': symbol, 'amount_usd': amount_usd},
-                )
-                _post('post_trade_failed_embed',
-                    symbol=symbol,
-                    direction='BUY',
-                    amount_usd=amount_usd,
-                    error=f'Market closed: {mkt_status}',
-                    dry_run=False,
-                )
-                failed_count += 1
-                continue
+                continue  # bleibt APPROVED — retry im nächsten Zyklus (15min)
     
             # c2. Slippage gate (fix/autonomy-hardening) — the signal price is
             #     stored at approval time but was previously never used. Block
@@ -474,10 +456,17 @@ def main() -> None:
                 )
     
                 # d1. BLOCKED path — open_position() returned a soft-block dict
-                #     (allowOpenPosition=false, market closed, SL gate, price=0, etc.)
-                #     Fast-fail: skip polling entirely, mark FAILED with the specific reason.
                 if result.get("success") is False:
                     block_error = result.get("error", "Unknown block reason")
+                    # allowEntryOrders=false = Markt temporär geschlossen → DEFER
+                    # Trade bleibt APPROVED, wird beim nächsten Zyklus neu versucht.
+                    if "allowEntryOrders" in block_error:
+                        logger.debug(
+                            "ExecutionWorker: trade #%d (%s) — allowEntryOrders=false, DEFER",
+                            trade_id, symbol,
+                        )
+                        continue  # bleibt APPROVED
+                    # Alle anderen Blocks (allowOpenPosition=false, SL gate, etc.) → FAILED
                     logger.warning(
                         "ExecutionWorker: trade #%d (%s) BLOCKED by open_position(): %s",
                         trade_id, symbol, block_error,

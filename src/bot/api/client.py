@@ -667,25 +667,13 @@ class EToroClient:
             return {"success": False, "error": id_reason}
         logger.debug(id_reason)
 
-        # 0b) Market-open gate — defense-in-depth. Callers (signal_worker,
-        #     execution_worker) already check is_market_open() before
-        #     reaching here, but checking again at the actual API-call
-        #     boundary means this guard holds even if a future caller
-        #     forgets to, or if the symbol used for classification was
-        #     stale by the time execution ran.
-        # fail_open=False: unbekannter Markt gilt am BUY-Boundary als
-        # geschlossen (fix/market-hours-fail-closed) — Daten-Pfade bleiben
-        # fail-open, aber eine Order auf einem unmappbaren Markt ist die
-        # klassische Ghost-Order-Quelle.
-        if not is_market_open(_symbol_for_preflight, fail_open=False):
-            msg = (
-                f"Market closed for {_symbol_for_preflight} — refusing to "
-                f"open position (ghost-order guard)"
-            )
-            logger.warning("open_position BLOCKED: %s", msg)
-            return {"success": False, "error": msg}
-
-        # a) Eligibility gate — official v2 endpoint
+        # 0b) Eligibility gate — POST /api/v2/trading/info/eligibility
+        #     Prüft live ob eToro aktuell Trades erlaubt:
+        #       allowOpenPosition = Instrument generell handelbar
+        #       allowEntryOrders  = Markt gerade offen (ersetzt statische market_hours)
+        #     Vorteil gegenüber is_market_open(): eToro entscheidet selbst —
+        #     deckt Pre-Market, After-Hours, Maintenance und 24/5-Fenster ab.
+        #
         #    POST /api/v2/trading/info/eligibility
         #    Returns: allowOpenPosition, leverageConfigs (SL/TP bounds), minPositionExposure, etc.
         eligibility_resp = None
@@ -709,7 +697,7 @@ class EToroClient:
             for e in elig_list:
                 if e.get("instrumentId") == instrument_id:
                     elig_data = e
-                    # 1) allowOpenPosition check
+                    # 1) allowOpenPosition — Instrument generell handelbar?
                     if not e.get("allowOpenPosition", True):
                         logger.warning(
                             "open_position BLOCKED: instrument %s allowOpenPosition=false",
@@ -722,7 +710,17 @@ class EToroClient:
                                 f"(allowOpenPosition={e.get('allowOpenPosition')})"
                             ),
                         }
-                    # 2) Validate SL is within allowed bounds from leverageConfigs
+                    # 2) allowEntryOrders — Markt gerade offen? (ersetzt statische market_hours)
+                    #    False = Markt geschlossen / Maintenance / eToro-Restriction
+                    #    Fail-open: wenn Feld fehlt, annehmen dass offen
+                    if not e.get("allowEntryOrders", True):
+                        msg = (
+                            f"Markt geschlossen für {_symbol_for_preflight} "
+                            f"(allowEntryOrders=false laut eToro Eligibility-API)"
+                        )
+                        logger.warning("open_position BLOCKED: %s", msg)
+                        return {"success": False, "error": msg}
+                    # 3) Validate SL is within allowed bounds from leverageConfigs
                     #    We'll validate the computed SL rate after we have current_price
                     break
             else:

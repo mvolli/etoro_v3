@@ -29,7 +29,8 @@ def db(tmp_path):
             yfinance_symbol TEXT,
             market_region TEXT,
             asset_class TEXT,
-            is_active INTEGER DEFAULT 1
+            is_active INTEGER DEFAULT 1,
+            is_tradable INTEGER DEFAULT 1
         )
     """)
     d.execute("""

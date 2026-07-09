@@ -187,9 +187,21 @@ def _collect_data(db_path: Path) -> dict:
     )
     ghost_signal_stats = {r["signal_type"]: r["n"] for r in cur.fetchall()}
 
+    # Slippage-Rejects (Prio 7)
+    try:
+        since_slip = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+        cur.execute("""
+            SELECT symbol, COUNT(*) as n FROM slippage_rejects
+            WHERE rejected_at > ? GROUP BY symbol ORDER BY n DESC LIMIT 10
+        """, (since_slip,))
+        slippage_top = {r["symbol"]: r["n"] for r in cur.fetchall()}
+    except Exception:
+        slippage_top = {}
+
     con.close()
     return {"trades": trades, "signal_stats": signal_stats, "state": state,
-            "positions": positions, "ghost_signal_stats": ghost_signal_stats}
+            "positions": positions, "ghost_signal_stats": ghost_signal_stats,
+            "slippage_top": slippage_top}
 
 
 # ── Analytik ──────────────────────────────────────────────────────────────────
@@ -199,6 +211,9 @@ def _exchange_suffix(symbol: str) -> str:
     # Crypto: Symbole mit Bindestrich (BTC-USD, ETH-USD, DOT-USD)
     if "-" in symbol:
         return "_CRYPTO"
+    # Asiatische Boersen: Symbole mit fuehrender Ziffer (7203.T=Toyota, 005930.KS=Samsung)
+    if symbol and symbol[0].isdigit():
+        return "_ASIA"
     # Futures: explizit .FUT Endung
     if symbol.endswith(".FUT"):
         return "_FUT"
@@ -274,7 +289,8 @@ def _compute_signal_perf(signal_stats: list[dict], ghost_signal_stats: dict | No
 # ── LLM Call ─────────────────────────────────────────────────────────────────
 
 def _call_llm(ghost_rates: dict, signal_perf: dict, state: dict, positions: list,
-              trade_perf: dict | None = None, trading_memory: dict | None = None) -> dict | None:
+              trade_perf: dict | None = None, trading_memory: dict | None = None,
+              slippage_top: dict | None = None, ghost_trends: dict | None = None) -> dict | None:
     """Ruft llama-server auf und parst JSON-Antwort."""
     equity = state.get("CURRENT_EQUITY", "?")
     drawdown = state.get("CURRENT_DRAWDOWN_PCT", "?")
@@ -297,6 +313,13 @@ Du bist Trading-Analyst für einen autonomen eToro-Bot. Analysiere die Daten und
 ## Aktueller Portfoliostatus
 Regime: {regime} | Equity: {equity} | Drawdown: {drawdown}%
 Positionen: {json.dumps([p['symbol'] for p in positions[:10]])}
+Regime-Hinweis: Im {regime}-Regime gelten verschaerfte Conviction-Filter. Weights anpassen.
+
+## Ghost-Rate Trends (STEIGEND/FALLEND vs. 7-Tage-Avg)
+{json.dumps(ghost_trends or {{}}, ensure_ascii=False)}
+
+## Symbole mit Slippage-Rejects (letzte 30 Tage)
+{json.dumps(slippage_top or {{}}, ensure_ascii=False)}
 
 ## Aufgabe
 Gib JSON mit genau diesen Feldern zurück:
@@ -436,7 +459,8 @@ def _load_decision_log() -> list:
     return []
 
 
-def _record_decision(decision_type: str, key: str, old_value, new_value, reason: str) -> None:
+def _record_decision(decision_type: str, key: str, old_value, new_value, reason: str,
+                     baseline: dict | None = None) -> None:
     """Protokolliert eine autonome LLM-Entscheidung fuer spaeteren Outcome-Vergleich."""
     log = _load_decision_log()
     log.append({
@@ -447,7 +471,9 @@ def _record_decision(decision_type: str, key: str, old_value, new_value, reason:
         "old_value": old_value,
         "new_value": new_value,
         "reason": reason,
+        "baseline": baseline,            # Metriken VOR der Entscheidung
         "outcome": None,                 # Wird beim naechsten Run befuellt
+        "outcome_grade": None,           # "IMPROVED" | "WORSE" | "NEUTRAL"
         "outcome_date": None,
     })
     log = log[-200:]  # max 200 Entscheidungen
@@ -509,6 +535,16 @@ def _evaluate_past_decisions(trades: list, log: list) -> tuple[list, list]:
 
         entry["outcome"] = outcome
         entry["outcome_date"] = today.isoformat()
+        # Outcome-Grade aus Baseline-Vergleich (Prio 2b)
+        if entry.get("baseline") and isinstance(entry["baseline"], dict):
+            base_wr = entry["baseline"].get("win_rate", 0)
+            base_pnl = entry["baseline"].get("avg_pnl_pct", 0)
+            if win_rate > base_wr + 0.03 or avg_pnl > base_pnl + 0.1:
+                entry["outcome_grade"] = "IMPROVED"
+            elif win_rate < base_wr - 0.03 or avg_pnl < base_pnl - 0.1:
+                entry["outcome_grade"] = "WORSE"
+            else:
+                entry["outcome_grade"] = "NEUTRAL"
         insights.append(f"{dtype}/{key}: {outcome}")
 
     return log, insights
@@ -531,13 +567,14 @@ def _validate_config_adjustment(key: str, value) -> tuple[bool, str, object]:
     return True, "OK", v
 
 
-def _update_config_yaml(adjustments: dict) -> list[str]:
+def _update_config_yaml(adjustments: dict, baseline: dict | None = None) -> list[str]:
     """Schreibt validierte Config-Aenderungen in config.yaml (Kommentare bleiben erhalten).
     Gibt Liste der angewendeten Aenderungen zurueck."""
     import re
     if not CONFIG_YAML_PATH.exists() or not adjustments:
         return []
 
+    _config_baseline = baseline
     content = CONFIG_YAML_PATH.read_text(encoding="utf-8")
     applied = []
     skipped = []
@@ -579,7 +616,7 @@ def _update_config_yaml(adjustments: dict) -> list[str]:
 
         content = new_content
         applied.append(f"{key}: {current_val} -> {validated} ({reason[:60]})")
-        _record_decision("config", key, current_val, validated, reason)
+        _record_decision("config", key, current_val, validated, reason, baseline=_config_baseline)
 
     if applied:
         CONFIG_YAML_PATH.write_text(content, encoding="utf-8")
@@ -642,7 +679,30 @@ def _update_ghost_blacklist(
 
 # ── Insights Log ─────────────────────────────────────────────────────────────
 
-def _update_trading_memory(llm_analysis: dict, trade_perf: dict) -> None:
+def _compute_ghost_trends(memory: dict, current_rates: dict) -> dict:
+    """Vergleicht aktuelle Ghost-Rates mit 7-Tage-Durchschnitt aus History."""
+    history = memory.get("ghost_rate_history", [])
+    if len(history) < 3:
+        return {}
+    recent = history[-7:]
+    trends = {}
+    for suffix, stats in current_rates.items():
+        rate = stats["rate"]
+        past_vals = [h["rates"].get(suffix, 0) for h in recent[:-1]]
+        if not past_vals:
+            continue
+        past_avg = sum(past_vals) / len(past_vals)
+        delta = rate - past_avg
+        trends[suffix] = {
+            "trend": "STEIGEND" if delta > 0.05 else "FALLEND" if delta < -0.05 else "STABIL",
+            "delta": round(delta, 2),
+            "past_avg": round(past_avg, 2),
+        }
+    return trends
+
+
+def _update_trading_memory(llm_analysis: dict, trade_perf: dict,
+                           ghost_rates: dict | None = None) -> None:
     """Akkumuliert Lernerkenntnisse im persistenten Trading-Gedaechtnis."""
     memory = _load_trading_memory()
     now = datetime.now(timezone.utc).isoformat()
@@ -665,6 +725,15 @@ def _update_trading_memory(llm_analysis: dict, trade_perf: dict) -> None:
         })
         # max 10 Eintraege pro Signal-Typ
         memory["signal_insights"][sig_type] = memory["signal_insights"][sig_type][-10:]
+
+    # Ghost-Rate-History fuer Trend-Tracking (Prio 3)
+    if ghost_rates:
+        memory.setdefault("ghost_rate_history", [])
+        memory["ghost_rate_history"].append({
+            "ts": now[:10],
+            "rates": {s: v["rate"] for s, v in ghost_rates.items()},
+        })
+        memory["ghost_rate_history"] = memory["ghost_rate_history"][-30:]
 
     # Run-Protokoll
     memory["runs"].append({
@@ -824,7 +893,13 @@ def main() -> int:
 
         # LLM-Analyse (best-effort, Timeout 85s)
         print(f"[llm_review] Rufe LLM auf (Timeout {LLM_TIMEOUT_S}s)...")
-        llm_analysis = _call_llm(ghost_rates, signal_perf, data["state"], data["positions"], trade_perf, trading_memory)
+        ghost_trends = _compute_ghost_trends(trading_memory, ghost_rates)
+        llm_analysis = _call_llm(
+            ghost_rates, signal_perf, data["state"], data["positions"],
+            trade_perf, trading_memory,
+            slippage_top=data.get("slippage_top"),
+            ghost_trends=ghost_trends,
+        )
         if llm_analysis:
             print(f"[llm_review] LLM-Antwort erhalten: {list(llm_analysis.keys())}")
         else:
@@ -835,12 +910,22 @@ def main() -> int:
 
         # Trading-Memory und Signal-Weights autonom aktualisieren
         if llm_analysis:
-            _update_trading_memory(llm_analysis, trade_perf)
+            _update_trading_memory(llm_analysis, trade_perf, ghost_rates=ghost_rates)
             _update_signal_weights(llm_analysis)
 
         # Config autonom optimieren (innerhalb Bible Hard Limits)
         if llm_analysis and llm_analysis.get("config_adjustments"):
-            config_changes = _update_config_yaml(llm_analysis["config_adjustments"])
+            # Baseline-Metriken VOR Config-Aenderung (Prio 2a)
+            _run_baseline: dict | None = None
+            _recent_pnl = [t for t in trade_perf.get("closed", []) if t.get("pnl_pct") is not None][:20]
+            if _recent_pnl:
+                _run_baseline = {
+                    "avg_pnl_pct": round(sum(t["pnl_pct"] for t in _recent_pnl) / len(_recent_pnl), 2),
+                    "win_rate": round(sum(1 for t in _recent_pnl if t["pnl_pct"] > 0) / len(_recent_pnl), 2),
+                    "n_trades": len(_recent_pnl),
+                    "ghost_rate_total": round(ghost_count / trade_count, 2) if trade_count else 0,
+                }
+            config_changes = _update_config_yaml(llm_analysis["config_adjustments"], baseline=_run_baseline)
             if config_changes:
                 # Aenderungen in Memory persistieren
                 memory = _load_trading_memory()

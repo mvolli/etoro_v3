@@ -64,7 +64,8 @@ MAX_STORE = 30          # final candidates stored as signals in DB
                          #  pool empty for hours during open market sessions)
 MAX_CANDIDATES = 40     # pre-sector-filter pool size (raised alongside MAX_STORE)
 MIN_BUY_SCORE = 30.0    # minimum score to qualify
-SIGNAL_TTL_MINUTES = 360  # 6 hours
+MIN_VOLUME_USD = 500_000  # Mindest-Tagesvolumen in USD (20-Tage-Avg) — illiquide Symbole ueberspringen
+SIGNAL_TTL_MINUTES = 1440  # 24 hours — voller EU-Rotationszyklus (16h) mit Puffer
 
 # Full 80-symbol universe (stocks/ETFs/crypto)
 FULL_UNIVERSE: list[str] = [
@@ -103,6 +104,7 @@ def _get_multiasset_universe(db: Any) -> list[tuple[str, int]]:
             FROM watchlist_multiasset w
             JOIN instruments i ON w.instrument_id = i.instrument_id
             WHERE w.is_active = 1
+              AND (i.is_tradable IS NULL OR i.is_tradable = 1)
               AND i.yfinance_symbol IS NOT NULL
               AND i.asset_class IN ('forex', 'commodity', 'index')
         """)
@@ -179,6 +181,7 @@ def _get_eu_discovery_chunk(
             FROM instruments
             WHERE market_region = 'EU'
               AND is_active = 1
+              AND (is_tradable IS NULL OR is_tradable = 1)
               AND asset_class IN ('stock', 'etf')
               AND yfinance_symbol IS NOT NULL
               AND yfinance_symbol != ''
@@ -586,16 +589,20 @@ def main() -> int:
             eu_chunk_idx = int(state_repo.get(EU_DISCOVERY_CHUNK_STATE_KEY, "0")) % EU_DISCOVERY_CHUNK_COUNT
         except (TypeError, ValueError):
             eu_chunk_idx = 0
-        eu_chunk = _get_eu_discovery_chunk(db, eu_chunk_idx)
-        logger.info(
-            "[%s] EU chunk %d/%d: %d instruments",
-            WORKER_NAME, eu_chunk_idx, EU_DISCOVERY_CHUNK_COUNT, len(eu_chunk),
-        )
-        for yf_sym, inst_id, _orig_sym in eu_chunk:
-            if yf_sym not in all_symbols:
-                all_symbols.append(yf_sym)
-                symbol_to_inst_id[yf_sym] = inst_id
-        state_repo.set(EU_DISCOVERY_CHUNK_STATE_KEY, str((eu_chunk_idx + 1) % EU_DISCOVERY_CHUNK_COUNT))
+        # 2 Chunks pro Run → voller Zyklus 8 Runs × 2h = 16h statt 32h
+        EU_CHUNKS_PER_RUN = 2
+        for _chunk_offset in range(EU_CHUNKS_PER_RUN):
+            _cidx = (eu_chunk_idx + _chunk_offset) % EU_DISCOVERY_CHUNK_COUNT
+            eu_chunk = _get_eu_discovery_chunk(db, _cidx)
+            logger.info(
+                "[%s] EU chunk %d/%d: %d instruments",
+                WORKER_NAME, _cidx, EU_DISCOVERY_CHUNK_COUNT, len(eu_chunk),
+            )
+            for yf_sym, inst_id, _orig_sym in eu_chunk:
+                if yf_sym not in all_symbols:
+                    all_symbols.append(yf_sym)
+                    symbol_to_inst_id[yf_sym] = inst_id
+        state_repo.set(EU_DISCOVERY_CHUNK_STATE_KEY, str((eu_chunk_idx + EU_CHUNKS_PER_RUN) % EU_DISCOVERY_CHUNK_COUNT))
 
         # ── Release DB connection before yfinance (prevents lock conflicts with data_worker) ──
         db.close()
@@ -630,6 +637,20 @@ def main() -> int:
                         WORKER_NAME, symbol, result.direction, result.score,
                     )
                     continue
+    
+                # Prio 5a: Liquiditaets-Filter — geringe Liquiditaet fuehrt zu Ghost-Orders
+                try:
+                    avg_vol = float(df["Volume"].iloc[-20:].mean())
+                    _price = indicators.get("price") or float(df["Close"].iloc[-1])
+                    vol_usd = avg_vol * _price
+                    if vol_usd < MIN_VOLUME_USD:
+                        logger.debug(
+                            "[%s] %s: vol_usd=%.0f < %.0f — skipped (illiquid)",
+                            WORKER_NAME, symbol, vol_usd, MIN_VOLUME_USD,
+                        )
+                        continue
+                except Exception:
+                    pass  # Volume-Berechnung fehlgeschlagen — Symbol trotzdem zulassen
     
                 buy_candidates.append({
                     "symbol":     symbol,

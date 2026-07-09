@@ -118,6 +118,23 @@ def _is_llm_ghost_blocked(symbol: str, blacklist: dict) -> bool:
 
 
 
+def _signal_age_factor(generated_at_iso: str, ttl_minutes: int = 60) -> float:
+    """Prio 5b: Altersstrafe 0% bei <=30min, -20% am TTL-Ende (linear).
+    Aeltere Signale spiegeln veraltete Marktdaten — werden nachrangig sortiert."""
+    try:
+        from datetime import datetime, timezone
+        gen_at = datetime.fromisoformat(generated_at_iso)
+        if gen_at.tzinfo is None:
+            gen_at = gen_at.replace(tzinfo=timezone.utc)
+        age_min = (datetime.now(timezone.utc) - gen_at).total_seconds() / 60
+        if age_min <= 30:
+            return 1.0
+        penalty = min(0.2, (age_min - 30) / max(1, ttl_minutes - 30) * 0.2)
+        return 1.0 - penalty
+    except Exception:
+        return 1.0
+
+
 # ── Discord Embeds ─────────────────────────────────────────────────────────
 try:
     from pathlib import Path as _Path
@@ -266,7 +283,29 @@ def main() -> None:
             if 'SELL' not in (s.get('signal_type') or '').upper()
                and 'OVERBOUGHT' not in (s.get('signal_type') or '').upper()
         ]
-    
+
+        # Filter non-tradable instruments (is_tradable=0) — single bulk query.
+        # is_tradable=NULL means never checked → allow (fail-open).
+        if buy_signals:
+            _iids = [s["instrument_id"] for s in buy_signals if s.get("instrument_id")]
+            if _iids:
+                _placeholders = ",".join("?" * len(_iids))
+                _blocked = {
+                    r["instrument_id"]
+                    for r in db.fetchall(
+                        f"SELECT instrument_id FROM instruments"
+                        f" WHERE instrument_id IN ({_placeholders}) AND is_tradable = 0",
+                        _iids,
+                    )
+                }
+                if _blocked:
+                    _before = len(buy_signals)
+                    buy_signals = [s for s in buy_signals if s.get("instrument_id") not in _blocked]
+                    logger.info(
+                        "SignalWorker: %d Signal(e) wegen is_tradable=0 herausgefiltert",
+                        _before - len(buy_signals),
+                    )
+
         if not buy_signals:
             logger.info("SignalWorker: no fresh BUY signals with %s+ conviction", min_conviction_for_regime)
             print(f"SignalWorker: 0 signals evaluated, 0 trades approved")
@@ -433,11 +472,8 @@ def main() -> None:
                     signal_repo.update_signal_status(signal_id, "REJECTED")
                     continue
 
-            # Market hours check (Crypto = always open)
-            if not is_market_open(symbol):
-                skipped_closed.append(f'{symbol} (market closed)')
-                continue
-    
+            # Market hours: statischer Check entfernt — allowEntryOrders
+            # in open_position() prüft live ob eToro Trades erlaubt.
             eligible.append((signal, symbol))
     
         # Sort by boosted score descending — only among OPEN, non-blacklisted
@@ -450,6 +486,7 @@ def main() -> None:
                 float(t[0].get("score", 0))
                 * get_score_boost(t[1])
                 * _get_signal_score_multiplier(t[0].get("signal_type", ""), _llm_signal_weights)
+                * _signal_age_factor(t[0].get("generated_at", ""), ttl_minutes=60)
             ),
             reverse=True,
         )

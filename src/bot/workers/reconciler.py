@@ -731,6 +731,9 @@ def main() -> int:
                     extra["pnl_usd"] = pnl_usd
                 if pnl_pct is not None:
                     extra["pnl_pct"] = pnl_pct
+                else:
+                    # Kein PnL aus Snapshot — step 9d holt reales netProfit aus API-History
+                    extra["verification_status"] = "PENDING"
     
                 trade_repo.update_status(trade_id, "CLOSED", **extra)
                 closed_trade_count += 1
@@ -838,6 +841,17 @@ def main() -> int:
                 ]
                 pos = match_late_fill(float(trade.get("amount_usd") or 0.0), unclaimed)
                 if pos is None:
+                    # Kein Late-Fill-Match — Instrument fuer Priority-Re-Check markieren
+                    try:
+                        iid = trade.get("instrument_id")
+                        if iid:
+                            db.execute(
+                                "UPDATE instruments SET tradability_checked_at=NULL"
+                                " WHERE instrument_id=? AND (is_tradable IS NULL OR is_tradable=1)",
+                                (int(iid),),
+                            )
+                    except Exception:
+                        pass
                     continue
                 t_id = trade["id"]
                 pos_id = pos["api_position_id"]

@@ -499,6 +499,7 @@ def _get_watchlist_from_db(db: DB) -> list[dict]:
                 FROM watchlist w
                 LEFT JOIN instruments i ON w.instrument_id = i.instrument_id
                 WHERE COALESCE(i.is_active, 1) = 1
+                  AND (i.is_tradable IS NULL OR i.is_tradable = 1)
             """)
         except Exception:
             rows = db.fetchall("""
