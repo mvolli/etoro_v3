@@ -338,6 +338,9 @@ Du bist Trading-Analyst für einen autonomen eToro-Bot. Analysiere die Daten und
   mehr in Ghost-Statistiken auf.
 - Ghost-Blacklist-Fokus: Exchanges nur blocken, wenn tradable Instrumente strukturell
   von eToro abgelehnt werden — NICHT fuer reine Marktzeiten-Probleme.
+- Strukturelle Exchange-Bloecke (eToro unterstützt keinen Handel dort):
+  _FOREX=100% hist., _FUT=100% hist., .HE=100% hist., .ST=75% hist., .DE=71% hist.
+  Diese Bloecke bleiben PERMANENT aktiv — senke sie NICHT bei 0%-Rate nach Daten-Reset.
 
 ## Ghost-Order-Raten nach Exchange (letzte {ANALYSIS_WINDOW_DAYS} Tage, nur tradable Instrumente)
 {json.dumps(notable_ghosts, ensure_ascii=False)}
@@ -716,6 +719,15 @@ def _update_ghost_blacklist(
 
     # Vereinigung aus algorithmischer + LLM-Erkennung
     combined_exchanges = sorted(set(auto_exchanges) | set(llm_exchanges))
+
+    # Preserve exchanges already hard-blocked in current file
+    # (prevents unblocking after history resets where rate temporarily = 0%)
+    try:
+        _existing = json.loads(GHOST_BLACKLIST_PATH.read_text()) if GHOST_BLACKLIST_PATH.exists() else {}
+        _prev_blocked = _existing.get("exchanges", [])
+    except Exception:
+        _prev_blocked = []
+    combined_exchanges = sorted(set(combined_exchanges) | set(_prev_blocked))
 
     # Caution-Tier: 30-60% Ghost-Rate — sichtbar im Prompt/Discord, nicht geblockt
     CAUTION_THRESHOLD = 0.30
