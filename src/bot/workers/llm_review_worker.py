@@ -339,8 +339,9 @@ Du bist Trading-Analyst für einen autonomen eToro-Bot. Analysiere die Daten und
 - Ghost-Blacklist-Fokus: Exchanges nur blocken, wenn tradable Instrumente strukturell
   von eToro abgelehnt werden — NICHT fuer reine Marktzeiten-Probleme.
 - Strukturelle Exchange-Bloecke (eToro unterstützt keinen Handel dort):
-  _FOREX=100% hist., _FUT=100% hist., .HE=100% hist., .ST=75% hist., .DE=71% hist.
+  _FOREX=100% hist., _FUT=100% hist., .HE=100% hist., .ST=75% hist.
   Diese Bloecke bleiben PERMANENT aktiv — senke sie NICHT bei 0%-Rate nach Daten-Reset.
+  .DE ist KEINE strukturelle Sperre — viele .DE Aktien sind auf eToro handelbar.
 
 ## Ghost-Order-Raten nach Exchange (letzte {ANALYSIS_WINDOW_DAYS} Tage, nur tradable Instrumente)
 {json.dumps(notable_ghosts, ensure_ascii=False)}

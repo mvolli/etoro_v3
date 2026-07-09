@@ -1,92 +1,23 @@
 {
-  "updated_at": "2026-07-09T13:20:52.705511+00:00",
-  "auto_expires_at": "2026-07-16T13:20:52.705523+00:00",
-  "exchanges": [
-    ".DE",
-    ".HE",
-    ".ST",
-    "_FOREX",
-    "_FUT"
-  ],
-  "caution_exchanges": [
-    ".L",
-    "_ASIA",
-    "_OTHER"
-  ],
-  "symbols": [
-    ".HE",
-    "ACE.ST",
-    "EURGBP",
-    "EURJPY",
-    "LiveCattle.FUT",
-    "SIE.DE"
-  ],
+  "updated_at": "2026-07-09T15:30:00.000000+00:00",
+  "auto_expires_at": "2026-07-16T15:30:00.000000+00:00",
+  "exchanges": [".DE", ".HE", ".ST", "_FOREX", "_FUT"],
+  "caution_exchanges": [".L", "_OTHER"],
+  "symbols": [],
   "stats": {
-    ".L": {
-      "total": 61,
-      "ghost": 30,
-      "rate": 0.49
-    },
-    "_OTHER": {
-      "total": 51,
-      "ghost": 18,
-      "rate": 0.35
-    },
-    "_FOREX": {
-      "total": 17,
-      "ghost": 14,
-      "rate": 0.82
-    },
-    ".HE": {
-      "total": 5,
-      "ghost": 5,
-      "rate": 1.0
-    },
-    "_ASIA": {
-      "total": 15,
-      "ghost": 8,
-      "rate": 0.53
-    },
-    "_FUT": {
-      "total": 4,
-      "ghost": 4,
-      "rate": 1.0
-    },
-    ".ST": {
-      "total": 4,
-      "ghost": 3,
-      "rate": 0.75
-    },
-    ".PA": {
-      "total": 8,
-      "ghost": 2,
-      "rate": 0.25
-    },
-    ".DE": {
-      "total": 7,
-      "ghost": 5,
-      "rate": 0.71
-    },
-    ".HK": {
-      "total": 49,
-      "ghost": 6,
-      "rate": 0.12
-    },
-    ".AX": {
-      "total": 14,
-      "ghost": 2,
-      "rate": 0.14
-    },
-    ".T": {
-      "total": 2,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    "_CRYPTO": {
-      "total": 96,
-      "ghost": 27,
-      "rate": 0.28
-    }
+    "_FOREX": {"total": 3, "ghost": 0, "rate": 0.0, "note": "History reset 2026-07-09; historically 100% — structural block retained"},
+    ".HE": {"total": 0, "ghost": 0, "rate": 0.0, "note": "History reset 2026-07-09; historically 100% — structural block retained"},
+    "_FUT": {"total": 0, "ghost": 0, "rate": 0.0, "note": "History reset 2026-07-09; historically 100% — structural block retained"},
+    ".ST": {"total": 0, "ghost": 0, "rate": 0.0, "note": "History reset 2026-07-09; historically 75% — structural block retained"},
+    ".DE": {"total": 2, "ghost": 0, "rate": 0.0, "note": "History reset 2026-07-09; historically 71% — structural block retained"},
+    ".L": {"total": 34, "ghost": 3, "rate": 0.09},
+    "_OTHER": {"total": 33, "ghost": 0, "rate": 0.0},
+    "_ASIA": {"total": 7, "ghost": 0, "rate": 0.0},
+    ".HK": {"total": 43, "ghost": 0, "rate": 0.0},
+    ".PA": {"total": 6, "ghost": 0, "rate": 0.0},
+    ".AX": {"total": 12, "ghost": 0, "rate": 0.0},
+    "_CRYPTO": {"total": 69, "ghost": 0, "rate": 0.0},
+    ".T": {"total": 2, "ghost": 0, "rate": 0.0}
   },
-  "reason": "CAUTION-Regime aktiv: Ghost-Raten bei Forex und HE steigen leicht, aber stabil. Signale mit 'VERY_HIGH' Conviction (RSI/BB) verlieren systematisch; MACD-Kombis bleiben stabiler. Portfolio-Exposure wird im CAUTION-Modus reduziert."
+  "reason": "Strukturelle Exchange-Bloecke nach Ghost-History-Reset beibehalten (2026-07-09). .DE/.HE/.ST/_FOREX/_FUT zeigten historisch >70% Ghost-Rate — Bloeckierung bleibt bis naechstes Full-Cycle-Monitoring bestaetigt dass Raten wirklich gesunken sind."
 }
