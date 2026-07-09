@@ -150,10 +150,12 @@ def _collect_data(db_path: Path) -> dict:
         "%Y-%m-%d %H:%M:%S"
     )
 
-    # Trades im Fenster
+    # Trades im Fenster — inkl. is_tradable fuer bereingte Ghost-Raten
     cur.execute(
-        "SELECT symbol, status, rejection_reason, created_at FROM trades "
-        "WHERE created_at > ? ORDER BY created_at DESC",
+        "SELECT t.symbol, t.status, t.rejection_reason, t.created_at, "
+        "COALESCE(i.is_tradable, 1) AS is_tradable "
+        "FROM trades t LEFT JOIN instruments i ON t.instrument_id = i.instrument_id "
+        "WHERE t.created_at > ? ORDER BY t.created_at DESC",
         (since,),
     )
     trades = [dict(r) for r in cur.fetchall()]
@@ -228,9 +230,17 @@ def _exchange_suffix(symbol: str) -> str:
 
 
 def _compute_ghost_rates(trades: list[dict]) -> dict:
-    """Berechnet Ghost-Rate nach Exchange-Suffix."""
+    """Berechnet Ghost-Rate nach Exchange-Suffix.
+    Nur tradable Instrumente (is_tradable != 0) werden gezaehlt —
+    non-tradable Instrumente sind bereits durch den is_tradable-Filter
+    aus dem Trade-Flow entfernt und wuerden die Raten kuenstlich erhoehen.
+    """
     stats: dict[str, dict] = defaultdict(lambda: {"total": 0, "ghost": 0, "symbols": set()})
     for t in trades:
+        # is_tradable=0: Instrument per API als nicht-handelbar markiert — bereits
+        # aus signal/data/discovery Worker gefiltert. Ghost-History nicht einrechnen.
+        if t.get("is_tradable") == 0:
+            continue
         suffix = _exchange_suffix(t["symbol"])
         stats[suffix]["total"] += 1
         stats[suffix]["symbols"].add(t["symbol"])
@@ -290,7 +300,8 @@ def _compute_signal_perf(signal_stats: list[dict], ghost_signal_stats: dict | No
 
 def _call_llm(ghost_rates: dict, signal_perf: dict, state: dict, positions: list,
               trade_perf: dict | None = None, trading_memory: dict | None = None,
-              slippage_top: dict | None = None, ghost_trends: dict | None = None) -> dict | None:
+              slippage_top: dict | None = None, ghost_trends: dict | None = None,
+              non_tradable_ghost_count: int = 0) -> dict | None:
     """Ruft llama-server auf und parst JSON-Antwort."""
     equity = state.get("CURRENT_EQUITY", "?")
     drawdown = state.get("CURRENT_DRAWDOWN_PCT", "?")
@@ -304,7 +315,18 @@ def _call_llm(ghost_rates: dict, signal_perf: dict, state: dict, positions: list
     prompt = f"""/no_think
 Du bist Trading-Analyst für einen autonomen eToro-Bot. Analysiere die Daten und gib NUR valides JSON zurück.
 
-## Ghost-Order-Raten nach Exchange (letzte {ANALYSIS_WINDOW_DAYS} Tage)
+## Architektur-Kontext (wichtig für korrekte Interpretation)
+- is_tradable-Filter: {non_tradable_ghost_count} historische Ghost-Orders stammen aus Instrumenten,
+  die per eToro-API als nicht-handelbar markiert wurden (is_tradable=0). Diese werden
+  NICHT mehr getradet — aus den Ghost-Raten unten herausgefiltert.
+- Markt-Timing → DEFER: Orders bei geschlossenem Markt werden NICHT mehr als FAILED
+  gebucht. Sie bleiben APPROVED und werden alle 15min wiederholt (allowEntryOrders
+  von eToros Eligibility-API ist jetzt das Live-Gate). Solche Fehler tauchen NICHT
+  mehr in Ghost-Statistiken auf.
+- Ghost-Blacklist-Fokus: Exchanges nur blocken, wenn tradable Instrumente strukturell
+  von eToro abgelehnt werden — NICHT fuer reine Marktzeiten-Probleme.
+
+## Ghost-Order-Raten nach Exchange (letzte {ANALYSIS_WINDOW_DAYS} Tage, nur tradable Instrumente)
 {json.dumps(notable_ghosts, ensure_ascii=False)}
 
 ## Signal-Performance nach Typ
@@ -894,11 +916,20 @@ def main() -> int:
         # LLM-Analyse (best-effort, Timeout 85s)
         print(f"[llm_review] Rufe LLM auf (Timeout {LLM_TIMEOUT_S}s)...")
         ghost_trends = _compute_ghost_trends(trading_memory, ghost_rates)
+        # Ghost-Orders aus non-tradable Instrumenten (werden nicht mehr platziert)
+        non_tradable_ghost_count = sum(
+            1 for t in trades
+            if t.get("is_tradable") == 0
+            and "Ghost order" in (t.get("rejection_reason") or "")
+        )
+        if non_tradable_ghost_count:
+            print(f"[llm_review] {non_tradable_ghost_count} Ghost-Orders aus non-tradable Instrumenten (herausgefiltert)")
         llm_analysis = _call_llm(
             ghost_rates, signal_perf, data["state"], data["positions"],
             trade_perf, trading_memory,
             slippage_top=data.get("slippage_top"),
             ghost_trends=ghost_trends,
+            non_tradable_ghost_count=non_tradable_ghost_count,
         )
         if llm_analysis:
             print(f"[llm_review] LLM-Antwort erhalten: {list(llm_analysis.keys())}")
