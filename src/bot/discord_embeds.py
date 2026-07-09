@@ -1200,10 +1200,10 @@ def post_reconciler_embed(
         "inline": True,
     })
 
-    # 3) Positions detail (top 8)
+    # 3) Positions detail — all positions up to Discord 1024-char field limit
     if positions_summary:
         pos_lines = []
-        for p in positions_summary[:8]:
+        for p in positions_summary:
             sym = p.get("symbol", "?")
             amount = p.get("amount_usd", 0) or 0
             pnl_pct = p.get("unrealized_pnl_pct")
@@ -1220,9 +1220,20 @@ def post_reconciler_embed(
                 line += f" | SL: ${sl_rate:,.2f}"
             pos_lines.append(line)
 
+        # Truncate to Discord 1024-char field limit
+        value = "\n".join(pos_lines)
+        if len(value) > 1020:
+            shown = []
+            for line in pos_lines:
+                if len("\n".join(shown + [line])) > 980:
+                    remaining = len(pos_lines) - len(shown)
+                    shown.append(f"_+{remaining} weitere..._")
+                    break
+                shown.append(line)
+            value = "\n".join(shown)
         fields.append({
             "name": "💼 Positionen",
-            "value": "\n".join(pos_lines),
+            "value": value,
             "inline": False,
         })
 
@@ -2062,10 +2073,10 @@ def post_risk_worker_embed(
         "inline": True,
     })
 
-    # 3) Positionen Overview (Top PnL)
+    # 3) Positionen Overview — all positions up to Discord 1024-char limit
     if positions_summary:
         pos_lines = []
-        for p in positions_summary[:8]:
+        for p in positions_summary:
             sym = p.get("symbol", "?")
             pnl = p.get("pnl_pct", 0.0)
             amt = p.get("amount_usd", 0.0)
@@ -2075,9 +2086,19 @@ def post_risk_worker_embed(
             if trailing:
                 line += f" — {trailing}"
             pos_lines.append(line)
+        value = "\n".join(pos_lines)
+        if len(value) > 1020:
+            shown = []
+            for line in pos_lines:
+                if len("\n".join(shown + [line])) > 980:
+                    remaining = len(pos_lines) - len(shown)
+                    shown.append(f"_+{remaining} weitere..._")
+                    break
+                shown.append(line)
+            value = "\n".join(shown)
         fields.append({
             "name": "💼 Positionen",
-            "value": "\n".join(pos_lines),
+            "value": value,
             "inline": False,
         })
 
