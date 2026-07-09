@@ -158,8 +158,25 @@ EU_DISCOVERY_CHUNK_STATE_KEY = "discovery_eu_chunk_idx"
 # per-region so one region can't crowd out another's watchlist slots; only
 # displaces the weakest existing same-region slot when full, and only if the
 # new candidate scores higher.
-WATCHLIST_DISCOVERY_CAP = 60
+WATCHLIST_DISCOVERY_CAP = 100  # Slots pro Region fuer entdeckte Instrumente (war 60)
 _UNKNOWN_REGION_CATEGORY = "global.discovered"
+
+# ── US universe rotation ─────────────────────────────────────────────────────
+# 574 US stocks/ETFs (tradable, nicht in FULL_UNIVERSE hardcoded).
+# 8 Chunks × 2/Run × 2h-Intervall = 8h voller Zyklus.
+US_DISCOVERY_CHUNK_COUNT = 8
+US_DISCOVERY_CHUNK_STATE_KEY = "discovery_us_chunk_idx"
+US_CHUNKS_PER_RUN = 2
+
+# ── APAC/Australia universe rotation ─────────────────────────────────────────
+# 384 ASX + APAC stocks/ETFs. 6 Chunks × 1/Run × 2h = 12h voller Zyklus.
+APAC_AU_CHUNK_COUNT = 6
+APAC_AU_CHUNK_STATE_KEY = "discovery_apac_au_chunk_idx"
+APAC_AU_CHUNKS_PER_RUN = 1
+
+# Maximale Evictions von veralteten discovered-Slots pro Run
+STALE_DISCOVERED_EVICTION_MAX = 15
+STALE_DISCOVERED_DAYS = 30
 
 
 def _discovery_category_for_region(market_region: str | None) -> str:
@@ -194,6 +211,100 @@ def _get_eu_discovery_chunk(
     except Exception as exc:
         logger.warning("[%s] _get_eu_discovery_chunk failed: %s", WORKER_NAME, exc)
         return []
+
+
+def _get_us_discovery_chunk(
+    db: Any, chunk_idx: int, chunk_count: int = US_DISCOVERY_CHUNK_COUNT
+) -> list[tuple[str, int, str]]:
+    """Return (yfinance_symbol, instrument_id, symbol) for one rotating slice
+    of the US stock/ETF universe. FULL_UNIVERSE symbols are NOT excluded here —
+    the all_symbols dedup in main() ensures no double-fetching."""
+    try:
+        rows = db.fetchall(
+            """
+            SELECT instrument_id, symbol, yfinance_symbol
+            FROM instruments
+            WHERE market_region = 'US'
+              AND is_active = 1
+              AND (is_tradable IS NULL OR is_tradable = 1)
+              AND asset_class IN ('stock', 'etf')
+              AND yfinance_symbol IS NOT NULL
+              AND yfinance_symbol != ''
+              AND instrument_id % ? = ?
+            ORDER BY instrument_id
+            """,
+            (chunk_count, chunk_idx),
+        )
+        return [(row["yfinance_symbol"], row["instrument_id"], row["symbol"]) for row in rows]
+    except Exception as exc:
+        logger.warning("[%s] _get_us_discovery_chunk failed: %s", WORKER_NAME, exc)
+        return []
+
+
+def _get_apac_au_discovery_chunk(
+    db: Any, chunk_idx: int, chunk_count: int = APAC_AU_CHUNK_COUNT
+) -> list[tuple[str, int, str]]:
+    """Return (yfinance_symbol, instrument_id, symbol) for one rotating slice
+    of the APAC/Australia stock universe (ASIA_AU + APAC market regions)."""
+    try:
+        rows = db.fetchall(
+            """
+            SELECT instrument_id, symbol, yfinance_symbol
+            FROM instruments
+            WHERE market_region IN ('ASIA_AU', 'APAC')
+              AND is_active = 1
+              AND (is_tradable IS NULL OR is_tradable = 1)
+              AND asset_class IN ('stock', 'etf')
+              AND yfinance_symbol IS NOT NULL
+              AND yfinance_symbol != ''
+              AND instrument_id % ? = ?
+            ORDER BY instrument_id
+            """,
+            (chunk_count, chunk_idx),
+        )
+        return [(row["yfinance_symbol"], row["instrument_id"], row["symbol"]) for row in rows]
+    except Exception as exc:
+        logger.warning("[%s] _get_apac_au_discovery_chunk failed: %s", WORKER_NAME, exc)
+        return []
+
+
+def _evict_stale_discovered(db: Any) -> int:
+    """Evict *.discovered watchlist slots that have not generated a signal
+    in STALE_DISCOVERED_DAYS. Makes room for freshly discovered candidates.
+    Only touches *.discovered categories — static slots (forex, stocks, etc.)
+    are never evicted. Returns number of evicted slots.
+    """
+    try:
+        cutoff = (
+            __import__("datetime").datetime.utcnow()
+            - __import__("datetime").timedelta(days=STALE_DISCOVERED_DAYS)
+        ).strftime("%Y-%m-%d %H:%M:%S")
+        stale = db.fetchall(
+            """
+            SELECT w.id, w.symbol, w.category, w.instrument_id
+            FROM watchlist w
+            WHERE w.category LIKE '%.discovered'
+              AND (w.last_signal_at IS NULL OR w.last_signal_at < ?)
+              AND NOT EXISTS (
+                  SELECT 1 FROM signals s
+                  WHERE s.instrument_id = w.instrument_id
+                    AND s.generated_at > ?
+              )
+            ORDER BY COALESCE(w.last_score, -1e9) ASC
+            LIMIT ?
+            """,
+            (cutoff, cutoff, STALE_DISCOVERED_EVICTION_MAX),
+        )
+        for row in stale:
+            db.execute("DELETE FROM watchlist WHERE id = ?", (row["id"],))
+            logger.info(
+                "[%s] Evicted stale discovered slot: %s (%s, last_signal_at=%s)",
+                WORKER_NAME, row["symbol"], row["category"], row.get("last_signal_at"),
+            )
+        return len(stale)
+    except Exception as exc:
+        logger.warning("[%s] _evict_stale_discovered failed: %s", WORKER_NAME, exc)
+        return 0
 
 
 def _ensure_watchlist_score_columns(db: Any) -> None:
@@ -603,6 +714,47 @@ def main() -> int:
                     all_symbols.append(yf_sym)
                     symbol_to_inst_id[yf_sym] = inst_id
         state_repo.set(EU_DISCOVERY_CHUNK_STATE_KEY, str((eu_chunk_idx + EU_CHUNKS_PER_RUN) % EU_DISCOVERY_CHUNK_COUNT))
+
+        # ── US universe rotation — 2 chunks/run, 16h full cycle ──────────────────
+        try:
+            us_chunk_idx = int(state_repo.get(US_DISCOVERY_CHUNK_STATE_KEY, "0")) % US_DISCOVERY_CHUNK_COUNT
+        except (TypeError, ValueError):
+            us_chunk_idx = 0
+        for _chunk_offset in range(US_CHUNKS_PER_RUN):
+            _cidx = (us_chunk_idx + _chunk_offset) % US_DISCOVERY_CHUNK_COUNT
+            us_chunk = _get_us_discovery_chunk(db, _cidx)
+            logger.info(
+                "[%s] US chunk %d/%d: %d instruments",
+                WORKER_NAME, _cidx, US_DISCOVERY_CHUNK_COUNT, len(us_chunk),
+            )
+            for yf_sym, inst_id, _orig_sym in us_chunk:
+                if yf_sym not in all_symbols:
+                    all_symbols.append(yf_sym)
+                    symbol_to_inst_id[yf_sym] = inst_id
+        state_repo.set(US_DISCOVERY_CHUNK_STATE_KEY, str((us_chunk_idx + US_CHUNKS_PER_RUN) % US_DISCOVERY_CHUNK_COUNT))
+
+        # ── APAC/Australia rotation — 1 chunk/run, 12h full cycle ────────────────
+        try:
+            apac_au_chunk_idx = int(state_repo.get(APAC_AU_CHUNK_STATE_KEY, "0")) % APAC_AU_CHUNK_COUNT
+        except (TypeError, ValueError):
+            apac_au_chunk_idx = 0
+        for _chunk_offset in range(APAC_AU_CHUNKS_PER_RUN):
+            _cidx = (apac_au_chunk_idx + _chunk_offset) % APAC_AU_CHUNK_COUNT
+            apac_chunk = _get_apac_au_discovery_chunk(db, _cidx)
+            logger.info(
+                "[%s] APAC/AU chunk %d/%d: %d instruments",
+                WORKER_NAME, _cidx, APAC_AU_CHUNK_COUNT, len(apac_chunk),
+            )
+            for yf_sym, inst_id, _orig_sym in apac_chunk:
+                if yf_sym not in all_symbols:
+                    all_symbols.append(yf_sym)
+                    symbol_to_inst_id[yf_sym] = inst_id
+        state_repo.set(APAC_AU_CHUNK_STATE_KEY, str((apac_au_chunk_idx + APAC_AU_CHUNKS_PER_RUN) % APAC_AU_CHUNK_COUNT))
+
+        # ── Stale discovered slots eviction (macht Platz fuer neue Kandidaten) ───
+        evicted = _evict_stale_discovered(db)
+        if evicted:
+            logger.info("[%s] Evicted %d stale discovered watchlist slots", WORKER_NAME, evicted)
 
         # ── Release DB connection before yfinance (prevents lock conflicts with data_worker) ──
         db.close()
