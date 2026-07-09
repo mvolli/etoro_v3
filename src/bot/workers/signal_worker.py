@@ -472,6 +472,17 @@ def main() -> None:
                     signal_repo.update_signal_status(signal_id, "REJECTED")
                     continue
 
+            # Slippage-Blacklist: Instrumente mit >=3 Slippage-Rejects in 7d
+            # werden hier herausgefiltert (NICHT erst im Kandidaten-Loop),
+            # damit sie keine der 3 wertvollen Kandidaten-Slots blockieren.
+            if trade_repo.is_slippage_blacklisted(instrument_id):
+                logger.info(
+                    "SignalWorker: %s Slippage-Blacklist (eligible-Filter) — Signal REJECTED",
+                    symbol,
+                )
+                signal_repo.update_signal_status(signal_id, "REJECTED")
+                continue
+
             # Market hours: statischer Check entfernt — allowEntryOrders
             # in open_position() prüft live ob eToro Trades erlaubt.
             eligible.append((signal, symbol))
