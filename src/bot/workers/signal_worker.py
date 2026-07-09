@@ -88,13 +88,32 @@ def _is_signal_type_skipped(signal_type: str, weights: dict) -> tuple[bool, str]
 
 
 def _is_llm_ghost_blocked(symbol: str, blacklist: dict) -> bool:
+    """Prueft ob Symbol durch LLM-Blacklist geblockt (Exchange-Suffix oder direkt)."""
     if not blacklist:
         return False
     if symbol in blacklist.get("symbols", []):
         return True
-    suffix = "." + symbol.rsplit(".", 1)[-1] if "." in symbol else None
-    if suffix and suffix in blacklist.get("exchanges", []):
-        return True
+    exchanges = blacklist.get("exchanges", [])
+    # Dot-Suffix (.L, .DE, .HE etc.)
+    if "." in symbol:
+        dot_suffix = "." + symbol.rsplit(".", 1)[-1]
+        if dot_suffix in exchanges:
+            return True
+    # Pseudo-Suffixe fuer Nicht-Dot-Symbole
+    if "-" in symbol:
+        # Crypto: BTC-USD, ETH-USD, DOT-USD
+        if "_CRYPTO" in exchanges:
+            return True
+    elif symbol.endswith(".FUT"):
+        # Futures: LiveCattle.FUT
+        if "_FUT" in exchanges:
+            return True
+    elif "." not in symbol and len(symbol) <= 7 and symbol.isupper():
+        # Forex: EURJPY, EURGBP, USDCHF
+        fx_ends = ("JPY", "GBP", "USD", "CHF", "EUR", "AUD", "CAD")
+        if any(symbol.endswith(e) for e in fx_ends) or "/" in symbol:
+            if "_FOREX" in exchanges:
+                return True
     return False
 
 

@@ -9,7 +9,9 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
 ## Ownership
 
 - Code/Tests/Docs in diesem Repo: der Agent (Commits auf `main`, Push nach Test-Grün).
-- Geldwirksame Schwellen (SL, Loss-Limits, Sizing, Profit-Level): NUR der User entscheidet.
+- Alle Trading-Parameter (SL, Sizing, Regime-Thresholds, Loss-Limits) werden autonom vom
+  LLM Review Worker optimiert (taeglich 20:00 UTC, src/bot/workers/llm_review_worker.py).
+  Unveraenderliche Grenzen: BIBLE_HARD_LIMITS im Quellcode — diese ueberschreitet keine LLM.
 - Cron-Zeitpläne: `~/.hermes/cron/jobs.json` (Root-Scope), gespiegelt in `crontab.txt` hier.
 
 ## Local Contracts (Invarianten)

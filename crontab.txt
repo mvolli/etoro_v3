@@ -54,3 +54,6 @@
 
 # Kill Switch Watchdog — every 5 minutes
 */5 * * * *    cd /home/mvolli/.hermes/workspace/etoro_v3 && bash scripts/etoro_kill_switch_watchdog.sh >> logs/kill_switch.log 2>&1
+
+# LLM Review Worker — taeglich 20:00 UTC (nach EU-Close)
+0 20 * * *     cd /home/mvolli/.hermes/workspace/etoro_v3 && bash /home/mvolli/.hermes/scripts/v3_llm_review_worker.sh >> logs/llm_review.log 2>&1

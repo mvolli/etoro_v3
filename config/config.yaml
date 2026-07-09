@@ -51,14 +51,14 @@ sl:                           # Stop-loss configuration
 sizing:                       # Position size as % of portfolio equity
   very_high_pct: 8.0          # Conviction tier: VERY HIGH
   high_pct: 7.0               # Conviction tier: HIGH
-  medium_pct: 6.0             # Conviction tier: MEDIUM
+  medium_pct: 5.0             # Conviction tier: MEDIUM
   low_pct: 2.0                # Conviction tier: LOW / speculative
 
 trailing:                     # Dynamic profit-taking (runs each risk_worker cycle on LIVE PnL)
   momentum_fade:              # Universal quick-profit lock — protects a gain that starts fading
     enabled: true             # false → disable momentum-fade entirely (ladder/BE unchanged)
     arm_pct: 2.0              # Peak PnL must reach this before fade protection arms (%)
-    retrace_frac: 0.40        # Fire when PnL gives back this fraction of its peak (0.40 = 40%)
+    retrace_frac: 0.30        # Fire when PnL gives back this fraction of its peak (0.30 = 30%)
     min_lock_pct: 1.0         # Never fire below this current PnL — leave it to BE/SL (%)
     close_pct: 50.0           # % of the position to realize when a fade fires
   scalp:                      # Early first profit rung — only for positions tagged strategy='scalp'

@@ -55,5 +55,131 @@
         "DOGE-USD und DOT-USD separaten Cooldown prüfen (Crypto = immer offen, mehr Signale möglich)"
       ]
     }
+  ],
+  "decision_outcomes": [
+    "ghost_blacklist/.DE: Ghost-Blacklist '.DE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/.HE: Ghost-Blacklist '.HE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/.ST: Ghost-Blacklist '.ST': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/_FOREX: Ghost-Blacklist '_FOREX': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/_FUT: Ghost-Blacklist '_FUT': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)"
+  ],
+  "runs": [
+    {
+      "date": "2026-07-09",
+      "closed_trades": 56,
+      "insights": 2,
+      "adjustments": [
+        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_",
+        "TREND_PULLBACK",
+        "GOLDEN_CROSS"
+      ]
+    },
+    {
+      "date": "2026-07-09",
+      "closed_trades": 56,
+      "insights": 2,
+      "adjustments": [
+        "GOLDEN_CROSS",
+        "TREND_PULLBACK",
+        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD"
+      ]
+    },
+    {
+      "date": "2026-07-09",
+      "closed_trades": 56,
+      "insights": 2,
+      "adjustments": [
+        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD",
+        "GOLDEN_CROSS",
+        "TREND_PULLBACK"
+      ]
+    }
+  ],
+  "signal_insights": {
+    "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_": [
+      {
+        "date": "2026-07-09",
+        "score_multiplier": 0.5,
+        "skip": false,
+        "reason": "Niedrige Success Rate (23%) und negative PnL bei sehr hohen Volumen."
+      }
+    ],
+    "TREND_PULLBACK": [
+      {
+        "date": "2026-07-09",
+        "score_multiplier": 0.4,
+        "skip": false,
+        "reason": "Extrem hohe Fail-Rate (73%) bei geschlossen Trades."
+      },
+      {
+        "date": "2026-07-09",
+        "score_multiplier": 0.4,
+        "skip": false,
+        "reason": "2% Success Rate bei 44 Trades, hohe Fehlerrate"
+      },
+      {
+        "date": "2026-07-09",
+        "score_multiplier": 0.4,
+        "skip": false,
+        "reason": "2% Success Rate bei 44 Trades; sehr hohe Fehlerrate, Gewicht stark reduzieren."
+      }
+    ],
+    "GOLDEN_CROSS": [
+      {
+        "date": "2026-07-09",
+        "score_multiplier": 0.2,
+        "skip": false,
+        "reason": "0% Success Rate bei allen 8 abgeschlossenen Trades."
+      },
+      {
+        "date": "2026-07-09",
+        "score_multiplier": 0.3,
+        "skip": false,
+        "reason": "0% Success Rate bei 8 Trades, sehr unzuverlässig im aktuellen Regime"
+      },
+      {
+        "date": "2026-07-09",
+        "score_multiplier": 0.2,
+        "skip": false,
+        "reason": "0% Success Rate bei 8 Trades; Signal vorübergehend stark gewichtet reduzieren."
+      }
+    ],
+    "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD": [
+      {
+        "date": "2026-07-09",
+        "score_multiplier": 0.6,
+        "skip": false,
+        "reason": "40% Success Rate, aber viele Failed Trades (-4.17% avg PnL), Konfirmation durch MACD nötig"
+      },
+      {
+        "date": "2026-07-09",
+        "score_multiplier": 0.6,
+        "skip": false,
+        "reason": "Hohe Ghost-Rate und negative PnL bei VERY_HIGH Conviction; Gewicht senken, um Fehlsignale zu filtern."
+      }
+    ]
+  },
+  "strategy_notes": [
+    "RSI-Extrem-Overbought/Oversold Signale mit MACD-Konfirmation sind im aktuellen Markt unzuverlässig.",
+    "Forex-Paare (insb. EURJPY, EURGBP) und schwedische/deutsche Small Caps haben sehr hohe Ghost-Order-Raten (>75%), Orders dort vorsichtig platzieren.",
+    "Forex-Paare und skandinavische/deutsche Small Caps benötigen breitere Stop-Losses oder Filter gegen Ghost-Orders.",
+    "RSI-Extrem-Signale allein sind unzuverlässig; MACD-Turn unter SMA20 bestätigt oft den Trendwechsel besser.",
+    "MACD_TURN_BELOW_SMA20 in Kombination mit BB_LOW_MACD_IMPROVING zeigt bei wenigen Trades (n=13) eine bessere Stabilität als reine RSI-Signale.",
+    "Forex-Paare (EURJPY, EURGBP) benötigen zwingend einen breiteren Stop oder einen Filter, der Ghost-Orders ausschließt."
+  ],
+  "config_history": [
+    {
+      "date": "2026-07-09",
+      "changes": [
+        "sl.default_pct: 2.5 -> 2.5 (Reduzierung von 3.0% auf 2.5%, da unterperformende Signale ()"
+      ]
+    },
+    {
+      "date": "2026-07-09",
+      "changes": [
+        "sl.default_pct: 2.5 -> 3.0 (Erhöhung von 2.5% auf 3.0%, um Ghost-Orders in Forex und Sma)",
+        "sizing.medium_pct: 6.0 -> 5.0 (Reduktion von 6.0% auf 5.0%, da die aktuellen Signale (RSI-E)"
+      ]
+    }
   ]
 }

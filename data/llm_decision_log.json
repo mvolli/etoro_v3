@@ -1,0 +1,555 @@
+[
+  {
+    "date": "2026-07-08",
+    "timestamp": "2026-07-08T23:54:09.884227+00:00",
+    "type": "ghost_blacklist",
+    "key": ".DE",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Auto: 5 Exchanges mit ≥60% Ghost-Rate",
+    "outcome": "Ghost-Blacklist '.DE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-09"
+  },
+  {
+    "date": "2026-07-08",
+    "timestamp": "2026-07-08T23:54:09.884797+00:00",
+    "type": "ghost_blacklist",
+    "key": ".HE",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Auto: 5 Exchanges mit ≥60% Ghost-Rate",
+    "outcome": "Ghost-Blacklist '.HE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-09"
+  },
+  {
+    "date": "2026-07-08",
+    "timestamp": "2026-07-08T23:54:09.885102+00:00",
+    "type": "ghost_blacklist",
+    "key": ".ST",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Auto: 5 Exchanges mit ≥60% Ghost-Rate",
+    "outcome": "Ghost-Blacklist '.ST': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-09"
+  },
+  {
+    "date": "2026-07-08",
+    "timestamp": "2026-07-08T23:54:09.885393+00:00",
+    "type": "ghost_blacklist",
+    "key": "_FOREX",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Auto: 5 Exchanges mit ≥60% Ghost-Rate",
+    "outcome": "Ghost-Blacklist '_FOREX': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-09"
+  },
+  {
+    "date": "2026-07-08",
+    "timestamp": "2026-07-08T23:54:09.885705+00:00",
+    "type": "ghost_blacklist",
+    "key": "_FUT",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Auto: 5 Exchanges mit ≥60% Ghost-Rate",
+    "outcome": "Ghost-Blacklist '_FUT': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-09"
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:00:41.750919+00:00",
+    "type": "ghost_blacklist",
+    "key": ".DE",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Auto: 5 Exchanges mit ≥60% Ghost-Rate",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:00:41.751181+00:00",
+    "type": "ghost_blacklist",
+    "key": ".HE",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Auto: 5 Exchanges mit ≥60% Ghost-Rate",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:00:41.751631+00:00",
+    "type": "ghost_blacklist",
+    "key": ".ST",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Auto: 5 Exchanges mit ≥60% Ghost-Rate",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:00:41.751921+00:00",
+    "type": "ghost_blacklist",
+    "key": "_FOREX",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Auto: 5 Exchanges mit ≥60% Ghost-Rate",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:00:41.752182+00:00",
+    "type": "ghost_blacklist",
+    "key": "_FUT",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Auto: 5 Exchanges mit ≥60% Ghost-Rate",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:02:12.360932+00:00",
+    "type": "ghost_blacklist",
+    "key": ".DE",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Auto: 5 Exchanges mit ≥60% Ghost-Rate",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:02:12.361423+00:00",
+    "type": "ghost_blacklist",
+    "key": ".HE",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Auto: 5 Exchanges mit ≥60% Ghost-Rate",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:02:12.361882+00:00",
+    "type": "ghost_blacklist",
+    "key": ".ST",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Auto: 5 Exchanges mit ≥60% Ghost-Rate",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:02:12.362314+00:00",
+    "type": "ghost_blacklist",
+    "key": "_FOREX",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Auto: 5 Exchanges mit ≥60% Ghost-Rate",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:02:12.362780+00:00",
+    "type": "ghost_blacklist",
+    "key": "_FUT",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Auto: 5 Exchanges mit ≥60% Ghost-Rate",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:03:29.641956+00:00",
+    "type": "ghost_blacklist",
+    "key": ".DE",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Das Portfolio befindet sich im CAUTION-Regime. Auffällig ist die extrem hohe Gho",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:03:29.642340+00:00",
+    "type": "ghost_blacklist",
+    "key": ".HE",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Das Portfolio befindet sich im CAUTION-Regime. Auffällig ist die extrem hohe Gho",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:03:29.642862+00:00",
+    "type": "ghost_blacklist",
+    "key": ".ST",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Das Portfolio befindet sich im CAUTION-Regime. Auffällig ist die extrem hohe Gho",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:03:29.643324+00:00",
+    "type": "ghost_blacklist",
+    "key": "_FOREX",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Das Portfolio befindet sich im CAUTION-Regime. Auffällig ist die extrem hohe Gho",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:03:29.643823+00:00",
+    "type": "ghost_blacklist",
+    "key": "_FUT",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Das Portfolio befindet sich im CAUTION-Regime. Auffällig ist die extrem hohe Gho",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:04:16.979283+00:00",
+    "type": "ghost_blacklist",
+    "key": ".DE",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Regime CAUTION: Portfolio bei 9346 USD. Hohe Ghost-Raten im Forex und DE/HE Akti",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:04:16.979816+00:00",
+    "type": "ghost_blacklist",
+    "key": ".HE",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Regime CAUTION: Portfolio bei 9346 USD. Hohe Ghost-Raten im Forex und DE/HE Akti",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:04:16.980309+00:00",
+    "type": "ghost_blacklist",
+    "key": ".ST",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Regime CAUTION: Portfolio bei 9346 USD. Hohe Ghost-Raten im Forex und DE/HE Akti",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:04:16.980673+00:00",
+    "type": "ghost_blacklist",
+    "key": "_FOREX",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Regime CAUTION: Portfolio bei 9346 USD. Hohe Ghost-Raten im Forex und DE/HE Akti",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:04:16.981398+00:00",
+    "type": "ghost_blacklist",
+    "key": "_FUT",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Regime CAUTION: Portfolio bei 9346 USD. Hohe Ghost-Raten im Forex und DE/HE Akti",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:04:16.982730+00:00",
+    "type": "signal_weight",
+    "key": "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "Niedrige Success Rate (23%) und negative PnL bei sehr hohen Volumen."
+    },
+    "reason": "Niedrige Success Rate (23%) und negative PnL bei sehr hohen Volumen.",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:04:16.983255+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.4,
+      "skip": false,
+      "reason": "Extrem hohe Fail-Rate (73%) bei geschlossen Trades."
+    },
+    "reason": "Extrem hohe Fail-Rate (73%) bei geschlossen Trades.",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:04:16.983793+00:00",
+    "type": "signal_weight",
+    "key": "GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.2,
+      "skip": false,
+      "reason": "0% Success Rate bei allen 8 abgeschlossenen Trades."
+    },
+    "reason": "0% Success Rate bei allen 8 abgeschlossenen Trades.",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:04:16.984996+00:00",
+    "type": "config",
+    "key": "sl.default_pct",
+    "old_value": null,
+    "new_value": 2.5,
+    "reason": "Reduzierung von 3.0% auf 2.5%, da unterperformende Signale (z.B. TREND_PULLBACK) häufiger ausgestoppt werden und die Verluste begrenzt werden sollen.",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:16:22.892390+00:00",
+    "type": "ghost_blacklist",
+    "key": ".DE",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Das Portfolio befindet sich im CAUTION-Regime. Besonders Forex (EURJPY) und deut",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:16:22.892882+00:00",
+    "type": "ghost_blacklist",
+    "key": ".HE",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Das Portfolio befindet sich im CAUTION-Regime. Besonders Forex (EURJPY) und deut",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:16:22.893571+00:00",
+    "type": "ghost_blacklist",
+    "key": ".ST",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Das Portfolio befindet sich im CAUTION-Regime. Besonders Forex (EURJPY) und deut",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:16:22.894130+00:00",
+    "type": "ghost_blacklist",
+    "key": "_FOREX",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Das Portfolio befindet sich im CAUTION-Regime. Besonders Forex (EURJPY) und deut",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:16:22.894905+00:00",
+    "type": "ghost_blacklist",
+    "key": "_FUT",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Das Portfolio befindet sich im CAUTION-Regime. Besonders Forex (EURJPY) und deut",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:16:22.896417+00:00",
+    "type": "signal_weight",
+    "key": "GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.3,
+      "skip": false,
+      "reason": "0% Success Rate bei 8 Trades, sehr unzuverlässig im aktuellen Regime"
+    },
+    "reason": "0% Success Rate bei 8 Trades, sehr unzuverlässig im aktuellen Regime",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:16:22.897039+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.4,
+      "skip": false,
+      "reason": "2% Success Rate bei 44 Trades, hohe Fehlerrate"
+    },
+    "reason": "2% Success Rate bei 44 Trades, hohe Fehlerrate",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:16:22.897747+00:00",
+    "type": "signal_weight",
+    "key": "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.6,
+      "skip": false,
+      "reason": "40% Success Rate, aber viele Failed Trades (-4.17% avg PnL), Konfirmation durch MACD nötig"
+    },
+    "reason": "40% Success Rate, aber viele Failed Trades (-4.17% avg PnL), Konfirmation durch ",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:27:46.266222+00:00",
+    "type": "ghost_blacklist",
+    "key": ".DE",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Das Portfolio läuft im NORMAL-Regime mit 9340€ Equity. Auffällig ist die hohe Gh",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:27:46.266746+00:00",
+    "type": "ghost_blacklist",
+    "key": ".HE",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Das Portfolio läuft im NORMAL-Regime mit 9340€ Equity. Auffällig ist die hohe Gh",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:27:46.267174+00:00",
+    "type": "ghost_blacklist",
+    "key": ".ST",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Das Portfolio läuft im NORMAL-Regime mit 9340€ Equity. Auffällig ist die hohe Gh",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:27:46.267689+00:00",
+    "type": "ghost_blacklist",
+    "key": "_FOREX",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Das Portfolio läuft im NORMAL-Regime mit 9340€ Equity. Auffällig ist die hohe Gh",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:27:46.268357+00:00",
+    "type": "ghost_blacklist",
+    "key": "_FUT",
+    "old_value": false,
+    "new_value": true,
+    "reason": "Das Portfolio läuft im NORMAL-Regime mit 9340€ Equity. Auffällig ist die hohe Gh",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:27:46.269955+00:00",
+    "type": "signal_weight",
+    "key": "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.6,
+      "skip": false,
+      "reason": "Hohe Ghost-Rate und negative PnL bei VERY_HIGH Conviction; Gewicht senken, um Fehlsignale zu filtern."
+    },
+    "reason": "Hohe Ghost-Rate und negative PnL bei VERY_HIGH Conviction; Gewicht senken, um Fe",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:27:46.270992+00:00",
+    "type": "signal_weight",
+    "key": "GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.2,
+      "skip": false,
+      "reason": "0% Success Rate bei 8 Trades; Signal vorübergehend stark gewichtet reduzieren."
+    },
+    "reason": "0% Success Rate bei 8 Trades; Signal vorübergehend stark gewichtet reduzieren.",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:27:46.271847+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.4,
+      "skip": false,
+      "reason": "2% Success Rate bei 44 Trades; sehr hohe Fehlerrate, Gewicht stark reduzieren."
+    },
+    "reason": "2% Success Rate bei 44 Trades; sehr hohe Fehlerrate, Gewicht stark reduzieren.",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:27:46.273122+00:00",
+    "type": "config",
+    "key": "sl.default_pct",
+    "old_value": 2.5,
+    "new_value": 3.0,
+    "reason": "Erhöhung von 2.5% auf 3.0%, um Ghost-Orders in Forex und Small Caps zu überstehen, ohne das Max-Limit von 8% zu verletzen.",
+    "outcome": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T00:27:46.274627+00:00",
+    "type": "config",
+    "key": "sizing.medium_pct",
+    "old_value": 6.0,
+    "new_value": 5.0,
+    "reason": "Reduktion von 6.0% auf 5.0%, da die aktuellen Signale (RSI-Extrem) hohe Verlustraten aufweisen und das Risiko pro Trade gesenkt werden soll.",
+    "outcome": null,
+    "outcome_date": null
+  }
+]

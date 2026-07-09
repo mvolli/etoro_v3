@@ -35,3 +35,4 @@ backups/
 data/instrument_map.json
 data/trading.db*
 data/kill_switch.flag
+locks/

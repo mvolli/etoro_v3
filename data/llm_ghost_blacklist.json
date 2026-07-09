@@ -1,0 +1,89 @@
+{
+  "updated_at": "2026-07-09T00:27:46.265784+00:00",
+  "auto_expires_at": "2026-07-16T00:27:46.265794+00:00",
+  "exchanges": [
+    ".DE",
+    ".HE",
+    ".ST",
+    "_FOREX",
+    "_FUT"
+  ],
+  "caution_exchanges": [
+    ".L",
+    "_OTHER"
+  ],
+  "symbols": [
+    "ABB.ST",
+    "ACE.ST",
+    "EURGBP",
+    "EURJPY",
+    "LiveCattle.FUT",
+    "NLG1V.HE",
+    "SIE.DE",
+    "TELIA1.HE",
+    "V3V.DE"
+  ],
+  "stats": {
+    "_OTHER": {
+      "total": 83,
+      "ghost": 34,
+      "rate": 0.41
+    },
+    "_FOREX": {
+      "total": 7,
+      "ghost": 7,
+      "rate": 1.0
+    },
+    ".HE": {
+      "total": 5,
+      "ghost": 5,
+      "rate": 1.0
+    },
+    "_FUT": {
+      "total": 4,
+      "ghost": 4,
+      "rate": 1.0
+    },
+    ".ST": {
+      "total": 4,
+      "ghost": 3,
+      "rate": 0.75
+    },
+    ".PA": {
+      "total": 8,
+      "ghost": 2,
+      "rate": 0.25
+    },
+    ".L": {
+      "total": 58,
+      "ghost": 27,
+      "rate": 0.47
+    },
+    ".DE": {
+      "total": 8,
+      "ghost": 6,
+      "rate": 0.75
+    },
+    ".HK": {
+      "total": 54,
+      "ghost": 6,
+      "rate": 0.11
+    },
+    ".AX": {
+      "total": 14,
+      "ghost": 2,
+      "rate": 0.14
+    },
+    ".T": {
+      "total": 2,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    "_CRYPTO": {
+      "total": 96,
+      "ghost": 27,
+      "rate": 0.28
+    }
+  },
+  "reason": "Das Portfolio läuft im NORMAL-Regime mit 9340€ Equity. Auffällig ist die hohe Ghost-Order-Rate bei Forex und skandinavischen/deutschen Small Caps (>75%). Das RSI-Extrem-Signal mit VERY_HIGH Conviction verliert aktuell durchschnittlich 4.17% pro Trade, was auf zu enge Stops oder schlechte Timing hinweist. MACD-Turn unter SMA20 zeigt sich als zuverlässigerer Bestätigungsfilter."
+}
