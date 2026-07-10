@@ -506,6 +506,7 @@ def main() -> None:
     
         evaluated_count = 0
         approved_count = 0
+        approved_trades_info: list[dict] = []
         blocked_reasons: list[str] = []
     
         # Fetch open positions once for asset-class gate (list of {symbol, amount_usd})
@@ -668,6 +669,14 @@ def main() -> None:
                 # Mark signal as consumed so it won't be re-processed
                 signal_repo.update_signal_status(signal_id, "CONSUMED")
                 approved_count += 1
+                approved_trades_info.append({
+                    "symbol":       symbol,
+                    "amount_usd":   buy_amount,
+                    "signal_type":  signal.get("signal_type", ""),
+                    "conviction":   conviction,
+                    "score":        score,
+                    "signal_price": signal_price,
+                })
     
                 # Update running totals so subsequent signals see projected state
                 total_exposure += buy_amount
@@ -728,15 +737,16 @@ def main() -> None:
     
         # ── 7. Discord summary ────────────────────────────────────────────────────
         if approved_count > 0:
-            _post('post_alert_embed',
-                title=f'🟢 Signal Worker: {approved_count} Trade(s) approved',
-                description=(
-                    f'Regime: **{regime}** | scalar={risk_scalar:.2f}\n'
-                    f'Evaluated: {evaluated_count} | Approved: {approved_count}\n'
-                    f'Equity: ${equity:,.0f} | Cash: ${cash_estimate:,.0f} ({cash_estimate/equity*100:.1f}%)'
-                ),
-                severity='INFO',
-                dry_run=False
+            _post(
+                'post_signal_worker_embed',
+                approved_trades=approved_trades_info,
+                regime=regime,
+                risk_scalar=risk_scalar,
+                evaluated_count=evaluated_count,
+                equity=equity,
+                cash=cash_estimate,
+                total_exposure=total_exposure,
+                position_count=position_count,
             )
         elif evaluated_count == 0 and skipped_closed:
             # All candidates had closed markets — post with context

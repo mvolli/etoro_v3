@@ -2190,3 +2190,71 @@ def post_discovery_embed(
                           f"P16 Discovery gepostet candidates={len(candidates)} stored={stored}")
     return ok
 
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# P17 — SIGNAL WORKER (Trade-Approval Summary)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def post_signal_worker_embed(
+    approved_trades: list,
+    regime: str,
+    risk_scalar: float,
+    evaluated_count: int,
+    equity: float,
+    cash: float,
+    total_exposure: float,
+    position_count: int,
+    dry_run: bool = False,
+) -> bool:
+    """Signal Worker Trade-Approval Summary -> #etoro-trades.
+
+    approved_trades: list of dicts with keys:
+        symbol, amount_usd, signal_type, conviction, score, signal_price
+    """
+    n = len(approved_trades)
+
+    fields = []
+    for t in approved_trades:
+        sig   = t.get("signal_type") or "?"
+        conv  = t.get("conviction") or "?"
+        amt   = float(t.get("amount_usd") or 0)
+        score = float(t.get("score") or 0)
+        sp    = t.get("signal_price")
+        price_str = f" @ ${sp:.4f}" if sp else ""
+        sig_parts = [p.replace("_", " ").title() for p in sig.split("+")[:2]]
+        sig_short = " + ".join(sig_parts)
+        fields.append({
+            "name":   f"\U0001f4c8 {t['symbol']}",
+            "value":  f"`BUY ${amt:,.0f}`{price_str} | {sig_short} | {conv} | Score `{score:.2f}`",
+            "inline": False,
+        })
+
+    cash_pct = (cash / equity * 100) if equity > 0 else 0.0
+    exp_pct  = (total_exposure / equity * 100) if equity > 0 else 0.0
+    fields.append({
+        "name":   "\U0001f4bc Portfolio",
+        "value":  (
+            f"{position_count} Positionen | "
+            f"Exposure `${total_exposure:,.0f}` ({exp_pct:.1f}%) | "
+            f"Cash `${cash:,.0f}` ({cash_pct:.1f}%)"
+        ),
+        "inline": False,
+    })
+
+    embed = {
+        "title":       f"\U0001f4c8 Signal Worker \u2014 {n} Trade{'s' if n != 1 else ''} genehmigt",
+        "description": (
+            f"Regime: **{regime}** \u00b7 Scalar: `{risk_scalar:.2f}` \u00b7 "
+            f"{evaluated_count} evaluiert \u2192 **{n} approved**"
+        ),
+        "color":       COLOR_GREEN,
+        "fields":      fields,
+        "footer":      {"text": "eToro RoBoCop \u00b7 Signal Worker"},
+        "timestamp":   _ts(),
+    }
+    ok = _post_embed(embed, DISCORD_TRADE_CHANNEL, dry_run)
+    if ok:
+        syms = ", ".join(t["symbol"] for t in approved_trades)
+        insert_system_log("INFO", "discord_embeds", f"P17 Signal Worker: {n} approved ({syms})")
+    return ok
