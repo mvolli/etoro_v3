@@ -39,7 +39,7 @@ import yaml  # type: ignore[import]
 
 from bot.api.client import APIError, ClientConfig, EToroClient
 from bot.api.instruments import get_instrument_map
-from bot.core.regime import detect_regime
+from bot.core.regime import detect_regime, update_regime
 from bot.db.connection import DB
 from bot.db.repo import LogRepo, PortfolioRepo, StateRepo, TradeRepo
 
@@ -1013,17 +1013,13 @@ def main() -> int:
             peak_equity = current_equity
     
         # ── 12. Update regime ─────────────────────────────────────────────────────
+        # fix/reconciler-regime-consistency: use update_regime() (same as
+        # risk_worker) for consistent 30-day rolling-peak drawdown and
+        # automatic RISK_SCALAR update.
         drawdown_pct = 0.0
         try:
-            previous_regime = state_repo.get_regime()
-            regime, regime_reason = detect_regime(current_equity, peak_equity, previous_regime)
-            state_repo.set_regime(regime)
-            state_repo.set("DRAWDOWN_REASON", regime_reason)
-    
-            # Also persist drawdown pct
-            if peak_equity > 0:
-                drawdown_pct = ((peak_equity - current_equity) / peak_equity) * 100.0
-                state_repo.set("DRAWDOWN_PCT", f"{drawdown_pct:.4f}")
+            regime, _ = update_regime(state_repo, current_equity)
+            drawdown_pct = float(state_repo.get("DRAWDOWN_PCT") or 0.0)
         except Exception as exc:
             msg = f"Failed to update regime: {exc}"
             logger.warning(f"[{WORKER_NAME}] WARNING: {msg}")

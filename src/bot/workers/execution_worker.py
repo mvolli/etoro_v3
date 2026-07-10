@@ -636,6 +636,40 @@ def main() -> None:
                     confirmed_at=_utcnow(),
                 )
                 filled_count += 1
+
+                # ── Strategy-Tagging: scalp vs. swing basierend auf Signal-Typ ────────
+                # Scalp (Mean-Reversion): frühe ATR×2-Profit-Stufe (min 2%)
+                # Swing (Trend-Following): Standard ATR×6/10/18 Profit-Leiter
+                _SCALP_SIGNAL_TYPES = frozenset({
+                    "BB_LOWER_RSI_OVERSOLD", "BB_EXTREME_RSI_OVERSOLD",
+                    "RSI_EXTREME_OVERSOLD", "BB_LOW_MACD_IMPROVING",
+                })
+                try:
+                    _signal_id = trade.get("signal_id")
+                    _sig_type = ""
+                    if _signal_id:
+                        _sig_row = db.fetchone(
+                            "SELECT signal_type FROM signals WHERE id = ?", (_signal_id,)
+                        )
+                        if _sig_row:
+                            _sig_type = str(_sig_row["signal_type"] or "")
+                    _strategy = (
+                        "scalp"
+                        if any(s in _sig_type for s in _SCALP_SIGNAL_TYPES)
+                        else "swing"
+                    )
+                    from bot.core.trailing_stop import set_strategy as _set_strategy
+                    _set_strategy(db, api_position_id, symbol, _strategy)
+                    logger.info(
+                        "ExecutionWorker: %s strategy=%s (signal_type=%s)",
+                        symbol, _strategy, _sig_type[:60] or "unbekannt",
+                    )
+                except Exception as _strat_exc:
+                    logger.debug(
+                        "ExecutionWorker: strategy-tagging fehlgeschlagen für %s — %s",
+                        symbol, _strat_exc,
+                    )
+
     
                 fill_info = {
                     "trade_id": trade_id,

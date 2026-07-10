@@ -1,16 +1,20 @@
 {
-  "updated_at": "2026-07-09T13:46:36.118464+00:00",
-  "auto_expires_at": "2026-07-16T13:46:36.118475+00:00",
-  "exchanges": [
-    ".DE",
-    ".HE",
-    ".ST",
-    "_FOREX",
-    "_FUT"
-  ],
+  "updated_at": "2026-07-10T01:21:03.825326+00:00",
+  "auto_expires_at": "2026-07-17T01:21:03.825311+00:00",
+  "exchanges": [],
   "caution_exchanges": [],
   "symbols": [],
   "stats": {
+    ".PA": {
+      "total": 8,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    ".MI": {
+      "total": 2,
+      "ghost": 0,
+      "rate": 0.0
+    },
     ".L": {
       "total": 34,
       "ghost": 3,
@@ -18,11 +22,6 @@
     },
     "_OTHER": {
       "total": 33,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    ".PA": {
-      "total": 6,
       "ghost": 0,
       "rate": 0.0
     },
@@ -62,5 +61,5 @@
       "rate": 0.0
     }
   },
-  "reason": "CAUTION-Regime bestätigt: Ghost-Raten sinken stabil, keine Exchange-Blöcke nötig. Schwächelnde Signale wie GOLDEN_CROSS (allein) und TREND_PULLBACK müssen gewichtet werden. VERY_HIGH Conviction Trades in BB/RSI-Strategie verzeichnen aktuell Verluste, SL-Check empfohlen."
+  "reason": "Das Portfolio befindet sich im NORMAL-Regime mit 9343.45 Equity. Die Ghost-Raten sind allgemein fallend, strukturelle Bloecke bleiben stabil. Besonders das Signal 'TREND_PULLBACK' scheitert isoliert fast immer (98% Failure), w\u00e4hrend 'BB_LOWER_RSI_OVERSOLD' in Kombination mit RSI/MACD zwar h\u00e4ufig, aber oft mit Verlusten schlie\u00dft. Slippage-Probleme konzentrieren sich auf .L-Symbole."
 }

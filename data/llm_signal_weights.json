@@ -1,31 +1,41 @@
 {
-  "updated_at": "2026-07-09T14:30:00.000000+00:00",
-  "auto_expires_at": "2026-07-23T13:46:36.119667+00:00",
-  "adjustments": {
-    "GOLDEN_CROSS": {
-      "score_multiplier": 0.5,
-      "skip": false,
-      "reason": "0% Success isoliert, aber 0.2 war zu aggressiv. In Kombination mit MACD/RSI funktioniert es besser. 0.5 als Kompromiss."
+    "updated_at": "2026-07-10T01:13:10.372261+00:00",
+    "auto_expires_at": "2026-07-24T01:13:10.372270+00:00",
+    "adjustments": {
+        "TREND_PULLBACK": {
+            "score_multiplier": 0.4,
+            "skip": false,
+            "reason": "Isoliert fast immer fehlschlagend (98% Failure), Gewicht senken bis Filterung durch GOLDEN_CROSS erzwungen wird."
+        },
+        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD": {
+            "score_multiplier": 0.6,
+            "skip": false,
+            "reason": "Hohe Signalfrequenz, aber niedrige Success-Rate (38%) und negative PnL-Durchschnitte; Conviction gewichten."
+        },
+        "TREND_PULLBACK,GOLDEN_CROSS": {
+            "score_multiplier": 1.5,
+            "skip": false,
+            "reason": "Einzige TREND_PULLBACK-Kombination mit 0% Failure-Rate (n=1). Boost um Prioritaet zu erhohen."
+        },
+        "GOLDEN_CROSS": {
+            "score_multiplier": 0.4,
+            "skip": false,
+            "reason": "100% isolated failure rate (8/8 FAILED). Isoliert fast immer Ghost-Order oder falsches Timing."
+        },
+        "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": {
+            "score_multiplier": 0.5,
+            "skip": false,
+            "reason": "92.3% failure rate (12/13 FAILED), avg_pnl=-2.49%. Nur 1 closed trade — instabil."
+        }
     },
-    "TREND_PULLBACK": {
-      "score_multiplier": 0.6,
-      "skip": false,
-      "reason": "63.6% Fail-Rate (28/44). MACD-Histogramm > 0 als Best\u00e4tigung erh\u00f6ht Trefferquote."
-    },
-    "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD": {
-      "score_multiplier": 0.6,
-      "skip": false,
-      "reason": "Niedrige Success Rate (38%) und negative PnL bei Closed Trades, SL-\u00dcberwachung erforderlich."
-    }
-  },
-  "strategy_notes": [
-    "MACD_TURN_BELOW_SMA20 in Kombination mit BB_LOW_MACD_IMPROVING bleibt das robusteste Signal im CAUTION-Regime.",
-    "GOLDEN_Cross sollte nicht mehr als alleiniges Entry-Signal genutzt werden.",
-    "GOLDEN_CROSS score_multiplier von 0.2 auf 0.5 erh\u00f6ht \u2014 zu aggressiv gedrosselt, in Kombination brauchbar.",
-    "TREND_PULLBACK score_multiplier von 0.5 auf 0.6 erh\u00f6ht \u2014 MACD-Histogramm > 0 als implizite Best\u00e4tigung."
-  ],
-  "conviction_issues": [
-    "VERY_HIGH Conviction bei BB/RSI-Strategie hat 80% Verlustrate bei abgeschlossenen Trades (avg PnL -0.45% bis -5.49%)",
-    "HIGH Conviction bei TREND_PULLBACK f\u00fchrt oft zu schnellen Stops (avg PnL -3.09% bei Einzeltrade)"
-  ]
+    "strategy_notes": [
+        "TREND_PULLBACK nur noch in Kombination mit GOLDEN_CROSS aktivieren, um False-Positives zu minimieren.",
+        "VERY_HIGH Conviction Trades (BB/RSI) benötigen strengeres Exit-Management aufgrund der hohen Verlustquote bei geschlossenen Trades.",
+        "Slippage bei .L-Symbolen (z.B. THRU.L, SALT.L) durch engeres Limit-Order-Management oder höhere SL-Puffer kompensieren.",
+        "2026-07-10 Self-Improvement: TREND_PULLBACK+GOLDEN_CROSS mit 1.5x boosted (0% fail). GOLDEN_CROSS isoliert auf 0.4x gesenkt (100% fail). MACD_TURN+BB_LOW_MACD auf 0.5x gesenkt (92.3% fail)."
+    ],
+    "conviction_issues": [
+        "VERY_HIGH Conviction (BB/RSI) hat bei geschlossenen Trades eine 100% Verlustquote (n=7, avg_pnl 0.0, aber viele kleine Verluste)",
+        "HIGH Conviction (TREND_PULLBACK) isoliert: 88% Failure-Rate (28 FAILED, 15 REJECTED, 1 CLOSED)"
+    ]
 }

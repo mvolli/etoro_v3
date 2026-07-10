@@ -308,3 +308,53 @@
 - Alle Ghost-Rates fallen tendenziell, keine strukturellen Exchange-Blöcke aktiv
 
 **LLM-Fazit:** CAUTION-Regime bestätigt: Ghost-Raten sinken stabil, keine Exchange-Blöcke nötig. Schwächelnde Signale wie GOLDEN_CROSS (allein) und TREND_PULLBACK müssen gewichtet werden. VERY_HIGH Conviction Trades in BB/RSI-Strategie verzeichnen aktuell Verluste, SL-Check empfohlen.
+
+## 2026-07-09 18:00 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `.L`: 9% (3/34) ← GEBLOCKT
+- `.PA`: 0% (0/8) ← GEBLOCKT
+- `.MI`: 0% (0/2)
+- `_OTHER`: 0% (0/33)
+- `.DE`: 0% (0/2) ← GEBLOCKT
+- `_ASIA`: 0% (0/7)
+- `.HK`: 0% (0/43) ← GEBLOCKT
+- `.AX`: 0% (0/12) ← GEBLOCKT
+- `.T`: 0% (0/2)
+- `_CRYPTO`: 0% (0/69)
+- `_FOREX`: 0% (0/3) ← GEBLOCKT
+
+**Symbol-Blacklist:** .AX, .DE, .HK, .L, .PA
+
+**Schwache Signaltypen:** BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD, BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING, TREND_PULLBACK, MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING
+
+**Anomalien:**
+- VERY_HIGH Conviction Signale (BB/RSI) zeigen 0 Wins in PnL-Daten trotz 38% Success Rate (viele Closed/Failed)
+- TREND_PULLBACK hat extrem hohe Fail-Rate (28/44) bei nur 2% Success Rate
+- Slippage-Rejects konzentrieren sich auf .L Suffix
+
+**LLM-Fazit:** CAUTION-Regime: Ghost-Raten sinken stabil, aber Signale mit 'VERY_HIGH' Conviction (RSI/BB) verlieren massiv an Effizienz. TREND_PULLBACK ist ineffektiv. MACD-Kombis bleiben stabil. SL leicht anziehen.
+
+## 2026-07-10 01:13 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `.L`: 9% (3/34) ← GEBLOCKT
+- `.PA`: 0% (0/8) ← GEBLOCKT
+- `.MI`: 0% (0/2)
+- `_OTHER`: 0% (0/33)
+- `.DE`: 0% (0/2) ← GEBLOCKT
+- `_ASIA`: 0% (0/7)
+- `.HK`: 0% (0/43) ← GEBLOCKT
+- `.AX`: 0% (0/12) ← GEBLOCKT
+- `.T`: 0% (0/2)
+- `_CRYPTO`: 0% (0/69)
+- `_FOREX`: 0% (0/3) ← GEBLOCKT
+
+**Schwache Signaltypen:** BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD, BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING, TREND_PULLBACK, MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING
+
+**Anomalien:**
+- TREND_PULLBACK isoliert: 98% Failure-Rate, nur mit GOLDEN_CROSS erfolgreich
+- VERY_HIGH Conviction (BB/RSI): Hohe Verlustquote trotz hoher Signaldichte
+- Slippage-Rejects dominieren .L Exchange (10 Symbole)
+
+**LLM-Fazit:** Das Portfolio befindet sich im NORMAL-Regime mit 9343.45 Equity. Die Ghost-Raten sind allgemein fallend, strukturelle Bloecke bleiben stabil. Besonders das Signal 'TREND_PULLBACK' scheitert isoliert fast immer (98% Failure), während 'BB_LOWER_RSI_OVERSOLD' in Kombination mit RSI/MACD zwar häufig, aber oft mit Verlusten schließt. Slippage-Probleme konzentrieren sich auf .L-Symbole.

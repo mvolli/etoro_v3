@@ -132,6 +132,26 @@
         "GOLDEN_CROSS Performance nach score_multiplier-Erhöhung beobachten",
         "Signal-Type Cooldown default (60min) in system_state persistieren"
       ]
+    },
+    {
+      "timestamp": "2026-07-10T01:16:30.553320+00:00",
+      "analysis": {
+        "total_trades": 180,
+        "failure_rate": "70% (126 FAILED / 54 CLOSED)",
+        "worst_signals": {
+          "GOLDEN_CROSS": "100% FAILED (8/8)",
+          "TREND_PULLBACK": "96.6% FAILED (28/29)",
+          "MACD_TURN+BB_LOW_MACD": "92.3% FAILED (12/13), avg_pnl=-2.49%"
+        },
+        "best_signal": "TREND_PULLBACK+GOLDEN_CROSS: 0% FAILED (1/1)"
+      },
+      "changes": [
+        "TREND_PULLBACK+GOLDEN_CROSS: Score-Boost 1.5x (0% fail rate)",
+        "GOLDEN_CROSS isoliert: Score-Senkung 0.4x (100% fail)",
+        "MACD_TURN_BELOW_SMA20+BB_LOW_MACD_IMPROVING: Score-Senkung 0.5x (92.3% fail)"
+      ],
+      "tests": "373 passed",
+      "next_focus": "GOLDEN_CROSS in Kombination mit MACD_TURN_BELOW_SMA20 testen (bisher nicht im Dataset)"
     }
   ],
   "decision_outcomes": [
@@ -144,12 +164,12 @@
   "runs": [
     {
       "date": "2026-07-09",
-      "closed_trades": 11,
-      "insights": 2,
+      "closed_trades": 12,
+      "insights": 3,
       "adjustments": [
-        "GOLDEN_CROSS",
+        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD",
         "TREND_PULLBACK",
-        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD"
+        "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING"
       ]
     },
     {
@@ -190,6 +210,15 @@
         "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD",
         "GOLDEN_CROSS",
         "TREND_PULLBACK"
+      ]
+    },
+    {
+      "date": "2026-07-10",
+      "closed_trades": 12,
+      "insights": 3,
+      "adjustments": [
+        "TREND_PULLBACK",
+        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD"
       ]
     }
   ],
@@ -242,6 +271,18 @@
         "score_multiplier": 0.5,
         "skip": false,
         "reason": "Hohe Fail-Rate (28/44), nur bei zusätzlicher Bestätigung (z.B. MACD Turn) gewichten."
+      },
+      {
+        "date": "2026-07-09",
+        "score_multiplier": 0.5,
+        "skip": false,
+        "reason": "Extrem niedrige Success Rate (2%) und hohe Fail-Rate. Nur noch in Kombination mit GOLDEN_CROSS nutzen."
+      },
+      {
+        "date": "2026-07-10",
+        "score_multiplier": 0.4,
+        "skip": false,
+        "reason": "Isoliert fast immer fehlschlagend (98% Failure), Gewicht senken bis Filterung durch GOLDEN_CROSS erzwungen wird."
       }
     ],
     "GOLDEN_CROSS": [
@@ -303,12 +344,6 @@
     "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD": [
       {
         "date": "2026-07-09",
-        "score_multiplier": 0.5,
-        "skip": false,
-        "reason": "Niedrige Success Rate (23%) und negative PnL bei sehr hohen Volumen."
-      },
-      {
-        "date": "2026-07-09",
         "score_multiplier": 0.6,
         "skip": false,
         "reason": "40% Success Rate, aber viele Failed Trades (-4.17% avg PnL), Konfirmation durch MACD nötig"
@@ -354,6 +389,18 @@
         "score_multiplier": 0.6,
         "skip": false,
         "reason": "Niedrige Success Rate (38%) und negative PnL bei Closed Trades, SL-Überwachung erforderlich."
+      },
+      {
+        "date": "2026-07-09",
+        "score_multiplier": 0.6,
+        "skip": false,
+        "reason": "Hohe Fail-Rate (54) und negative PnL-Daten bei CLOSED Trades. Gewicht senken."
+      },
+      {
+        "date": "2026-07-10",
+        "score_multiplier": 0.6,
+        "skip": false,
+        "reason": "Hohe Signalfrequenz, aber niedrige Success-Rate (38%) und negative PnL-Durchschnitte; Conviction gewichten."
       }
     ],
     "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": [
@@ -374,6 +421,12 @@
         "score_multiplier": 1.2,
         "skip": false,
         "reason": "Bestes Signal im CAUTION-Regime, trotz niedriger Success Rate (0.08) positive PnL bei Closed Trades."
+      },
+      {
+        "date": "2026-07-09",
+        "score_multiplier": 1.2,
+        "skip": false,
+        "reason": "Stabilstes Signal im CAUTION-Regime, trotz niedriger Success Rate (8%) positive PnL-Historie bei Closed Trades."
       }
     ],
     "MACD_TURN_BELOW_SMA20": [
@@ -397,7 +450,8 @@
     "GOLDEN_CROSS ist im aktuellen Marktumfeld ineffizient (100% Failed); nicht als alleiniges Entry nutzen.",
     "MACD_TURN_BELOW_SMA20 in Kombination mit BB_LOW_MACD_IMPROVING ist das stabilste Signal im CAUTION-Regime.",
     "Forex-Paare (EURGBP, EURJPY) sollten nur bei hoher Liquidität oder mit erweitertem SL gehandelt werden.",
-    "GOLDEN_Cross nicht als alleiniges Entry-Signal nutzen, sondern nur in Kombination mit MACD/RSI."
+    "GOLDEN_Cross nicht als alleiniges Entry-Signal nutzen, sondern nur in Kombination mit MACD/RSI.",
+    "TREND_PULLBACK nur noch mit GOLDEN_CROSS-Filter verwenden, da isoliert fast immer fehlschlaegt."
   ],
   "config_history": [
     {
@@ -528,6 +582,38 @@
         ".L": 0.09,
         "_OTHER": 0.0,
         ".PA": 0.0,
+        ".DE": 0.0,
+        "_ASIA": 0.0,
+        ".HK": 0.0,
+        ".AX": 0.0,
+        ".T": 0.0,
+        "_CRYPTO": 0.0,
+        "_FOREX": 0.0
+      }
+    },
+    {
+      "ts": "2026-07-09T18:00:52.304479+00:00",
+      "rates": {
+        ".PA": 0.0,
+        ".MI": 0.0,
+        ".L": 0.09,
+        "_OTHER": 0.0,
+        ".DE": 0.0,
+        "_ASIA": 0.0,
+        ".HK": 0.0,
+        ".AX": 0.0,
+        ".T": 0.0,
+        "_CRYPTO": 0.0,
+        "_FOREX": 0.0
+      }
+    },
+    {
+      "ts": "2026-07-10T01:13:10.370825+00:00",
+      "rates": {
+        ".PA": 0.0,
+        ".MI": 0.0,
+        ".L": 0.09,
+        "_OTHER": 0.0,
         ".DE": 0.0,
         "_ASIA": 0.0,
         ".HK": 0.0,

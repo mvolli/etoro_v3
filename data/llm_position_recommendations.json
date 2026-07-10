@@ -1,0 +1,116 @@
+[
+  {
+    "symbol": "1929.HK",
+    "recommendation": "HOLD",
+    "reason": "Signal MACD_TURN_BELOW_SMA20,TREND_PULLBACK hat gute historische Performance (67% WR), obwohl aktuell im Minus.",
+    "ts": "2026-07-10T02:09:58"
+  },
+  {
+    "symbol": "CIV.PA",
+    "recommendation": "HOLD",
+    "reason": "Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD hat 0% WR, aber nur 7 Trades (n>=3) und aktuell profitabel (+0.4%).",
+    "ts": "2026-07-10T02:09:58"
+  },
+  {
+    "symbol": "LHYFE.PA",
+    "recommendation": "HOLD",
+    "reason": "Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING hat 0% WR, aber nur 2 Trades (<3) → zu wenig Daten.",
+    "ts": "2026-07-10T02:09:58"
+  },
+  {
+    "symbol": "ALHRS.PA",
+    "recommendation": "HOLD",
+    "reason": "Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD hat 0% WR, aber nur 7 Trades (n>=3) und aktuell profitabel (+2.9%).",
+    "ts": "2026-07-10T02:09:58"
+  },
+  {
+    "symbol": "UBER",
+    "recommendation": "HOLD",
+    "reason": "Signal TREND_PULLBACK,GOLDEN_CROSS ist nicht in Historie, aber aktuell profitabel (+1.6%).",
+    "ts": "2026-07-10T02:09:58"
+  },
+  {
+    "symbol": "2020.OL",
+    "recommendation": "HOLD",
+    "reason": "Signal UNBEKANNT, zu wenig Daten. Aktuell im Minus (-1.8%), aber kein schlechter historischer Typ.",
+    "ts": "2026-07-10T02:09:58"
+  },
+  {
+    "symbol": "PNI.ASX",
+    "recommendation": "HOLD",
+    "reason": "Signal UNBEKANNT, zu wenig Daten. Aktuell profitabel (+2.7%).",
+    "ts": "2026-07-10T02:09:58"
+  },
+  {
+    "symbol": "RWAY.MI",
+    "recommendation": "HOLD",
+    "reason": "Signal BB_LOWER_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING hat 0% WR, aber nur 2 Trades (<3) → zu wenig Daten.",
+    "ts": "2026-07-10T02:09:58"
+  },
+  {
+    "symbol": "ROVI.MC",
+    "recommendation": "HOLD",
+    "reason": "Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,GOLDEN_CROSS ist nicht in Historie, aktuell bei 0% PnL.",
+    "ts": "2026-07-10T02:09:58"
+  },
+  {
+    "symbol": "AB.PA",
+    "recommendation": "HOLD",
+    "reason": "Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD hat 0% WR, aber nur 7 Trades (n>=3) und aktuell profitabel (+0.0%).",
+    "ts": "2026-07-10T02:09:58"
+  },
+  {
+    "symbol": "ALHRS.PA",
+    "recommendation": "HOLD",
+    "reason": "Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD hat 0% WR, aber nur 7 Trades (n>=3) und aktuell profitabel (+2.9%).",
+    "ts": "2026-07-10T02:09:58"
+  },
+  {
+    "symbol": "BABA",
+    "recommendation": "HOLD",
+    "reason": "Signal BB_LOWER_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING hat 0% WR, aber nur 2 Trades (<3) → zu wenig Daten. Stark profitabel (+20.0%).",
+    "ts": "2026-07-10T02:09:58"
+  },
+  {
+    "symbol": "BTC-USD",
+    "recommendation": "HOLD",
+    "reason": "Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD hat 0% WR, aber nur 7 Trades (n>=3) und profitabel (+9.2%).",
+    "ts": "2026-07-10T02:09:58"
+  },
+  {
+    "symbol": "CVX.US",
+    "recommendation": "HOLD",
+    "reason": "Signal BB_LOWER_RSI_OVERSOLD,MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING ist nicht in Historie, profitabel (+3.8%).",
+    "ts": "2026-07-10T02:09:58"
+  },
+  {
+    "symbol": "SSS_3000",
+    "recommendation": "HOLD",
+    "reason": "Signal UNBEKANNT, zu wenig Daten. Profitabel (+3.3%).",
+    "ts": "2026-07-10T02:09:58"
+  },
+  {
+    "symbol": "SB1.DE",
+    "recommendation": "HOLD",
+    "reason": "Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD ist nicht in Historie, profitabel (+0.9%).",
+    "ts": "2026-07-10T02:09:58"
+  },
+  {
+    "symbol": "META",
+    "recommendation": "HOLD",
+    "reason": "Signal UNBEKANNT, zu wenig Daten. Stark profitabel (+14.2%).",
+    "ts": "2026-07-10T02:09:58"
+  },
+  {
+    "symbol": "RTX",
+    "recommendation": "HOLD",
+    "reason": "Signal UNBEKANNT, zu wenig Daten. Profitabel (+4.4% bis +6.1%).",
+    "ts": "2026-07-10T02:09:58"
+  },
+  {
+    "symbol": "KTA.DE",
+    "recommendation": "HOLD",
+    "reason": "Signal UNBEKANNT, zu wenig Daten. Stark profitabel (+22.9%).",
+    "ts": "2026-07-10T02:09:58"
+  }
+]

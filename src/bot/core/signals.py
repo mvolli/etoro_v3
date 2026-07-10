@@ -206,6 +206,17 @@ def compute_indicators(df: pd.DataFrame) -> dict:
     except Exception:
         pass
 
+    # Volume Ratio (current vol vs. 20-day avg)
+    # vol_ratio > 1.5 during a price decline = distribution (institutions selling)
+    # vol_ratio < 1.5 = volume exhausted → potential bottom
+    try:
+        vol = df["Volume"]
+        vol_avg20 = float(vol.rolling(20).mean().iloc[-1])
+        if vol_avg20 > 0:
+            indicators["vol_ratio"] = float(vol.iloc[-1] / vol_avg20)
+    except Exception:
+        pass
+
     return indicators
 
 
@@ -215,13 +226,13 @@ def generate_signal(symbol: str, indicators: dict) -> SignalResult:
     """Apply Trading Bible V4 signal rules to computed indicators.
 
     Rules (BUY):
-    1. BB Lower + RSI < 30 → VERY_HIGH
-    2. BB %B < 0.05 + RSI < 30 → VERY_HIGH
-    3. RSI < 25 → HIGH
+    1. BB Lower + RSI < 30 + price > SMA50 + vol_ratio < 1.5 → VERY_HIGH
+    2. BB %B < 0.05 + RSI < 30 + price > SMA50 + vol_ratio < 1.5 → VERY_HIGH
+    3. RSI < 25 → HIGH (MEDIUM wenn price < SMA50 * 0.90, tief im Downtrend)
     4. MACD histogram increasing + below SMA20 → MEDIUM
     5. BB %B < 0.1 + MACD improving → MEDIUM-HIGH
     6. Trend pullback: above SMA50, near/below SMA20, RSI 35-55 → HIGH
-    7. Golden Cross: SMA50 > SMA20 + MACD positive + RSI < 60 → HIGH
+    7. Golden Cross: SMA20 > SMA50 + MACD positive + RSI < 60 → HIGH  (fix: war invertiert)
 
     Rules (SELL):
     1. BB Upper + RSI > 70 → SELL / take profits
@@ -239,19 +250,30 @@ def generate_signal(symbol: str, indicators: dict) -> SignalResult:
 
     # ── BUY Rules ───────────────────────────────────────────────────────────
 
-    # Rule 1: BB Lower + RSI extreme
-    if bb_pct is not None and rsi is not None:
-        if bb_pct < 0.1 and rsi < RSI_OVERSOLD:
+    # Rule 1: BB Lower + RSI extreme — nur im Aufwärtstrend (price > sma50)
+    # + Volume nicht in Distribution (vol_ratio < 1.5 = kein Ausverkaufs-Volumen)
+    vol_ratio = indicators.get("vol_ratio", 1.0)
+    if bb_pct is not None and rsi is not None and sma50 is not None:
+        if (bb_pct < 0.1 and rsi < RSI_OVERSOLD
+                and price > sma50           # Aufwärtstrend-Filter
+                and vol_ratio < 1.5):       # kein Distributions-Volumen
             signals.append(("BB_LOWER_RSI_OVERSOLD", CONVICTION_VERY_HIGH, 35.0))
 
-    # Rule 2: BB extreme + RSI extreme
-    if bb_pct is not None and rsi is not None:
-        if bb_pct < BB_LOWER_EXTREME and rsi < RSI_OVERSOLD:
+    # Rule 2: BB extreme + RSI extreme — nur im Aufwärtstrend
+    if bb_pct is not None and rsi is not None and sma50 is not None:
+        if (bb_pct < BB_LOWER_EXTREME and rsi < RSI_OVERSOLD
+                and price > sma50           # Aufwärtstrend-Filter
+                and vol_ratio < 1.5):       # kein Distributions-Volumen
             signals.append(("BB_EXTREME_RSI_OVERSOLD", CONVICTION_VERY_HIGH, 40.0))
 
-    # Rule 3: RSI extreme oversold
+    # Rule 3: RSI extreme oversold — Conviction hängt vom Trend ab.
+    # Tief im Downtrend (price < sma50 * 0.90) = MEDIUM (Vorsicht: weitere Verluste möglich)
+    # Nahe oder über SMA50 = HIGH (kurzfristige Übertreibung, Erholung wahrscheinlicher)
     if rsi is not None and rsi < RSI_EXTREME_OVERSOLD:
-        signals.append(("RSI_EXTREME_OVERSOLD", CONVICTION_HIGH, 25.0))
+        if sma50 is not None and price < sma50 * 0.90:
+            signals.append(("RSI_EXTREME_OVERSOLD", CONVICTION_MEDIUM, 15.0))
+        else:
+            signals.append(("RSI_EXTREME_OVERSOLD", CONVICTION_HIGH, 25.0))
 
     # Rule 4: MACD turning + below SMA20
     if macd_hist is not None and macd_hist_prev is not None:
@@ -274,9 +296,11 @@ def generate_signal(symbol: str, indicators: dict) -> SignalResult:
                 and macd_hist > -0.01):  # MACD Floor: nicht im starken Abwärtstrend
             signals.append(("TREND_PULLBACK", CONVICTION_HIGH, 20.0))
 
-    # Rule 7: Golden Cross
+    # Rule 7: Golden Cross — schnellerer MA (SMA20) über langsamerem MA (SMA50).
+    # fix/golden-cross-direction: war sma50 > sma20 (= Death-Cross-Struktur, BEARISH).
+    # Echter Golden Cross = SMA20 > SMA50 (kurze MA hat lange MA überholt → BULLISH).
     if all(x is not None for x in [sma20, sma50, macd_hist, rsi]):
-        if sma50 > sma20 and macd_hist > 0 and rsi < 60:
+        if sma20 > sma50 and macd_hist > 0 and rsi < 60:
             signals.append(("GOLDEN_CROSS", CONVICTION_HIGH, 18.0))
 
     # ── SELL Rules ──────────────────────────────────────────────────────────

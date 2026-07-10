@@ -1128,5 +1128,90 @@
     "outcome": null,
     "outcome_grade": null,
     "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T18:00:52.305851+00:00",
+    "type": "signal_weight",
+    "key": "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.6,
+      "skip": false,
+      "reason": "Hohe Fail-Rate (54) und negative PnL-Daten bei CLOSED Trades. Gewicht senken."
+    },
+    "reason": "Hohe Fail-Rate (54) und negative PnL-Daten bei CLOSED Trades. Gewicht senken.",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T18:00:52.308072+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "Extrem niedrige Success Rate (2%) und hohe Fail-Rate. Nur noch in Kombination mit GOLDEN_CROSS nutzen."
+    },
+    "reason": "Extrem niedrige Success Rate (2%) und hohe Fail-Rate. Nur noch in Kombination mi",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-09",
+    "timestamp": "2026-07-09T18:00:52.309366+00:00",
+    "type": "signal_weight",
+    "key": "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 1.2,
+      "skip": false,
+      "reason": "Stabilstes Signal im CAUTION-Regime, trotz niedriger Success Rate (8%) positive PnL-Historie bei Closed Trades."
+    },
+    "reason": "Stabilstes Signal im CAUTION-Regime, trotz niedriger Success Rate (8%) positive ",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-10",
+    "timestamp": "2026-07-10T01:13:10.373583+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.4,
+      "skip": false,
+      "reason": "Isoliert fast immer fehlschlagend (98% Failure), Gewicht senken bis Filterung durch GOLDEN_CROSS erzwungen wird."
+    },
+    "reason": "Isoliert fast immer fehlschlagend (98% Failure), Gewicht senken bis Filterung du",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-10",
+    "timestamp": "2026-07-10T01:13:10.376589+00:00",
+    "type": "signal_weight",
+    "key": "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.6,
+      "skip": false,
+      "reason": "Hohe Signalfrequenz, aber niedrige Success-Rate (38%) und negative PnL-Durchschnitte; Conviction gewichten."
+    },
+    "reason": "Hohe Signalfrequenz, aber niedrige Success-Rate (38%) und negative PnL-Durchschn",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
   }
 ]
