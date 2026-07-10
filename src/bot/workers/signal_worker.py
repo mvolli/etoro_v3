@@ -270,8 +270,7 @@ def main() -> None:
         min_conviction_for_regime = get_min_conviction(regime)
     
         # Log regime status
-        print(f"SignalWorker: regime={regime} risk_scalar={risk_scalar:.2f} "
-              f"min_conviction={min_conviction_for_regime}")
+        logger.debug("SignalWorker: regime=%s risk_scalar=%.2f min_conviction=%s", regime, risk_scalar, min_conviction_for_regime)
         log_repo.write("INFO", "signal_worker",
                        f"Regime: {regime} | scalar={risk_scalar:.2f} | min={min_conviction_for_regime}")
     
@@ -308,7 +307,7 @@ def main() -> None:
 
         if not buy_signals:
             logger.info("SignalWorker: no fresh BUY signals with %s+ conviction", min_conviction_for_regime)
-            print(f"SignalWorker: 0 signals evaluated, 0 trades approved")
+            logger.debug("SignalWorker: 0 signals evaluated, 0 trades approved")
             log_repo.write("INFO", "signal_worker",
                            f"No fresh BUY signals with {min_conviction_for_regime}+ conviction")
             return
@@ -717,7 +716,10 @@ def main() -> None:
                 )
     
         # ── 6. Summary ────────────────────────────────────────────────────────────
-        print(f"SignalWorker: {evaluated_count} signals evaluated, {approved_count} trades approved")
+        if approved_count > 0:
+            print(f"SignalWorker: {evaluated_count} signals evaluated, {approved_count} trades approved")
+        else:
+            logger.debug("SignalWorker: %d signals evaluated, 0 trades approved", evaluated_count)
         log_repo.write(
             "INFO",
             "signal_worker",

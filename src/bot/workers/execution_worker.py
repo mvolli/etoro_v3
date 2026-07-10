@@ -276,7 +276,7 @@ def main() -> None:
     
         if not approved_trades:
             logger.info("ExecutionWorker: no APPROVED trades to process")
-            print("ExecutionWorker: 0 trades processed, 0 filled, 0 failed")
+            logger.debug("ExecutionWorker: 0 trades processed, 0 filled, 0 failed")
             client.close()
             return
     
@@ -772,10 +772,13 @@ def main() -> None:
                 failed_count += 1
     
         # ── 4. Summary ────────────────────────────────────────────────────────────
-        print(
-            f"ExecutionWorker: {processed_count} trades processed, "
-            f"{filled_count} filled, {failed_count} failed"
-        )
+        if filled_count > 0 or failed_count > 0:
+            print(
+                f"ExecutionWorker: {processed_count} trades processed, "
+                f"{filled_count} filled, {failed_count} failed"
+            )
+        else:
+            logger.debug("ExecutionWorker: %d processed, 0 filled, 0 failed", processed_count)
         log_repo.write(
             "INFO",
             "execution_worker",

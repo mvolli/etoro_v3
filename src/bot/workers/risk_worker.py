@@ -742,7 +742,7 @@ def main() -> None:
             log_repo.write('ERROR', 'risk_worker', f'SELL-Exits crashed: {_se_exc}')
 
         # ── 5. Summary + Discord Embed ────────────────────────────────────────────
-        logger.warning("RiskWorker: checked %d positions, closed %d, regime=%s", checked_count, closed_count, regime)
+        logger.info("RiskWorker: checked %d positions, closed %d, regime=%s", checked_count, closed_count, regime)
         log_repo.write(
             "INFO",
             "risk_worker",
