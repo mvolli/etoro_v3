@@ -812,13 +812,13 @@ def execute_trailing_actions(
             # cycles enforce the entry floor via BE_CLOSE (eToro has no
             # SL-update endpoint, so this is software enforcement).
             mark_break_even_active(db, action.position_id, action.symbol)
-            print(f'[trailing] BREAK-EVEN armed: {action.symbol} {action.pnl_pct:+.1f}% — floor at entry (+{BREAK_EVEN_FLOOR_PCT:.1f}%)')
+            logger.debug('[trailing] BREAK-EVEN armed: %s %+.1f%% — floor at entry (+%.1f%%)', action.symbol, action.pnl_pct, BREAK_EVEN_FLOOR_PCT)
             stats['break_evens'] += 1
             continue
 
         if action.action == 'BE_CLOSE':
             # Loss protection — runs in ALL regimes (unlike profit-taking).
-            print(f'[trailing] BE_CLOSE: {action.symbol} {action.pnl_pct:+.1f}% — {action.reason}')
+            logger.info('[trailing] BE_CLOSE: %s %+.1f%% — %s', action.symbol, action.pnl_pct, action.reason)
             if dry_run:
                 stats['be_closes'] += 1
                 continue
@@ -861,7 +861,7 @@ def execute_trailing_actions(
             # — locking a gain that is actively fading — so it runs in ALL
             # regimes, like BE_CLOSE and SELL-exits.
             if not is_fade and regime in ('DEFENSIVE', 'CRITICAL'):
-                print(f'[trailing] PARTIAL_CLOSE skipped in {regime}: {action.symbol} {action.pnl_pct:+.1f}%')
+                logger.debug('[trailing] PARTIAL_CLOSE skipped in %s: %s %+.1f%%', regime, action.symbol, action.pnl_pct)
                 continue
 
             # ── Convert target % into absolute units (eToro API expects
@@ -884,7 +884,7 @@ def execute_trailing_actions(
                 stats['errors'].append(msg)
                 continue
 
-            print(f'[trailing] {action.action} {action.close_pct}%: {action.symbol} {action.pnl_pct:+.1f}% — {action.reason} (units={units_to_deduct:.6f})')
+            logger.info('[trailing] %s %s%%: %s %+.1f%% — %s (units=%.6f)', action.action, action.close_pct, action.symbol, action.pnl_pct, action.reason, units_to_deduct)
 
             if dry_run:
                 stats['partial_closes'] += 1
