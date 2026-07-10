@@ -749,9 +749,19 @@ def main() -> None:
             f"Run complete: checked={checked_count} closed={closed_count} regime={regime}",
         )
 
-        # ── Post Risk Worker Embed → #etoro-trading ──────────────────────────────
+        # ── Post Risk Worker Embed → nur bei Ereignissen (SL/Partials/Exits/Konzentr.)
+        # Routine-Status wird vom monitor_worker (alle 30min) übernommen.
         _ks_active = is_kill_switch_active()
-        try:
+        _has_event = (
+            closed_count > 0
+            or trailing_partial_count > 0
+            or sell_exit_closed > 0
+            or conc_closed > 0
+            or conc_warned > 0
+            or _ks_active
+        )
+        if _has_event:
+         try:
             _discord(
                 "post_risk_worker_embed",
                 checked=checked_count,
@@ -768,7 +778,7 @@ def main() -> None:
                 kill_switch_active=_ks_active,
                 positions_summary=positions_summary,
             )
-        except Exception as _emb_exc:
+         except Exception as _emb_exc:
             logger.debug("RiskWorker: Discord embed failed: %s", _emb_exc)
     
         client.close()

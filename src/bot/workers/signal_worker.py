@@ -311,15 +311,6 @@ def main() -> None:
             print(f"SignalWorker: 0 signals evaluated, 0 trades approved")
             log_repo.write("INFO", "signal_worker",
                            f"No fresh BUY signals with {min_conviction_for_regime}+ conviction")
-            _post('post_alert_embed',
-                title=f'⚪ Signal Worker: No signals ({regime})',
-                description=(
-                    f'Regime: **{regime}** | min_conviction={min_conviction_for_regime} | scalar={risk_scalar:.2f}\n'
-                    f'No fresh BUY signals found above conviction threshold.'
-                ),
-                severity='INFO',
-                dry_run=False
-            )
             return
     
         # ── 4. Current portfolio state ────────────────────────────────────────────
@@ -759,25 +750,32 @@ def main() -> None:
                 dry_run=False
             )
         elif evaluated_count > 0 and approved_count == 0:
-            # Signals evaluated but all blocked by risk gates
-            _post('post_alert_embed',
-                title=f'🟡 Signal Worker: All signals blocked ({regime})',
-                description=(
-                    f'Regime: **{regime}** | scalar={risk_scalar:.2f}\n'
-                    f'Evaluated: {evaluated_count} | Approved: 0\n'
-                    f'Equity: ${equity:,.0f} | Cash: ${cash_estimate:,.0f} ({cash_estimate/equity*100:.1f}%)\n'
-                    f'Blocked reasons:\n' + "\n".join(f'• {r}' for r in blocked_reasons[:5])
-                ),
-                severity='INFO',
-                dry_run=False
-            )
-        elif evaluated_count == 0:
-            _post('post_alert_embed',
-                title=f'⚪ Signal Worker: No signals ({regime})',
-                description=f'Regime: **{regime}** | min_conviction={min_conviction_for_regime} | scalar={risk_scalar:.2f}',
-                severity='INFO',
-                dry_run=False
-            )
+            # Throttle auf 1x/Stunde -- bei dauerhaftem Exposure-Gate kein Spam
+            try:
+                from datetime import datetime as _dt, timezone as _tz
+                _last = state_repo.get("SIGNAL_BLOCKED_POSTED_AT") or ""
+                _post_now = True
+                if _last:
+                    _last_dt = _dt.fromisoformat(_last)
+                    if _last_dt.tzinfo is None:
+                        _last_dt = _last_dt.replace(tzinfo=_tz.utc)
+                    _post_now = (_dt.now(_tz.utc) - _last_dt).total_seconds() >= 3600
+                if _post_now:
+                    state_repo.set("SIGNAL_BLOCKED_POSTED_AT", _dt.now(_tz.utc).isoformat())
+                    _post('post_alert_embed',
+                        title=f'🟡 Signal Worker: All signals blocked ({regime})',
+                        description=(
+                            f'Regime: **{regime}** | scalar={risk_scalar:.2f}\n'
+                            f'Evaluated: {evaluated_count} | Approved: 0\n'
+                            f'Equity: ${equity:,.0f} | Cash: ${cash_estimate:,.0f} ({cash_estimate/equity*100:.1f}%)\n'
+                            f'Blocked reasons:\n' + "\n".join(f'• {r}' for r in blocked_reasons[:5])
+                        ),
+                        severity='INFO',
+                        dry_run=False
+                    )
+            except Exception:
+                pass
+        # (kein Post bei 0 ausgewerteten Signalen -- monitor_worker uebernimmt Routine)
     
     
 if __name__ == "__main__":

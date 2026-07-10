@@ -855,8 +855,9 @@ def run(project_root: Path | None = None) -> dict:
         n_fetched, n_signals, elapsed, len(_FAILED_SYMBOLS_CACHE),
     )
 
-    # Discord: Data Worker Embed → #etoro-trading
-    try:
+    # Discord: Data Worker Embed → nur wenn Signale generiert wurden
+    if n_signals > 0:
+     try:
         open_regions = get_market_status()
         _post(
             "post_data_worker_embed",
@@ -873,7 +874,7 @@ def run(project_root: Path | None = None) -> dict:
             new_signals=new_signals_list,
             market_status=str(open_regions),
         )
-    except Exception as _emb_exc:
+     except Exception as _emb_exc:
         logger.debug("DataWorker: Discord embed failed: %s", _emb_exc)
 
     return {

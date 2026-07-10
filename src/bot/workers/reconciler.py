@@ -1050,8 +1050,9 @@ def main() -> int:
         except (TypeError, ValueError):
             cash_val = current_equity
 
-        # Discord embed → #etoro-trading
-        _discord(
+        # Discord embed → nur bei relevanten Ereignissen (monitor_worker übernimmt Routine)
+        if closed_trade_count > 0 or orphan_count > 0:
+         _discord(
             "post_reconciler_embed",
             equity=current_equity,
             peak_equity=peak_equity,
@@ -1063,7 +1064,7 @@ def main() -> int:
             drawdown_pct=drawdown_pct,
             available_cash=cash_val,
             positions_summary=positions_for_embed,
-        )
+         )
     
         # ── 14. Persist structured log entry ─────────────────────────────────────
         log_repo.write(

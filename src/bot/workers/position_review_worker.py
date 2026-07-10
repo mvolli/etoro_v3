@@ -299,6 +299,15 @@ def _save_and_notify(evaluations: list[dict], summary: str) -> None:
         )
     else:
         print(f"[position_review] Alle {len(holds)} Positionen: HOLD — kein Alert")
+        _discord(
+            "post_alert_embed",
+            title=f"✅ LLM Position Review — {len(holds)} x HOLD",
+            description=(
+                f"{len(holds)} offene Positionen bewertet — keine dringende Aktion.\n"
+                + (f"*{summary[:300]}*" if summary else "")
+            ),
+            severity="INFO",
+        )
 
 
 def main() -> int:
