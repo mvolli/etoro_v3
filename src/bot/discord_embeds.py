@@ -2222,7 +2222,7 @@ def post_signal_worker_embed(
         score = float(t.get("score") or 0)
         sp    = t.get("signal_price")
         price_str = f" @ ${sp:.4f}" if sp else ""
-        sig_parts = [p.replace("_", " ").title() for p in sig.split("+")[:2]]
+        sig_parts = [p.strip().replace("_", " ").title() for p in sig.split(",")[:2]]
         sig_short = " + ".join(sig_parts)
         fields.append({
             "name":   f"\U0001f4c8 {t['symbol']}",

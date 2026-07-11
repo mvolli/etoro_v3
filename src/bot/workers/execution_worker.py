@@ -385,7 +385,15 @@ def main() -> None:
             #     execution when the live price has drifted too far from it.
             from bot.core.risk import check_slippage_gate, get_max_slippage_pct
             signal_price = float(trade.get("signal_price") or 0.0)
-            current_price = client.get_current_price(instrument_id)
+            try:
+                current_price = client.get_current_price(instrument_id)
+            except Exception as _price_exc:
+                # Fail-open: check_slippage_gate handles current_price=None gracefully
+                logger.warning(
+                    "ExecutionWorker: get_current_price failed for %s (%s) — slippage gate skipped",
+                    symbol, _price_exc,
+                )
+                current_price = None
             slippage_gate = check_slippage_gate(
                 symbol=symbol,
                 signal_price=signal_price if signal_price > 0 else None,
