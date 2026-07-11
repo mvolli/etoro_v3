@@ -26,7 +26,7 @@ if str(SRC_DIR) not in sys.path:
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.WARNING,  # INFO→suppressed; nur Warnings/Errors auf stdout (Discord via cron)
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger("execution_worker")
@@ -374,7 +374,11 @@ def main() -> None:
                     'ExecutionWorker: %s — Markt statisch geschlossen (%s), DEFER bis Marktöffnung',
                     symbol, mkt_status,
                 )
-                continue  # bleibt APPROVED — retry im nächsten Zyklus (15min)
+                # fix/submitting-revert: Trade ist bereits SUBMITTING (lock_for_submission).
+                # Ohne Revert markiert der Reconciler es nach 5 min als stale FAILED.
+                trade_repo.update_status(trade_id, "APPROVED")
+                processed_count -= 1
+                continue  # retry im nächsten Zyklus (15min)
     
             # c2. Slippage gate (fix/autonomy-hardening) — the signal price is
             #     stored at approval time but was previously never used. Block
@@ -465,7 +469,10 @@ def main() -> None:
                             "ExecutionWorker: trade #%d (%s) — allowEntryOrders=false, DEFER",
                             trade_id, symbol,
                         )
-                        continue  # bleibt APPROVED
+                        # fix/submitting-revert: Revert SUBMITTING → APPROVED für Retry.
+                        trade_repo.update_status(trade_id, "APPROVED")
+                        processed_count -= 1
+                        continue  # retry im nächsten Zyklus (15min)
                     # Alle anderen Blocks (allowOpenPosition=false, SL gate, etc.) → FAILED
                     logger.warning(
                         "ExecutionWorker: trade #%d (%s) BLOCKED by open_position(): %s",
