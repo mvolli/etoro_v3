@@ -289,7 +289,8 @@ def _save_and_notify(evaluations: list[dict], summary: str) -> None:
             for e in tighten:
                 lines.append(f"• {e['symbol']}: {e.get('reason','')[:100]}")
         if summary:
-            lines.append(f"\n*{summary[:200]}*")
+            _sum = summary[:1500] + ("…" if len(summary) > 1500 else "")
+            lines.append(f"\n*{_sum}*")
 
         _discord(
             "post_alert_embed",
@@ -304,7 +305,7 @@ def _save_and_notify(evaluations: list[dict], summary: str) -> None:
             title=f"✅ LLM Position Review — {len(holds)} x HOLD",
             description=(
                 f"{len(holds)} offene Positionen bewertet — keine dringende Aktion.\n"
-                + (f"*{summary[:300]}*" if summary else "")
+                + (f"*{summary[:2000]}{'…' if len(summary) > 2000 else ''}*" if summary else "")
             ),
             severity="INFO",
         )
