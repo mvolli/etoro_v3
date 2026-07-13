@@ -69,6 +69,8 @@ MOMENTUM_ARM_PCT = 2.0          # Peak muss dieses PnL erreichen, bevor Fade-Sch
 MOMENTUM_RETRACE_FRAC = 0.40    # Rueckgabe dieses Anteils vom Peak → feuert
 MOMENTUM_MIN_LOCK_PCT = 1.0     # unter diesem aktuellen PnL nie feuern (BE/SL-Revier)
 MOMENTUM_FADE_CLOSE_PCT = 50.0  # % der Position, das ein Fade realisiert
+MOMENTUM_MAX_RETRACE_ABS = 999.0 # Absoluter Cap: max. pp die vor Fade abgegeben werden dürfen
+                                  # (999 = deaktiviert; bei Peaks > cap/retrace_frac schlägt an)
 
 SCALP_ENABLED = True
 SCALP_ATR_MULT = 2.0
@@ -84,7 +86,7 @@ def apply_config(cfg: dict) -> None:
     keep the conservative code defaults above.
     """
     global MOMENTUM_FADE_ENABLED, MOMENTUM_ARM_PCT, MOMENTUM_RETRACE_FRAC
-    global MOMENTUM_MIN_LOCK_PCT, MOMENTUM_FADE_CLOSE_PCT
+    global MOMENTUM_MIN_LOCK_PCT, MOMENTUM_FADE_CLOSE_PCT, MOMENTUM_MAX_RETRACE_ABS
     global SCALP_ENABLED, SCALP_ATR_MULT, SCALP_MIN_PCT, SCALP_MAX_PCT, SCALP_CLOSE_PCT
     t = ((cfg or {}).get('trailing') or {})
     mf = (t.get('momentum_fade') or {})
@@ -94,6 +96,7 @@ def apply_config(cfg: dict) -> None:
     MOMENTUM_RETRACE_FRAC = float(mf.get('retrace_frac', MOMENTUM_RETRACE_FRAC))
     MOMENTUM_MIN_LOCK_PCT = float(mf.get('min_lock_pct', MOMENTUM_MIN_LOCK_PCT))
     MOMENTUM_FADE_CLOSE_PCT = float(mf.get('close_pct', MOMENTUM_FADE_CLOSE_PCT))
+    MOMENTUM_MAX_RETRACE_ABS = float(mf.get('max_retrace_abs_pct', MOMENTUM_MAX_RETRACE_ABS))
     sc = (t.get('scalp') or {})
     if 'enabled' in sc:
         SCALP_ENABLED = bool(sc['enabled'])
@@ -117,7 +120,9 @@ def should_momentum_fade(pnl_pct: float, peak_pnl_pct: float, already_faded: boo
         return False
     if pnl_pct < MOMENTUM_MIN_LOCK_PCT:
         return False
-    floor = peak_pnl_pct * (1.0 - MOMENTUM_RETRACE_FRAC)
+    floor_rel = peak_pnl_pct * (1.0 - MOMENTUM_RETRACE_FRAC)
+    floor_abs = peak_pnl_pct - MOMENTUM_MAX_RETRACE_ABS  # absoluter Cap
+    floor = max(floor_rel, floor_abs)  # strengerer (höherer) Floor gewinnt
     return pnl_pct <= floor
 
 
@@ -517,7 +522,8 @@ def evaluate_trailing(
                 pnl_pct=pnl_pct,
                 reason=(
                     f"Momentum-Fade: Peak +{peak:.1f}% → jetzt {pnl_pct:+.1f}% "
-                    f"(≥{MOMENTUM_RETRACE_FRAC*100:.0f}% abgegeben) — {MOMENTUM_FADE_CLOSE_PCT:.0f}% sichern + BE"
+                    f"({peak - pnl_pct:.1f}pp={((peak - pnl_pct) / peak * 100) if peak > 0 else 0:.0f}% abgegeben)"
+                    f" — {MOMENTUM_FADE_CLOSE_PCT:.0f}% sichern + BE"
                 ),
                 close_pct=MOMENTUM_FADE_CLOSE_PCT,
                 instrument_id=instrument_id,

@@ -44,7 +44,7 @@ regime:                       # Drawdown-from-rolling-peak → 4-state regime (r
   critical_exit_pct: 13.0     # DD < 13.0% → back to DEFENSIVE
 
 sl:                           # Stop-loss configuration
-  default_pct: 3.0            # Default stop-loss distance from entry (%)
+  default_pct: 2.5            # Default stop-loss distance from entry (%)
   emergency_pct: 4.0          # Widened SL used in high-volatility / emergency mode
   warning_pct: 2.0            # SL proximity warning threshold (% from current price)
 
@@ -61,6 +61,7 @@ trailing:                     # Dynamic profit-taking (runs each risk_worker cyc
     retrace_frac: 0.30        # Fire when PnL gives back this fraction of its peak (0.30 = 30%)
     min_lock_pct: 1.0         # Never fire below this current PnL — leave it to BE/SL (%)
     close_pct: 50.0           # % of the position to realize when a fade fires
+    max_retrace_abs_pct: 4.0  # Absoluter Cap: max. Profit-pp vor Fade (bei Peaks >13% bindend)
   scalp:                      # Early first profit rung — only for positions tagged strategy='scalp'
     enabled: true             # false → tagged positions behave like swing (no early rung)
     atr_mult: 2.0             # First rung = atr_mult × ATR%, clamped to [min_pct, max_pct]
