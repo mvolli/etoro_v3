@@ -72,7 +72,7 @@ def _collect_data(db_path: Path) -> dict:
         # Offene Positionen mit Signal-Typ und PnL
         # Hauptquery: Positionen + letztes Signal pro Instrument (RSI/BB/MACD)
         cur.execute("""
-            SELECT ps.instrument_id, ps.symbol,
+            SELECT ps.instrument_id, ps.api_position_id, ps.symbol,
                    COALESCE(ps.unrealized_pnl_pct, 0.0) as pnl_pct,
                    ps.amount_usd, ps.open_price, ps.current_price, ps.last_synced,
                    COALESCE(pos_state.peak_pnl_pct, 0.0) as peak_pnl_pct,
@@ -422,14 +422,24 @@ def _fetch_live_indicators(positions: list[dict], db_path: Path) -> dict[int, di
     return result
 
 
-def _save_and_notify(evaluations: list[dict], summary: str) -> None:
+def _save_and_notify(evaluations: list[dict], summary: str, positions: list[dict] | None = None) -> None:
     """Speichert Recommendations und sendet Discord-Alert für TIGHTEN/EXIT."""
     now_iso = datetime.now(timezone.utc).isoformat()[:19]
-    stamped = [
-        {**ev, "ts": now_iso}
-        for ev in evaluations
-        if isinstance(ev, dict) and ev.get("symbol")
-    ]
+    # Position-Lookup für instrument_id + api_position_id
+    pos_by_symbol: dict[str, dict] = {p["symbol"]: p for p in (positions or [])}
+    stamped = []
+    for ev in evaluations:
+        if not isinstance(ev, dict) or not ev.get("symbol"):
+            continue
+        pos = pos_by_symbol.get(ev["symbol"], {})
+        stamped.append({
+            **ev,
+            "ts": now_iso,
+            "instrument_id": pos.get("instrument_id"),
+            "position_id": pos.get("api_position_id"),
+            "executed": False,
+            "executed_at": None,
+        })
 
     # Speichern (überschreibt vorherige — immer aktuelle Sicht)
     RECS_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -532,7 +542,7 @@ def main() -> int:
         print(f"[position_review] Summary: {summary[:150]}")
 
         if evaluations:
-            _save_and_notify(evaluations, summary)
+            _save_and_notify(evaluations, summary, data['positions'])
         else:
             print("[position_review] LLM gab keine evaluations zurück")
 

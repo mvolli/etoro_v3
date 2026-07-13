@@ -611,6 +611,26 @@ def main() -> int:
             _save_instrument_map_update(instrument_map, all_api_resolved_ids)
             logger.info(f"[{WORKER_NAME}] Resolved {len(all_api_resolved_ids)} new instrument IDs via API")
 
+        # ── LLM-Empfehlungen autonom ausführen (vor client.close!) ──────────────
+        try:
+            from bot.core.llm_execution import execute_llm_recommendations
+            llm_stats = execute_llm_recommendations(
+                client=client,
+                db=db,
+                live_position_ids=live_position_ids,
+                log_repo=log_repo,
+            )
+            if llm_stats["exit_count"] or llm_stats["tighten_count"]:
+                logger.info(
+                    "[%s] LLM-Execution: %d EXIT, %d TIGHTEN",
+                    WORKER_NAME,
+                    llm_stats["exit_count"],
+                    llm_stats["tighten_count"],
+                )
+        except Exception as _llm_exc:
+            logger.warning("[%s] LLM-Execution fehlgeschlagen (non-fatal): %s",
+                           WORKER_NAME, _llm_exc)
+
         # Close client after all API lookups are done
         client.close()
 
