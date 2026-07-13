@@ -70,6 +70,7 @@ def _collect_data(db_path: Path) -> dict:
         cur = conn.cursor()
 
         # Offene Positionen mit Signal-Typ und PnL
+        # Hauptquery: Positionen + letztes Signal pro Instrument (RSI/BB/MACD)
         cur.execute("""
             SELECT ps.instrument_id, ps.symbol,
                    COALESCE(ps.unrealized_pnl_pct, 0.0) as pnl_pct,
@@ -77,15 +78,22 @@ def _collect_data(db_path: Path) -> dict:
                    COALESCE(pos_state.peak_pnl_pct, 0.0) as peak_pnl_pct,
                    COALESCE(pos_state.strategy, 'swing') as strategy,
                    COALESCE(pos_state.be_active, 0) as be_active,
-                   COALESCE(pos_state.momentum_faded, 0) as momentum_faded
+                   COALESCE(pos_state.momentum_faded, 0) as momentum_faded,
+                   ls.rsi, ls.bb_pct, ls.macd_hist
             FROM portfolio_snapshot ps
             LEFT JOIN position_state pos_state ON pos_state.position_id = ps.api_position_id
+            LEFT JOIN (
+                SELECT instrument_id, rsi, bb_pct, macd_hist,
+                       ROW_NUMBER() OVER (PARTITION BY instrument_id ORDER BY generated_at DESC) as rn
+                FROM signals
+                WHERE generated_at > datetime('now', '-7 days', 'utc')
+            ) ls ON ls.instrument_id = ps.instrument_id AND ls.rn = 1
             ORDER BY ps.amount_usd DESC
             LIMIT 25
         """)
         open_pos = [dict(r) for r in cur.fetchall()]
 
-        # Signal-Typ pro Position (neuester Trade per Instrument)
+        # Signal-Typ + Eröffnungsdatum pro Position (neuester Trade per Instrument)
         for pos in open_pos:
             iid = pos.get("instrument_id")
             cur.execute("""
@@ -113,6 +121,25 @@ def _collect_data(db_path: Path) -> dict:
                 pos["days_held"] = None
 
         data["positions"] = open_pos
+
+        # Frische Signale der letzten 36h für alle offenen Instrumente
+        open_ids = [p["instrument_id"] for p in open_pos if p.get("instrument_id")]
+        if open_ids:
+            placeholders = ",".join("?" * len(open_ids))
+            cur.execute(f"""
+                SELECT s.instrument_id,
+                       (SELECT symbol FROM portfolio_snapshot WHERE instrument_id = s.instrument_id LIMIT 1) as symbol,
+                       s.signal_type, ROUND(s.rsi, 1) as rsi,
+                       ROUND(s.bb_pct, 3) as bb_pct, ROUND(s.macd_hist, 6) as macd_hist,
+                       s.generated_at
+                FROM signals s
+                WHERE s.instrument_id IN ({placeholders})
+                  AND s.generated_at > datetime('now', '-36 hours', 'utc')
+                ORDER BY s.generated_at DESC
+            """, open_ids)
+            data["recent_signals"] = [dict(r) for r in cur.fetchall()]
+        else:
+            data["recent_signals"] = []
 
         # Signal-Performance aus CLOSED Trades (letzte 60 Tage)
         cur.execute("""
@@ -165,9 +192,32 @@ def _build_prompt(data: dict) -> str:
         be_str = " BE✓" if p.get("be_active") else ""
         faded_str = " FADED" if p.get("momentum_faded") else ""
         peak_part = f" peak={peak:+.1f}% Δ={delta:+.1f}%" if peak else ""
+        # TA-Indikatoren (live wenn verfügbar, sonst aus Signal-DB)
+        rsi  = p.get("rsi")
+        bb   = p.get("bb_pct")
+        mcd  = p.get("macd_hist")
+        sma20 = p.get("sma20")
+        sma50 = p.get("sma50")
+        vol_r = p.get("vol_ratio")
+        cur_price = p.get("current_price") or p.get("_live_price")
+        live_tag  = " [LIVE]" if p.get("_live") else ""
+
+        ta_parts = []
+        if rsi is not None:
+            ta_parts.append(f"RSI={rsi:.0f}")
+        if bb is not None:
+            ta_parts.append(f"BB%={bb:.2f}")
+        if mcd is not None:
+            ta_parts.append(f"MACD={'↑' if mcd > 0 else '↓'}")
+        if sma50 is not None and cur_price is not None:
+            ta_parts.append(f"SMA50={'↑' if cur_price > sma50 else '↓'}")
+        if vol_r is not None:
+            ta_parts.append(f"VolR={vol_r:.1f}x")
+        ta_str = (" | " + " ".join(ta_parts) + live_tag) if ta_parts else live_tag
+
         pos_rows.append(
             f"  {p['symbol']}: PnL={pnl:+.1f}%{peak_part}{be_str}{faded_str}"
-            f" held={days_str} signal={stype} strategy={strategy}"
+            f" held={days_str} signal={stype} strategy={strategy}{ta_str}"
         )
 
     # Signal-Performance
@@ -182,6 +232,14 @@ def _build_prompt(data: dict) -> str:
     regime = data.get("regime", "NORMAL")
     equity = data.get("equity", 0)
 
+    # Frische Signale der letzten 36h (Kontext für LLM)
+    recent_sigs = data.get("recent_signals", [])
+    recent_rows = []
+    for rs in recent_sigs[:20]:
+        rsi_s = f" RSI={rs['rsi']}" if rs.get("rsi") else ""
+        bb_s  = f" BB%={rs['bb_pct']}" if rs.get("bb_pct") else ""
+        recent_rows.append(f"  {rs.get('symbol','?')}: {rs['signal_type']}{rsi_s}{bb_s} @ {rs['generated_at'][:16]}")
+
     prompt = f"""/no_think
 Du bist Trading-Risikoanalyst. Bewerte jede offene Position und gib NUR valides JSON zurück.
 
@@ -189,30 +247,46 @@ Du bist Trading-Risikoanalyst. Bewerte jede offene Position und gib NUR valides 
 {now_str} | Regime={regime} | Equity=${equity:.0f}
 
 ## Offene Positionen
+Format: Symbol: PnL% peak=X% Δ=Y% BE✓/FADED held=Nd signal=TYP strategy=S | RSI BB% MACD-Richtung
 {chr(10).join(pos_rows) if pos_rows else "  Keine offenen Positionen"}
 
-## Historische Signal-Performance (CLOSED Trades)
+Legende: Δ = Rückgang vom Peak (negativ = Gewinn bereits abgegeben), FADED = Momentum gebrochen,
+RSI > 70 = überkauft (Longs riskant), BB% > 0.95 = nahe oberem BB, MACD↓ = Schwung dreht,
+SMA50=↓ = Preis unter 50-Tage-Schnitt (Abwärtstrend), VolR > 1.5 bei Verlust = Verkaufsdruck,
+[LIVE] = Echtzeit-Daten (yfinance)
+
+## Frische Signale der letzten 36h (technische Lage)
+{chr(10).join(recent_rows) if recent_rows else "  Keine frischen Signale"}
+
+## Historische Signal-Performance (CLOSED Trades, 60 Tage)
 {chr(10).join(sig_rows) if sig_rows else "  Keine Daten verfügbar"}
 
-## Aufgabe
-Bewerte jede Position als HOLD, TIGHTEN oder EXIT:
-- HOLD: Position läuft wie erwartet, weiterhalten
-- TIGHTEN: Position hat Gewinn aufgebaut aber Signal-Typ hat schlechte historische Performance
-  → Empfehlung: Momentum-Schutz enger einstellen (warnt vor Gewinnrückgabe)
-- EXIT: Position im Minus + Signal-Typ hat nachweislich schlechte Performance (avg_pnl < -1%, win_rate < 20%)
-  → Empfehlung: Position schliessen bevor weiterer Verlust entsteht
+## Entscheidungsregeln
 
-WICHTIG:
-- Profitable Positionen (PnL > 0) NIEMALS als EXIT markieren — nur HOLD oder TIGHTEN
-- EXIT nur für Verlustpositionen mit schlechtem Signal-Typ
-- Bei < 3 Trades pro Signal-Typ: zu wenig Daten → HOLD
+TIGHTEN (Momentum-Schutz enger einstellen) wenn MINDESTENS EIN Punkt zutrifft:
+- momentum_faded=FADED im Label → Schwung bereits gebrochen → sofort TIGHTEN
+- PnL > 0% UND Δ < -1.5% → Position gibt Peak-Gewinn ab → TIGHTEN
+- PnL > +2% UND RSI > 72 → stark überkauft, Rücksetzer wahrscheinlich → TIGHTEN
+- PnL > +3% UND BB% > 0.90 → nahe oberem BB, Ausdehnung erschöpft → TIGHTEN
+- PnL > +2% UND MACD↓ → Momentum dreht bei profitabler Position → TIGHTEN
+- PnL > 0% UND SMA50=↓ UND VolR > 1.5 → Preis bricht unter Trend mit hohem Volumen → TIGHTEN
+
+EXIT (Position schliessen) wenn MINDESTENS EIN Punkt zutrifft:
+- PnL < -2% UND RSI > 62 (kein Erholungszeichen) → keine Umkehr absehbar → EXIT
+- PnL < -1% UND SMA50=↓ UND MACD↓ → Doppeltes Trendsignal gegen Position → EXIT
+- PnL < -1% UND Signal-Typ hat avg_pnl < -1% bei mind. 3 historischen Trades → schlechtes Setup
+- PnL < -3% → Verlust begrenzen unabhängig von RSI
+
+HOLD in allen anderen Fällen.
+Wenn RSI/BB/MACD fehlt (NULL) — nur auf PnL, Δ und momentum_faded stützen.
+Bei < 3 historischen Trades pro Signal-Typ: Performance ignorieren, nur TA verwenden.
 
 Antworte mit:
 {{
   "evaluations": [
-    {{"symbol": "XYZ", "recommendation": "HOLD", "reason": "kurze Begründung"}}
+    {{"symbol": "XYZ", "recommendation": "HOLD", "reason": "kurze Begründung auf Englisch"}}
   ],
-  "summary": "2-3 Sätze Gesamteinschätzung"
+  "summary": "2-3 Sätze Gesamteinschätzung auf Deutsch"
 }}"""
     return prompt
 
@@ -253,6 +327,99 @@ def _call_llm(prompt: str) -> dict | None:
     except Exception as e:
         print(f"[position_review] LLM-Fehler: {e}")
     return None
+
+
+def _fetch_live_indicators(positions: list[dict], db_path: Path) -> dict[int, dict]:
+    """Holt aktuelle TA-Indikatoren via yfinance (1 Batch-Call für alle offenen Positionen).
+
+    Gibt {instrument_id: {rsi, bb_pct, macd_hist, sma20, sma50, vol_ratio, price}} zurück.
+    Fehler werden still ignoriert — Fallback sind die Signal-DB-Werte.
+    """
+    import sqlite3
+    try:
+        import yfinance as yf
+    except ImportError:
+        print("[position_review] yfinance nicht installiert — Live-Fetch übersprungen")
+        return {}
+
+    from bot.core.signals import compute_indicators
+
+    # yfinance_symbol je instrument_id aus DB
+    instrument_ids = [p["instrument_id"] for p in positions if p.get("instrument_id")]
+    if not instrument_ids:
+        return {}
+
+    try:
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        placeholders = ",".join("?" * len(instrument_ids))
+        cur.execute(
+            f"SELECT instrument_id, yfinance_symbol FROM instruments "
+            f"WHERE instrument_id IN ({placeholders}) "
+            f"  AND yfinance_symbol IS NOT NULL AND yfinance_symbol != ''",
+            instrument_ids,
+        )
+        id_to_yf: dict[int, str] = {row["instrument_id"]: row["yfinance_symbol"] for row in cur.fetchall()}
+        conn.close()
+    except Exception as e:
+        print(f"[position_review] DB-Fehler bei yfinance_symbol-Lookup: {e}")
+        return {}
+
+    if not id_to_yf:
+        print("[position_review] Keine yfinance_symbols gefunden — Live-Fetch übersprungen")
+        return {}
+
+    tickers = list(set(id_to_yf.values()))
+    print(f"[position_review] yfinance Batch-Fetch: {len(tickers)} Ticker ({len(id_to_yf)} Instrumente)...")
+
+    try:
+        raw = yf.download(
+            tickers,
+            period="3mo",
+            interval="1d",
+            group_by="ticker",
+            auto_adjust=True,
+            progress=False,
+            threads=True,
+        )
+    except Exception as e:
+        print(f"[position_review] yfinance Batch-Fehler: {e}")
+        return {}
+
+    if raw is None or raw.empty:
+        print("[position_review] yfinance gab leeres DataFrame zurück")
+        return {}
+
+    # Indikatoren pro Ticker berechnen
+    yf_to_ind: dict[str, dict] = {}
+    for ticker in tickers:
+        try:
+            if len(tickers) == 1:
+                # Einzelner Ticker: raw hat flache Columns (Close, High, …)
+                df = raw.dropna(how="all")
+            else:
+                # Mehrere Ticker: raw hat MultiIndex (metric, ticker)
+                if ticker not in raw.columns.get_level_values(0):
+                    continue
+                df = raw[ticker].dropna(how="all")
+            if df.empty or len(df) < 20:
+                continue
+            ind = compute_indicators(df)
+            if ind:
+                yf_to_ind[ticker] = ind
+        except Exception as e:
+            print(f"[position_review] Indikator-Fehler {ticker}: {e}")
+
+    # instrument_id → Indikatoren
+    result: dict[int, dict] = {}
+    for iid, yf_sym in id_to_yf.items():
+        if yf_sym in yf_to_ind:
+            result[iid] = yf_to_ind[yf_sym]
+
+    live_count = len(result)
+    print(f"[position_review] Live-Indikatoren: {live_count}/{len(positions)} Positionen aktualisiert")
+    return result
 
 
 def _save_and_notify(evaluations: list[dict], summary: str) -> None:
@@ -335,6 +502,21 @@ def main() -> int:
         print(f"[position_review] {len(data['positions'])} Positionen, "
               f"{len(data['signal_perf'])} Signal-Typen mit History, "
               f"Regime={data['regime']}")
+
+        # Live-Indikatoren via yfinance holen (überschreiben stale Signal-DB-Werte)
+        live_ind = _fetch_live_indicators(data["positions"], db_path)
+        for pos in data["positions"]:
+            iid = pos.get("instrument_id")
+            if iid and iid in live_ind:
+                ind = live_ind[iid]
+                pos["rsi"]        = ind.get("rsi",      pos.get("rsi"))
+                pos["bb_pct"]     = ind.get("bb_pct",   pos.get("bb_pct"))
+                pos["macd_hist"]  = ind.get("macd_hist",pos.get("macd_hist"))
+                pos["sma20"]      = ind.get("sma20")
+                pos["sma50"]      = ind.get("sma50")
+                pos["vol_ratio"]  = ind.get("vol_ratio")
+                pos["_live_price"]= ind.get("price")
+                pos["_live"]      = True
 
         prompt = _build_prompt(data)
         print(f"[position_review] Rufe LLM auf (Timeout {LLM_TIMEOUT_S}s)...")
