@@ -287,13 +287,13 @@ def generate_signal(symbol: str, indicators: dict) -> SignalResult:
             signals.append(("BB_LOW_MACD_IMPROVING", CONVICTION_HIGH, 20.0))
 
     # Rule 6: Trend pullback — MACD-Histogramm Floor (fix/trend-pullback-macd-floor)
-    # MACD muss > -0.01 sein → filtert starke Downtrends heraus.
+    # MACD muss > -0.005 sein (verschärft von -0.01) → filtert stärkere Downtrends heraus.
     # Vorher: 63.6% Fail-Rate (28/44), weil TREND_PULLBACK auch bei stark
     # negativem MACD feuerte → Preis unter SMA50, aber Signal ignorierte Trendkraft.
     if all(x is not None for x in [rsi, sma20, sma50, price, macd_hist]):
         if (price > sma50 and price <= sma20 * 1.02  # near/below SMA20
                 and 35 <= rsi <= 55
-                and macd_hist > -0.01):  # MACD Floor: nicht im starken Abwärtstrend
+                and macd_hist > -0.005 and rsi > 30):  # MACD-Floor -0.01->-0.005 + RSI>30 Filter (verhindert Entries im Downtrend)
             signals.append(("TREND_PULLBACK", CONVICTION_HIGH, 20.0))
 
     # Rule 7: Golden Cross — schnellerer MA (SMA20) über langsamerem MA (SMA50).
