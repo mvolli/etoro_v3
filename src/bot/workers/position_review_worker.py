@@ -263,7 +263,12 @@ SMA50=↓ = Preis unter 50-Tage-Schnitt (Abwärtstrend), VolR > 1.5 bei Verlust 
 
 ## Entscheidungsregeln
 
-TIGHTEN (Momentum-Schutz enger einstellen) wenn MINDESTENS EIN Punkt zutrifft:
+Jede Evaluation bekommt zusaetzlich eine `close_pct` (0-100):
+- HOLD:    close_pct=0 (keine Aktion)
+- TIGHTEN: close_pct=15-40 (direkter Teilverkauf + Gewinnschutz)
+- EXIT:    close_pct=50-100 (starke Reduktion oder Vollverkauf)
+
+TIGHTEN (Direkter Teilverkauf) wenn MINDESTENS EIN Punkt zutrifft:
 - momentum_faded=FADED im Label → Schwung bereits gebrochen → sofort TIGHTEN
 - PnL > 0% UND Δ < -1.5% → Position gibt Peak-Gewinn ab → TIGHTEN
 - PnL > +2% UND RSI > 72 → stark überkauft, Rücksetzer wahrscheinlich → TIGHTEN
@@ -284,7 +289,9 @@ Bei < 3 historischen Trades pro Signal-Typ: Performance ignorieren, nur TA verwe
 Antworte mit:
 {{
   "evaluations": [
-    {{"symbol": "XYZ", "recommendation": "HOLD", "reason": "kurze Begründung auf Englisch"}}
+    {{"symbol": "XYZ", "recommendation": "HOLD", "close_pct": 0, "reason": "Trend intakt"}},
+    {{"symbol": "ABC", "recommendation": "TIGHTEN", "close_pct": 25, "reason": "RSI 74 ueberkauft"}},
+    {{"symbol": "DEF", "recommendation": "EXIT", "close_pct": 100, "reason": "Verlust ohne Erholung"}}
   ],
   "summary": "2-3 Sätze Gesamteinschätzung auf Deutsch"
 }}"""

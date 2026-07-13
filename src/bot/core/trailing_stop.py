@@ -32,9 +32,10 @@ BREAK_EVEN_FLOOR_PCT = 0.3
 # (fresh instrument, data_worker hasn't run a cycle for it). Same values as
 # the original Trading Bible V5 ladder.
 PROFIT_TAKE_LEVELS = [
-    {'threshold': 15.0, 'close_pct': 20},   # +15% → close 20% of position
-    {'threshold': 25.0, 'close_pct': 20},   # +25% → close another 20%
-    {'threshold': 50.0, 'close_pct': 30},   # +50% → close 30%
+    {'threshold':  7.0, 'close_pct': 15},   # +7%  → 15% (1:1 R:R, füllt Gap zu BE)
+    {'threshold': 15.0, 'close_pct': 15},   # +15% → weitere 15%
+    {'threshold': 25.0, 'close_pct': 20},   # +25% → 20%
+    {'threshold': 50.0, 'close_pct': 25},   # +50% → 25% (Runner-Schutz)
 ]
 
 # fix/atr-adaptive-profit-levels: ein Blue-Chip (ATR ~1-1.5%) erreicht real

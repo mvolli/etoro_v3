@@ -118,10 +118,13 @@ def execute_llm_recommendations(
             stats["skip_count"] += 1
             continue
 
-        # ── EXIT ─────────────────────────────────────────────────────────────
-        if recommendation == "EXIT":
+        # close_pct aus Recommendation (LLM kann Teilverkauf statt Vollverkauf wählen)
+        rec_close_pct = float(rec.get("close_pct") or 100.0)
+
+        # ── EXIT / TIGHTEN: gemeinsame Execution via _execute_partial_or_full ─
+        if recommendation in ("EXIT", "TIGHTEN"):
             if not position_id or not instr_id:
-                msg = "EXIT %s: position_id oder instrument_id fehlt" % symbol
+                msg = "%s %s: position_id oder instrument_id fehlt" % (recommendation, symbol)
                 logger.warning("[llm_execution] %s", msg)
                 stats["errors"].append(msg)
                 stats["skip_count"] += 1
@@ -132,84 +135,97 @@ def execute_llm_recommendations(
             except Exception:
                 market_open = True
 
-            if not market_open:
+            if not market_open and recommendation == "EXIT":
                 logger.info("[llm_execution] EXIT %s: Markt geschlossen — retry", symbol)
                 stats["skip_count"] += 1
                 continue
 
-            logger.info("[llm_execution] EXIT %s (position_id=%s) %s",
-                        symbol, position_id, "[DRY-RUN]" if dry_run else "ausfuehren...")
+            # TIGHTEN ohne close_pct (oder close_pct=0): nur momentum_faded setzen
+            if recommendation == "TIGHTEN" and rec_close_pct <= 0:
+                if not dry_run:
+                    try:
+                        mark_momentum_faded(db, position_id, symbol)
+                        rec["executed"] = True
+                        rec["executed_at"] = now.isoformat()[:19]
+                        rec["executed_reason"] = "llm_tighten_momentum_faded"
+                        changed = True
+                        stats["tighten_count"] += 1
+                        _discord("post_alert_embed",
+                                 title="LLM TIGHTEN (indirekt): %s" % symbol,
+                                 description="**Grund:** %s\nmomentum_faded gesetzt." % reason,
+                                 severity="INFO")
+                    except Exception as exc:
+                        stats["errors"].append("TIGHTEN %s: %s" % (symbol, exc))
+                else:
+                    stats["tighten_count"] += 1
+                continue
+
+            # Direkter Teilverkauf (TIGHTEN mit close_pct ODER EXIT)
+            logger.info("[llm_execution] %s %s %.0f%% (position=%s) %s",
+                        recommendation, symbol, rec_close_pct, position_id,
+                        "[DRY-RUN]" if dry_run else "ausfuehren...")
 
             if not dry_run:
                 try:
+                    # Fuer Teilverkauf: units_to_deduct berechnen
+                    units_to_deduct = None
+                    if rec_close_pct < 100.0:
+                        import sqlite3 as _sq3
+                        try:
+                            _conn = _sq3.connect("file:%s?mode=ro" % RECS_PATH.parent.parent / "data/trading.db", uri=True)
+                            _conn.row_factory = _sq3.Row
+                            _snap = _conn.execute(
+                                "SELECT amount_usd, open_price FROM portfolio_snapshot WHERE api_position_id = ?",
+                                (position_id,)
+                            ).fetchone()
+                            _conn.close()
+                            if _snap and _snap["open_price"]:
+                                _total_units = float(_snap["amount_usd"]) / float(_snap["open_price"])
+                                units_to_deduct = round(_total_units * (rec_close_pct / 100.0), 8)
+                        except Exception as _ue:
+                            logger.debug("[llm_execution] units-Berechnung fehlgeschlagen: %s", _ue)
+
                     result = client.close_position(
                         position_id=position_id,
                         instrument_id=instr_id,
+                        units_to_deduct=units_to_deduct,
                     )
                     if not result:
                         raise RuntimeError("close_position() gab leeres Ergebnis zurueck")
 
                     rec["executed"]        = True
                     rec["executed_at"]     = now.isoformat()[:19]
-                    rec["executed_reason"] = "llm_exit_executed"
+                    rec["executed_reason"] = "llm_%s_%.0fpct" % (recommendation.lower(), rec_close_pct)
                     changed = True
-                    stats["exit_count"] += 1
+                    if recommendation == "EXIT":
+                        stats["exit_count"] += 1
+                    else:
+                        stats["tighten_count"] += 1
 
                     log_repo.write("INFO", "llm_execution",
-                                   "LLM EXIT ausgefuehrt: %s" % symbol,
+                                   "LLM %s %.0f%% ausgefuehrt: %s" % (recommendation, rec_close_pct, symbol),
                                    {"symbol": symbol, "position_id": position_id,
-                                    "reason": reason, "age_min": round(age_min, 1)})
-                    desc = "**Grund:** %s\n**Position:** `%s`\n**Alter:** %.0f min" % (
-                        reason, position_id, age_min)
+                                    "close_pct": rec_close_pct, "reason": reason,
+                                    "age_min": round(age_min, 1)})
+                    _icon = "KI EXIT" if recommendation == "EXIT" else "KI TIGHTEN"
+                    desc = "**Grund:** %s\n**%.0f%% der Position** geschlossen." % (reason, rec_close_pct)
                     _discord("post_alert_embed",
-                             title="LLM EXIT ausgefuehrt: %s" % symbol,
+                             title="%s: %s" % (_icon, symbol),
                              description=desc,
-                             severity="WARNING")
-                    logger.info("[llm_execution] EXIT %s abgeschlossen", symbol)
+                             severity="WARNING" if recommendation == "EXIT" else "INFO")
+                    logger.info("[llm_execution] %s %.0f%% %s abgeschlossen", recommendation, rec_close_pct, symbol)
 
                 except Exception as exc:
-                    msg = "EXIT %s API-Fehler: %s" % (symbol, exc)
+                    msg = "%s %s API-Fehler: %s" % (recommendation, symbol, exc)
                     logger.error("[llm_execution] %s", msg)
                     stats["errors"].append(msg)
                     log_repo.write("ERROR", "llm_execution", msg,
                                    {"symbol": symbol, "position_id": position_id})
             else:
-                stats["exit_count"] += 1
-
-        # ── TIGHTEN ──────────────────────────────────────────────────────────
-        elif recommendation == "TIGHTEN":
-            if not position_id:
-                stats["skip_count"] += 1
-                continue
-
-            logger.info("[llm_execution] TIGHTEN %s -> momentum_faded %s",
-                        symbol, "[DRY-RUN]" if dry_run else "")
-
-            if not dry_run:
-                try:
-                    mark_momentum_faded(db, position_id, symbol)
-                    rec["executed"]        = True
-                    rec["executed_at"]     = now.isoformat()[:19]
-                    rec["executed_reason"] = "llm_tighten_momentum_faded"
-                    changed = True
+                if recommendation == "EXIT":
+                    stats["exit_count"] += 1
+                else:
                     stats["tighten_count"] += 1
-
-                    log_repo.write("INFO", "llm_execution",
-                                   "LLM TIGHTEN: momentum_faded fuer %s" % symbol,
-                                   {"symbol": symbol, "position_id": position_id,
-                                    "reason": reason})
-                    desc = "**Grund:** %s\nTrailing Stop auf engste Stufe gesetzt." % reason
-                    _discord("post_alert_embed",
-                             title="LLM TIGHTEN: %s" % symbol,
-                             description=desc,
-                             severity="INFO")
-
-                except Exception as exc:
-                    msg = "TIGHTEN %s DB-Fehler: %s" % (symbol, exc)
-                    logger.error("[llm_execution] %s", msg)
-                    stats["errors"].append(msg)
-            else:
-                stats["tighten_count"] += 1
 
     if changed:
         RECS_PATH.write_text(json.dumps(recs, indent=2, ensure_ascii=False), encoding="utf-8")

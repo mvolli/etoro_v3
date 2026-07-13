@@ -683,6 +683,33 @@ def main() -> None:
 
             trailing_actions = evaluate_trailing(raw_positions, regime=regime, db=db)
             if trailing_actions:
+                # ── KI-Profit-Advisor: close_pct per Trigger individuell kalibrieren ──
+                try:
+                    from bot.core.llm_profit_advisor import advise_close_pct as _advise
+                    adjusted = []
+                    for _act in trailing_actions:
+                        if _act.action in ('PARTIAL_CLOSE', 'MOMENTUM_FADE') and _act.close_pct > 0:
+                            _adj_pct, _adj_reason = _advise(
+                                symbol=_act.symbol,
+                                trigger=_act.action,
+                                pnl_pct=_act.pnl_pct,
+                                default_close_pct=_act.close_pct,
+                                regime=regime,
+                                position_id=_act.position_id,
+                                instrument_id=_act.instrument_id,
+                                db_path=db_path,
+                            )
+                            if _adj_pct == 0.0:
+                                logger.info('[risk] KI-Advisor: %s %s UEBERSPRUNGEN — %s',
+                                            _act.action, _act.symbol, _adj_reason)
+                                continue  # Trigger ignorieren — Trend intakt
+                            _act.close_pct = _adj_pct
+                            _act.reason = _act.reason + ' [KI: %.0f%% — %s]' % (_adj_pct, _adj_reason)
+                        adjusted.append(_act)
+                    trailing_actions = adjusted
+                except Exception as _adv_exc:
+                    logger.debug('[risk] KI-Advisor nicht verfuegbar: %s', _adv_exc)
+
                 ts_stats = execute_trailing_actions(client, trailing_actions, regime=regime, db=db)
                 trailing_be_count += ts_stats.get('break_evens', 0)
                 trailing_partial_count += ts_stats['partial_closes']

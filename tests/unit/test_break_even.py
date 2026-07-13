@@ -123,9 +123,10 @@ def test_be_close_dry_run(db):
 
 
 def test_full_flow_arm_then_enforce(db):
-    # +8% → BREAK_EVEN Action → armiert; später +0.1% → BE_CLOSE
+    # +5% → im [BE-Gate=3%, erster-Profit-Level=7%)-Fenster → BREAK_EVEN
+    # (bei +8% wäre jetzt PARTIAL_CLOSE für den neuen +7%-Level korrekt)
     client = FakeClient()
-    actions = evaluate_trailing([_pos(pnl_pct=8.0)], db=db)
+    actions = evaluate_trailing([_pos(pnl_pct=5.0)], db=db)
     assert actions[0].action == "BREAK_EVEN"
     execute_trailing_actions(client, actions, db=db)
 

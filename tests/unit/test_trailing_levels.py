@@ -53,7 +53,15 @@ def _pos(pos_id="p1", symbol="NVDA", amount=1000.0, pnl_pct=16.0, open_rate=100.
 
 
 def test_level_fires_once(db):
-    # 1. Lauf bei +16%: Level 15 feuert
+    # 1. Lauf bei +16%: Level 7 feuert zuerst (neue unterste Stufe, füllt 3%-15%-Gap)
+    actions = evaluate_trailing([_pos(pnl_pct=16.0)], db=db)
+    assert len(actions) == 1
+    assert actions[0].action == "PARTIAL_CLOSE"
+    assert actions[0].level_threshold == 7.0
+
+    mark_level_taken(db, "p1", "NVDA", 7.0)
+
+    # 2. Lauf: Level 15 folgt
     actions = evaluate_trailing([_pos(pnl_pct=16.0)], db=db)
     assert len(actions) == 1
     assert actions[0].action == "PARTIAL_CLOSE"
@@ -61,13 +69,15 @@ def test_level_fires_once(db):
 
     mark_level_taken(db, "p1", "NVDA", 15.0)
 
-    # 2. Lauf, PnL% unverändert (Rest-Position): KEIN erneuter Partial-Close
+    # 3. Lauf: alle fälligen Level genommen → BREAK_EVEN (kein Doppel-Sell)
     actions = evaluate_trailing([_pos(pnl_pct=16.0)], db=db)
     assert len(actions) == 1
     assert actions[0].action == "BREAK_EVEN"
 
 
 def test_next_level_fires_after_first_taken(db):
+    # Beide untersten Stufen bereits genommen → 25% ist die nächste fällige
+    mark_level_taken(db, "p1", "NVDA", 7.0)
     mark_level_taken(db, "p1", "NVDA", 15.0)
     actions = evaluate_trailing([_pos(pnl_pct=27.0)], db=db)
     assert actions[0].action == "PARTIAL_CLOSE"
@@ -75,8 +85,12 @@ def test_next_level_fires_after_first_taken(db):
 
 
 def test_lowest_pending_level_first(db):
-    # PnL springt direkt auf +55%: Level 15 zuerst (Bible-Reihenfolge),
-    # 25/50 folgen in späteren Zyklen
+    # PnL springt direkt auf +55%: Level 7 zuerst (neue unterste Stufe),
+    # dann 15/25/50 in je späteren Zyklen (Bible-Reihenfolge: immer kleinstes pending)
+    actions = evaluate_trailing([_pos(pnl_pct=55.0)], db=db)
+    assert actions[0].level_threshold == 7.0
+
+    mark_level_taken(db, "p1", "NVDA", 7.0)
     actions = evaluate_trailing([_pos(pnl_pct=55.0)], db=db)
     assert actions[0].level_threshold == 15.0
 
@@ -99,7 +113,9 @@ def test_below_be_trigger_no_action(db):
 
 
 def test_be_range_tracks_break_even(db):
-    actions = evaluate_trailing([_pos(pnl_pct=8.0)], db=db)
+    # +5%: im [BE-Gate=3%, erster-Profit-Level=7%)-Fenster → BREAK_EVEN
+    # (+8% wäre jetzt PARTIAL_CLOSE für den neuen +7%-Level)
+    actions = evaluate_trailing([_pos(pnl_pct=5.0)], db=db)
     assert len(actions) == 1
     assert actions[0].action == "BREAK_EVEN"
 
@@ -112,11 +128,12 @@ def test_persistence_roundtrip(db):
 
 
 def test_levels_are_per_position(db):
+    mark_level_taken(db, "p1", "NVDA", 7.0)
     mark_level_taken(db, "p1", "NVDA", 15.0)
-    # andere Position, gleiches Symbol: Level 15 feuert dort trotzdem
+    # andere Position (p2), gleiches Symbol: Level 7 feuert dort trotzdem — Tracking ist per-Position
     actions = evaluate_trailing([_pos(pos_id="p2", pnl_pct=16.0)], db=db)
     assert actions[0].action == "PARTIAL_CLOSE"
-    assert actions[0].level_threshold == 15.0
+    assert actions[0].level_threshold == 7.0
 
 
 def test_cleanup_removes_stale_positions(db):

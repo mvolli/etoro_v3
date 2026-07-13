@@ -60,7 +60,7 @@ trailing:                     # Dynamic profit-taking (runs each risk_worker cyc
     arm_pct: 2.0              # Peak PnL must reach this before fade protection arms (%)
     retrace_frac: 0.30        # Fire when PnL gives back this fraction of its peak (0.30 = 30%)
     min_lock_pct: 1.0         # Never fire below this current PnL — leave it to BE/SL (%)
-    close_pct: 50.0           # % of the position to realize when a fade fires
+    close_pct: 25.0           # % Default-Fade-Close (KI kalibriert live; war 50%)
     max_retrace_abs_pct: 4.0  # Absoluter Cap: max. Profit-pp vor Fade (bei Peaks >13% bindend)
   scalp:                      # Early first profit rung — only for positions tagged strategy='scalp'
     enabled: true             # false → tagged positions behave like swing (no early rung)
