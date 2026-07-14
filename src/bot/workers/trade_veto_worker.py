@@ -28,7 +28,7 @@ import json
 import logging
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
@@ -46,6 +46,22 @@ FLAGS_PATH = PROJECT_ROOT / "data" / "llm_news_flags.json"
 LLM_TIMEOUT_S = 75.0    # :04 + 75s < :06-Execution; darueber fail-open
 MIN_BUY_FALLBACK = 50.0
 REDUCE_MIN_PCT, REDUCE_MAX_PCT = 25, 75
+
+
+def _seconds_until_execution(now: datetime | None = None) -> float:
+    """Sekunden bis zum naechsten execution_worker-Slot (:06/:21/:36/:51).
+
+    fix/veto-deadline (Review 2026-07-14): der LLM-Timeout wird hierauf
+    gekappt — ein Veto, das erst NACH der Execution ankaeme, ist wertlos
+    (der Race-Guard macht es zum NOOP). Bei zu knappem Fenster (<25s, z.B.
+    Cron-Verzoegerung oder langsamer yfinance) wird der LLM-Call komplett
+    uebersprungen: fail-open ist besser als ein totes Rennen."""
+    now = now or datetime.now(timezone.utc)
+    mins_ahead = (6 - now.minute) % 15
+    secs = mins_ahead * 60 - now.second - now.microsecond / 1e6
+    if secs <= 0:
+        secs += 15 * 60
+    return secs
 
 
 def _load_env() -> None:
@@ -98,11 +114,29 @@ def _veto_log_write(entries: list[dict]) -> None:
 def _backfill_outcomes(entries: list[dict]) -> None:
     """Vetos >=24h alt gegen Live-Preis bewerten: gefallen → GOOD (Veto hat
     Verlust vermieden), gestiegen → MISSED_UPSIDE. In-place."""
+    now = datetime.now(timezone.utc)
+
+    # Hygiene (fix/veto-backfill-no-data): Vetos ohne yf_symbol/signal_price
+    # sind nie bewertbar — vorher blieben sie still und ewig "pending".
+    # Nach 7 Tagen: outcome=NO_DATA (taucht nicht im Lern-Prompt auf).
+    no_data = 0
+    for e in entries:
+        if (e.get("decision") == "VETO" and not e.get("outcome")
+                and not (e.get("yf_symbol") and e.get("signal_price"))):
+            no_data += 1
+            try:
+                if (now - datetime.fromisoformat(e["ts"])).total_seconds() >= 7 * 86400:
+                    e["outcome"] = "NO_DATA"
+            except Exception:
+                e["outcome"] = "NO_DATA"
+    if no_data:
+        logger.info("[%s] %d Veto(s) ohne yf_symbol/signal_price — nicht bewertbar "
+                    "(NO_DATA nach 7d)", WORKER_NAME, no_data)
+
     pending = [e for e in entries
                if e.get("decision") == "VETO" and not e.get("outcome")
                and e.get("yf_symbol") and e.get("signal_price")]
     to_check = []
-    now = datetime.now(timezone.utc)
     for e in pending:
         try:
             ts = datetime.fromisoformat(e["ts"])
@@ -223,10 +257,7 @@ def main() -> int:
         except Exception:
             pass
 
-        # Outcome-Backfill immer (auch ohne neue Trades) — haelt Lernschleife aktuell
         log_entries = _veto_log_read()
-        _backfill_outcomes(log_entries)
-        _veto_log_write(log_entries)
 
         trades = [dict(r) for r in db.fetchall("""
             SELECT t.id, t.symbol, t.instrument_id, t.amount_usd, t.signal_price,
@@ -238,7 +269,22 @@ def main() -> int:
             WHERE t.status = 'APPROVED'
         """)]
         if not trades:
-            logger.debug("[%s] keine APPROVED-Trades — nichts zu tun", WORKER_NAME)
+            # Trade-freier Zyklus = kein Zeitdruck → hier laeuft der
+            # Outcome-Backfill (fix/veto-deadline: vor dem LLM-Call kostete
+            # er yfinance-Sekunden, die im :04→:06-Fenster fehlen).
+            _backfill_outcomes(log_entries)
+            _veto_log_write(log_entries)
+            logger.debug("[%s] keine APPROVED-Trades — nur Backfill", WORKER_NAME)
+            return 0
+
+        deadline_s = _seconds_until_execution()
+        if deadline_s < 25:
+            logger.warning(
+                "[%s] Nur %.0fs bis zum Execution-Slot — LLM-Veto uebersprungen "
+                "(fail-open, %d Trades laufen mechanisch)",
+                WORKER_NAME, deadline_s, len(trades),
+            )
+            print(f"{WORKER_NAME}: Zeitfenster zu knapp ({deadline_s:.0f}s) — fail-open")
             return 0
 
         market = _fetch_market_context()
@@ -246,7 +292,8 @@ def main() -> int:
         positions = [dict(r) for r in db.fetchall(
             "SELECT symbol, unrealized_pnl_pct FROM portfolio_snapshot LIMIT 25")]
 
-        recent_outcomes = [e for e in log_entries if e.get("outcome")][-5:]
+        recent_outcomes = [e for e in log_entries
+                           if e.get("outcome") in ("GOOD", "MISSED_UPSIDE")][-5:]
         outcomes_block = "\n".join(
             f"- {e['symbol']}: VETO → {e['outcome']} ({e.get('outcome_delta_pct', '?')}% seither)"
             for e in recent_outcomes
@@ -287,8 +334,12 @@ Antworte NUR mit JSON:
 {{"decisions": [{{"trade_id": N, "decision": "APPROVE|REDUCE|VETO",
   "reduce_to_pct": 50, "reason": "kurz, deutsch"}}]}}"""
 
+        # Timeout dynamisch: Restzeit bis :06 minus 15s Sicherheitsmarge fuer
+        # Anwendung + Log. Bei fruehem Start bleibt es bei LLM_TIMEOUT_S.
+        _remaining = max(10.0, _seconds_until_execution() - 15.0)
         result = call_llm_json(prompt, max_tokens=768, temperature=0.05,
-                               timeout_s=LLM_TIMEOUT_S, label=WORKER_NAME)
+                               timeout_s=min(LLM_TIMEOUT_S, _remaining),
+                               label=WORKER_NAME)
 
         vetoed, reduced = [], []
         if result and isinstance(result.get("decisions"), list):
@@ -316,6 +367,11 @@ Antworte NUR mit JSON:
         elif result is None:
             logger.warning("[%s] LLM nicht verfuegbar — fail-open, %d Trades unveraendert",
                            WORKER_NAME, len(trades))
+
+        # Entscheidungen sind angewendet — jetzt ohne Zeitdruck den
+        # Outcome-Backfill nachziehen (Lernschleife aktuell halten).
+        _backfill_outcomes(log_entries)
+        _veto_log_write(log_entries)
 
         elapsed = time.monotonic() - t0
         print(f"{WORKER_NAME}: {len(trades)} geprueft, {len(vetoed)} Veto, "

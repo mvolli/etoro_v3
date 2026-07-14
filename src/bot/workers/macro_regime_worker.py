@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """eToro Trading Bot V3 — Forward-Regime-Advisor (fix/llm-macro-advisor)
 
-Taeglich 08:00 CEST (vor EU-Open 09:00), werktags. Das Regime-System ist
+Taeglich 08:00 CEST (vor EU-Open 09:00), AUCH am Wochenende — Crypto handelt
+24/7, und ein Freitagabend-Event (Fed, Geopolitik) soll nicht erst Montag in
+den Scalar einfliessen (Review 2026-07-14). Das Regime-System ist
 rueckwaertsgewandt — es reagiert erst, wenn der Drawdown schon eingetreten
 ist. Dieser Worker laesst das LLM den Marktzustand VORAUSSCHAUEND bewerten
 (SPY/QQQ 1d+5d, VIX-Level und -Trend) und schreibt einen Daempfungsfaktor:

@@ -470,12 +470,35 @@ def _batch_fetch(
     return result
 
 
-def _get_portfolio_symbols(db: DB) -> list[str]:
-    """Return symbols from portfolio_snapshot (active positions, Tier 1)."""
-    portfolio_repo = PortfolioRepo(db)
+def _get_portfolio_symbols(db: DB) -> list[dict]:
+    """Return portfolio positions with resolved yfinance symbols (Tier 1).
+
+    fix/tier1-yfinance-symbol (2026-07-14): vorher nur eToro-Symbole, die
+    dann durch die STATISCHE Alias-Map liefen — instruments.yfinance_symbol
+    (korrekt gepflegt, z.B. ALC.ZU→ALC.SW, PXA.ASX→PXA.AX) wurde ignoriert.
+    Offene Positionen schlugen so alle 5 min als 'possibly delisted' fehl,
+    und ihre Trailing-Stops bekamen keine frischen yfinance-Preise.
+    Fallback-Kette: instruments.yfinance_symbol → _apply_alias(symbol).
+
+    Returns: [{symbol, yf_symbol, instrument_id}, ...]
+    """
     try:
-        positions = portfolio_repo.get_all()
-        return [pos["symbol"] for pos in positions if pos.get("symbol")]
+        rows = db.fetchall("""
+            SELECT DISTINCT ps.symbol, ps.instrument_id, i.yfinance_symbol
+            FROM portfolio_snapshot ps
+            LEFT JOIN instruments i ON i.instrument_id = ps.instrument_id
+            WHERE ps.symbol IS NOT NULL AND ps.symbol != ''
+        """)
+        items: list[dict] = []
+        for r in rows:
+            sym = r["symbol"]
+            yf_sym = r["yfinance_symbol"] or _apply_alias(sym)
+            items.append({
+                "symbol": sym,
+                "yf_symbol": yf_sym,
+                "instrument_id": r["instrument_id"],
+            })
+        return items
     except Exception as exc:
         logger.warning("[%s] Could not fetch portfolio symbols: %s", WORKER_NAME, exc)
         return []
@@ -627,8 +650,8 @@ def run(project_root: Path | None = None) -> dict:
     # 2. Determine symbol lists -----------------------------------------------
 
     # Tier 1: always fetch (need fresh prices for SL checks)
-    tier1_symbols: list[str] = _get_portfolio_symbols(db)
-    logger.info("[%s] Tier 1 (portfolio): %d symbols", WORKER_NAME, len(tier1_symbols))
+    tier1_items: list[dict] = _get_portfolio_symbols(db)
+    logger.info("[%s] Tier 1 (portfolio): %d symbols", WORKER_NAME, len(tier1_items))
 
     # Tier 2: watchlist from DB — market-aware filtering
     db_watchlist = _get_watchlist_from_db(db)
@@ -650,23 +673,20 @@ def run(project_root: Path | None = None) -> dict:
         WORKER_NAME, len(tier2_items), skipped_count, len(db_watchlist),
     )
 
-    # Merge portfolio symbols with watchlist, deduplicate by yf_symbol
-    # Build set of tier1 yf_symbols for quick lookup
-    tier1_yf_set = {_apply_alias(s) for s in tier1_symbols}
-
-    # All items to fetch: Tier 1 + Tier 2 (deduplicated)
+    # All items to fetch: Tier 1 + Tier 2 (deduplicated by yf_symbol)
     all_items: list[dict] = []
     seen_yf: set[str] = set()
 
-    # Add Tier 1 first (highest priority)
-    for sym in tier1_symbols:
-        yf_sym = _apply_alias(sym)
+    # Add Tier 1 first (highest priority) — yf_symbol kommt jetzt aus der
+    # instruments-Tabelle (fix/tier1-yfinance-symbol), instrument_id ist echt.
+    for item in tier1_items:
+        yf_sym = item["yf_symbol"]
         if yf_sym not in seen_yf:
             all_items.append({
-                'symbol': sym,
+                'symbol': item["symbol"],
                 'yf_symbol': yf_sym,
                 'category': 'portfolio',
-                'instrument_id': None,
+                'instrument_id': item["instrument_id"],
             })
             seen_yf.add(yf_sym)
 
@@ -688,7 +708,7 @@ def run(project_root: Path | None = None) -> dict:
             all_yf_symbols.append(yf_sym)
 
     logger.info("[%s] Total symbols to fetch: %d (Tier1=%d, Tier2=%d)", WORKER_NAME,
-                len(all_yf_symbols), len(tier1_symbols), len(tier2_items))
+                len(all_yf_symbols), len(tier1_items), len(tier2_items))
 
     if not all_yf_symbols:
         logger.info("[%s] No symbols to fetch — exiting early", WORKER_NAME)
@@ -866,7 +886,7 @@ def run(project_root: Path | None = None) -> dict:
         open_regions = get_market_status()
         _post(
             "post_data_worker_embed",
-            tier1_count=len(tier1_symbols),
+            tier1_count=len(tier1_items),
             tier2_open=len(tier2_items),
             tier2_closed=skipped_count,
             tier2_total=len(db_watchlist),

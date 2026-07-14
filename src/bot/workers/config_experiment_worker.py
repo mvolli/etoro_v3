@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import shutil
 import sys
@@ -95,9 +96,16 @@ def _read_config_value(param: str) -> float | None:
     spec = TUNABLE_PARAMS.get(param)
     if not spec:
         return None
-    m = re.search(rf"^(\s*{re.escape(spec['key'])}:\s*)([\d.]+)",
-                  CONFIG_PATH.read_text(encoding="utf-8"), re.MULTILINE)
-    return float(m.group(2)) if m else None
+    # Eindeutigkeit erzwingen (Review 2026-07-14): bei 0 oder >1 Treffern
+    # (z.B. Key versehentlich dupliziert) → None, das Experiment wird
+    # verworfen statt die falsche Zeile zu lesen.
+    matches = re.findall(rf"^(\s*{re.escape(spec['key'])}:\s*)([\d.]+)",
+                         CONFIG_PATH.read_text(encoding="utf-8"), re.MULTILINE)
+    if len(matches) != 1:
+        logger.warning("[%s] Key %s ist %dx in config.yaml — nicht eindeutig",
+                       WORKER_NAME, spec["key"], len(matches))
+        return None
+    return float(matches[0][1])
 
 
 def _apply_config_value(param: str, new_value: float) -> bool:
@@ -115,7 +123,13 @@ def _apply_config_value(param: str, new_value: float) -> bool:
         return False
     shutil.copy2(CONFIG_PATH, CONFIG_PATH.with_suffix(".yaml.bak-experiment"))
     content = re.sub(pattern, rf"\g<1>{new_value}", content, count=1, flags=re.MULTILINE)
-    CONFIG_PATH.write_text(content, encoding="utf-8")
+    # fix/atomic-config-write (Review 2026-07-14): write_text truncated die
+    # Datei zuerst — ein Worker, der GENAU dann config.yaml laedt, saehe eine
+    # halbe Datei und wuerde crashen. tmp + os.replace ist auf demselben
+    # Dateisystem atomar: Leser sehen alt ODER neu, nie dazwischen.
+    tmp = CONFIG_PATH.with_suffix(".yaml.exp-tmp")
+    tmp.write_text(content, encoding="utf-8")
+    os.replace(tmp, CONFIG_PATH)
     return True
 
 

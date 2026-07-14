@@ -170,8 +170,31 @@ MAX_CATEGORY_FRACTION = 0.45
 
 
 def _get_signal_category(signal_type: str) -> str:
-    """Gibt die Diversitaets-Kategorie fuer einen Signal-Typ zurueck."""
-    return SIGNAL_CATEGORY.get(signal_type, "UNKNOWN")
+    """Gibt die Diversitaets-Kategorie fuer einen Signal-Typ zurueck.
+
+    fix/diversity-combo-types (2026-07-14): signal_type ist in der DB meist
+    ein Komma-Kombo ("TREND_PULLBACK,GOLDEN_CROSS") — der alte Exact-Match
+    lieferte dafuer immer UNKNOWN, womit das Diversity-Gate fuer ~86% der
+    Signale wirkungslos war. Jetzt: Teile splitten und mappen.
+      - alle bekannten Teile in einer Kategorie → diese Kategorie
+      - Teile aus beiden Kategorien → "MIXED" (eigene 45%-Kappe)
+      - kein Teil bekannt → "UNKNOWN" (fail-open) + Warnung, damit neue
+        Signal-Typen beim Einfuehren auffallen (SIGNAL_CATEGORY pflegen!)
+    """
+    parts = [p.strip() for p in (signal_type or "").split(",") if p.strip()]
+    cats = {SIGNAL_CATEGORY[p] for p in parts if p in SIGNAL_CATEGORY}
+    unknown = [p for p in parts if p not in SIGNAL_CATEGORY]
+    if unknown and parts:
+        logger.warning(
+            "SignalWorker: Signal-Typ(en) %s nicht in SIGNAL_CATEGORY — "
+            "Diversity-Gate fail-open, bitte Kategorie-Map pflegen",
+            ",".join(unknown[:3]),
+        )
+    if not cats:
+        return "UNKNOWN"
+    if len(cats) == 1:
+        return cats.pop()
+    return "MIXED"
 
 
 # ── Discord Embeds ─────────────────────────────────────────────────────────
@@ -653,8 +676,12 @@ def main() -> None:
         # Diversity-Gate: Kategorie-Verteilung aller offenen Positionen (einmalig)
         _open_signal_cats: dict[str, int] = {}
         try:
+            # fix/diversity-fanout (2026-07-14): COUNT(*) zaehlte JOIN-Paare —
+            # 2 Positionen x 2 ACTIVE-Trades desselben Instruments = 4 statt 2.
+            # DISTINCT api_position_id zaehlt echte Positionen (konsistent zum
+            # Nenner position_count).
             _cat_rows = db.fetchall("""
-                SELECT sig.signal_type, COUNT(*) as n
+                SELECT sig.signal_type, COUNT(DISTINCT ps.api_position_id) as n
                 FROM portfolio_snapshot ps
                 JOIN trades t ON t.instrument_id = ps.instrument_id AND t.status = 'ACTIVE'
                 JOIN signals sig ON sig.id = t.signal_id
@@ -710,9 +737,18 @@ def main() -> None:
             # Enforce minimum from regime params
             min_buy = regime_params.get("min_buy_usd", 50.0)
             if buy_amount < min_buy:
+                # fix/min-buy-slot-leak (2026-07-14): vorher nur `continue` ohne
+                # Status-Update — das Signal blieb FRESH und belegte JEDEN
+                # Zyklus erneut einen Kandidaten-Slot bis zum 24h-TTL (Kelly
+                # 0.3x oder CAUTION-Halbierung aendern sich innerhalb des TTL
+                # nicht). REJECT gibt den Slot frei.
                 logger.info(
-                    "SignalWorker: %s buy_amount $%.2f < regime min $%.2f — skipped",
+                    "SignalWorker: %s buy_amount $%.2f < regime min $%.2f — Signal REJECTED",
                     symbol, buy_amount, min_buy,
+                )
+                signal_repo.update_signal_status(signal_id, "REJECTED")
+                blocked_reasons.append(
+                    f"{symbol}: Groesse ${buy_amount:.2f} < Min ${min_buy:.0f} (Kelly/CAUTION)"
                 )
                 continue
     

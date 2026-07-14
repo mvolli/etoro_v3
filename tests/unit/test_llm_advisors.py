@@ -176,3 +176,92 @@ def test_apply_config_slippage_does_not_hit_crypto_twin(fake_config):
     content = fake_config.read_text(encoding="utf-8")
     assert "max_slippage_pct: 2.0" in content
     assert "max_slippage_pct_crypto: 3.0" in content
+
+
+# ── Diversity-Kategorien: Komma-Kombos (fix/diversity-combo-types) ───────────
+
+from bot.workers.signal_worker import _get_signal_category
+
+
+def test_category_single_type():
+    assert _get_signal_category('GOLDEN_CROSS') == 'TREND_FOLLOWING'
+    assert _get_signal_category('RSI_EXTREME_OVERSOLD') == 'MEAN_REVERSION'
+
+
+def test_category_combo_same_family():
+    assert _get_signal_category('TREND_PULLBACK,GOLDEN_CROSS') == 'TREND_FOLLOWING'
+    assert _get_signal_category('RSI_EXTREME_OVERSOLD,BB_LOW_MACD_IMPROVING') == 'MEAN_REVERSION'
+
+
+def test_category_combo_mixed_families():
+    assert _get_signal_category('RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20') == 'MIXED'
+
+
+def test_category_unknown_and_empty():
+    assert _get_signal_category('BRANDNEW_SIGNAL') == 'UNKNOWN'
+    assert _get_signal_category('') == 'UNKNOWN'
+    assert _get_signal_category('BRANDNEW,GOLDEN_CROSS') == 'TREND_FOLLOWING'
+
+
+# ── Review-Runde 2: Deadline + Config-Eindeutigkeit + atomarer Write ─────────
+
+from datetime import datetime, timezone
+
+from bot.workers.trade_veto_worker import _seconds_until_execution
+
+
+def test_deadline_at_04_is_120s():
+    now = datetime(2026, 7, 14, 10, 4, 0, tzinfo=timezone.utc)
+    assert _seconds_until_execution(now) == 120.0
+
+
+def test_deadline_at_19_30_is_90s():
+    now = datetime(2026, 7, 14, 10, 19, 30, tzinfo=timezone.utc)
+    assert _seconds_until_execution(now) == 90.0
+
+
+def test_deadline_exactly_at_slot_rolls_to_next():
+    now = datetime(2026, 7, 14, 10, 6, 0, tzinfo=timezone.utc)
+    assert _seconds_until_execution(now) == 900.0
+
+
+def test_read_config_value_rejects_duplicate_key(fake_config):
+    fake_config.write_text(
+        fake_config.read_text(encoding='utf-8') + 'extra:\n  default_pct: 9.9\n',
+        encoding='utf-8',
+    )
+    assert _read_config_value('sl.default_pct') is None
+    assert _apply_config_value('sl.default_pct', 3.0) is False
+
+
+def test_commented_key_does_not_confuse_regex(fake_config):
+    fake_config.write_text(
+        '# default_pct: 99.0  # alter Wert, kommentiert\n'
+        + fake_config.read_text(encoding='utf-8'),
+        encoding='utf-8',
+    )
+    assert _read_config_value('sl.default_pct') == 2.5
+    assert _apply_config_value('sl.default_pct', 3.0) is True
+    assert _read_config_value('sl.default_pct') == 3.0
+
+
+# ── Tier-1: yfinance-Symbol aus instruments-Tabelle (fix/tier1-yfinance-symbol) ──
+
+from bot.workers.data_worker import _get_portfolio_symbols
+
+
+def test_tier1_resolves_yfinance_symbol_from_db(tmp_path):
+    db = DB(db_path=tmp_path / 'p.db')
+    db.execute('CREATE TABLE portfolio_snapshot (api_position_id TEXT, symbol TEXT, instrument_id INTEGER)')
+    db.execute('CREATE TABLE instruments (instrument_id INTEGER PRIMARY KEY, symbol TEXT, yfinance_symbol TEXT)')
+    db.execute("INSERT INTO instruments VALUES (5804, 'ALC.ZU', 'ALC.SW')")
+    db.execute("INSERT INTO instruments VALUES (7111, 'PXA.ASX', 'PXA.AX')")
+    db.execute("INSERT INTO instruments VALUES (9999, 'AAPL', NULL)")
+    db.execute("INSERT INTO portfolio_snapshot VALUES ('a1', 'ALC.ZU', 5804)")
+    db.execute("INSERT INTO portfolio_snapshot VALUES ('a2', 'PXA.ASX', 7111)")
+    db.execute("INSERT INTO portfolio_snapshot VALUES ('a3', 'AAPL', 9999)")
+    items = {i['symbol']: i for i in _get_portfolio_symbols(db)}
+    assert items['ALC.ZU']['yf_symbol'] == 'ALC.SW'
+    assert items['PXA.ASX']['yf_symbol'] == 'PXA.AX'
+    assert items['AAPL']['yf_symbol'] == 'AAPL'   # NULL → Alias-Fallback
+    assert items['ALC.ZU']['instrument_id'] == 5804
