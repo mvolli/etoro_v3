@@ -1,36 +1,30 @@
 {
-  "updated_at": "2026-07-12T20:30:40.711485+00:00",
-  "auto_expires_at": "2026-07-26T20:30:40.711493+00:00",
+  "updated_at": "2026-07-13T20:31:00.505404+00:00",
+  "auto_expires_at": "2026-07-27T20:31:00.505410+00:00",
   "adjustments": {
     "TREND_PULLBACK": {
-      "score_multiplier": 0.5,
+      "score_multiplier": 0.3,
       "skip": false,
-      "reason": "Isolierte Performance bei 0.02% SR; Filterung n\u00f6tig."
+      "reason": "Isolierte Performance katastrophal (2%), nur mit GOLDEN_CROSS valid"
     },
-    "GOLDEN_CROSS": {
-      "score_multiplier": 0.2,
-      "skip": true,
-      "reason": "Isoliert 0% Success Rate; nur als Filter nutzen."
+    "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": {
+      "score_multiplier": 0.4,
+      "skip": false,
+      "reason": "Niedrige Success Rate (8%) und viele Rejections"
     },
     "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD": {
       "score_multiplier": 0.8,
       "skip": false,
-      "reason": "Hohe Sample Size (35), aber avg_pnl negativ; Conviction pr\u00fcfen."
-    },
-    "RSI_EXTREME_OVERSOLD": {
-      "score_multiplier": 0.4,
-      "skip": false,
-      "reason": "Alleiniges RSI-Extrem: avg_pnl=-0.45%, 54 Failed/98 Trades. Multiplikator von 0.8 zu hoch."
+      "reason": "Hohe Success Rate (80%), aber negativer avg_pnl; Gewicht leicht senken"
     }
   },
   "strategy_notes": [
-    "Futures und .OL Aktien haben strukturell hohe Ghost-Raten (>50%), daher Filter f\u00fcr diese Exchanges aktivieren.",
-    "TREND_PULLBACK nur noch in Kombination mit GOLDEN_CROSS oder MACD-Filter zulassen.",
-    "VERY_HIGH Conviction bei RSI-Extremwerten erfordert strengeren SL oder kleineres Sizing aufgrund negativer PnL-Historie.",
-    "Improvement Run 1: RSI_EXTREME_OVERSOLD Multiplikator 0.8->0.4; TREND_PULLBACK MACD-Floor -0.01->-0.005"
+    "Futures und .OL Aktien strikt filtern oder nur mit erhöhtem Slippage-Puffer traden",
+    "TREND_PULLBACK nur noch in Kombination mit GOLDEN_CROSS aktivieren, um Rejections zu minimieren",
+    "VERY_HIGH Conviction bei RSI-Extremwerten erfordert strengeren SL (z.B. 2.0% statt 2.5%) oder kleineres Sizing"
   ],
   "conviction_issues": [
-    "VERY_HIGH Conviction (BB+RSI) hat bei 35 Trades einen negativen avg_pnl von -0.45% und 0 Wins in der geschlossenen Statistik.",
-    "HIGH Conviction bei TREND_PULLBACK isoliert f\u00fchrt fast durchgehend zu Losses."
+    "VERY_HIGH Conviction bei RSI-Extremwerten hat 80% Win-Rate, aber negativen avg_pnl (-0.45%) — Gewinne sind klein, Verluste groß",
+    "TREND_PULLBACK mit HIGH Conviction hat 2% Success Rate — Signal ist unzuverlässig"
   ]
 }

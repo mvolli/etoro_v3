@@ -141,10 +141,10 @@ SUFFIX_TO_MARKET: dict[str, str] = {
     '.AS': 'EU',     # Netherlands (Euronext Amsterdam)
     '.PA': 'EU',     # France (Euronext Paris)
     '.MI': 'EU',     # Italy (Borsa Italiana)
-    '.BR': 'EU',     # Brazil (B3 / São Paulo)
-    '.MC': 'EU',     # Monaco
+    '.BR': 'EU',     # Belgium (Euronext Brussels)
+    '.MC': 'EU',     # Spain (BME Madrid)
     '.ST': 'EU',     # Sweden (Nasdaq Stockholm)
-    '.LS': 'EU',     # Spain (BME Madrid)
+    '.LS': 'EU',     # Portugal (Euronext Lisbon)
 
     # Asia-Pacific — markets with lunch breaks use a GROUP key
     # that checks BOTH morning and afternoon sessions
@@ -445,6 +445,16 @@ def _check_market_open(market_key: str, now_utc: datetime) -> bool:
 def get_instrument_market_key(symbol: str, yf_symbol: str = '', category: str = '') -> str:
     """Public wrapper for _get_market_key — returns the resolved market key."""
     return _get_market_key(symbol, yf_symbol, category)
+
+
+def is_market_key_open_at(market_key: str, at_utc: datetime) -> bool:
+    """True wenn der gegebene Markt-Key zum Zeitpunkt at_utc offen ist.
+
+    Fuer Discovery-Scheduling (fix/region-rotation-market-hours): eine Region
+    wird nur gescannt, wenn ihr Markt offen ist oder bald oeffnet — der Aufrufer
+    prueft dafuer mehrere Zeitpunkte (jetzt, +1.5h, +3h).
+    Unbekannter Key → True (fail-open, konsistent zu _check_market_open)."""
+    return _check_market_open(market_key, at_utc)
 
 
 def get_market_status(symbol: str = '') -> str:

@@ -5,8 +5,8 @@
       "run_number": 1,
       "findings": {
         "critical_bugs_fixed": [
-          "_llm_blacklist und _llm_signal_weights in signal_worker.py main() nie zugewiesen \u2014 beide Load-Funktionen existierten, wurden aber nie aufgerufen. LLM-Blocklist und Signal-Weights waren komplett toter Code.",
-          "Kein Signal-Type-Cooldown pro Instrument \u2014 BB_EXTREME_RSI_OVERSOLD feuerte 146x mit 70% Fail-Rate, DOGE-USD 64 Fails"
+          "_llm_blacklist und _llm_signal_weights in signal_worker.py main() nie zugewiesen — beide Load-Funktionen existierten, wurden aber nie aufgerufen. LLM-Blocklist und Signal-Weights waren komplett toter Code.",
+          "Kein Signal-Type-Cooldown pro Instrument — BB_EXTREME_RSI_OVERSOLD feuerte 146x mit 70% Fail-Rate, DOGE-USD 64 Fails"
         ],
         "data_analysis": {
           "total_trades": 347,
@@ -39,8 +39,8 @@
       "changes": [
         {
           "file": "src/bot/workers/signal_worker.py",
-          "fix_1": "Added _llm_blacklist = _load_llm_ghost_blacklist() und _llm_signal_weights = _load_llm_signal_weights() in main() \u2014 LLM-Blocklist und Signal-Weights sind nun aktiv",
-          "fix_2": "Added signal-type cooldown check (default 60 min) using existing signal_repo.has_recent_signal() \u2014 gleiche signal_type auf gleichem Instrument braucht Mindestdauer zwischen Wiederholung"
+          "fix_1": "Added _llm_blacklist = _load_llm_ghost_blacklist() und _llm_signal_weights = _load_llm_signal_weights() in main() — LLM-Blocklist und Signal-Weights sind nun aktiv",
+          "fix_2": "Added signal-type cooldown check (default 60 min) using existing signal_repo.has_recent_signal() — gleiche signal_type auf gleichem Instrument braucht Mindestdauer zwischen Wiederholung"
         }
       ],
       "config_changes": {
@@ -50,9 +50,9 @@
       },
       "test_result": "373 passed",
       "next_focus": [
-        "Cooldown-Wert optimieren (60 min default \u2014 evtl. 120 min f\u00fcr BB_EXTREME_RSI_OVERSOLD)",
-        "LLM-Review Worker Signal-Weights f\u00fcr BB_EXTREME_RSI_OVERSOLD auf score_multiplier=0.7 setzen",
-        "DOGE-USD und DOT-USD separaten Cooldown pr\u00fcfen (Crypto = immer offen, mehr Signale m\u00f6glich)"
+        "Cooldown-Wert optimieren (60 min default — evtl. 120 min für BB_EXTREME_RSI_OVERSOLD)",
+        "LLM-Review Worker Signal-Weights für BB_EXTREME_RSI_OVERSOLD auf score_multiplier=0.7 setzen",
+        "DOGE-USD und DOT-USD separaten Cooldown prüfen (Crypto = immer offen, mehr Signale möglich)"
       ]
     },
     {
@@ -60,8 +60,8 @@
       "run_number": 2,
       "findings": {
         "critical_bugs_fixed": [
-          "GOLDEN_CROSS score_multiplier von 0.2 auf 0.5 erh\u00f6ht \u2014 zu aggressiv gedrosselt, in Kombination mit MACD/RSI brauchbar.",
-          "TREND_PULLBACK mit MACD-Histogramm Floor (-0.01) versehen \u2014 filtert starke Downtrends heraus, wo die 63.6% Fail-Rate herkam."
+          "GOLDEN_CROSS score_multiplier von 0.2 auf 0.5 erhöht — zu aggressiv gedrosselt, in Kombination mit MACD/RSI brauchbar.",
+          "TREND_PULLBACK mit MACD-Histogramm Floor (-0.01) versehen — filtert starke Downtrends heraus, wo die 63.6% Fail-Rate herkam."
         ],
         "data_analysis": {
           "total_trades": 347,
@@ -119,17 +119,17 @@
       "changes": [
         {
           "file": "data/llm_signal_weights.json",
-          "detail": "GOLDEN_CROSS score_multiplier: 0.2 \u2192 0.5. TREND_PULLBACK score_multiplier: 0.5 \u2192 0.6."
+          "detail": "GOLDEN_CROSS score_multiplier: 0.2 → 0.5. TREND_PULLBACK score_multiplier: 0.5 → 0.6."
         },
         {
           "file": "src/bot/core/signals.py",
-          "detail": "Rule 6 (TREND_PULLBACK): MACD-Histogramm Floor macd_hist > -0.01 hinzugef\u00fcgt. Filtert Signale in starken Downtrends (macd_hist << -0.01) die fr\u00fcher als TREND_PULLBACK durchgingen."
+          "detail": "Rule 6 (TREND_PULLBACK): MACD-Histogramm Floor macd_hist > -0.01 hinzugefügt. Filtert Signale in starken Downtrends (macd_hist << -0.01) die früher als TREND_PULLBACK durchgingen."
         }
       ],
       "test_result": "373 passed",
       "next_focus": [
-        "MACD-Histogramm Floor Threshold (-0.01) \u00fcber n\u00e4chste 10 Runs validieren",
-        "GOLDEN_CROSS Performance nach score_multiplier-Erh\u00f6hung beobachten",
+        "MACD-Histogramm Floor Threshold (-0.01) über nächste 10 Runs validieren",
+        "GOLDEN_CROSS Performance nach score_multiplier-Erhöhung beobachten",
         "Signal-Type Cooldown default (60min) in system_state persistieren"
       ]
     },
@@ -158,13 +158,13 @@
       "changes": [
         {
           "file": "data/llm_signal_weights.json",
-          "change": "TREND_PULLBACK score_multiplier: 0.5 \u2192 0.3 (96.5% isolated failure rate)",
+          "change": "TREND_PULLBACK score_multiplier: 0.5 → 0.3 (96.5% isolated failure rate)",
           "rationale": "29 trades, 28 FAILED isoliert. Nur mit GOLDEN_CROSS-Filter noch akzeptabel."
         },
         {
           "file": "data/llm_signal_weights.json",
           "change": "Neuer Combo-Eintrag: TREND_PULLBACK,GOLDEN_CROSS score_multiplier: 0.4",
-          "rationale": "Beide Signale einzeln schwach (96.5% / 100% Failed). Combo nicht additiv \u2014 starkes Penalty."
+          "rationale": "Beide Signale einzeln schwach (96.5% / 100% Failed). Combo nicht additiv — starkes Penalty."
         }
       ],
       "trade_stats": {
@@ -190,10 +190,10 @@
         {
           "file": "data/llm_signal_weights.json",
           "change": "RSI_EXTREME_OVERSOLD score_multiplier 0.8 -> 0.4",
-          "reason": "98 Trades, avg_pnl=-0.45%, 54 Failed. Alleiniges RSI-Extrem zu schwach f\u00fcr 0.8 Multiplikator."
+          "reason": "98 Trades, avg_pnl=-0.45%, 54 Failed. Alleiniges RSI-Extrem zu schwach für 0.8 Multiplikator."
         }
       ],
-      "rationale": "RSI_EXTREME_OVERSOLD hat die schlechteste Performance (54 Failed/98 Trades, -0.45% avg_pnl). TREND_PULLBACK isoliert hat 96.6% Fail-Rate (43 Failed/44 Trades). Beide werden versch\u00e4rft.",
+      "rationale": "RSI_EXTREME_OVERSOLD hat die schlechteste Performance (54 Failed/98 Trades, -0.45% avg_pnl). TREND_PULLBACK isoliert hat 96.6% Fail-Rate (43 Failed/44 Trades). Beide werden verschärft.",
       "test_result": "381 passed",
       "expected_impact": "Weniger False-Entries bei RSI-Extremen und TREND_PULLBACK. Sollte FAILED-Rate reduzieren."
     }
@@ -285,16 +285,20 @@
         "GOLDEN_CROSS",
         "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD"
       ]
+    },
+    {
+      "date": "2026-07-13",
+      "closed_trades": 20,
+      "insights": 3,
+      "adjustments": [
+        "TREND_PULLBACK",
+        "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING",
+        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD"
+      ]
     }
   ],
   "signal_insights": {
     "TREND_PULLBACK": [
-      {
-        "date": "2026-07-09",
-        "score_multiplier": 0.7,
-        "skip": false,
-        "reason": "Niedrige Success Rate (2%), aber hohe Frequenz; Filter sch\u00e4rfen."
-      },
       {
         "date": "2026-07-09",
         "score_multiplier": 0.6,
@@ -311,7 +315,7 @@
         "date": "2026-07-09",
         "score_multiplier": 0.5,
         "skip": false,
-        "reason": "Hohe Fail-Rate (28/44), nur bei zus\u00e4tzlicher Best\u00e4tigung (z.B. MACD Turn) gewichten."
+        "reason": "Hohe Fail-Rate (28/44), nur bei zusätzlicher Bestätigung (z.B. MACD Turn) gewichten."
       },
       {
         "date": "2026-07-09",
@@ -347,7 +351,13 @@
         "date": "2026-07-12",
         "score_multiplier": 0.5,
         "skip": false,
-        "reason": "Isolierte Performance bei 0.02% SR; Filterung n\u00f6tig."
+        "reason": "Isolierte Performance bei 0.02% SR; Filterung nötig."
+      },
+      {
+        "date": "2026-07-13",
+        "score_multiplier": 0.3,
+        "skip": false,
+        "reason": "Isolierte Performance katastrophal (2%), nur mit GOLDEN_CROSS valid"
       }
     ],
     "GOLDEN_CROSS": [
@@ -373,7 +383,7 @@
         "date": "2026-07-09",
         "score_multiplier": 0.2,
         "skip": false,
-        "reason": "Alleinige Nutzung f\u00fchrt zu 0% Success Rate; nur in Kombination mit MACD/RSI verwenden."
+        "reason": "Alleinige Nutzung führt zu 0% Success Rate; nur in Kombination mit MACD/RSI verwenden."
       },
       {
         "date": "2026-07-09",
@@ -417,12 +427,6 @@
         "date": "2026-07-09",
         "score_multiplier": 0.6,
         "skip": false,
-        "reason": "Hohe Ghost-Rate und negative PnL bei CLOSED Trades; Gewicht senken."
-      },
-      {
-        "date": "2026-07-09",
-        "score_multiplier": 0.6,
-        "skip": false,
         "reason": "Hohe Ghost-Rate und negative PnL, aber noch aktive Trades vorhanden."
       },
       {
@@ -447,7 +451,7 @@
         "date": "2026-07-09",
         "score_multiplier": 0.6,
         "skip": false,
-        "reason": "Niedrige Success Rate (38%) und negative PnL bei Closed Trades, SL-\u00dcberwachung erforderlich."
+        "reason": "Niedrige Success Rate (38%) und negative PnL bei Closed Trades, SL-Überwachung erforderlich."
       },
       {
         "date": "2026-07-09",
@@ -471,7 +475,13 @@
         "date": "2026-07-12",
         "score_multiplier": 0.8,
         "skip": false,
-        "reason": "Hohe Sample Size (35), aber avg_pnl negativ; Conviction pr\u00fcfen."
+        "reason": "Hohe Sample Size (35), aber avg_pnl negativ; Conviction prüfen."
+      },
+      {
+        "date": "2026-07-13",
+        "score_multiplier": 0.8,
+        "skip": false,
+        "reason": "Hohe Success Rate (80%), aber negativer avg_pnl; Gewicht leicht senken"
       }
     ],
     "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": [
@@ -504,6 +514,12 @@
         "score_multiplier": 0.4,
         "skip": false,
         "reason": "Success Rate bei 0.08, hohe Rejection-Rate."
+      },
+      {
+        "date": "2026-07-13",
+        "score_multiplier": 0.4,
+        "skip": false,
+        "reason": "Niedrige Success Rate (8%) und viele Rejections"
       }
     ],
     "MACD_TURN_BELOW_SMA20": [
@@ -524,20 +540,20 @@
     ]
   },
   "strategy_notes": [
-    "RSI-Extrem-Overbought/Oversold Signale mit MACD-Konfirmation sind im aktuellen Markt unzuverl\u00e4ssig.",
+    "RSI-Extrem-Overbought/Oversold Signale mit MACD-Konfirmation sind im aktuellen Markt unzuverlässig.",
     "Forex-Paare (insb. EURJPY, EURGBP) und schwedische/deutsche Small Caps haben sehr hohe Ghost-Order-Raten (>75%), Orders dort vorsichtig platzieren.",
-    "Forex-Paare und skandinavische/deutsche Small Caps ben\u00f6tigen breitere Stop-Losses oder Filter gegen Ghost-Orders.",
-    "RSI-Extrem-Signale allein sind unzuverl\u00e4ssig; MACD-Turn unter SMA20 best\u00e4tigt oft den Trendwechsel besser.",
-    "MACD_TURN_BELOW_SMA20 in Kombination mit BB_LOW_MACD_IMPROVING zeigt bei wenigen Trades (n=13) eine bessere Stabilit\u00e4t als reine RSI-Signale.",
-    "Forex-Paare (EURJPY, EURGBP) ben\u00f6tigen zwingend einen breiteren Stop oder einen Filter, der Ghost-Orders ausschlie\u00dft.",
-    "Forex-Paare (EURGBP, EURJPY) und HE/ST Exchanges sind aktuell Ghost-Fluchtpunkte; Slippage-Filter hier versch\u00e4rfen.",
+    "Forex-Paare und skandinavische/deutsche Small Caps benötigen breitere Stop-Losses oder Filter gegen Ghost-Orders.",
+    "RSI-Extrem-Signale allein sind unzuverlässig; MACD-Turn unter SMA20 bestätigt oft den Trendwechsel besser.",
+    "MACD_TURN_BELOW_SMA20 in Kombination mit BB_LOW_MACD_IMPROVING zeigt bei wenigen Trades (n=13) eine bessere Stabilität als reine RSI-Signale.",
+    "Forex-Paare (EURJPY, EURGBP) benötigen zwingend einen breiteren Stop oder einen Filter, der Ghost-Orders ausschließt.",
+    "Forex-Paare (EURGBP, EURJPY) und HE/ST Exchanges sind aktuell Ghost-Fluchtpunkte; Slippage-Filter hier verschärfen.",
     "MACD_TURN_BELOW_SMA20 in Kombination mit BB_LOW_MACD_IMPROVING ist das robusteste Signal im CAUTION-Regime.",
     "GOLDEN_CROSS ist im aktuellen Marktumfeld ineffizient (100% Failed); nicht als alleiniges Entry nutzen.",
     "MACD_TURN_BELOW_SMA20 in Kombination mit BB_LOW_MACD_IMPROVING ist das stabilste Signal im CAUTION-Regime.",
-    "Forex-Paare (EURGBP, EURJPY) sollten nur bei hoher Liquidit\u00e4t oder mit erweitertem SL gehandelt werden.",
+    "Forex-Paare (EURGBP, EURJPY) sollten nur bei hoher Liquidität oder mit erweitertem SL gehandelt werden.",
     "GOLDEN_Cross nicht als alleiniges Entry-Signal nutzen, sondern nur in Kombination mit MACD/RSI.",
     "TREND_PULLBACK nur noch mit GOLDEN_CROSS-Filter verwenden, da isoliert fast immer fehlschlaegt.",
-    "Futures und .OL Aktien haben strukturell hohe Ghost-Raten (>50%), daher Filter f\u00fcr diese Exchanges aktivieren.",
+    "Futures und .OL Aktien haben strukturell hohe Ghost-Raten (>50%), daher Filter für diese Exchanges aktivieren.",
     "VERY_HIGH Conviction bei RSI-Extremwerten erfordert strengeren SL oder kleineres Sizing aufgrund negativer PnL-Historie."
   ],
   "config_history": [
@@ -550,7 +566,7 @@
     {
       "date": "2026-07-09",
       "changes": [
-        "sl.default_pct: 2.5 -> 3.0 (Erh\u00f6hung von 2.5% auf 3.0%, um Ghost-Orders in Forex und Sma)",
+        "sl.default_pct: 2.5 -> 3.0 (Erhöhung von 2.5% auf 3.0%, um Ghost-Orders in Forex und Sma)",
         "sizing.medium_pct: 6.0 -> 5.0 (Reduktion von 6.0% auf 5.0%, da die aktuellen Signale (RSI-E)"
       ]
     },
@@ -564,7 +580,7 @@
     {
       "date": "2026-07-09",
       "changes": [
-        "sl.default_pct: 4.0 -> 3.0 (Erh\u00f6hung von 4.0% auf 3.0% im CAUTION-Regime, um Slippage be)",
+        "sl.default_pct: 4.0 -> 3.0 (Erhöhung von 4.0% auf 3.0% im CAUTION-Regime, um Slippage be)",
         "sizing.very_high_pct: 6.0 -> 5.0 (Reduktion von 6.0% auf 5.0%, da VERY_HIGH Conviction Signale)"
       ]
     },
@@ -578,6 +594,12 @@
       "date": "2026-07-10",
       "changes": [
         "sl.default_pct: 3.0 -> 2.5 (Reduzierung von 3.0% auf 2.5%, um die hohen absoluten Verlus)"
+      ]
+    },
+    {
+      "date": "2026-07-13",
+      "changes": [
+        "sizing.very_high_pct: 5.0 -> 4.0 (RSI-Extrem-Signale haben negative avg_pnl (-0.45%) bei 35 Tr)"
       ]
     }
   ],
@@ -781,6 +803,28 @@
         ".MC": 0.0,
         ".MI": 0.0,
         ".L": 0.11,
+        "_OTHER": 0.0,
+        "_ASIA": 0.0,
+        "_FUT": 1.0,
+        "_FOREX": 0.5,
+        ".OL": 1.0,
+        ".HK": 0.0,
+        ".AX": 0.0,
+        ".T": 0.0,
+        "_CRYPTO": 0.0
+      }
+    },
+    {
+      "ts": "2026-07-13T20:31:00.504489+00:00",
+      "rates": {
+        ".L": 0.14,
+        ".ST": 0.17,
+        ".ASX": 0.12,
+        ".PA": 0.05,
+        ".DE": 0.0,
+        ".MI": 0.2,
+        ".ZU": 0.0,
+        ".MC": 0.5,
         "_OTHER": 0.0,
         "_ASIA": 0.0,
         "_FUT": 1.0,

@@ -786,7 +786,12 @@ def run(project_root: Path | None = None) -> dict:
             # identisches Signal (KTA.DE 2026-07-06: 39 Stück/Vormittag, vom
             # SELL-Exit einzeln konsumiert → Position endlos halbiert).
             # Ein identisches Signal pro Instrument pro TTL-Fenster genügt.
-            if signal_repo.has_recent_signal(instrument_id, signal_types_str, signal_ttl):
+            # fix/data-worker-dedup (2026-07-14): has_recent_signal prueft nur
+            # CONSUMED (Trade-Cooldown) — FRESH-Duplikate rutschten durch
+            # (~4200 Signale am 2026-07-13). has_fresh_signal blockt
+            # existierende FRESH-Signale zusaetzlich.
+            if (signal_repo.has_fresh_signal(instrument_id, signal_types_str)
+                    or signal_repo.has_recent_signal(instrument_id, signal_types_str, signal_ttl)):
                 logger.debug(
                     "[%s] %s: identisches Signal (%s) innerhalb %d min existiert — Dedup-Skip",
                     WORKER_NAME, original_sym, signal_types_str, signal_ttl,

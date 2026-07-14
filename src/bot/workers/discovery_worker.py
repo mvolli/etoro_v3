@@ -18,6 +18,7 @@ import logging
 import os
 import sys
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -174,7 +175,46 @@ US_CHUNKS_PER_RUN = 2
 # 384 ASX + APAC stocks/ETFs. 6 Chunks × 1/Run × 2h = 12h voller Zyklus.
 APAC_AU_CHUNK_COUNT = 6
 APAC_AU_CHUNK_STATE_KEY = "discovery_apac_au_chunk_idx"
-APAC_AU_CHUNKS_PER_RUN = 1
+APAC_AU_CHUNKS_PER_RUN = 2  # AU-Fenster hat ~4 relevante Runs/Nacht: 4x2=8 >= 6 Chunks
+
+# ── Weitere Regionen (fix/region-rotation-market-hours) ──────────────────────
+# ASIA_JP (216), ASIA_CN (224) und GLOBAL (~470 stock/etf) waren in KEINER
+# Rotation — diese ~900 aktiven Instrumente wurden von Discovery nie gescannt.
+ASIA_JP_CHUNK_COUNT = 4
+ASIA_JP_CHUNK_STATE_KEY = "discovery_asia_jp_chunk_idx"
+ASIA_CN_CHUNK_COUNT = 4
+ASIA_CN_CHUNK_STATE_KEY = "discovery_asia_cn_chunk_idx"
+GLOBAL_CHUNK_COUNT = 8
+GLOBAL_CHUNK_STATE_KEY = "discovery_global_chunk_idx"
+
+# Region gilt als scan-relevant, wenn ihr Markt offen ist oder innerhalb dieser
+# Vorlaufzeit oeffnet (Signal-Preload vor Boersenoeffnung: der 06:20-CEST-Lauf
+# laedt EU-Chunks fuer den 09:00-Open, der 12:20-Lauf US-Chunks fuer 15:30).
+REGION_PRELOOK_HOURS = 3.0
+
+# Rotations-Plan: market_region-Werte, Chunk-Layout und die market_hours-Keys,
+# die ueber Scan/Skip entscheiden (None = zeitzonen-agnostisch, immer scannen).
+# EU: 16 Chunks / 3 pro Run — bei ~6 relevanten Runs/Tag volle Rotation taeglich.
+REGION_ROTATIONS: list[dict] = [
+    {"regions": ("EU",), "state_key": EU_DISCOVERY_CHUNK_STATE_KEY,
+     "chunk_count": EU_DISCOVERY_CHUNK_COUNT, "chunks_per_run": 3,
+     "market_keys": ("EU",)},
+    {"regions": ("US",), "state_key": US_DISCOVERY_CHUNK_STATE_KEY,
+     "chunk_count": US_DISCOVERY_CHUNK_COUNT, "chunks_per_run": US_CHUNKS_PER_RUN,
+     "market_keys": ("US",)},
+    {"regions": ("ASIA_AU", "APAC"), "state_key": APAC_AU_CHUNK_STATE_KEY,
+     "chunk_count": APAC_AU_CHUNK_COUNT, "chunks_per_run": APAC_AU_CHUNKS_PER_RUN,
+     "market_keys": ("APAC_AU",)},
+    {"regions": ("ASIA_JP",), "state_key": ASIA_JP_CHUNK_STATE_KEY,
+     "chunk_count": ASIA_JP_CHUNK_COUNT, "chunks_per_run": 1,
+     "market_keys": ("APAC_JP_GROUP",)},
+    {"regions": ("ASIA_CN",), "state_key": ASIA_CN_CHUNK_STATE_KEY,
+     "chunk_count": ASIA_CN_CHUNK_COUNT, "chunks_per_run": 1,
+     "market_keys": ("APAC_CN_GROUP", "APAC_HK_GROUP")},
+    {"regions": ("GLOBAL",), "state_key": GLOBAL_CHUNK_STATE_KEY,
+     "chunk_count": GLOBAL_CHUNK_COUNT, "chunks_per_run": 1,
+     "market_keys": None},
+]
 
 # Maximale Evictions von veralteten discovered-Slots pro Run
 STALE_DISCOVERED_EVICTION_MAX = 15
@@ -188,17 +228,18 @@ def _discovery_category_for_region(market_region: str | None) -> str:
     return f"{market_region.lower()}.discovered"
 
 
-def _get_eu_discovery_chunk(
-    db: Any, chunk_idx: int, chunk_count: int = EU_DISCOVERY_CHUNK_COUNT
+def _get_region_discovery_chunk(
+    db: Any, regions: tuple[str, ...], chunk_idx: int, chunk_count: int
 ) -> list[tuple[str, int, str]]:
     """Return (yfinance_symbol, instrument_id, symbol) for one rotating slice
-    of the EU stock/ETF universe."""
+    of the given market_region(s) stock/ETF universe."""
     try:
+        placeholders = ",".join("?" * len(regions))
         rows = db.fetchall(
-            """
+            f"""
             SELECT instrument_id, symbol, yfinance_symbol
             FROM instruments
-            WHERE market_region = 'EU'
+            WHERE market_region IN ({placeholders})
               AND is_active = 1
               AND (is_tradable IS NULL OR is_tradable = 1)
               AND asset_class IN ('stock', 'etf')
@@ -207,12 +248,40 @@ def _get_eu_discovery_chunk(
               AND instrument_id % ? = ?
             ORDER BY instrument_id
             """,
-            (chunk_count, chunk_idx),
+            (*regions, chunk_count, chunk_idx),
         )
         return [(row["yfinance_symbol"], row["instrument_id"], row["symbol"]) for row in rows]
     except Exception as exc:
-        logger.warning("[%s] _get_eu_discovery_chunk failed: %s", WORKER_NAME, exc)
+        logger.warning("[%s] _get_region_discovery_chunk %s failed: %s", WORKER_NAME, regions, exc)
         return []
+
+
+def _region_scan_relevant(market_keys: tuple[str, ...] | None, now_utc: datetime) -> bool:
+    """True wenn mindestens einer der market_hours-Keys jetzt offen ist oder
+    innerhalb von REGION_PRELOOK_HOURS oeffnet (Punkt-Checks bei +0/+50%/+100%
+    des Fensters — kuerzeste Boersensession ist 2h, kein Fenster rutscht durch).
+    None = zeitzonen-agnostische Region (GLOBAL) — immer scannen.
+    Fail-open bei Fehlern: lieber scannen als eine Region aushungern."""
+    if not market_keys:
+        return True
+    try:
+        from bot.core.market_hours import is_market_key_open_at
+        for key in market_keys:
+            for h in (0.0, REGION_PRELOOK_HOURS / 2.0, REGION_PRELOOK_HOURS):
+                if is_market_key_open_at(key, now_utc + timedelta(hours=h)):
+                    return True
+        return False
+    except Exception as exc:
+        logger.warning("[%s] _region_scan_relevant failed (%s) — fail-open", WORKER_NAME, exc)
+        return True
+
+
+def _get_eu_discovery_chunk(
+    db: Any, chunk_idx: int, chunk_count: int = EU_DISCOVERY_CHUNK_COUNT
+) -> list[tuple[str, int, str]]:
+    """Return (yfinance_symbol, instrument_id, symbol) for one rotating slice
+    of the EU stock/ETF universe."""
+    return _get_region_discovery_chunk(db, ("EU",), chunk_idx, chunk_count)
 
 
 def _get_us_discovery_chunk(
@@ -221,26 +290,7 @@ def _get_us_discovery_chunk(
     """Return (yfinance_symbol, instrument_id, symbol) for one rotating slice
     of the US stock/ETF universe. FULL_UNIVERSE symbols are NOT excluded here —
     the all_symbols dedup in main() ensures no double-fetching."""
-    try:
-        rows = db.fetchall(
-            """
-            SELECT instrument_id, symbol, yfinance_symbol
-            FROM instruments
-            WHERE market_region = 'US'
-              AND is_active = 1
-              AND (is_tradable IS NULL OR is_tradable = 1)
-              AND asset_class IN ('stock', 'etf')
-              AND yfinance_symbol IS NOT NULL
-              AND yfinance_symbol != ''
-              AND instrument_id % ? = ?
-            ORDER BY instrument_id
-            """,
-            (chunk_count, chunk_idx),
-        )
-        return [(row["yfinance_symbol"], row["instrument_id"], row["symbol"]) for row in rows]
-    except Exception as exc:
-        logger.warning("[%s] _get_us_discovery_chunk failed: %s", WORKER_NAME, exc)
-        return []
+    return _get_region_discovery_chunk(db, ("US",), chunk_idx, chunk_count)
 
 
 def _get_apac_au_discovery_chunk(
@@ -248,26 +298,7 @@ def _get_apac_au_discovery_chunk(
 ) -> list[tuple[str, int, str]]:
     """Return (yfinance_symbol, instrument_id, symbol) for one rotating slice
     of the APAC/Australia stock universe (ASIA_AU + APAC market regions)."""
-    try:
-        rows = db.fetchall(
-            """
-            SELECT instrument_id, symbol, yfinance_symbol
-            FROM instruments
-            WHERE market_region IN ('ASIA_AU', 'APAC')
-              AND is_active = 1
-              AND (is_tradable IS NULL OR is_tradable = 1)
-              AND asset_class IN ('stock', 'etf')
-              AND yfinance_symbol IS NOT NULL
-              AND yfinance_symbol != ''
-              AND instrument_id % ? = ?
-            ORDER BY instrument_id
-            """,
-            (chunk_count, chunk_idx),
-        )
-        return [(row["yfinance_symbol"], row["instrument_id"], row["symbol"]) for row in rows]
-    except Exception as exc:
-        logger.warning("[%s] _get_apac_au_discovery_chunk failed: %s", WORKER_NAME, exc)
-        return []
+    return _get_region_discovery_chunk(db, ("ASIA_AU", "APAC"), chunk_idx, chunk_count)
 
 
 def _evict_stale_discovered(db: Any) -> int:
@@ -618,7 +649,7 @@ def main() -> int:
       6. Rank by score, take top 20
       7. Apply sector-diversity cap (max 3 per sector)
       8. Ensure instruments exist in DB
-      9. Store top MAX_STORE candidates as signals (TTL 6h)
+      9. Store top MAX_STORE candidates as signals (TTL 24h)
      10. Summary print + Discord embed
     """
     # ── Worker lock: prevent overlapping cron invocations ────────────────────
@@ -696,62 +727,47 @@ def main() -> int:
                 all_symbols.append(yf_sym)
                 symbol_to_inst_id[yf_sym] = inst_id
 
-        # fix/eu-watchlist-expansion: one rotating slice of the ~2900-strong
-        # EU universe per run (see EU_DISCOVERY_CHUNK_COUNT docstring above).
-        try:
-            eu_chunk_idx = int(state_repo.get(EU_DISCOVERY_CHUNK_STATE_KEY, "0")) % EU_DISCOVERY_CHUNK_COUNT
-        except (TypeError, ValueError):
-            eu_chunk_idx = 0
-        # 2 Chunks pro Run → voller Zyklus 8 Runs × 2h = 16h statt 32h
-        EU_CHUNKS_PER_RUN = 2
-        for _chunk_offset in range(EU_CHUNKS_PER_RUN):
-            _cidx = (eu_chunk_idx + _chunk_offset) % EU_DISCOVERY_CHUNK_COUNT
-            eu_chunk = _get_eu_discovery_chunk(db, _cidx)
-            logger.info(
-                "[%s] EU chunk %d/%d: %d instruments",
-                WORKER_NAME, _cidx, EU_DISCOVERY_CHUNK_COUNT, len(eu_chunk),
+        # ── Regionen-Rotation (fix/region-rotation-market-hours) ─────────────────
+        # Alle handelbaren Instrumente aus der DB rotieren durch die Discovery —
+        # inkl. ASIA_JP/ASIA_CN/GLOBAL, die vorher NIE gescannt wurden (~900
+        # Instrumente). Eine Region wird nur gescannt, wenn ihr Markt offen ist
+        # oder innerhalb REGION_PRELOOK_HOURS oeffnet: Signale entstehen so fuer
+        # Boersen, die zeitnah handelbar sind (frische Preise statt Overnight-
+        # Stale-Data), und die Fetch-Kapazitaet fliesst in aktive Maerkte.
+        # Der Chunk-Index rotiert NUR weiter, wenn die Region gescannt wurde —
+        # sonst wuerden Chunks uebersprungen, ohne je gescannt worden zu sein.
+        now_utc = datetime.now(timezone.utc)
+        skipped_regions: list[str] = []
+        for rot in REGION_ROTATIONS:
+            region_label = "+".join(rot["regions"])
+            if not _region_scan_relevant(rot["market_keys"], now_utc):
+                skipped_regions.append(region_label)
+                continue
+            try:
+                chunk_idx = int(state_repo.get(rot["state_key"], "0")) % rot["chunk_count"]
+            except (TypeError, ValueError):
+                chunk_idx = 0
+            for _chunk_offset in range(rot["chunks_per_run"]):
+                _cidx = (chunk_idx + _chunk_offset) % rot["chunk_count"]
+                region_chunk = _get_region_discovery_chunk(
+                    db, rot["regions"], _cidx, rot["chunk_count"]
+                )
+                logger.info(
+                    "[%s] %s chunk %d/%d: %d instruments",
+                    WORKER_NAME, region_label, _cidx, rot["chunk_count"], len(region_chunk),
+                )
+                for yf_sym, inst_id, _orig_sym in region_chunk:
+                    if yf_sym not in all_symbols:
+                        all_symbols.append(yf_sym)
+                        symbol_to_inst_id[yf_sym] = inst_id
+            state_repo.set(
+                rot["state_key"], str((chunk_idx + rot["chunks_per_run"]) % rot["chunk_count"])
             )
-            for yf_sym, inst_id, _orig_sym in eu_chunk:
-                if yf_sym not in all_symbols:
-                    all_symbols.append(yf_sym)
-                    symbol_to_inst_id[yf_sym] = inst_id
-        state_repo.set(EU_DISCOVERY_CHUNK_STATE_KEY, str((eu_chunk_idx + EU_CHUNKS_PER_RUN) % EU_DISCOVERY_CHUNK_COUNT))
-
-        # ── US universe rotation — 2 chunks/run, 16h full cycle ──────────────────
-        try:
-            us_chunk_idx = int(state_repo.get(US_DISCOVERY_CHUNK_STATE_KEY, "0")) % US_DISCOVERY_CHUNK_COUNT
-        except (TypeError, ValueError):
-            us_chunk_idx = 0
-        for _chunk_offset in range(US_CHUNKS_PER_RUN):
-            _cidx = (us_chunk_idx + _chunk_offset) % US_DISCOVERY_CHUNK_COUNT
-            us_chunk = _get_us_discovery_chunk(db, _cidx)
+        if skipped_regions:
             logger.info(
-                "[%s] US chunk %d/%d: %d instruments",
-                WORKER_NAME, _cidx, US_DISCOVERY_CHUNK_COUNT, len(us_chunk),
+                "[%s] Regionen ohne offenen/bald oeffnenden Markt uebersprungen: %s",
+                WORKER_NAME, ", ".join(skipped_regions),
             )
-            for yf_sym, inst_id, _orig_sym in us_chunk:
-                if yf_sym not in all_symbols:
-                    all_symbols.append(yf_sym)
-                    symbol_to_inst_id[yf_sym] = inst_id
-        state_repo.set(US_DISCOVERY_CHUNK_STATE_KEY, str((us_chunk_idx + US_CHUNKS_PER_RUN) % US_DISCOVERY_CHUNK_COUNT))
-
-        # ── APAC/Australia rotation — 1 chunk/run, 12h full cycle ────────────────
-        try:
-            apac_au_chunk_idx = int(state_repo.get(APAC_AU_CHUNK_STATE_KEY, "0")) % APAC_AU_CHUNK_COUNT
-        except (TypeError, ValueError):
-            apac_au_chunk_idx = 0
-        for _chunk_offset in range(APAC_AU_CHUNKS_PER_RUN):
-            _cidx = (apac_au_chunk_idx + _chunk_offset) % APAC_AU_CHUNK_COUNT
-            apac_chunk = _get_apac_au_discovery_chunk(db, _cidx)
-            logger.info(
-                "[%s] APAC/AU chunk %d/%d: %d instruments",
-                WORKER_NAME, _cidx, APAC_AU_CHUNK_COUNT, len(apac_chunk),
-            )
-            for yf_sym, inst_id, _orig_sym in apac_chunk:
-                if yf_sym not in all_symbols:
-                    all_symbols.append(yf_sym)
-                    symbol_to_inst_id[yf_sym] = inst_id
-        state_repo.set(APAC_AU_CHUNK_STATE_KEY, str((apac_au_chunk_idx + APAC_AU_CHUNKS_PER_RUN) % APAC_AU_CHUNK_COUNT))
 
         # ── Stale discovered slots eviction (macht Platz fuer neue Kandidaten) ───
         evicted = _evict_stale_discovered(db)
@@ -963,10 +979,19 @@ def main() -> int:
                 # Ensure instrument row exists (verified ID only)
                 _ensure_instrument(symbol, instrument_id, db)
 
-                # Store signal with 6h TTL
+                # Store signal (TTL: SIGNAL_TTL_MINUTES = 24h)
                 signal_types_str = (
                     ",".join(cand["signal_types"]) if cand.get("signal_types") else "BUY"
                 )
+                # fix/data-worker-dedup: identisches FRESH-Signal existiert noch
+                # (24h-TTL) → kein Duplikat, aber Watchlist-Slot auffrischen.
+                if signal_repo.has_fresh_signal(instrument_id, signal_types_str):
+                    logger.info(
+                        "[%s] %s: identisches FRESH-Signal existiert — Dedup-Skip",
+                        WORKER_NAME, symbol,
+                    )
+                    _promote_to_watchlist(db, instrument_id, symbol, cand["score"])
+                    continue
                 signal_repo.create(
                     instrument_id=instrument_id,
                     signal_type=signal_types_str,

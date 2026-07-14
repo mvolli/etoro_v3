@@ -135,6 +135,26 @@ def _signal_age_factor(generated_at_iso: str, ttl_minutes: int = 60) -> float:
         return 1.0
 
 
+# ── Diversity Gate -- Signal-Typ-Kategorisierung (Prio 4) ──────────────────────
+# Verhindert Ueberkonzentration in einer einzigen Handelsstrategie.
+# MAX_CATEGORY_FRACTION: max 45% der offenen Positionen in einer Kategorie.
+SIGNAL_CATEGORY: dict[str, str] = {
+    "BB_LOWER_RSI_OVERSOLD":   "MEAN_REVERSION",
+    "BB_EXTREME_RSI_OVERSOLD": "MEAN_REVERSION",
+    "RSI_EXTREME_OVERSOLD":    "MEAN_REVERSION",
+    "BB_LOW_MACD_IMPROVING":   "MEAN_REVERSION",
+    "MACD_TURN_BELOW_SMA20":   "TREND_FOLLOWING",
+    "TREND_PULLBACK":          "TREND_FOLLOWING",
+    "GOLDEN_CROSS":            "TREND_FOLLOWING",
+}
+MAX_CATEGORY_FRACTION = 0.45
+
+
+def _get_signal_category(signal_type: str) -> str:
+    """Gibt die Diversitaets-Kategorie fuer einen Signal-Typ zurueck."""
+    return SIGNAL_CATEGORY.get(signal_type, "UNKNOWN")
+
+
 # ── Discord Embeds ─────────────────────────────────────────────────────────
 try:
     from pathlib import Path as _Path
@@ -415,6 +435,28 @@ def main() -> None:
                     return sym
             return str(instrument_id)
     
+        _ASSET_CLASS_TO_CATEGORY = {
+            "forex": "forex", "commodity": "commodities",
+            "index": "indices", "crypto": "crypto",
+        }
+
+        def _resolve_market_fields(instrument_id: int) -> tuple[str, str]:
+            """yfinance_symbol + market_hours-Kategorie fuer den Market-Check.
+            Ohne yf_symbol wuerde z.B. ein Forex-Symbol (EURJPY) als US-Aktie
+            eingestuft und faelschlich an US-Boersenzeiten gebunden."""
+            try:
+                row = db.fetchone(
+                    "SELECT yfinance_symbol, asset_class FROM instruments WHERE instrument_id=?",
+                    (instrument_id,),
+                )
+                if row:
+                    yf_sym = row["yfinance_symbol"] or ""
+                    cat = _ASSET_CLASS_TO_CATEGORY.get((row["asset_class"] or "").lower(), "")
+                    return yf_sym, cat
+            except Exception:
+                pass
+            return "", ""
+
         skipped_closed: list[str] = []
         eligible: list[tuple[dict, str]] = []  # (signal, symbol) — open market, not blacklisted
     
@@ -473,8 +515,18 @@ def main() -> None:
                 signal_repo.update_signal_status(signal_id, "REJECTED")
                 continue
 
-            # Market hours: statischer Check entfernt — allowEntryOrders
-            # in open_position() prüft live ob eToro Trades erlaubt.
+            # Market hours (fix/market-hours-slot-guard): Signale geschlossener
+            # Boersen bleiben FRESH (kein REJECT — sie werden gueltig, sobald
+            # der Markt oeffnet, z.B. EU-Preload ueber Nacht), belegen aber
+            # keinen der 3 knappen Kandidaten-Slots pro 15-min-Zyklus.
+            # allowEntryOrders in open_position() bleibt die letzte
+            # Verteidigungslinie fuer Feiertage/Halts, die der statische
+            # Kalender nicht kennt.
+            _yf_sym, _mh_category = _resolve_market_fields(instrument_id)
+            if not is_market_open(symbol, _yf_sym, _mh_category, fail_open=False):
+                skipped_closed.append(symbol)
+                continue
+
             eligible.append((signal, symbol))
     
         # Sort by boosted score descending — only among OPEN, non-blacklisted
@@ -501,8 +553,29 @@ def main() -> None:
                 seen_instruments.add(inst_id)
                 unique_candidates.append((signal, symbol))
     
-        # Take max 3 unique candidates — guaranteed open-market, non-blacklisted
-        candidates = unique_candidates[:3]
+        # Adaptive Kandidaten-Slots (fix/adaptive-slots): 3 Standard. 5 wenn
+        # Kapital brach liegt (cash > cash_target_max_pct der Equity) UND der
+        # Pool >= 4 HIGH/VERY_HIGH-Kandidaten hat — an starken Signaltagen
+        # soll ueberschuessiges Cash arbeiten, ohne die Qualitaetsschwelle zu
+        # senken. Alle nachgelagerten Gates (Exposure, Cash-Floor, Kelly,
+        # Diversity, Slippage) gelten unveraendert pro Kandidat.
+        max_candidates = 3
+        try:
+            _cash_max_pct = float(cfg.get("trading", {}).get("cash_target_max_pct", 30.0))
+            _high_plus = sum(
+                1 for _s, _sym in unique_candidates
+                if (_s.get("conviction") or "").upper() in ("HIGH", "VERY_HIGH")
+            )
+            _cash_pct = (cash_estimate / equity * 100.0) if equity > 0 else 0.0
+            if _cash_pct > _cash_max_pct and _high_plus >= 4:
+                max_candidates = 5
+                logger.info(
+                    "SignalWorker: Adaptive Slots 3->5 (Cash %.1f%% > %.1f%%, %d HIGH+-Kandidaten)",
+                    _cash_pct, _cash_max_pct, _high_plus,
+                )
+        except Exception:
+            pass
+        candidates = unique_candidates[:max_candidates]
     
         evaluated_count = 0
         approved_count = 0
@@ -516,6 +589,22 @@ def main() -> None:
             for p in open_positions_raw
         ]
     
+        # Diversity-Gate: Kategorie-Verteilung aller offenen Positionen (einmalig)
+        _open_signal_cats: dict[str, int] = {}
+        try:
+            _cat_rows = db.fetchall("""
+                SELECT sig.signal_type, COUNT(*) as n
+                FROM portfolio_snapshot ps
+                JOIN trades t ON t.instrument_id = ps.instrument_id AND t.status = 'ACTIVE'
+                JOIN signals sig ON sig.id = t.signal_id
+                GROUP BY sig.signal_type
+            """)
+            for _r in _cat_rows:
+                _cat = _get_signal_category(str(_r["signal_type"]))
+                _open_signal_cats[_cat] = _open_signal_cats.get(_cat, 0) + int(_r["n"])
+        except Exception as _dg_exc:
+            logger.debug("SignalWorker: Diversity-Gate Daten nicht verfuegbar: %s", _dg_exc)
+
         for signal, symbol in candidates:
             instrument_id = signal["instrument_id"]
             conviction = signal.get("conviction", "MEDIUM")
@@ -532,6 +621,21 @@ def main() -> None:
             # b. Buy amount based on conviction × risk_scalar (V5)
             pct = conviction_pct.get(conviction.upper(), conviction_pct["MEDIUM"])
             buy_amount = round((pct / 100.0) * equity * buy_aggressiveness, 2)
+
+            # Kelly: dynamische Groessenkorrektur basierend auf Signal-Performance (Prio 1)
+            # Half-Kelly [0.3, 1.5]: mehr Kapital in bewiesene Signale, weniger in schwache.
+            try:
+                from bot.core.sizing import kelly_size_factor
+                _k = kelly_size_factor(signal.get("signal_type", ""), db)
+                if _k != 1.0:
+                    _old_amt = buy_amount
+                    buy_amount = round(buy_amount * _k, 2)
+                    logger.info(
+                        "SignalWorker: Kelly: signal_type=%s k=%.2f amount $%.2f->$%.2f",
+                        signal.get("signal_type", ""), _k, _old_amt, buy_amount,
+                    )
+            except Exception as _ke:
+                logger.debug("SignalWorker: Kelly-Faktor uebersprungen: %s", _ke)
     
             # Enforce minimum from regime params
             min_buy = regime_params.get("min_buy_usd", 50.0)
@@ -602,6 +706,26 @@ def main() -> None:
                         )
                         signal_repo.update_signal_status(signal_id, "REJECTED")
                         blocked_reasons.append(f'{symbol}: {corr_reason} → unter Min-Buy')
+                        continue
+
+                # Diversity-Gate (Prio 4): max 45% offener Positionen in einer Kategorie
+                _sig_cat = _get_signal_category(signal.get("signal_type", ""))
+                if _sig_cat != "UNKNOWN" and position_count > 0:
+                    _cat_n = _open_signal_cats.get(_sig_cat, 0)
+                    if _cat_n / position_count >= MAX_CATEGORY_FRACTION:
+                        logger.info(
+                            "SignalWorker: Diversity-Gate: %s (%s) %d/%d Pos. (%.0f%%>=%.0f%%) -- geblockt",
+                            _sig_cat,
+                            signal.get("signal_type", ""),
+                            _cat_n,
+                            position_count,
+                            _cat_n / position_count * 100,
+                            MAX_CATEGORY_FRACTION * 100,
+                        )
+                        signal_repo.update_signal_status(signal_id, "REJECTED")
+                        blocked_reasons.append(
+                            f"{symbol}: Diversity-Gate {_sig_cat} {_cat_n}/{position_count}"
+                        )
                         continue
 
                 # d. Get signal price for execution (yfinance data)
@@ -749,18 +873,33 @@ def main() -> None:
                 position_count=position_count,
             )
         elif evaluated_count == 0 and skipped_closed:
-            # All candidates had closed markets — post with context
-            _post('post_alert_embed',
-                title=f'🔴 Signal Worker: All markets closed ({regime})',
-                description=(
-                    f'Regime: **{regime}** | scalar={risk_scalar:.2f}\n'
-                    f'Signals available: {len(buy_signals)} BUY signals (top 3 evaluated)\n'
-                    f'Markets closed: {", ".join(skipped_closed[:5])}\n'
-                    f'No trades — waiting for market open.'
-                ),
-                severity='INFO',
-                dry_run=False
-            )
+            # All candidates had closed markets — Normalzustand nachts/Wochenende.
+            # Drossel 1x/6h (fix/market-hours-slot-guard: Pfad war vorher toter
+            # Code; ungebremst wuerde er alle 15 min posten).
+            try:
+                from datetime import datetime as _dt2, timezone as _tz2
+                _last = state_repo.get("SIGNAL_CLOSED_POSTED_AT") or ""
+                _post_now = True
+                if _last:
+                    _last_dt = _dt2.fromisoformat(_last)
+                    if _last_dt.tzinfo is None:
+                        _last_dt = _last_dt.replace(tzinfo=_tz2.utc)
+                    _post_now = (_dt2.now(_tz2.utc) - _last_dt).total_seconds() >= 6 * 3600
+                if _post_now:
+                    state_repo.set("SIGNAL_CLOSED_POSTED_AT", _dt2.now(_tz2.utc).isoformat())
+                    _post('post_alert_embed',
+                        title=f'🔴 Signal Worker: All markets closed ({regime})',
+                        description=(
+                            f'Regime: **{regime}** | scalar={risk_scalar:.2f}\n'
+                            f'Signals available: {len(buy_signals)} BUY signals\n'
+                            f'Markets closed: {", ".join(skipped_closed[:5])}\n'
+                            f'No trades — waiting for market open.'
+                        ),
+                        severity='INFO',
+                        dry_run=False
+                    )
+            except Exception:
+                pass
         elif evaluated_count > 0 and approved_count == 0:
             # Throttle auf 1x/Stunde -- bei dauerhaftem Exposure-Gate kein Spam
             try:

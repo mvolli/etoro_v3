@@ -34,6 +34,150 @@ logger = logging.getLogger("position_review_worker")
 LLM_URL = "http://127.0.0.1:8080/v1/chat/completions"
 LLM_TIMEOUT_S = 60
 RECS_PATH = PROJECT_ROOT / "data" / "llm_position_recommendations.json"
+OUTCOMES_PATH = PROJECT_ROOT / "data" / "llm_position_review_outcomes.json"
+
+
+MARKET_CONTEXT_TICKERS = ["SPY", "QQQ", "^VIX"]
+
+
+def _fetch_market_context() -> dict:
+    """Holt SPY/QQQ Tagesperformance + VIX via yfinance (Prio 3)."""
+    ctx: dict = {
+        "spy_1d_pct": None, "qqq_1d_pct": None, "vix": None,
+        "vix_label": "UNBEKANNT", "market_direction": "UNBEKANNT",
+    }
+    try:
+        import yfinance as yf
+        data = yf.download(
+            MARKET_CONTEXT_TICKERS, period="5d", interval="1d",
+            group_by="ticker", auto_adjust=True, progress=False, threads=True,
+        )
+        if data is None or data.empty:
+            return ctx
+
+        def _pct(t):
+            try:
+                c = data[t]["Close"].dropna()
+                return round(float(c.iloc[-1] / c.iloc[-2] - 1) * 100, 2) if len(c) >= 2 else None
+            except Exception:
+                return None
+
+        def _last(t):
+            try:
+                return round(float(data[t]["Close"].dropna().iloc[-1]), 2)
+            except Exception:
+                return None
+
+        ctx["spy_1d_pct"] = _pct("SPY")
+        ctx["qqq_1d_pct"] = _pct("QQQ")
+        vix = _last("^VIX"); ctx["vix"] = vix
+        if vix is not None:
+            ctx["vix_label"] = "NORMAL" if vix < 20 else ("ERHOEHT" if vix < 30 else "HOCH")
+        spy, qqq = ctx["spy_1d_pct"], ctx["qqq_1d_pct"]
+        if spy is not None and qqq is not None:
+            avg = (spy + qqq) / 2
+            ctx["market_direction"] = "BULLISH" if avg > 0.3 else ("BEARISH" if avg < -0.3 else "GEMISCHT")
+    except Exception as e:
+        print(f"[position_review] Marktkontext fehlgeschlagen: {e}")
+    return ctx
+
+
+def _backfill_outcomes(current_positions: list, db_path) -> list:
+    """Bewertet Outcomes fuer ausgefuehrte LLM-Empfehlungen (>=24h alt) (Prio 2b)."""
+    if not OUTCOMES_PATH.exists():
+        return []
+    try:
+        outcomes = json.loads(OUTCOMES_PATH.read_text(encoding="utf-8"))
+        if not isinstance(outcomes, list):
+            return []
+    except Exception:
+        return []
+
+    now = datetime.now(timezone.utc)
+    open_symbols = {p.get("symbol") for p in current_positions}
+    open_pnl = {p["symbol"]: float(p.get("pnl_pct", 0) or 0)
+                for p in current_positions if p.get("symbol")}
+
+    changed = False
+    for entry in outcomes:
+        if entry.get("outcome_checked"):
+            continue
+        ts_exec = entry.get("ts_executed")
+        if not ts_exec:
+            continue
+        try:
+            exec_dt = datetime.fromisoformat(ts_exec)
+            if exec_dt.tzinfo is None:
+                exec_dt = exec_dt.replace(tzinfo=timezone.utc)
+            if (now - exec_dt).total_seconds() < 86400:
+                continue
+        except Exception:
+            continue
+
+        symbol = entry.get("symbol", "")
+        rec    = entry.get("recommendation", "")
+        pnl_x  = entry.get("pnl_at_execution")
+        px     = entry.get("price_at_execution")
+        grade  = None
+        delta  = None
+
+        if rec == "EXIT" and symbol not in open_symbols:
+            if px:
+                try:
+                    import yfinance as yf, sqlite3
+                    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+                    conn.row_factory = sqlite3.Row
+                    r = conn.execute(
+                        "SELECT yfinance_symbol FROM instruments WHERE symbol=? LIMIT 1",
+                        (symbol,)
+                    ).fetchone()
+                    conn.close()
+                    yf_sym = r["yfinance_symbol"] if r else None
+                    if yf_sym:
+                        td = yf.download(yf_sym, period="2d", interval="1d",
+                                         auto_adjust=True, progress=False)
+                        if not td.empty:
+                            cp = float(td["Close"].dropna().iloc[-1])
+                            pct = (cp - px) / px * 100
+                            delta = round(pct, 2)
+                            grade = ("GOOD" if pct < -0.5
+                                     else "MISSED_UPSIDE" if pct > 1.0 else "NEUTRAL")
+                except Exception as _be:
+                    print(f"[position_review] Backfill {symbol}: {_be}")
+            else:
+                grade = "GOOD"
+        elif rec == "TIGHTEN" and symbol in open_pnl and pnl_x is not None:
+            delta = round(open_pnl[symbol] - pnl_x, 2)
+            grade = ("AVOIDED_LOSS" if delta < -0.5
+                     else "MISSED_UPSIDE" if delta > 1.0 else "NEUTRAL")
+
+        if grade:
+            entry["outcome_checked"] = True
+            entry["outcome_grade"]   = grade
+            entry["outcome_pnl_delta"] = delta
+            changed = True
+
+    if changed:
+        try:
+            OUTCOMES_PATH.write_text(
+                json.dumps(outcomes, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
+        except Exception as _we:
+            print(f"[position_review] Outcomes schreiben: {_we}")
+    return outcomes
+
+
+def _format_recent_outcomes(outcomes: list) -> str:
+    """Formatiert letzte 5 abgeschlossene Outcomes fuer LLM-Prompt."""
+    checked = [o for o in outcomes if o.get("outcome_checked") and o.get("outcome_grade")]
+    if not checked:
+        return "  Noch keine ausgewerteten Entscheidungen."
+    lines = []
+    for o in checked[-5:]:
+        pnl_s = f"{o['pnl_at_execution']:+.1f}%" if o.get("pnl_at_execution") is not None else "?%"
+        d_s   = f"{o['outcome_pnl_delta']:+.1f}pp" if o.get("outcome_pnl_delta") is not None else ""
+        lines.append(f"  {o['recommendation']} {o['symbol']} @ {pnl_s} -> {d_s} -> {o['outcome_grade']}")
+    return "\n".join(lines)
 
 
 def _load_env() -> None:
@@ -175,7 +319,7 @@ def _collect_data(db_path: Path) -> dict:
     return data
 
 
-def _build_prompt(data: dict) -> str:
+def _build_prompt(data: dict, market_ctx: dict | None = None, recent_outcomes: list | None = None) -> str:
     """Baut den LLM-Prompt für die Positions-Evaluation."""
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
@@ -240,11 +384,34 @@ def _build_prompt(data: dict) -> str:
         bb_s  = f" BB%={rs['bb_pct']}" if rs.get("bb_pct") else ""
         recent_rows.append(f"  {rs.get('symbol','?')}: {rs['signal_type']}{rsi_s}{bb_s} @ {rs['generated_at'][:16]}")
 
+    # Marktkontext-Block (Prio 3)
+    mkt_block = ""
+    if market_ctx and market_ctx.get("spy_1d_pct") is not None:
+        spy = market_ctx["spy_1d_pct"]
+        qqq = market_ctx.get("qqq_1d_pct")
+        vix = market_ctx.get("vix")
+        vlbl = market_ctx.get("vix_label", "?")
+        mdir = market_ctx.get("market_direction", "?")
+        qqq_s = f" QQQ={qqq:+.1f}%" if qqq is not None else ""
+        vix_s = f" VIX={vix:.1f} [{vlbl}]" if vix is not None else ""
+        mkt_block = (
+            f"\n## Marktkontext heute\n"
+            f"SPY={spy:+.1f}%{qqq_s}{vix_s} -> Markt: {mdir}\n"
+            f"-> Einzeltitel deutlich unter SPY: instrument-spezifisches Problem\n"
+            f"-> Gesamtes Portfolio faellt mit Markt: Regime-Bewertung, keine Panik"
+        )
+
+    # Outcomes-Block (Prio 2c)
+    outcomes_block = ""
+    if recent_outcomes:
+        _os = _format_recent_outcomes(recent_outcomes)
+        outcomes_block = f"\n## Meine letzten Entscheidungen (Lernkontext)\n{_os}"
+
     prompt = f"""/no_think
 Du bist Trading-Risikoanalyst. Bewerte jede offene Position und gib NUR valides JSON zurück.
 
 ## Zeitpunkt
-{now_str} | Regime={regime} | Equity=${equity:.0f}
+{now_str} | Regime={regime} | Equity=${equity:.0f}{mkt_block}{outcomes_block}
 
 ## Offene Positionen
 Format: Symbol: PnL% peak=X% Δ=Y% BE✓/FADED held=Nd signal=TYP strategy=S | RSI BB% MACD-Richtung
@@ -299,6 +466,27 @@ Antworte mit:
 
 
 def _call_llm(prompt: str) -> dict | None:
+    """Retry-Wrapper um _call_llm_once (fix/llm-fast-retry).
+
+    Schnell-Fails (<10s, z.B. connection refused bei Modell-Reload) werden
+    bis zu 2x mit 15s/30s Pause wiederholt — passt ins 120s-Cron-Budget.
+    Voller Timeout wird NICHT wiederholt; dafuer gibt es den Watchdog-Re-Run.
+    """
+    for _attempt in range(3):
+        _t0 = time.monotonic()
+        result = _call_llm_once(prompt)
+        if result is not None:
+            return result
+        _elapsed = time.monotonic() - _t0
+        if _elapsed > 10.0 or _attempt >= 2:
+            return None
+        _wait = (15, 30)[min(_attempt, 1)]
+        print(f"[position_review] LLM-Schnell-Fail nach {_elapsed:.1f}s — Retry in {_wait}s")
+        time.sleep(_wait)
+    return None
+
+
+def _call_llm_once(prompt: str) -> dict | None:
     """Ruft llama-server auf und parst die JSON-Antwort."""
     payload = json.dumps({
         "model": "local",
@@ -520,6 +708,19 @@ def main() -> int:
               f"{len(data['signal_perf'])} Signal-Typen mit History, "
               f"Regime={data['regime']}")
 
+        # Prio 2b: Outcomes fuer ausgefuehrte Empfehlungen backfuellen
+        outcomes = _backfill_outcomes(data["positions"], db_path)
+
+        # Prio 3: Marktkontext holen (SPY/QQQ/VIX)
+        print("[position_review] Hole Marktkontext (SPY/QQQ/VIX)...")
+        market_ctx = _fetch_market_context()
+        if market_ctx.get("spy_1d_pct") is not None:
+            print(
+                f"[position_review] Markt: SPY={market_ctx['spy_1d_pct']:+.1f}% "
+                f"QQQ={market_ctx.get('qqq_1d_pct') or 'N/A'} "
+                f"VIX={market_ctx.get('vix') or 'N/A'} [{market_ctx.get('vix_label', '?')}]"
+            )
+
         # Live-Indikatoren via yfinance holen (überschreiben stale Signal-DB-Werte)
         live_ind = _fetch_live_indicators(data["positions"], db_path)
         for pos in data["positions"]:
@@ -535,7 +736,7 @@ def main() -> int:
                 pos["_live_price"]= ind.get("price")
                 pos["_live"]      = True
 
-        prompt = _build_prompt(data)
+        prompt = _build_prompt(data, market_ctx=market_ctx, recent_outcomes=outcomes)
         print(f"[position_review] Rufe LLM auf (Timeout {LLM_TIMEOUT_S}s)...")
         result = _call_llm(prompt)
 

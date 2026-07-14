@@ -21,7 +21,9 @@ trading:
   max_positions: 21           # Maximum total open positions across all instruments
   max_fragments_per_instrument: 3  # Maximum partial fills / DCA entries per ticker
   min_buy_usd: 50.0           # Minimum order size in USD
-  max_trades_per_day: 12      # Hard ceiling on new trades per UTC day (0 = disabled)
+  max_trades_per_day: 0       # 0 = deaktiviert (2026-07-14, User-Entscheid). Runaway-Schutz
+                              # uebernehmen: Exposure-Gate 75%, max_positions, cash_emergency_pct,
+                              # daily_loss_limit (Auto-Kill-Switch) und 3 Slots/15-min-Zyklus.
   max_slippage_pct: 1.5       # Max signal→execution price deviation for stocks/ETFs (%)
   max_slippage_pct_crypto: 3.0  # Max signal→execution price deviation for crypto (%)
   cash_target_min_pct: 15.0   # Minimum idle cash as % of portfolio equity
@@ -49,7 +51,9 @@ sl:                           # Stop-loss configuration
   warning_pct: 2.0            # SL proximity warning threshold (% from current price)
 
 sizing:                       # Position size as % of portfolio equity
-  very_high_pct: 5.0          # Conviction tier: VERY HIGH
+  very_high_pct: 8.0          # Conviction tier: VERY HIGH (fix 2026-07-14: stand auf 4.0 und war
+                              # damit KLEINER als HIGH — invertierte Conviction-Leiter. Schwache
+                              # Signal-Typen bremst heute der Kelly-Faktor, nicht dieser Wert.)
   high_pct: 7.0               # Conviction tier: HIGH
   medium_pct: 5.0             # Conviction tier: MEDIUM
   low_pct: 2.0                # Conviction tier: LOW / speculative

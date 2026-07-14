@@ -369,7 +369,30 @@ def _collect_open_positions_for_llm(db_path, trade_perf: dict) -> list[dict]:
     return enriched
 
 
-def _call_llm(ghost_rates: dict, signal_perf: dict, state: dict, positions: list,
+def _call_llm(*args, **kwargs) -> dict | None:
+    """Retry-Wrapper um _call_llm_once (fix/llm-fast-retry).
+
+    llama-server ist bei Modell-Reload/Neustart kurz weg (connection refused,
+    Fehler in <10s). Solche Schnell-Fails werden bis zu 2x mit 15s/30s Pause
+    wiederholt — passt ins 120s-Cron-Budget. Ein voller Timeout
+    (LLM_TIMEOUT_S=85s) wird NICHT wiederholt: das wuerde das Budget sprengen;
+    dafuer gibt es den Watchdog-Re-Run (etoro_kill_switch_watchdog.sh, Stufe 2).
+    """
+    for _attempt in range(3):
+        _t0 = time.monotonic()
+        result = _call_llm_once(*args, **kwargs)
+        if result is not None:
+            return result
+        _elapsed = time.monotonic() - _t0
+        if _elapsed > 10.0 or _attempt >= 2:
+            return None
+        _wait = (15, 30)[min(_attempt, 1)]
+        print(f"[llm_review] LLM-Schnell-Fail nach {_elapsed:.1f}s — Retry in {_wait}s")
+        time.sleep(_wait)
+    return None
+
+
+def _call_llm_once(ghost_rates: dict, signal_perf: dict, state: dict, positions: list,
               trade_perf: dict | None = None, trading_memory: dict | None = None,
               slippage_top: dict | None = None, ghost_trends: dict | None = None,
               non_tradable_ghost_count: int = 0,

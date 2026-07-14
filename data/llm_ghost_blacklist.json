@@ -1,42 +1,90 @@
 {
-  "updated_at": "2026-07-10T01:21:03.825326+00:00",
-  "auto_expires_at": "2026-07-17T01:21:03.825311+00:00",
-  "exchanges": [],
-  "caution_exchanges": [],
-  "symbols": [],
+  "updated_at": "2026-07-13T20:31:00.503903+00:00",
+  "auto_expires_at": "2026-07-20T20:31:00.503913+00:00",
+  "exchanges": [
+    ".OL",
+    "_FUT"
+  ],
+  "caution_exchanges": [
+    ".MC",
+    "_FOREX"
+  ],
+  "symbols": [
+    "EURCHF=X",
+    "EURDKK=X",
+    "EURGBP",
+    "LiveCattle.FUT",
+    "NRC.OL",
+    "WWI.OL"
+  ],
   "stats": {
-    ".PA": {
+    ".L": {
+      "total": 36,
+      "ghost": 5,
+      "rate": 0.14
+    },
+    ".ST": {
+      "total": 6,
+      "ghost": 1,
+      "rate": 0.17
+    },
+    ".ASX": {
       "total": 8,
+      "ghost": 1,
+      "rate": 0.12
+    },
+    ".PA": {
+      "total": 19,
+      "ghost": 1,
+      "rate": 0.05
+    },
+    ".DE": {
+      "total": 9,
       "ghost": 0,
       "rate": 0.0
     },
     ".MI": {
+      "total": 5,
+      "ghost": 1,
+      "rate": 0.2
+    },
+    ".ZU": {
       "total": 2,
       "ghost": 0,
       "rate": 0.0
     },
-    ".L": {
-      "total": 34,
-      "ghost": 3,
-      "rate": 0.09
+    ".MC": {
+      "total": 2,
+      "ghost": 1,
+      "rate": 0.5
     },
     "_OTHER": {
-      "total": 33,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    ".DE": {
-      "total": 2,
+      "total": 37,
       "ghost": 0,
       "rate": 0.0
     },
     "_ASIA": {
-      "total": 7,
+      "total": 24,
       "ghost": 0,
       "rate": 0.0
     },
+    "_FUT": {
+      "total": 2,
+      "ghost": 2,
+      "rate": 1.0
+    },
+    "_FOREX": {
+      "total": 6,
+      "ghost": 3,
+      "rate": 0.5
+    },
+    ".OL": {
+      "total": 3,
+      "ghost": 3,
+      "rate": 1.0
+    },
     ".HK": {
-      "total": 43,
+      "total": 25,
       "ghost": 0,
       "rate": 0.0
     },
@@ -51,15 +99,10 @@
       "rate": 0.0
     },
     "_CRYPTO": {
-      "total": 69,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    "_FOREX": {
-      "total": 3,
+      "total": 11,
       "ghost": 0,
       "rate": 0.0
     }
   },
-  "reason": "Das Portfolio befindet sich im NORMAL-Regime mit 9343.45 Equity. Die Ghost-Raten sind allgemein fallend, strukturelle Bloecke bleiben stabil. Besonders das Signal 'TREND_PULLBACK' scheitert isoliert fast immer (98% Failure), w\u00e4hrend 'BB_LOWER_RSI_OVERSOLD' in Kombination mit RSI/MACD zwar h\u00e4ufig, aber oft mit Verlusten schlie\u00dft. Slippage-Probleme konzentrieren sich auf .L-Symbole."
+  "reason": "Ghost-Raten bei Futures (.FUT) und Oslo (.OL) bleiben kritisch (>50%), alle anderen Exchanges stabil. Das Signal TREND_PULLBACK ist isoliert fast wertlos (2% Success Rate), sollte nur noch mit GOLDEN_CROSS kombiniert werden. VERY_HIGH Conviction bei RSI-Extremwerten ist riskant aufgrund negativer PnL-Historie; Sizing oder SL prüfen."
 }

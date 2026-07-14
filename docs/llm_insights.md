@@ -358,3 +358,152 @@
 - Slippage-Rejects dominieren .L Exchange (10 Symbole)
 
 **LLM-Fazit:** Das Portfolio befindet sich im NORMAL-Regime mit 9343.45 Equity. Die Ghost-Raten sind allgemein fallend, strukturelle Bloecke bleiben stabil. Besonders das Signal 'TREND_PULLBACK' scheitert isoliert fast immer (98% Failure), während 'BB_LOWER_RSI_OVERSOLD' in Kombination mit RSI/MACD zwar häufig, aber oft mit Verlusten schließt. Slippage-Probleme konzentrieren sich auf .L-Symbole.
+
+## 2026-07-10 18:01 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `.OL`: 100% (3/3) ← GEBLOCKT
+- `_FOREX`: 50% (3/6) ⚠ CAUTION
+- `.L`: 12% (4/34)
+- `_ASIA`: 0% (0/18)
+- `.DE`: 0% (0/3)
+- `.PA`: 0% (0/9)
+- `.MI`: 0% (0/2)
+- `_OTHER`: 0% (0/37)
+- `.HK`: 0% (0/25)
+- `.AX`: 0% (0/12)
+- `.T`: 0% (0/2)
+- `_CRYPTO`: 0% (0/11)
+
+**Symbol-Blacklist:** EURCHF=X, EURDKK=X, EURGBP, NRC.OL, WWI.OL
+
+**Schwache Signaltypen:** BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING, MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING, TREND_PULLBACK
+
+**Anomalien:**
+- TREND_PULLBACK isoliert fast 100% Verlust (8/8 FAILED)
+- GOLDEN_CROSS isoliert 100% Verlust (8/8 FAILED)
+- BB/RSI Oversold Signale haben hohe absolute Verluste trotz 80-91% Success Rate
+- BABA und META zeigen starke positive Performance (>18%)
+
+**LLM-Fazit:** Das Portfolio befindet sich im NORMAL-Regime mit 9357.68 Equity. Die Ghost-Rate auf .OL steigt, während .DE und .PA sinken. TREND_PULLBACK und GOLDEN_CROSS sind aktuell sehr schwach. BABA und META treiben die Performance, wahrend BB/RSI-Strategien trotz hoher Success-Rate durch einzelne große Verluste belastet werden.
+
+## 2026-07-10 20:31 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_FUT`: 100% (2/2) ← GEBLOCKT
+- `.OL`: 100% (3/3) ← GEBLOCKT
+- `_FOREX`: 50% (3/6) ⚠ CAUTION
+- `.L`: 12% (4/34)
+- `_ASIA`: 0% (0/24)
+- `.ST`: 0% (0/2)
+- `.DE`: 0% (0/3)
+- `.PA`: 0% (0/9)
+- `.MI`: 0% (0/2)
+- `_OTHER`: 0% (0/36)
+- `.HK`: 0% (0/25)
+- `.AX`: 0% (0/12)
+- `.T`: 0% (0/2)
+- `_CRYPTO`: 0% (0/11)
+
+**Symbol-Blacklist:** EURCHF=X, EURDKK=X, EURGBP, LiveCattle.FUT, NRC.OL, WWI.OL
+
+**Schwache Signaltypen:** TREND_PULLBACK, MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING, BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING
+
+**Anomalien:**
+- TREND_PULLBACK isoliert fast 100% Fehlerrate
+- VERY_HIGH Conviction bei BB/RSI Signalen zeigt negative PnL trotz hoher Success Rate
+- GOLDEN_CROSS als Alleinsignal fehlerhaft
+
+**LLM-Fazit:** Ghost-Raten bei Futures und Osloer Aktien steigen. Das Signal TREND_PULLBACK scheitert isoliert fast immer, daher nur noch mit GOLDEN_Cross kombinieren. Portfoliogewinner wie META und BABA halten, während schwache BB/RSI-Positionen beobachtet werden.
+
+## 2026-07-11 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_FUT`: 100% (2/2) ← GEBLOCKT
+- `.OL`: 100% (3/3) ← GEBLOCKT
+- `_FOREX`: 50% (3/6) ⚠ CAUTION
+- `.L`: 11% (4/35)
+- `.DE`: 0% (0/5)
+- `.MI`: 0% (0/4)
+- `.PA`: 0% (0/12)
+- `.ST`: 0% (0/3)
+- `_OTHER`: 0% (0/37)
+- `_ASIA`: 0% (0/24)
+- `.HK`: 0% (0/25)
+- `.AX`: 0% (0/12)
+- `.T`: 0% (0/2)
+- `_CRYPTO`: 0% (0/11)
+
+**Symbol-Blacklist:** EURCHF=X, EURDKK=X, EURGBP, LiveCattle.FUT, NRC.OL, WWI.OL
+
+**Schwache Signaltypen:** BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING, GOLDEN_CROSS, MACD_TURN_BELOW_SMA20, MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING, TREND_PULLBACK, TREND_PULLBACK,GOLDEN_CROSS
+
+**Anomalien:**
+- GOLDEN_CROSS isoliert 0% Success Rate (8/8 Failed)
+- TREND_PULLBACK isoliert extrem schlecht (0.02 Success Rate)
+- VERY_HIGH Conviction bei BB/RSI-Signalen hohe Verlustraten trotz hoher Success Rate (PnL negativ)
+
+**LLM-Fazit:** Exchange _FUT und .OL zeigen 100% Ghost-Raten, .OL steigt weiter an. Das Signal GOLDEN_CROSS ist isoliert wertlos (0% Success), TREND_PULLBACK nur in Kombination mit GOLDEN_CROSS sinnvoll. Positionen mit sehr hoher Conviction (BB/RSI) haben trotz guter Success-Rate negatives PnL, da Verluste groesser als Gewinne sind.
+
+## 2026-07-12 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_FUT`: 100% (2/2) ← GEBLOCKT
+- `.OL`: 100% (3/3) ← GEBLOCKT
+- `_FOREX`: 50% (3/6) ⚠ CAUTION
+- `.L`: 11% (4/35)
+- `.DE`: 0% (0/8)
+- `.ZU`: 0% (0/2)
+- `.ST`: 0% (0/5)
+- `.PA`: 0% (0/16)
+- `.MC`: 0% (0/2)
+- `.MI`: 0% (0/4)
+- `_OTHER`: 0% (0/37)
+- `_ASIA`: 0% (0/24)
+- `.HK`: 0% (0/25)
+- `.AX`: 0% (0/12)
+- `.T`: 0% (0/2)
+- `_CRYPTO`: 0% (0/11)
+
+**Symbol-Blacklist:** EURCHF=X, EURDKK=X, EURGBP, LiveCattle.FUT, NRC.OL, WWI.OL
+
+**Schwache Signaltypen:** BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING, TREND_PULLBACK, TREND_PULLBACK,GOLDEN_CROSS, MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING
+
+**Anomalien:**
+- GOLDEN_CROSS isoliert 0% Success Rate, nur in Kombination mit MACD/RSI nutzen
+- TREND_PULLBACK isoliert fast immer fehlschlagend (0.02% SR)
+- Sehr hohe Verluste bei 'VERY_HIGH' Conviction Signals (BB+RSI) trotz hoher Sample Size
+
+**LLM-Fazit:** Ghost-Raten bei Futures (.FUT) und Osloer Aktien (.OL) steigen signifikant an; diese Exchanges sind vorerst zu blockieren. Das Signal 'TREND_PULLBACK' ist isoliert unbrauchbar (0.02% Success Rate) und sollte nur noch mit GOLDEN_CROSS-Filter verwendet werden. Aktuell sind viele Positions-Entries mit 'BB_LOWER_RSI_OVERSOLD' in Verlust, was auf eine zu aggressive Entry-Logik bei fallenden Märkten hindeutet.
+
+## 2026-07-13 20:31 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_FUT`: 100% (2/2) ← GEBLOCKT
+- `.OL`: 100% (3/3) ← GEBLOCKT
+- `.MC`: 50% (1/2) ⚠ CAUTION
+- `_FOREX`: 50% (3/6) ⚠ CAUTION
+- `.MI`: 20% (1/5)
+- `.ST`: 17% (1/6)
+- `.L`: 14% (5/36)
+- `.ASX`: 12% (1/8)
+- `.PA`: 5% (1/19)
+- `.DE`: 0% (0/9)
+- `.ZU`: 0% (0/2)
+- `_OTHER`: 0% (0/37)
+- `_ASIA`: 0% (0/24)
+- `.HK`: 0% (0/25)
+- `.AX`: 0% (0/12)
+- `.T`: 0% (0/2)
+- `_CRYPTO`: 0% (0/11)
+
+**Symbol-Blacklist:** EURCHF=X, EURDKK=X, EURGBP, LiveCattle.FUT, NRC.OL, WWI.OL
+
+**Schwache Signaltypen:** TREND_PULLBACK, MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING, BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING
+
+**Anomalien:**
+- TREND_PULLBACK isoliert hat 2% Success Rate, aber 44 Trades — hoher Rejected-Anteil
+- VERY_HIGH Conviction RSI-Signale zeigen negative avg_pnl (-0.45%) trotz hoher Win-Rate
+- STEIGEND Ghost-Rate bei .MC und .MI trotz stabiler Historie
+
+**LLM-Fazit:** Ghost-Raten bei Futures (.FUT) und Oslo (.OL) bleiben kritisch (>50%), alle anderen Exchanges stabil. Das Signal TREND_PULLBACK ist isoliert fast wertlos (2% Success Rate), sollte nur noch mit GOLDEN_CROSS kombiniert werden. VERY_HIGH Conviction bei RSI-Extremwerten ist riskant aufgrund negativer PnL-Historie; Sizing oder SL prüfen.

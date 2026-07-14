@@ -30,6 +30,7 @@ MAX_REC_AGE_MIN = 100
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 RECS_PATH = PROJECT_ROOT / "data" / "llm_position_recommendations.json"
+OUTCOMES_PATH = PROJECT_ROOT / "data" / "llm_position_review_outcomes.json"
 
 
 def _discord(fn_name: str, **kwargs) -> None:
@@ -39,6 +40,68 @@ def _discord(fn_name: str, **kwargs) -> None:
             post_alert_embed(**kwargs)
     except Exception:
         pass
+
+
+def _append_outcome_entry(
+    rec: dict,
+    position_id: str,
+    recommendation: str,
+    close_pct: float,
+    now: "datetime",
+) -> None:
+    """Schreibt Outcome-Entry nach EXIT/TIGHTEN in llm_position_review_outcomes.json.
+
+    Wird von _backfill_outcomes() (position_review_worker) nach 24h ausgewertet.
+    """
+    try:
+        pnl_at_exec   = None
+        price_at_exec = None
+        try:
+            import sqlite3 as _sq3
+            _db_path = OUTCOMES_PATH.parent / "trading.db"
+            _conn = _sq3.connect(f"file:{_db_path}?mode=ro", uri=True)
+            _conn.row_factory = _sq3.Row
+            _snap = _conn.execute(
+                "SELECT unrealized_pnl_pct, current_price "
+                "FROM portfolio_snapshot WHERE api_position_id = ?",
+                (position_id,),
+            ).fetchone()
+            _conn.close()
+            if _snap:
+                pnl_at_exec   = float(_snap["unrealized_pnl_pct"]) if _snap["unrealized_pnl_pct"] is not None else None
+                price_at_exec = float(_snap["current_price"])       if _snap["current_price"]       is not None else None
+        except Exception:
+            pass
+
+        entry = {
+            "ts_recommended":     rec.get("ts"),
+            "ts_executed":        now.isoformat()[:19],
+            "symbol":             rec.get("symbol", "?"),
+            "recommendation":     recommendation,
+            "close_pct":          close_pct,
+            "reason":             rec.get("reason", ""),
+            "pnl_at_execution":   pnl_at_exec,
+            "price_at_execution": price_at_exec,
+            "outcome_checked":    False,
+            "outcome_grade":      None,
+            "outcome_pnl_delta":  None,
+        }
+
+        outcomes: list = []
+        if OUTCOMES_PATH.exists():
+            try:
+                outcomes = json.loads(OUTCOMES_PATH.read_text(encoding="utf-8"))
+                if not isinstance(outcomes, list):
+                    outcomes = []
+            except Exception:
+                outcomes = []
+        outcomes.append(entry)
+        OUTCOMES_PATH.parent.mkdir(parents=True, exist_ok=True)
+        OUTCOMES_PATH.write_text(
+            json.dumps(outcomes, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+    except Exception as _oe:
+        logger.debug("[llm_execution] Outcome-Entry fehlgeschlagen: %s", _oe)
 
 
 def execute_llm_recommendations(
@@ -201,6 +264,9 @@ def execute_llm_recommendations(
                         stats["exit_count"] += 1
                     else:
                         stats["tighten_count"] += 1
+
+                    # Prio 2a: Outcome-Tracking -- Entry fuer spaetere Backfill schreiben
+                    _append_outcome_entry(rec, position_id, recommendation, rec_close_pct, now)
 
                     log_repo.write("INFO", "llm_execution",
                                    "LLM %s %.0f%% ausgefuehrt: %s" % (recommendation, rec_close_pct, symbol),

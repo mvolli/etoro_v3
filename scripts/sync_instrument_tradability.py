@@ -5,7 +5,7 @@ Täglicher Batch-Check aller Instrumente gegen eToro API (allowOpenPosition).
 Fügt is_tradable / tradability_checked_at Spalten ein falls nötig.
 
 Strategie (kein API-Hammering):
-  - Max 200 Instrumente pro Run → 4 Batch-Requests à 50 IDs → ~4 Sekunden
+  - Max 1200 Instrumente pro Run → 12 Batch-Requests à 100 IDs → ~40 Sekunden
   - Priorität: nie geprüft > älteste Prüfung > nicht-handelbare zuerst
   - TTL: 7 Tage — stabile Instrumente werden nur 1x/Woche geprüft
   - Rate-Limit: 1s sleep zwischen Batches
@@ -33,9 +33,18 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 BATCH_SIZE            = 100   # IDs per API-Request (max laut API-Fehler)
-MAX_PER_RUN           = 500   # Maintenance: neue + geblockte Instrumente (~5 Batches à 100)
+MAX_PER_RUN           = 1200  # 4358 aktive Instrumente / TTL 30d braucht ~1020 Checks/Woche —
+                              # 500/Woche hielt den TTL nicht (Vollrotation 8.7 > 4.3 Wochen)
 TTL_DAYS              = 30    # Handelbarkeit ändert sich selten — monatliche Re-Checks genügen
 SLEEP_BETWEEN_BATCHES = 3.0   # Rate-Limit-Puffer (~20 req/min beobachtet)
+
+# Env-Overrides fuer den taeglichen Mini-Sync (v3_tradability_mini_sync.sh):
+# TRADSYNC_PRIORITY_ONLY=1 prueft NUR Instrumente mit tradability_checked_at
+# IS NULL — das sind Ghost-Resets vom reconciler + Katalog-Neuzugaenge.
+# Schliesst den Ghost→Re-Check-Loop in <24h statt bis zu 7 Tagen
+# (Sonntags-Vollsync). TRADSYNC_MAX_PER_RUN begrenzt die API-Last.
+MAX_PER_RUN   = int(os.environ.get("TRADSYNC_MAX_PER_RUN", MAX_PER_RUN))
+PRIORITY_ONLY = os.environ.get("TRADSYNC_PRIORITY_ONLY", "0") == "1"
 
 
 def _load_env() -> None:
@@ -64,11 +73,12 @@ def _ensure_columns(db) -> None:
 
 def _pick_instruments(db) -> list[dict]:
     """Wählt zu prüfende Instrumente nach Priorität (nie geprüft > älteste > nicht-handelbar)."""
+    where_extra = "AND tradability_checked_at IS NULL" if PRIORITY_ONLY else ""
     rows = db.fetchall(
-        """
+        f"""
         SELECT instrument_id, symbol, is_tradable, tradability_checked_at
         FROM instruments
-        WHERE is_active = 1
+        WHERE is_active = 1 {where_extra}
         ORDER BY
             CASE WHEN tradability_checked_at IS NULL THEN 0 ELSE 1 END,
             COALESCE(is_tradable, 1) ASC,

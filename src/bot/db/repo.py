@@ -412,6 +412,30 @@ class SignalRepo:
         )
         return row is not None
 
+    def has_fresh_signal(self, instrument_id: int, signal_type: str) -> bool:
+        """True wenn ein nicht-abgelaufenes FRESH-Signal desselben signal_type
+        fuer instrument_id existiert.
+
+        fix/data-worker-dedup (2026-07-14): has_recent_signal prueft seit
+        fix/cooldown-self-block nur noch CONSUMED — als Storage-Dedup im
+        data_worker war sie damit wirkungslos (FRESH-Duplikate blockierten
+        nicht mehr, ~4200 Signale/Tag am 2026-07-13). Storage-Dedup braucht
+        FRESH-Semantik, Trade-Cooldown braucht CONSUMED-Semantik — daher
+        zwei getrennte Methoden.
+        """
+        row = self.db.fetchone(
+            """
+            SELECT 1 FROM signals
+             WHERE instrument_id = ?
+               AND signal_type = ?
+               AND status = 'FRESH'
+               AND expires_at > datetime('now','utc')
+             LIMIT 1
+            """,
+            (instrument_id, signal_type),
+        )
+        return row is not None
+
     def update_signal_status(self, signal_id: int, new_status: str) -> None:
         """Update signal status to CONSUMED, REJECTED, or EXPIRED."""
         if new_status not in _SIGNAL_STATUSES:

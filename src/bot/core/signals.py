@@ -45,6 +45,10 @@ MACD_SIGNAL = 9
 
 ATR_PERIOD = 14
 
+GOLDEN_CROSS_LOOKBACK_DAYS = 5   # GOLDEN_CROSS nur, wenn SMA20 die SMA50 innerhalb
+                                 # der letzten N Bars von unten gekreuzt hat (Ereignis,
+                                 # nicht Dauerzustand — fix/golden-cross-event)
+
 
 # ─── Result dataclass ─────────────────────────────────────────────────────────
 
@@ -206,6 +210,18 @@ def compute_indicators(df: pd.DataFrame) -> dict:
     except Exception:
         pass
 
+    # SMA-Werte vor GOLDEN_CROSS_LOOKBACK_DAYS Bars — Cross-Detection
+    # (fix/golden-cross-event: Kreuzung als Ereignis erkennen, nicht Zustand)
+    try:
+        lb = GOLDEN_CROSS_LOOKBACK_DAYS
+        if len(sma20) > lb and len(sma50) > lb:
+            v20, v50 = sma20.iloc[-(lb + 1)], sma50.iloc[-(lb + 1)]
+            if not pd.isna(v20) and not pd.isna(v50):
+                indicators["sma20_lookback"] = float(v20)
+                indicators["sma50_lookback"] = float(v50)
+    except Exception:
+        pass
+
     # Volume Ratio (current vol vs. 20-day avg)
     # vol_ratio > 1.5 during a price decline = distribution (institutions selling)
     # vol_ratio < 1.5 = volume exhausted → potential bottom
@@ -232,7 +248,7 @@ def generate_signal(symbol: str, indicators: dict) -> SignalResult:
     4. MACD histogram increasing + below SMA20 → MEDIUM
     5. BB %B < 0.1 + MACD improving → MEDIUM-HIGH
     6. Trend pullback: above SMA50, near/below SMA20, RSI 35-55 → HIGH
-    7. Golden Cross: SMA20 > SMA50 + MACD positive + RSI < 60 → HIGH  (fix: war invertiert)
+    7. Golden Cross: SMA20 kreuzt SMA50 binnen 5 Bars + MACD positiv + RSI < 60 → HIGH
 
     Rules (SELL):
     1. BB Upper + RSI > 70 → SELL / take profits
@@ -291,16 +307,32 @@ def generate_signal(symbol: str, indicators: dict) -> SignalResult:
     # Vorher: 63.6% Fail-Rate (28/44), weil TREND_PULLBACK auch bei stark
     # negativem MACD feuerte → Preis unter SMA50, aber Signal ignorierte Trendkraft.
     if all(x is not None for x in [rsi, sma20, sma50, price, macd_hist]):
+        # fix/macd-floor-scale: das MACD-Histogramm hat Preiseinheiten — der
+        # absolute Floor -0.005 war bei einem $100-Titel -0.005% vom Preis,
+        # bei BTC (~$100k) praktisch 0 und bei Penny-Stocks wirkungslos.
+        # -0.00005 * price entspricht der alten Kalibrierung bei $100.
+        _macd_floor = -0.00005 * price if price else -0.005
         if (price > sma50 and price <= sma20 * 1.02  # near/below SMA20
                 and 35 <= rsi <= 55
-                and macd_hist > -0.005 and rsi > 30):  # MACD-Floor -0.01->-0.005 + RSI>30 Filter (verhindert Entries im Downtrend)
+                and macd_hist > _macd_floor and rsi > 30):  # RSI>30: keine Entries im Downtrend
             signals.append(("TREND_PULLBACK", CONVICTION_HIGH, 20.0))
 
     # Rule 7: Golden Cross — schnellerer MA (SMA20) über langsamerem MA (SMA50).
     # fix/golden-cross-direction: war sma50 > sma20 (= Death-Cross-Struktur, BEARISH).
     # Echter Golden Cross = SMA20 > SMA50 (kurze MA hat lange MA überholt → BULLISH).
+    # fix/golden-cross-event: der reine Zustand sma20 > sma50 ist in jedem
+    # stabilen Aufwaertstrend dauerhaft wahr — feuerte jeden Zyklus neu
+    # (~1500 Signale/Tag am 2026-07-13) und ist kein Entry-Timing-Signal.
+    # Jetzt: Kreuzung muss innerhalb GOLDEN_CROSS_LOOKBACK_DAYS passiert sein
+    # (vor N Bars war SMA20 <= SMA50, jetzt SMA20 > SMA50). Fehlt die Historie,
+    # feuert das Signal NICHT (fail-closed).
+    sma20_lb = indicators.get("sma20_lookback")
+    sma50_lb = indicators.get("sma50_lookback")
     if all(x is not None for x in [sma20, sma50, macd_hist, rsi]):
-        if sma20 > sma50 and macd_hist > 0 and rsi < 60:
+        crossed_recently = (
+            sma20_lb is not None and sma50_lb is not None and sma20_lb <= sma50_lb
+        )
+        if sma20 > sma50 and crossed_recently and macd_hist > 0 and rsi < 60:
             signals.append(("GOLDEN_CROSS", CONVICTION_HIGH, 18.0))
 
     # ── SELL Rules ──────────────────────────────────────────────────────────
