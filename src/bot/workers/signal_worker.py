@@ -67,6 +67,25 @@ def _load_llm_signal_weights() -> dict:
         return {}
 
 
+_LLM_NEWS_FLAGS_PATH = PROJECT_ROOT / "data" / "llm_news_flags.json"
+
+
+def _load_llm_news_flags() -> dict:
+    """Laedt News/Earnings-Risk-Flags (fix/llm-news-flags, news_flags_worker,
+    stuendlich). Nur daempfend: AVOID → Signal ueberspringen (bleibt FRESH,
+    Flag-TTL 12h < Signal-TTL 24h), CAUTION → halbe Positionsgroesse."""
+    try:
+        if not _LLM_NEWS_FLAGS_PATH.exists():
+            return {}
+        data = _json_mod.loads(_LLM_NEWS_FLAGS_PATH.read_text())
+        expires = data.get("auto_expires_at")
+        if expires and _dt.fromisoformat(expires) < _dt.now(_tz.utc):
+            return {}
+        return data.get("flags", {})
+    except Exception:
+        return {}
+
+
 def _get_signal_score_multiplier(signal_type: str, weights: dict) -> float:
     """Gibt Score-Multiplikator fuer Signal-Typ zurueck (1.0 = unveraendert)."""
     if not weights:
@@ -241,6 +260,13 @@ def main() -> None:
         if _llm_signal_weights:
             logger.info("SignalWorker: LLM-Signal-Weights geladen")
 
+        _news_flags = _load_llm_news_flags()
+        if _news_flags:
+            logger.info(
+                "SignalWorker: %d News-Risk-Flag(s) aktiv: %s",
+                len(_news_flags), ", ".join(list(_news_flags)[:6]),
+            )
+
         # ── Signal-Type Cooldown pro Instrument (fix/signal-type-cooldown:
         #    BB_EXTREME_RSI_OVERSOLD feuerte 146x mit 70% Fail-Rate —
         #    gleiche Signale auf gleichem Instrument brauchen Mindestdauer
@@ -407,6 +433,30 @@ def main() -> None:
         }
         # V5: risk_scalar replaces buy_aggressiveness (never >1.0 — no revenge trading)
         buy_aggressiveness: float = min(risk_scalar, 1.0)
+
+        # LLM-Makro-Daempfung (fix/llm-macro-advisor): forward-looking Faktor
+        # vom macro_regime_worker (taeglich 08:00 CEST). Nur daempfend
+        # [0.5..1.0], TTL 26h — fehlt/veraltet/unparsbar → 1.0 (fail-open).
+        # Das regelbasierte Regime bleibt unangetastet; wirkt multiplikativ.
+        try:
+            _macro_raw = state_repo.get("LLM_MACRO_SCALAR")
+            _macro_at = state_repo.get("LLM_MACRO_SET_AT") or ""
+            _macro = 1.0
+            if _macro_raw and _macro_at:
+                _at = _dt.fromisoformat(_macro_at)
+                if _at.tzinfo is None:
+                    _at = _at.replace(tzinfo=_tz.utc)
+                if (_dt.now(_tz.utc) - _at).total_seconds() <= 26 * 3600:
+                    _macro = max(0.5, min(1.0, float(_macro_raw)))
+            if _macro < 1.0:
+                buy_aggressiveness *= _macro
+                logger.info(
+                    "SignalWorker: LLM-Makro-Scalar %.2f aktiv — aggressiveness=%.2f (%s)",
+                    _macro, buy_aggressiveness,
+                    (state_repo.get("LLM_MACRO_REASON") or "")[:80],
+                )
+        except Exception as _mx:
+            logger.debug("SignalWorker: Makro-Scalar uebersprungen: %s", _mx)
     
         # ── 5. Rank & filter candidates BEFORE slicing to top-3 ────────────────────
         # V5 fix: market-open and blacklist checks used to run *inside* the loop
@@ -513,6 +563,17 @@ def main() -> None:
                     symbol,
                 )
                 signal_repo.update_signal_status(signal_id, "REJECTED")
+                continue
+
+            # News/Earnings-Risk-Flag (fix/llm-news-flags): AVOID → Signal
+            # ueberspringen, bleibt FRESH (Flag-TTL 12h laeuft vor Signal-TTL
+            # 24h ab — das Ereignis kann vorbeigehen). Kein REJECT.
+            _nf = _news_flags.get(symbol)
+            if _nf and _nf.get("flag") == "AVOID":
+                logger.info(
+                    "SignalWorker: %s News-Flag AVOID (%s) — uebersprungen",
+                    symbol, (_nf.get("reason") or "")[:80],
+                )
                 continue
 
             # Market hours (fix/market-hours-slot-guard): Signale geschlossener
@@ -636,6 +697,15 @@ def main() -> None:
                     )
             except Exception as _ke:
                 logger.debug("SignalWorker: Kelly-Faktor uebersprungen: %s", _ke)
+
+            # News-Flag CAUTION → halbe Groesse (fix/llm-news-flags, nur daempfend)
+            _nf = _news_flags.get(symbol)
+            if _nf and _nf.get("flag") == "CAUTION":
+                buy_amount = round(buy_amount * 0.5, 2)
+                logger.info(
+                    "SignalWorker: %s News-Flag CAUTION — Groesse halbiert auf $%.2f (%s)",
+                    symbol, buy_amount, (_nf.get("reason") or "")[:60],
+                )
     
             # Enforce minimum from regime params
             min_buy = regime_params.get("min_buy_usd", 50.0)
