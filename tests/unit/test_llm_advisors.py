@@ -265,3 +265,66 @@ def test_tier1_resolves_yfinance_symbol_from_db(tmp_path):
     assert items['PXA.ASX']['yf_symbol'] == 'PXA.AX'
     assert items['AAPL']['yf_symbol'] == 'AAPL'   # NULL → Alias-Fallback
     assert items['ALC.ZU']['instrument_id'] == 5804
+
+
+# ── Correlation-Gate: yfinance-Symbol-Aufloesung (fix/correlation-yf-symbol) ──
+
+import sqlite3 as _sqlite3
+
+from bot.core.correlation import _resolve_yf_symbols
+
+
+def test_correlation_resolves_yf_symbols(tmp_path):
+    conn = _sqlite3.connect(tmp_path / 'c.db')
+    conn.execute('CREATE TABLE instruments (instrument_id INTEGER PRIMARY KEY, symbol TEXT, yfinance_symbol TEXT)')
+    conn.execute("INSERT INTO instruments VALUES (5804, 'ALC.ZU', 'ALC.SW')")
+    conn.execute("INSERT INTO instruments VALUES (3000, 'SPY', 'SPY')")
+    conn.execute("INSERT INTO instruments VALUES (12665, 'SHUR.BR', NULL)")
+    m = _resolve_yf_symbols(conn, ['ALC.ZU', 'SPY', 'SHUR.BR', 'UNBEKANNT'])
+    assert m['ALC.ZU'] == 'ALC.SW'
+    assert m['SPY'] == 'SPY'
+    assert m['SHUR.BR'] == 'SHUR.BR'     # NULL → Rohsymbol (fail-open)
+    assert m['UNBEKANNT'] == 'UNBEKANNT'  # nicht in DB → Rohsymbol
+
+
+# ── Partial-Close-Sicherheit (fix/tighten-full-close, fix/stale-price-trailing) ──
+
+from types import SimpleNamespace
+
+from bot.core.trailing_stop import _action_market_open
+
+
+def test_action_market_open_crypto_always_true(tmp_path):
+    db = DB(db_path=tmp_path / 'm.db')
+    db.execute('CREATE TABLE instruments (instrument_id INTEGER PRIMARY KEY, symbol TEXT, yfinance_symbol TEXT, asset_class TEXT)')
+    db.execute("INSERT INTO instruments VALUES (100000, 'BTC', 'BTC-USD', 'crypto')")
+    action = SimpleNamespace(symbol='BTC', instrument_id=100000)
+    assert _action_market_open(db, action) is True
+
+
+def test_action_market_open_fails_open_without_db():
+    action = SimpleNamespace(symbol='SOMESTOCK', instrument_id=1)
+    # Ohne DB: Aufloesung scheitert still, Ergebnis haengt nur von
+    # market_hours ab — darf jedenfalls nicht crashen
+    assert _action_market_open(None, action) in (True, False)
+
+
+def test_get_position_units_parses_client_portfolio():
+    from bot.api.client import EToroClient
+    client = EToroClient.__new__(EToroClient)  # ohne __init__ (kein API-Setup)
+    client.get_portfolio = lambda: {'clientPortfolio': {'positions': [
+        {'positionID': 3513174003, 'units': 4.87677},
+        {'positionID': 111, 'units': 0},
+    ]}}
+    assert EToroClient.get_position_units(client, '3513174003') == 4.87677
+    assert EToroClient.get_position_units(client, 111) is None      # 0 units
+    assert EToroClient.get_position_units(client, 999) is None      # unbekannt
+
+
+def test_get_position_units_fails_open_on_api_error():
+    from bot.api.client import EToroClient
+    client = EToroClient.__new__(EToroClient)
+    def _boom():
+        raise RuntimeError('API down')
+    client.get_portfolio = _boom
+    assert EToroClient.get_position_units(client, 1) is None

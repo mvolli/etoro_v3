@@ -193,5 +193,31 @@
     "outcome_checked": false,
     "outcome_grade": null,
     "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-07-14T06:30:24",
+    "ts_executed": "2026-07-14T06:31:08",
+    "symbol": "HLAG.DE",
+    "recommendation": "TIGHTEN",
+    "close_pct": 25.0,
+    "reason": "PnL > 0% und Δ < -1.5% (Peak abgegeben), FADED Signal",
+    "pnl_at_execution": 1.5280135823429575,
+    "price_at_execution": 119.6,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-07-14T06:30:24",
+    "ts_executed": "2026-07-14T06:31:08",
+    "symbol": "RTX",
+    "recommendation": "TIGHTEN",
+    "close_pct": 30.0,
+    "reason": "PnL > 0% und Δ < -1.5% (starker Peak-Rückgang), FADED Signal",
+    "pnl_at_execution": 4.367373153500309,
+    "price_at_execution": 195.0,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
   }
 ]

@@ -915,6 +915,30 @@ class EToroClient:
         )
         return self.post("/trading/execution/orders", body, v2=True)
 
+    def get_position_units(self, position_id: str | int) -> float | None:
+        """Echte Unit-Anzahl einer offenen Position aus dem Live-Portfolio.
+
+        fix/partial-close-units (2026-07-14, HLAG.DE): alle Partial-Close-
+        Pfade berechneten units als amount_usd/open_rate — das ignoriert die
+        Waehrungsumrechnung (openConversionRate) und lag bei EUR-Titeln ~14%
+        daneben (HLAG: Formel 5.562 vs. real 4.87677 units). Das Live-
+        Portfolio (clientPortfolio.positions[].units) liefert die Wahrheit.
+
+        Returns None wenn Position nicht gefunden oder API-Fehler (Aufrufer
+        entscheidet ueber Fallback — NIEMALS None an close_position
+        weiterreichen, wenn ein Teilverkauf gemeint war: None = Vollverkauf!).
+        """
+        try:
+            payload = self.get_portfolio()
+            positions = (payload.get("clientPortfolio") or {}).get("positions") or []
+            for p in positions:
+                if str(p.get("positionID")) == str(position_id):
+                    units = float(p.get("units") or 0)
+                    return units if units > 0 else None
+        except Exception as exc:
+            logger.warning("get_position_units(%s) fehlgeschlagen: %s", position_id, exc)
+        return None
+
     def close_position(
         self,
         position_id: str | int,

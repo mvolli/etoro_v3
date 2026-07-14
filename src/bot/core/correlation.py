@@ -89,6 +89,31 @@ def _set_cached(conn: sqlite3.Connection, sym_a: str, sym_b: str, corr: float) -
     conn.commit()
 
 
+def _resolve_yf_symbols(conn, symbols: list[str]) -> dict[str, str]:
+    """eToro-Symbol → yfinance-Ticker via instruments-Tabelle.
+
+    fix/correlation-yf-symbol (2026-07-14): das Gate lud Preisdaten mit den
+    ROHEN Portfolio-Symbolen (ALC.ZU statt ALC.SW, SSS_3000 statt SPY) —
+    dieselbe Krankheit wie fix/tier1-yfinance-symbol im data_worker.
+    Fallback: Symbol selbst (Download schlaegt dann fehl → corr=None,
+    fail-open wie bisher). conn ist die Cache-Connection auf trading.db.
+    """
+    mapping = {s: s for s in symbols}
+    try:
+        placeholders = ",".join("?" * len(symbols))
+        rows = conn.execute(
+            f"SELECT symbol, yfinance_symbol FROM instruments "
+            f"WHERE symbol IN ({placeholders}) "
+            f"AND yfinance_symbol IS NOT NULL AND yfinance_symbol != ''",
+            symbols,
+        ).fetchall()
+        for row in rows:
+            mapping[row[0]] = row[1]
+    except Exception as exc:
+        logger.debug("yf-Symbol-Aufloesung fehlgeschlagen (%s) — Rohsymbole", exc)
+    return mapping
+
+
 def get_correlation(sym_a: str, sym_b: str, lookback_days: int = 30, db_path: str | None = None) -> float | None:
     """Get 30-day return correlation between two symbols.
 
@@ -115,8 +140,10 @@ def get_correlation(sym_a: str, sym_b: str, lookback_days: int = 30, db_path: st
             import yfinance as yf
             import pandas as pd
 
+            yf_map = _resolve_yf_symbols(conn, [sym_a, sym_b])
+            yf_a, yf_b = yf_map[sym_a], yf_map[sym_b]
             period = f"{lookback_days + 5}d"
-            data = yf.download([sym_a, sym_b], period=period, progress=False, auto_adjust=True)
+            data = yf.download([yf_a, yf_b], period=period, progress=False, auto_adjust=True)
             if data.empty:
                 return None
 
@@ -126,14 +153,14 @@ def get_correlation(sym_a: str, sym_b: str, lookback_days: int = 30, db_path: st
             else:
                 closes = data[['Close']]
 
-            if sym_a not in closes.columns or sym_b not in closes.columns:
+            if yf_a not in closes.columns or yf_b not in closes.columns:
                 return None
 
-            returns = closes[[sym_a, sym_b]].pct_change().dropna()
+            returns = closes[[yf_a, yf_b]].pct_change().dropna()
             if len(returns) < 10:
                 return None
 
-            corr = float(returns[sym_a].corr(returns[sym_b]))
+            corr = float(returns[yf_a].corr(returns[yf_b]))
 
             # Store in cache
             _set_cached(conn, sym_a, sym_b, corr)
@@ -185,9 +212,11 @@ def get_correlations_with(
             import yfinance as yf
             import pandas as pd
 
+            yf_map = _resolve_yf_symbols(conn, [symbol] + missing)
+            dl_symbols = list(dict.fromkeys(yf_map.values()))
             period = f"{lookback_days + 5}d"
             data = yf.download(
-                [symbol] + missing, period=period, progress=False, auto_adjust=True
+                dl_symbols, period=period, progress=False, auto_adjust=True
             )
             if data is None or data.empty:
                 for ex in missing:
@@ -196,12 +225,15 @@ def get_correlations_with(
 
             closes = data['Close'] if isinstance(data.columns, pd.MultiIndex) else data[['Close']]
 
+            yf_sym = yf_map[symbol]
             for ex in missing:
                 corr: float | None = None
-                if symbol in closes.columns and ex in closes.columns:
-                    returns = closes[[symbol, ex]].pct_change().dropna()
+                yf_ex = yf_map[ex]
+                if (yf_sym != yf_ex
+                        and yf_sym in closes.columns and yf_ex in closes.columns):
+                    returns = closes[[yf_sym, yf_ex]].pct_change().dropna()
                     if len(returns) >= 10:
-                        corr = float(returns[symbol].corr(returns[ex]))
+                        corr = float(returns[yf_sym].corr(returns[yf_ex]))
                         _set_cached(conn, symbol, ex, corr)
                 result[ex] = corr
         except Exception as e:

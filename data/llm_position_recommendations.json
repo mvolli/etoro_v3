@@ -1,86 +1,134 @@
 [
   {
     "symbol": "1929.HK",
-    "recommendation": "TIGHTEN",
-    "reason": "Signal TREND_PULLBACK ist schwach (avg_pnl -0.89%), Position im leichten Gewinn (0.35%)",
-    "ts": "2026-07-13T20:31:00"
+    "recommendation": "HOLD",
+    "close_pct": 0,
+    "reason": "Positiv im Aufwärtstrend, RSI neutral, kein Momentum-Verlust.",
+    "ts": "2026-07-14T12:30:54",
+    "instrument_id": 13697,
+    "position_id": "3508362304",
+    "executed": false,
+    "executed_at": null
   },
   {
     "symbol": "MUX.DE",
-    "recommendation": "TIGHTEN",
-    "reason": "Signal TREND_PULLBACK ist schwach, Position im Gewinn (0.74%)",
-    "ts": "2026-07-13T20:31:00"
-  },
-  {
-    "symbol": "LSS.PA",
-    "recommendation": "TIGHTEN",
-    "reason": "Signal TREND_PULLBACK ist schwach, Position im Minus (-2.31%)",
-    "ts": "2026-07-13T20:31:00"
-  },
-  {
-    "symbol": "HLAG.DE",
-    "recommendation": "TIGHTEN",
-    "reason": "Signal TREND_PULLBACK ist schwach, Position im Gewinn (1.53%)",
-    "ts": "2026-07-13T20:31:00"
+    "recommendation": "HOLD",
+    "close_pct": 0,
+    "reason": "Leichter Verlust, aber Golden Cross intakt und SMA50 stützt den Kurs.",
+    "ts": "2026-07-14T12:30:54",
+    "instrument_id": 3702,
+    "position_id": "3513175933",
+    "executed": false,
+    "executed_at": null
   },
   {
     "symbol": "ALC.ZU",
-    "recommendation": "TIGHTEN",
-    "reason": "Signal TREND_PULLBACK ist schwach, Position im Gewinn (0.83%)",
-    "ts": "2026-07-13T20:31:00"
+    "recommendation": "HOLD",
+    "close_pct": 0,
+    "reason": "Kleiner Verlust, Golden Cross und MACD-Up signalisieren noch Aufwärtsmomentum.",
+    "ts": "2026-07-14T12:30:54",
+    "instrument_id": 5804,
+    "position_id": "3513621488",
+    "executed": false,
+    "executed_at": null
+  },
+  {
+    "symbol": "PXA.ASX",
+    "recommendation": "HOLD",
+    "close_pct": 0,
+    "reason": "RSI extrem oversold (24), potenzielle Erholung trotz abwärtsgerichteten SMA50.",
+    "ts": "2026-07-14T12:30:54",
+    "instrument_id": 7111,
+    "position_id": "3514082735",
+    "executed": false,
+    "executed_at": null
   },
   {
     "symbol": "RBT.PA",
-    "recommendation": "TIGHTEN",
-    "reason": "Signal TREND_PULLBACK ist schwach, Position im Gewinn (1.36%)",
-    "ts": "2026-07-13T20:31:00"
-  },
-  {
-    "symbol": "CA.PA",
-    "recommendation": "TIGHTEN",
-    "reason": "Signal TREND_PULLBACK ist schwach, Position im leichten Gewinn (0.27%)",
-    "ts": "2026-07-13T20:31:00"
-  },
-  {
-    "symbol": "PNI.ASX",
     "recommendation": "HOLD",
-    "reason": "Signal unbekannt, Position im Gewinn (0.87%)",
-    "ts": "2026-07-13T20:31:00"
+    "close_pct": 0,
+    "reason": "Gewinn läuft, RSI 58 ist gesund, kein Überkauft-Signal.",
+    "ts": "2026-07-14T12:30:54",
+    "instrument_id": 13029,
+    "position_id": "3512396786",
+    "executed": false,
+    "executed_at": null
+  },
+  {
+    "symbol": "BOKU.L",
+    "recommendation": "HOLD",
+    "close_pct": 0,
+    "reason": "Extrem oversold (RSI 20), MACD-Verbesserung signalisiert möglicher Boden, historisch schwach aber noch kein Exit-Signal.",
+    "ts": "2026-07-14T12:30:54",
+    "instrument_id": 11312,
+    "position_id": "3514228834",
+    "executed": false,
+    "executed_at": null
+  },
+  {
+    "symbol": "TKMS.DE",
+    "recommendation": "HOLD",
+    "close_pct": 0,
+    "reason": "Golden Cross und Trend-Pullback intakt, Momentum stabil.",
+    "ts": "2026-07-14T12:30:54",
+    "instrument_id": 14253,
+    "position_id": "3514224665",
+    "executed": false,
+    "executed_at": null
   },
   {
     "symbol": "RWAY.MI",
     "recommendation": "HOLD",
-    "reason": "Signal BB_LOWER_RSI... hat positive avg_pnl (6.31%), Position im Gewinn (1.09%)",
-    "ts": "2026-07-13T20:31:00"
+    "close_pct": 0,
+    "reason": "Oversold-Situation (RSI 24), kein starker Verlust, Warte auf Bestätigung.",
+    "ts": "2026-07-14T12:30:54",
+    "instrument_id": 3554,
+    "position_id": "3511866410",
+    "executed": false,
+    "executed_at": null
+  },
+  {
+    "symbol": "CA.PA",
+    "recommendation": "HOLD",
+    "close_pct": 0,
+    "reason": "Gewinn läuft, RSI 57 ist sicher im Aufwärtstrend.",
+    "ts": "2026-07-14T12:30:54",
+    "instrument_id": 1239,
+    "position_id": "3513176215",
+    "executed": false,
+    "executed_at": null
   },
   {
     "symbol": "ALHRS.PA",
     "recommendation": "HOLD",
-    "reason": "Signal BB_LOWER_RSI... hat positive avg_pnl (0.38%), Position im Gewinn (3.94%)",
-    "ts": "2026-07-13T20:31:00"
-  },
-  {
-    "symbol": "IPN.PA",
-    "recommendation": "TIGHTEN",
-    "reason": "Signal TREND_PULLBACK ist schwach, Position im Minus (-1.35%)",
-    "ts": "2026-07-13T20:31:00"
+    "close_pct": 0,
+    "reason": "Gewinn läuft, RSI 34 ist tief, aber Signal BB_LOWER_RSI_OVERSOLD ist noch aktiv.",
+    "ts": "2026-07-14T12:30:54",
+    "instrument_id": 13135,
+    "position_id": "3510095851",
+    "executed": false,
+    "executed_at": null
   },
   {
     "symbol": "SSS_3000",
     "recommendation": "HOLD",
-    "reason": "Signal unbekannt, Position im Gewinn (2.97%)",
-    "ts": "2026-07-13T20:31:00"
+    "close_pct": 0,
+    "reason": "Gewinn läuft, MACD-Up, kein spezifisches Exit-Signal.",
+    "ts": "2026-07-14T12:30:54",
+    "instrument_id": 3000,
+    "position_id": "3477196916",
+    "executed": false,
+    "executed_at": null
   },
   {
     "symbol": "SB1.DE",
-    "recommendation": "TIGHTEN",
-    "reason": "Signal RSI-Extrem hat negativen avg_pnl (-0.45%), Position im Gewinn (3.71%)",
-    "ts": "2026-07-13T20:31:00"
-  },
-  {
-    "symbol": "RTX",
     "recommendation": "HOLD",
-    "reason": "Signal unbekannt, Position im Gewinn (4.63%)",
-    "ts": "2026-07-13T20:31:00"
+    "close_pct": 0,
+    "reason": "Gewinn läuft, RSI 27 ist tief, aber noch im Gewinnbereich.",
+    "ts": "2026-07-14T12:30:54",
+    "instrument_id": 12326,
+    "position_id": "3510246443",
+    "executed": false,
+    "executed_at": null
   }
 ]

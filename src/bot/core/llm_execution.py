@@ -230,23 +230,28 @@ def execute_llm_recommendations(
 
             if not dry_run:
                 try:
-                    # Fuer Teilverkauf: units_to_deduct berechnen
+                    # Fuer Teilverkauf: ECHTE units aus dem Live-Portfolio.
+                    # fix/tighten-full-close (2026-07-14, HLAG.DE Trade #385):
+                    # der alte Pfad hatte einen Operator-Praezedenz-Bug
+                    # ("file:%s" % a / b → TypeError, still geschluckt) →
+                    # units_to_deduct blieb None → close_position(None) =
+                    # VOLLVERKAUF statt TIGHTEN 25%. Zusaetzlich ignorierte
+                    # amount_usd/open_price die Waehrungsumrechnung.
                     units_to_deduct = None
                     if rec_close_pct < 100.0:
-                        import sqlite3 as _sq3
-                        try:
-                            _conn = _sq3.connect("file:%s?mode=ro" % RECS_PATH.parent.parent / "data/trading.db", uri=True)
-                            _conn.row_factory = _sq3.Row
-                            _snap = _conn.execute(
-                                "SELECT amount_usd, open_price FROM portfolio_snapshot WHERE api_position_id = ?",
-                                (position_id,)
-                            ).fetchone()
-                            _conn.close()
-                            if _snap and _snap["open_price"]:
-                                _total_units = float(_snap["amount_usd"]) / float(_snap["open_price"])
-                                units_to_deduct = round(_total_units * (rec_close_pct / 100.0), 8)
-                        except Exception as _ue:
-                            logger.debug("[llm_execution] units-Berechnung fehlgeschlagen: %s", _ue)
+                        _live_units = client.get_position_units(position_id)
+                        if _live_units and _live_units > 0:
+                            units_to_deduct = round(_live_units * (rec_close_pct / 100.0), 8)
+                        # FAIL-SAFE: ohne verlaessliche units wird der Teil-
+                        # verkauf UEBERSPRUNGEN — ein Berechnungsfehler darf
+                        # die Aktion NIE vergroessern (None = Vollverkauf!).
+                        if not units_to_deduct or units_to_deduct <= 0:
+                            _msg = ("%s: units fuer %s %.0f%% nicht ermittelbar — "
+                                    "UEBERSPRUNGEN (kein Vollverkauf-Fallback)"
+                                    % (symbol, recommendation, rec_close_pct))
+                            logger.error("[llm_execution] %s", _msg)
+                            stats["errors"].append(_msg)
+                            continue
 
                     result = client.close_position(
                         position_id=position_id,

@@ -1,13 +1,13 @@
 {
-  "generated_at": "2026-07-14T06:15:29.126811+00:00",
-  "auto_expires_at": "2026-07-14T18:15:29.126811+00:00",
-  "symbols_scanned": 24,
-  "headlines_seen": 12,
+  "generated_at": "2026-07-14T13:16:08.078000+00:00",
+  "auto_expires_at": "2026-07-15T01:16:08.078000+00:00",
+  "symbols_scanned": 43,
+  "headlines_seen": 15,
   "flags": {
-    "SPX500": {
-      "flag": "CAUTION",
-      "severity": "MEDIUM",
-      "reason": "Goldman Sachs warnt vor Zinserhohungen",
+    "SPY": {
+      "flag": "AVOID",
+      "severity": "HIGH",
+      "reason": "IBM stuerz um 23% aufgrund von Ergebnissen",
       "source": "news_llm"
     }
   }

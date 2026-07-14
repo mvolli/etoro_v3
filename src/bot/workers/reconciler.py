@@ -151,6 +151,51 @@ def match_late_fill(
     return pos
 
 
+def match_late_fill_multi(
+    ghost_failed_trades: list[dict],
+    unclaimed_positions: list[dict],
+) -> list[dict]:
+    """fix/late-fill-multi (BOKU.L, 2026-07-14): Recover Ghost-Order-Failed
+    Trades wenn 2+ Positionen des Instruments existieren.
+
+    Beispiel: Trade 416 ($652.99) + Trade 418 ($325.88) → 2 Live-Positionen
+    ($652.99 + $325.88). match_late_fill() braucht EXAKT 1 → scheitert.
+    Diese Funktion matcht jeden Trade mit der best-passenden Position.
+
+    Returns list of (trade, position) tuples that were successfully matched.
+    Each matched position is removed from unclaimed_positions (by-side effect).
+    """
+    if not ghost_failed_trades or not unclaimed_positions:
+        return []
+
+    matched = []
+    remaining_positions = list(unclaimed_positions)  # copy — we'll remove matched ones
+
+    for trade in ghost_failed_trades:
+        trade_amount = float(trade.get("amount_usd") or 0)
+        if trade_amount <= 0:
+            continue
+
+        best_match = None
+        best_diff = float('inf')
+
+        for i, pos in enumerate(remaining_positions):
+            pos_amount = float(pos.get("amount_usd") or 0)
+            if pos_amount <= 0:
+                continue
+            diff = abs(pos_amount - trade_amount) / trade_amount
+            if diff <= LATE_FILL_AMOUNT_TOLERANCE and diff < best_diff:
+                best_match = (i, pos)
+                best_diff = diff
+
+        if best_match is not None:
+            idx, pos = best_match
+            remaining_positions.pop(idx)  # remove so it's not matched again
+            matched.append((trade, pos))
+
+    return matched
+
+
 def _load_config() -> dict:
     """Load config/config.yaml relative to project root. Raises on missing file."""
     config_path = PROJECT_ROOT / "config" / "config.yaml"
@@ -769,15 +814,28 @@ def main() -> int:
                      "pnl_usd": pnl_usd, "pnl_pct": pnl_pct},
                 )
                 # ── Discord: CLOSE Embed → #etoro-trades ─────────────────────
-                _discord(
-                    "post_position_closed_embed",
-                    symbol=trade.get("symbol", "?"),
-                    amount_usd=float(trade.get("amount_usd", 0)),
-                    position_id=str(pos_id or ""),
-                    pnl_usd=pnl_usd or 0.0,
-                    pnl_pct=pnl_pct or 0.0,
-                    reason="Position via Reconciler geschlossen (nicht mehr in API)",
-                )
+                # fix/duplicate-close-embed (2026-07-14): Wenn der Snapshot kein
+                # PnL mehr hat (Position verschwand zwischen zwei Laeufen, z.B.
+                # ueber Nacht), postete dieser Pfad "$0.00" und Minuten spaeter
+                # postete 9d die echten API-Zahlen ("Finalisiert") — zwei
+                # Embeds fuer einen Close, eins davon falsch (HLAG.DE
+                # 2026-07-14: $0.00 vs real +$41.23). Jetzt: Embed nur bei
+                # bekanntem PnL; sonst uebernimmt 9d (PENDING) die Meldung.
+                if pnl_pct is not None:
+                    _discord(
+                        "post_position_closed_embed",
+                        symbol=trade.get("symbol", "?"),
+                        amount_usd=float(trade.get("amount_usd", 0)),
+                        position_id=str(pos_id or ""),
+                        pnl_usd=pnl_usd or 0.0,
+                        pnl_pct=pnl_pct or 0.0,
+                        reason="Position via Reconciler geschlossen (nicht mehr in API)",
+                    )
+                else:
+                    logger.info(
+                        f"[{WORKER_NAME}] Trade {trade_id}: PnL noch unbekannt — "
+                        "Discord-Meldung folgt aus 9d-Finalisierung (API-History)"
+                    )
             except Exception as exc:
                 msg = f"Failed to close trade {trade_id}: {exc}"
                 logger.warning(f"[{WORKER_NAME}] WARNING: {msg}")
@@ -832,12 +890,19 @@ def main() -> int:
                 WORKER_NAME, recovered_active, recovered_failed,
             )
 
-        # ── 9c. Late-Fill-Recovery (fix/late-fill-recovery) ──────────────────────
+        # ── 9c. Late-Fill-Recovery (fix/late-fill-recovery + fix/late-fill-multi) ──
         # FAILED-Ghost-Trades (<48h, mit order_id), deren Order sich NACH dem
         # Verify-Fenster doch materialisierte: die Live-Position existiert,
         # gehört aber keinem ACTIVE/CLOSING-Trade. Eindeutige Matches werden
         # auf ACTIVE repariert + der unverdiente Ghost-Zähler zurückgesetzt.
+        #
+        # fix/late-fill-multi (BOKU.L, 2026-07-14): Bei 2+ Positionen des
+        # Instruments (z.B. Double-Execute von eToro) matcht match_late_fill()
+        # nicht (braucht EXAKT 1). Daher: nach single-position Recovery wird
+        # match_late_fill_multi() für verbleibende ungematchte Ghost-Trades
+        # aufgerufen.
         late_fill_recovered = 0
+        late_fill_multi_recovered = 0
         try:
             claimed_pos_ids = {
                 str(t.get("api_position_id") or "")
@@ -851,6 +916,9 @@ def main() -> int:
                 and t.get("order_id")
                 and (t.get("created_at") or "") > _lf_cutoff
             ]
+
+            # Phase 1: Single-position Recovery (wie bisher)
+            unmatched_ghost_trades = []
             for trade in ghost_failed:
                 iid = trade.get("instrument_id")
                 unclaimed = [
@@ -860,8 +928,44 @@ def main() -> int:
                     and s["api_position_id"] not in claimed_pos_ids
                 ]
                 pos = match_late_fill(float(trade.get("amount_usd") or 0.0), unclaimed)
-                if pos is None:
-                    # Kein Late-Fill-Match — Instrument fuer Priority-Re-Check markieren
+                if pos is not None:
+                    t_id = trade["id"]
+                    pos_id = pos["api_position_id"]
+                    trade_repo.update_status(
+                        t_id, "ACTIVE",
+                        api_position_id=pos_id,
+                        entry_price=float(pos.get("open_price") or 0.0) or None,
+                        confirmed_at=_utcnow(),
+                        rejection_reason=(
+                            f"LATE FILL recovered: {(trade.get('rejection_reason') or '')[:120]}"
+                        ),
+                    )
+                    if iid is not None:
+                        trade_repo.reset_ghost_failures(int(iid))
+                    claimed_pos_ids.add(pos_id)
+                    late_fill_recovered += 1
+                    msg = (
+                        f"Trade {t_id} ({trade.get('symbol')}) LATE-FILL recovered "
+                        f"FAILED→ACTIVE (position {pos_id}, ${pos.get('amount_usd'):.0f}) "
+                        f"— Ghost-Zähler zurückgesetzt"
+                    )
+                    logger.warning(f"[{WORKER_NAME}] {msg}")
+                    log_repo.write("WARN", WORKER_NAME, msg,
+                                   {"trade_id": t_id, "api_position_id": pos_id})
+                    _discord(
+                        "post_alert_embed",
+                        title=f"🔁 Late-Fill erkannt: {trade.get('symbol')}",
+                        description=(
+                            f"Order füllte NACH dem Verify-Fenster — Trade #{t_id} "
+                            f"wurde FAILED→ACTIVE repariert (Position {pos_id}). "
+                            f"Ghost-Blacklist-Zähler zurückgesetzt."
+                        ),
+                        severity="WARNING",
+                    )
+                else:
+                    # Kein single-match — für multi-phase merken
+                    unmatched_ghost_trades.append(trade)
+                    # Instrument fuer Priority-Re-Check markieren
                     try:
                         iid = trade.get("instrument_id")
                         if iid:
@@ -872,39 +976,64 @@ def main() -> int:
                             )
                     except Exception:
                         pass
-                    continue
-                t_id = trade["id"]
-                pos_id = pos["api_position_id"]
-                trade_repo.update_status(
-                    t_id, "ACTIVE",
-                    api_position_id=pos_id,
-                    entry_price=float(pos.get("open_price") or 0.0) or None,
-                    confirmed_at=_utcnow(),
-                    rejection_reason=(
-                        f"LATE FILL recovered: {(trade.get('rejection_reason') or '')[:120]}"
-                    ),
-                )
-                trade_repo.reset_ghost_failures(int(iid))
-                claimed_pos_ids.add(pos_id)  # nicht doppelt vergeben
-                late_fill_recovered += 1
-                msg = (
-                    f"Trade {t_id} ({trade.get('symbol')}) LATE-FILL recovered "
-                    f"FAILED→ACTIVE (position {pos_id}, ${pos.get('amount_usd'):.0f}) "
-                    f"— Ghost-Zähler zurückgesetzt"
-                )
-                logger.warning(f"[{WORKER_NAME}] {msg}")
-                log_repo.write("WARN", WORKER_NAME, msg,
-                               {"trade_id": t_id, "api_position_id": pos_id})
-                _discord(
-                    "post_alert_embed",
-                    title=f"🔁 Late-Fill erkannt: {trade.get('symbol')}",
-                    description=(
-                        f"Order füllte NACH dem Verify-Fenster — Trade #{t_id} "
-                        f"wurde FAILED→ACTIVE repariert (Position {pos_id}). "
-                        f"Ghost-Blacklist-Zähler zurückgesetzt."
-                    ),
-                    severity="WARNING",
-                )
+
+            # Phase 2: Multi-position Recovery (fix/late-fill-multi)
+            # Wenn ghost_failed Trades übrig sind, die keine single-position hatten,
+            # aber 2+ unclaimed positions existieren → match_late_fill_multi()
+            if unmatched_ghost_trades:
+                # Gruppieren nach instrument_id
+                from collections import defaultdict
+                by_instrument = defaultdict(list)
+                for trade in unmatched_ghost_trades:
+                    iid = trade.get("instrument_id")
+                    if iid:
+                        by_instrument[iid].append(trade)
+
+                for iid, trades_in_instr in by_instrument.items():
+                    unclaimed_for_instr = [
+                        s for s in all_snapshots
+                        if s.get("instrument_id") == iid
+                        and s["api_position_id"] in live_position_ids
+                        and s["api_position_id"] not in claimed_pos_ids
+                    ]
+                    if len(unclaimed_for_instr) < 2:
+                        continue  # braucht mindestens 2 für multi-phase
+
+                    matches = match_late_fill_multi(trades_in_instr, unclaimed_for_instr)
+                    for trade, pos in matches:
+                        t_id = trade["id"]
+                        pos_id = pos["api_position_id"]
+                        trade_repo.update_status(
+                            t_id, "ACTIVE",
+                            api_position_id=pos_id,
+                            entry_price=float(pos.get("open_price") or 0.0) or None,
+                            confirmed_at=_utcnow(),
+                            rejection_reason=(
+                                f"LATE-FILL MULTI recovered: {(trade.get('rejection_reason') or '')[:120]}"
+                            ),
+                        )
+                        if iid is not None:
+                            trade_repo.reset_ghost_failures(int(iid))
+                        claimed_pos_ids.add(pos_id)
+                        late_fill_multi_recovered += 1
+                        msg = (
+                            f"Trade {t_id} ({trade.get('symbol')}) LATE-FILL MULTI recovered "
+                            f"FAILED→ACTIVE (position {pos_id}, ${pos.get('amount_usd'):.0f}) "
+                            f"— {len(unclaimed_for_instr)} Positionen gematcht, Ghost-Zähler zurückgesetzt"
+                        )
+                        logger.warning(f"[{WORKER_NAME}] {msg}")
+                        log_repo.write("WARN", WORKER_NAME, msg,
+                                       {"trade_id": t_id, "api_position_id": pos_id, "multi_match": True})
+                        _discord(
+                            "post_alert_embed",
+                            title=f"🔁 Late-Fill Multi erkannt: {trade.get('symbol')}",
+                            description=(
+                                f"eToro eröffnete {len(unclaimed_for_instr)} Trades — "
+                                f"Trade #{t_id} wurde FAILED→ACTIVE repariert "
+                                f"(Position {pos_id}). Ghost-Blacklist-Zähler zurückgesetzt."
+                            ),
+                            severity="WARNING",
+                        )
         except Exception as exc:
             logger.warning(f"[{WORKER_NAME}] WARNING: Late-Fill-Recovery fehlgeschlagen: {exc}")
 
@@ -989,6 +1118,18 @@ def main() -> int:
                             verification_status="VERIFIED",
                         )
                         finalized_count += 1
+                        # fix/duplicate-close-embed: 9a postet ohne PnL kein
+                        # Embed mehr — dieser Fallback ist dann die einzige
+                        # Nutzer-Meldung. Ehrlich labeln statt $0.00 anzuzeigen.
+                        _discord(
+                            "post_position_closed_embed",
+                            symbol=symbol,
+                            amount_usd=float(trade.get("amount_usd", 0) or 0),
+                            position_id=str(pos_id or ""),
+                            pnl_usd=float(trade.get("pnl_usd") or 0.0),
+                            pnl_pct=float(trade.get("pnl_pct") or 0.0),
+                            reason="⚠️ Finalisiert ohne API-History — PnL unbestätigt (Schätzung)",
+                        )
                         msg = f"Trade {t_id} ({symbol}) marked VERIFIED (position gone, no API history yet — using estimate)"
                         logger.info(f"[{WORKER_NAME}] {msg}")
                         log_repo.write("INFO", WORKER_NAME, msg, {"trade_id": t_id})

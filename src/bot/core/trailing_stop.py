@@ -791,6 +791,34 @@ def verify_full_close(
     return False, f"Full-close NOT confirmed after {waited:.0f}s — position may still be open", None
 
 
+def _action_market_open(db: Any, action: "TrailingAction") -> bool:
+    """Market-Hours-Check fuer Trailing-/Exit-Aktionen (fix/stale-price-trailing).
+
+    yfinance_symbol/asset_class werden aus der instruments-Tabelle aufgeloest,
+    damit z.B. Forex-Symbole (EURJPY) nicht faelschlich an US-Boersenzeiten
+    gebunden werden. Fail-open: bei jedem Fehler gilt der Markt als offen
+    (bisheriges Verhalten bleibt dann erhalten)."""
+    try:
+        from bot.core.market_hours import is_market_open
+        yf_sym, cat = "", ""
+        try:
+            if db is not None:
+                row = db.fetchone(
+                    "SELECT yfinance_symbol, asset_class FROM instruments WHERE instrument_id=?",
+                    (action.instrument_id,),
+                )
+                if row:
+                    yf_sym = row["yfinance_symbol"] or ""
+                    cat = {"forex": "forex", "commodity": "commodities",
+                           "index": "indices", "crypto": "crypto"}.get(
+                        (row["asset_class"] or "").lower(), "")
+        except Exception:
+            pass
+        return is_market_open(action.symbol, yf_sym, cat)
+    except Exception:
+        return True
+
+
 def execute_trailing_actions(
     client: Any,
     actions: list[TrailingAction],
@@ -814,6 +842,18 @@ def execute_trailing_actions(
              'momentum_fades': 0, 'errors': []}
 
     for action in actions:
+        # fix/stale-price-trailing (2026-07-14, HLAG.DE 21:49): Trigger
+        # rechnen mit Live-PnL — nach Boersenschluss ist der stale (Xetra
+        # schliesst 17:30, die Aktion kam 21:49). Die Order queued bei eToro
+        # und fuellt blind ins Open-Gap (oder verpufft — Discord meldete
+        # trotzdem CLOSED). Bei geschlossenem Markt: ueberspringen, der
+        # naechste Zyklus nach Open entscheidet mit frischen Preisen.
+        # BREAK_EVEN (nur State-Aenderung, keine Order) laeuft immer.
+        if action.action != 'BREAK_EVEN' and not _action_market_open(db, action):
+            logger.info('[trailing] %s: Markt geschlossen — %s uebersprungen (stale Preise)',
+                        action.symbol, action.action)
+            continue
+
         if action.action == 'BREAK_EVEN':
             # fix/break-even-enforcement: persist armed state — the next
             # cycles enforce the entry floor via BE_CLOSE (eToro has no
@@ -882,7 +922,16 @@ def execute_trailing_actions(
                 stats['errors'].append(msg)
                 continue
 
-            total_units = action.amount_usd / action.open_rate
+            # fix/partial-close-units: echte units aus dem Live-Portfolio —
+            # amount_usd/open_rate ignoriert openConversionRate (~14% Fehler
+            # bei EUR-Titeln). Fallback: alte Formel (schliesst tendenziell
+            # etwas MEHR — de-risking-Richtung, nie weniger Schutz).
+            _live_units = None
+            try:
+                _live_units = client.get_position_units(action.position_id)
+            except Exception:
+                pass
+            total_units = _live_units or (action.amount_usd / action.open_rate)
             units_to_deduct = round(total_units * (action.close_pct / 100.0), 8)
 
             if units_to_deduct <= 0:

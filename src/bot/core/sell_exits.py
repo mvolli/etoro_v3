@@ -204,18 +204,39 @@ def execute_sell_exits(
     """
     import time
 
-    from bot.core.trailing_stop import TrailingAction, _post_closed_embed, _verify_partial_close
+    from bot.core.trailing_stop import (
+        TrailingAction,
+        _action_market_open,
+        _post_closed_embed,
+        _verify_partial_close,
+    )
 
     stats = {"closed": 0, "errors": []}
 
     for action in actions:
+        # fix/stale-price-trailing: SELL-Exits basieren auf Signalen, die
+        # nach Boersenschluss aus stalen Daten entstehen koennen — gleiche
+        # Schutzlogik wie bei Trailing-Aktionen. Signal bleibt FRESH und
+        # wird nach Markt-Open mit frischen Daten erneut geprueft.
+        if not _action_market_open(db, action):
+            logger.info("[sell_exits] %s: Markt geschlossen — Exit uebersprungen (stale Preise)",
+                        action.symbol)
+            continue
+
         if action.open_rate <= 0:
             msg = f"{action.symbol}: SELL-Exit ohne open_rate — übersprungen"
             logger.warning("[sell_exits] %s", msg)
             stats["errors"].append(msg)
             continue
 
-        total_units = action.amount_usd / action.open_rate
+        # fix/partial-close-units: echte units aus Live-Portfolio, Fallback
+        # alte Formel (siehe trailing_stop.py).
+        _live_units = None
+        try:
+            _live_units = client.get_position_units(action.position_id)
+        except Exception:
+            pass
+        total_units = _live_units or (action.amount_usd / action.open_rate)
         units_to_deduct = round(total_units * (action.close_pct / 100.0), 8)
         if units_to_deduct <= 0:
             stats["errors"].append(f"{action.symbol}: units_to_deduct <= 0 — übersprungen")
