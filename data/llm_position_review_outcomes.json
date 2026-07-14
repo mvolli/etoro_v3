@@ -219,5 +219,44 @@
     "outcome_checked": false,
     "outcome_grade": null,
     "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-07-14T17:30:59",
+    "ts_executed": "2026-07-14T17:31:42",
+    "symbol": "PXA.ASX",
+    "recommendation": "EXIT",
+    "close_pct": 100.0,
+    "reason": "Starker Verlust (-1.5%), RSI extrem oversold (24), MACD dreht unter SMA20. Historische Performance für dieses Signal-Kombi ist schlecht (0% Winrate, avg_pnl 0.00% bei n=2). Trend bricht zusammen.",
+    "pnl_at_execution": -1.5000000000000013,
+    "price_at_execution": 7.88,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-07-14T17:30:59",
+    "ts_executed": "2026-07-14T17:31:42",
+    "symbol": "TKMS.DE",
+    "recommendation": "TIGHTEN",
+    "close_pct": 25.0,
+    "reason": "Gewinn (+2.6%), aber FADED (Momentum gebrochen) und Δ -1.4%. Peak-Gewinn wird abgegeben. Teilverkauf zur Absicherung empfohlen.",
+    "pnl_at_execution": 2.621722846441954,
+    "price_at_execution": 82.2,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-07-14T17:30:59",
+    "ts_executed": "2026-07-14T17:31:42",
+    "symbol": "SSS_3000",
+    "recommendation": "TIGHTEN",
+    "close_pct": 20.0,
+    "reason": "Gewinn (+3.4%), aber FADED und Δ -0.6%. Da Signal UNBEKANNT, wird auf TA gestützt: Gewinnmitnahme bei Momentum-Brechung sinnvoll.",
+    "pnl_at_execution": 3.3891541562891314,
+    "price_at_execution": 751.36,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
   }
 ]

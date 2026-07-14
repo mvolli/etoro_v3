@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-07-14T13:16:08.078000+00:00",
-  "auto_expires_at": "2026-07-15T01:16:08.078000+00:00",
-  "symbols_scanned": 43,
-  "headlines_seen": 15,
+  "generated_at": "2026-07-14T18:16:51.583489+00:00",
+  "auto_expires_at": "2026-07-15T06:16:51.583489+00:00",
+  "symbols_scanned": 22,
+  "headlines_seen": 10,
   "flags": {
-    "SPY": {
+    "AQ.ST": {
       "flag": "AVOID",
       "severity": "HIGH",
-      "reason": "IBM stuerz um 23% aufgrund von Ergebnissen",
-      "source": "news_llm"
+      "reason": "Earnings am 2026-07-14",
+      "source": "earnings_calendar"
     }
   }
 }
