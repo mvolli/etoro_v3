@@ -539,8 +539,8 @@ def main() -> None:
                 import time as _time
     
                 max_attempts = 6          # Check up to 6 times
-                initial_wait_s = 3        # Start at 3 seconds
-                max_total_wait_s = 120    # Cap total wait at 2 minutes
+                initial_wait_s = 5        # Start at 5 seconds
+                max_total_wait_s = 300    # Cap total wait at 5 minutes (Pre-Market/Spät-Execution braucht länger)
     
                 matching_pos = None
                 total_waited = 0
@@ -580,9 +580,23 @@ def main() -> None:
                     )
     
                 if not matching_pos:
-                    # No position found after polling — treat as ghost order regardless of orderId
-                    # This catches both: (a) API returned orderId but no position, AND
-                    # (b) API returned silently/empty but we got no exception (allowOpenPosition=false pattern)
+                    # No position found after polling — check if we got a valid orderId
+                    # from eToro. A valid orderId means eToro accepted the order but
+                    # the position just hasn't materialized yet (Pre-Market, Spät-Execution, etc.).
+                    # In that case: DEFER (revert to APPROVED for next 15min retry).
+                    # No orderId = silent block → FAILED.
+                    if api_position_id:
+                        # DEFER: eToro nahm die Order an, Position noch nicht sichtbar
+                        logger.info(
+                            "ExecutionWorker: trade #%d DEFER — orderId=%s empfangen, "
+                            "Position noch nicht materialisiert (Pre-Market/Spät-Execution?)",
+                            trade_id, api_position_id,
+                        )
+                        trade_repo.update_status(trade_id, "APPROVED")
+                        processed_count -= 1
+                        continue  # retry im nächsten Zyklus (15min)
+                    
+                    # Silent block: kein orderId → truly failed
                     ghost_count, bl_status = trade_repo.record_ghost_failure(instrument_id)
     
                     ghost_detail = f"orderId={api_position_id}" if api_position_id else "no orderId returned (silent block)"
