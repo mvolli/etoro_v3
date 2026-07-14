@@ -132,3 +132,13 @@ def test_full_flow_arm_then_enforce(db):
 
     actions = evaluate_trailing([_pos(pnl_pct=0.1)], db=db)
     assert actions[0].action == "BE_CLOSE"
+
+
+@__import__("pytest").fixture(autouse=True)
+def _market_always_open_for_tests(monkeypatch):
+    """fix/stale-price-trailing machte diese Tests wallclock-abhaengig
+    (Market-Guard prueft echte Boersenzeiten — gruen mittags, rot abends).
+    Der Guard hat eigene Tests (test_llm_advisors.py); hier wird er
+    deterministisch auf 'offen' gepatcht."""
+    import bot.core.trailing_stop as _ts
+    monkeypatch.setattr(_ts, "_action_market_open", lambda *a, **k: True)

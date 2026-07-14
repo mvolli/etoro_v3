@@ -140,3 +140,13 @@ def test_api_error_keeps_signal_fresh(monkeypatch):
     assert stats["closed"] == 0
     assert len(stats["errors"]) == 1
     assert repo.status_updates == []  # Signal bleibt FRESH → Retry
+
+
+@__import__("pytest").fixture(autouse=True)
+def _market_always_open_for_tests(monkeypatch):
+    """fix/stale-price-trailing machte diese Tests wallclock-abhaengig
+    (Market-Guard prueft echte Boersenzeiten — gruen mittags, rot abends).
+    Der Guard hat eigene Tests (test_llm_advisors.py); hier wird er
+    deterministisch auf 'offen' gepatcht."""
+    import bot.core.trailing_stop as _ts
+    monkeypatch.setattr(_ts, "_action_market_open", lambda *a, **k: True)

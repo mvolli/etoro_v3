@@ -540,7 +540,11 @@ def main() -> None:
     
                 max_attempts = 6          # Check up to 6 times
                 initial_wait_s = 5        # Start at 5 seconds
-                max_total_wait_s = 300    # Cap total wait at 5 minutes (Pre-Market/Spät-Execution braucht länger)
+                max_total_wait_s = 90     # fix/ghost-defer-hardening: 300s sprengte
+                                          # das 120s-no_agent-Cron-Budget (Job-Kill
+                                          # mitten im Poll → Trade haengt in
+                                          # SUBMITTING). Langsame Fills faengt der
+                                          # DEFER-Retry im naechsten 15-min-Zyklus.
     
                 matching_pos = None
                 total_waited = 0
@@ -585,18 +589,29 @@ def main() -> None:
                     # the position just hasn't materialized yet (Pre-Market, Spät-Execution, etc.).
                     # In that case: DEFER (revert to APPROVED for next 15min retry).
                     # No orderId = silent block → FAILED.
-                    if api_position_id:
-                        # DEFER: eToro nahm die Order an, Position noch nicht sichtbar
+                    # fix/ghost-defer-hardening (Review 2026-07-14): DEFER ohne
+                    # Cap waere ein Endlos-Retry — orderId-Ghosts sind der
+                    # KLASSISCHE Ghost-Pattern (eToro akzeptiert, bucht nie).
+                    # Ohne Cap: nie FAILED, nie ghost-gezaehlt, Blacklist
+                    # ausgehungert, Retry-Spam alle 15 min. requeue_count dient
+                    # als Defer-Zaehler (max 3); danach greift der normale
+                    # FAILED+Ghost-Pfad. classify_requeue (One-Shot fuer
+                    # transiente FAILED) prueft !=0 und requeued einen
+                    # ausdeferten Trade folgerichtig nicht erneut.
+                    _defer_count = int(trade.get("requeue_count") or 0)
+                    if api_position_id and _defer_count < 3:
                         logger.info(
-                            "ExecutionWorker: trade #%d DEFER — orderId=%s empfangen, "
+                            "ExecutionWorker: trade #%d DEFER %d/3 — orderId=%s empfangen, "
                             "Position noch nicht materialisiert (Pre-Market/Spät-Execution?)",
-                            trade_id, api_position_id,
+                            trade_id, _defer_count + 1, api_position_id,
                         )
-                        trade_repo.update_status(trade_id, "APPROVED")
+                        trade_repo.update_status(
+                            trade_id, "APPROVED", requeue_count=_defer_count + 1,
+                        )
                         processed_count -= 1
                         continue  # retry im nächsten Zyklus (15min)
-                    
-                    # Silent block: kein orderId → truly failed
+
+                    # Kein orderId (silent block) ODER Defer-Cap erreicht → Ghost
                     ghost_count, bl_status = trade_repo.record_ghost_failure(instrument_id)
     
                     ghost_detail = f"orderId={api_position_id}" if api_position_id else "no orderId returned (silent block)"
