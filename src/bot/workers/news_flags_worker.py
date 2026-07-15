@@ -196,6 +196,26 @@ def main() -> int:
         except Exception:
             pass
 
+        # Makro-Pass huckepack (fix/macro-fold, 2026-07-15): ersetzt den
+        # eigenen Taeglich-08:00-Cron (Job 6d23c9d78542, disabled). Der
+        # Alters-Trigger macht ihn selbstheilend: ein verpasster Lauf wird
+        # im naechsten Stundenzyklus nachgeholt statt 24h-Loch (fail-open
+        # 1.0 via TTL). Muss VOR db.close() laufen (DB noch offen).
+        try:
+            from bot.core.macro_advisor import (REFRESH_AGE_HOURS,
+                                                macro_scalar_age_hours,
+                                                run_macro_pass)
+            _age = macro_scalar_age_hours(StateRepo(db))
+            if _age is None or _age > REFRESH_AGE_HOURS:
+                logger.info(
+                    "[%s] Makro-Scalar %s — starte Makro-Pass",
+                    WORKER_NAME,
+                    "nie gesetzt" if _age is None else f"{_age:.1f}h alt",
+                )
+                run_macro_pass(StateRepo(db))
+        except Exception as exc:
+            logger.warning("[%s] Makro-Pass fehlgeschlagen: %s", WORKER_NAME, exc)
+
         symbols = _gather_symbols(db)
         db.close()  # yfinance-Phase ohne offene DB-Connection (Lock-Hygiene)
         if not symbols:
