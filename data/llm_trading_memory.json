@@ -203,7 +203,100 @@
     "ghost_blacklist/.HE: Ghost-Blacklist '.HE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
     "ghost_blacklist/.ST: Ghost-Blacklist '.ST': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
     "ghost_blacklist/_FOREX: Ghost-Blacklist '_FOREX': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
-    "ghost_blacklist/_FUT: Ghost-Blacklist '_FUT': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)"
+    "ghost_blacklist/_FUT: Ghost-Blacklist '_FUT': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/.DE: Ghost-Blacklist '.DE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/.HE: Ghost-Blacklist '.HE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/.ST: Ghost-Blacklist '.ST': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/_FOREX: Ghost-Blacklist '_FOREX': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/_FUT: Ghost-Blacklist '_FUT': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/.DE: Ghost-Blacklist '.DE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/.HE: Ghost-Blacklist '.HE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/.ST: Ghost-Blacklist '.ST': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/_FOREX: Ghost-Blacklist '_FOREX': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/_FUT: Ghost-Blacklist '_FUT': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/.DE: Ghost-Blacklist '.DE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/.HE: Ghost-Blacklist '.HE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/.ST: Ghost-Blacklist '.ST': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/_FOREX: Ghost-Blacklist '_FOREX': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/_FUT: Ghost-Blacklist '_FUT': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/.DE: Ghost-Blacklist '.DE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/.HE: Ghost-Blacklist '.HE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/.ST: Ghost-Blacklist '.ST': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/_FOREX: Ghost-Blacklist '_FOREX': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/_FUT: Ghost-Blacklist '_FUT': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "signal_weight/BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_: Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVE: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "signal_weight/TREND_PULLBACK: Signal TREND_PULLBACK: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.4, 'skip': False, 'reason': 'Extrem hohe Fail-Rate (73%) bei geschlossen Trades.'})",
+    "signal_weight/GOLDEN_CROSS: Signal GOLDEN_CROSS: 4 Trades, avg_pnl=-0.33% (Gewicht={'score_multiplier': 0.2, 'skip': False, 'reason': '0% Success Rate bei allen 8 abgeschlossenen Trades.'})",
+    "config/sl.default_pct: Nach sl.default_pct=2.5: avg_pnl=-1.48%, win_rate=17% (6 Trades)",
+    "ghost_blacklist/.DE: Ghost-Blacklist '.DE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/.HE: Ghost-Blacklist '.HE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/.ST: Ghost-Blacklist '.ST': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/_FOREX: Ghost-Blacklist '_FOREX': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/_FUT: Ghost-Blacklist '_FUT': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "signal_weight/GOLDEN_CROSS: Signal GOLDEN_CROSS: 4 Trades, avg_pnl=-0.33% (Gewicht={'score_multiplier': 0.3, 'skip': False, 'reason': '0% Success Rate bei 8 Trades, sehr unzuverlässig im aktuellen Regime'})",
+    "signal_weight/TREND_PULLBACK: Signal TREND_PULLBACK: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.4, 'skip': False, 'reason': '2% Success Rate bei 44 Trades, hohe Fehlerrate'})",
+    "signal_weight/BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD: Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVE: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "ghost_blacklist/.DE: Ghost-Blacklist '.DE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/.HE: Ghost-Blacklist '.HE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/.ST: Ghost-Blacklist '.ST': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/_FOREX: Ghost-Blacklist '_FOREX': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/_FUT: Ghost-Blacklist '_FUT': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "signal_weight/BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD: Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVE: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "signal_weight/GOLDEN_CROSS: Signal GOLDEN_CROSS: 4 Trades, avg_pnl=-0.33% (Gewicht={'score_multiplier': 0.2, 'skip': False, 'reason': '0% Success Rate bei 8 Trades; Signal vorübergehend stark gewichtet reduzieren.'})",
+    "signal_weight/TREND_PULLBACK: Signal TREND_PULLBACK: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.4, 'skip': False, 'reason': '2% Success Rate bei 44 Trades; sehr hohe Fehlerrate, Gewicht stark reduzieren.'})",
+    "config/sl.default_pct: Nach sl.default_pct=3.0: avg_pnl=-1.48%, win_rate=17% (6 Trades)",
+    "config/sizing.medium_pct: Nach sizing.medium_pct=5.0: avg_pnl=-1.48%, win_rate=17% (6 Trades)",
+    "ghost_blacklist/.DE: Ghost-Blacklist '.DE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/.HE: Ghost-Blacklist '.HE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/.ST: Ghost-Blacklist '.ST': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/_FOREX: Ghost-Blacklist '_FOREX': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/_FUT: Ghost-Blacklist '_FUT': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "signal_weight/BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD: Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVE: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "signal_weight/MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING: Signal MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROV: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "signal_weight/GOLDEN_CROSS: Signal GOLDEN_CROSS: 4 Trades, avg_pnl=-0.33% (Gewicht={'score_multiplier': 0.5, 'skip': False, 'reason': 'Aktuell 0% Success Rate; vorerst gewichtsenken bis Muster sich stabilisiert.'})",
+    "config/sl.default_pct: Nach sl.default_pct=4.0: avg_pnl=-1.48%, win_rate=17% (6 Trades)",
+    "config/sizing.very_high_pct: Nach sizing.very_high_pct=6.0: avg_pnl=-1.48%, win_rate=17% (6 Trades)",
+    "ghost_blacklist/.DE: Ghost-Blacklist '.DE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/.HE: Ghost-Blacklist '.HE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/.ST: Ghost-Blacklist '.ST': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/_FOREX: Ghost-Blacklist '_FOREX': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "ghost_blacklist/_FUT: Ghost-Blacklist '_FUT': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "signal_weight/BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD: Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVE: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "signal_weight/GOLDEN_CROSS: Signal GOLDEN_CROSS: 4 Trades, avg_pnl=-0.33% (Gewicht={'score_multiplier': 0.3, 'skip': False, 'reason': '100% Failed-Rate, nur als Filter-Komponente nutzen.'})",
+    "signal_weight/TREND_PULLBACK: Signal TREND_PULLBACK: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.7, 'skip': False, 'reason': 'Hohe Failed-Rate, aber einzelne Wins zeigen Potenzial bei strenger Filterung.'})",
+    "config/sl.default_pct: Nach sl.default_pct=3.0: avg_pnl=-1.48%, win_rate=17% (6 Trades)",
+    "config/sizing.very_high_pct: Nach sizing.very_high_pct=5.0: avg_pnl=-1.48%, win_rate=17% (6 Trades)",
+    "signal_weight/BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD: Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVE: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "signal_weight/TREND_PULLBACK: Signal TREND_PULLBACK: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.7, 'skip': False, 'reason': 'Niedrige Success Rate (2%), aber hohe Frequenz; Filter schärfen.'})",
+    "signal_weight/GOLDEN_CROSS: Signal GOLDEN_CROSS: 4 Trades, avg_pnl=-0.33% (Gewicht={'score_multiplier': 0.5, 'skip': True, 'reason': 'Alleinige Signale fallen aus, nur in Kombination mit MACD/RSI verwenden.'})",
+    "signal_weight/MACD_TURN_BELOW_SMA20: Signal MACD_TURN_BELOW_SMA20: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "signal_weight/BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD: Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVE: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "signal_weight/TREND_PULLBACK: Signal TREND_PULLBACK: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.6, 'skip': False, 'reason': 'Niedrige Success Rate (0.02), aber hohe Frequenz; Gewichtung senken, um False Positives zu reduzieren.'})",
+    "signal_weight/MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING: Signal MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROV: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "signal_weight/GOLDEN_CROSS: Signal GOLDEN_CROSS: 4 Trades, avg_pnl=-0.33% (Gewicht={'score_multiplier': 0.2, 'skip': False, 'reason': 'Alleinige Nutzung führt zu 0% Success Rate; nur in Kombination mit MACD/RSI verwenden.'})",
+    "config/regime.caution_pct: Nach regime.caution_pct=3.0: avg_pnl=-1.48%, win_rate=17% (6 Trades)",
+    "signal_weight/BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD: Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVE: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "signal_weight/TREND_PULLBACK: Signal TREND_PULLBACK: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.6, 'skip': False, 'reason': 'Sehr hohe Rejection-Rate (15) und niedrige Success Rate (0.02).'})",
+    "signal_weight/GOLDEN_CROSS: Signal GOLDEN_CROSS: 4 Trades, avg_pnl=-0.33% (Gewicht={'score_multiplier': 0.3, 'skip': True, 'reason': 'Alle 8 Trades FAILED, isoliert fast unbrauchbar.'})",
+    "signal_weight/MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING: Signal MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROV: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "signal_weight/GOLDEN_CROSS: Signal GOLDEN_CROSS: 4 Trades, avg_pnl=-0.33% (Gewicht={'score_multiplier': 0.2, 'skip': False, 'reason': '0% Success Rate bei isolierter Nutzung, nur in Kombination mit MACD/RSI verwenden.'})",
+    "signal_weight/TREND_PULLBACK: Signal TREND_PULLBACK: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.5, 'skip': False, 'reason': 'Hohe Fail-Rate (28/44), nur bei zusätzlicher Bestätigung (z.B. MACD Turn) gewichten.'})",
+    "signal_weight/BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD: Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVE: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "signal_weight/BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD: Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVE: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "signal_weight/TREND_PULLBACK: Signal TREND_PULLBACK: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.5, 'skip': False, 'reason': 'Extrem niedrige Success Rate (2%) und hohe Fail-Rate. Nur noch in Kombination mit GOLDEN_CROSS nutzen.'})",
+    "signal_weight/MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING: Signal MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROV: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "signal_weight/TREND_PULLBACK: Signal TREND_PULLBACK: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.4, 'skip': False, 'reason': 'Isoliert fast immer fehlschlagend (98% Failure), Gewicht senken bis Filterung durch GOLDEN_CROSS erzwungen wird.'})",
+    "signal_weight/BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD: Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVE: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "signal_weight/TREND_PULLBACK: Signal TREND_PULLBACK: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.5, 'skip': False, 'reason': 'Isoliert fast immer fehlgeschlagen (8 FAILED, 0 CLOSED/WIN). Nur in Kombination mit GOLDEN_CROSS akzeptabel.'})",
+    "signal_weight/GOLDEN_CROSS: Signal GOLDEN_CROSS: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.5, 'skip': False, 'reason': 'Isoliert 100% Fehlgeschlagen. Muss mit MACD/RSI kombiniert werden.'})",
+    "signal_weight/BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING: Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVE: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "config/sl.default_pct: Nach sl.default_pct=2.5: avg_pnl=0.43%, win_rate=33% (3 Trades)",
+    "signal_weight/TREND_PULLBACK: Signal TREND_PULLBACK: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.5, 'skip': False, 'reason': 'Isolierte Success Rate bei 0.02, fast immer FAILED.'})",
+    "signal_weight/GOLDEN_CROSS: Signal GOLDEN_CROSS: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.6, 'skip': False, 'reason': 'Isolierte Success Rate bei 0.0, nur in Kombination nutzen.'})",
+    "signal_weight/MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING: Signal MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROV: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "signal_weight/GOLDEN_CROSS: Signal GOLDEN_CROSS: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.3, 'skip': False, 'reason': 'Isoliert 0% Success Rate, fast immer Failed.'})",
+    "signal_weight/TREND_PULLBACK: Signal TREND_PULLBACK: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.4, 'skip': False, 'reason': 'Isoliert 0.02 Success Rate, nur mit GOLDEN_CROSS Filter verwenden.'})",
+    "signal_weight/BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD: Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVE: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert"
   ],
   "runs": [
     {
@@ -295,16 +388,20 @@
         "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING",
         "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD"
       ]
+    },
+    {
+      "date": "2026-07-14",
+      "closed_trades": 25,
+      "insights": 3,
+      "adjustments": [
+        "TREND_PULLBACK",
+        "GOLDEN_CROSS",
+        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD"
+      ]
     }
   ],
   "signal_insights": {
     "TREND_PULLBACK": [
-      {
-        "date": "2026-07-09",
-        "score_multiplier": 0.6,
-        "skip": false,
-        "reason": "Niedrige Success Rate (0.02), aber hohe Frequenz; Gewichtung senken, um False Positives zu reduzieren."
-      },
       {
         "date": "2026-07-09",
         "score_multiplier": 0.6,
@@ -358,15 +455,15 @@
         "score_multiplier": 0.3,
         "skip": false,
         "reason": "Isolierte Performance katastrophal (2%), nur mit GOLDEN_CROSS valid"
+      },
+      {
+        "date": "2026-07-14",
+        "score_multiplier": 0.5,
+        "skip": false,
+        "reason": "Isoliert fast immer fehlschlagend (2% Success Rate)"
       }
     ],
     "GOLDEN_CROSS": [
-      {
-        "date": "2026-07-09",
-        "score_multiplier": 0.5,
-        "skip": false,
-        "reason": "Aktuell 0% Success Rate; vorerst gewichtsenken bis Muster sich stabilisiert."
-      },
       {
         "date": "2026-07-09",
         "score_multiplier": 0.3,
@@ -420,15 +517,15 @@
         "score_multiplier": 0.2,
         "skip": true,
         "reason": "Isoliert 0% Success Rate; nur als Filter nutzen."
+      },
+      {
+        "date": "2026-07-14",
+        "score_multiplier": 0.5,
+        "skip": false,
+        "reason": "Isoliert 0% Success Rate, nur in Kombination sinnvoll"
       }
     ],
     "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD": [
-      {
-        "date": "2026-07-09",
-        "score_multiplier": 0.6,
-        "skip": false,
-        "reason": "Hohe Ghost-Rate und negative PnL, aber noch aktive Trades vorhanden."
-      },
       {
         "date": "2026-07-09",
         "score_multiplier": 0.6,
@@ -482,6 +579,12 @@
         "score_multiplier": 0.8,
         "skip": false,
         "reason": "Hohe Success Rate (80%), aber negativer avg_pnl; Gewicht leicht senken"
+      },
+      {
+        "date": "2026-07-14",
+        "score_multiplier": 0.8,
+        "skip": false,
+        "reason": "Hohe Success Rate (80%), aber negatives avg_pnl durch große Verluste"
       }
     ],
     "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": [
@@ -823,6 +926,28 @@
         ".PA": 0.05,
         ".DE": 0.0,
         ".MI": 0.2,
+        ".ZU": 0.0,
+        ".MC": 0.5,
+        "_OTHER": 0.0,
+        "_ASIA": 0.0,
+        "_FUT": 1.0,
+        "_FOREX": 0.5,
+        ".OL": 1.0,
+        ".HK": 0.0,
+        ".AX": 0.0,
+        ".T": 0.0,
+        "_CRYPTO": 0.0
+      }
+    },
+    {
+      "ts": "2026-07-14T20:31:14.397335+00:00",
+      "rates": {
+        ".MI": 0.17,
+        ".DE": 0.0,
+        ".L": 0.18,
+        ".ST": 0.17,
+        ".ASX": 0.12,
+        ".PA": 0.05,
         ".ZU": 0.0,
         ".MC": 0.5,
         "_OTHER": 0.0,

@@ -507,3 +507,35 @@
 - STEIGEND Ghost-Rate bei .MC und .MI trotz stabiler Historie
 
 **LLM-Fazit:** Ghost-Raten bei Futures (.FUT) und Oslo (.OL) bleiben kritisch (>50%), alle anderen Exchanges stabil. Das Signal TREND_PULLBACK ist isoliert fast wertlos (2% Success Rate), sollte nur noch mit GOLDEN_CROSS kombiniert werden. VERY_HIGH Conviction bei RSI-Extremwerten ist riskant aufgrund negativer PnL-Historie; Sizing oder SL prüfen.
+
+## 2026-07-14 20:31 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_FUT`: 100% (2/2) ← GEBLOCKT
+- `.OL`: 100% (3/3) ← GEBLOCKT
+- `.MC`: 50% (1/2) ⚠ CAUTION
+- `_FOREX`: 50% (3/6) ⚠ CAUTION
+- `.L`: 18% (7/38)
+- `.MI`: 17% (1/6)
+- `.ST`: 17% (1/6)
+- `.ASX`: 12% (1/8)
+- `.PA`: 5% (1/19)
+- `.DE`: 0% (0/10)
+- `.ZU`: 0% (0/2)
+- `_OTHER`: 0% (0/32)
+- `_ASIA`: 0% (0/17)
+- `.HK`: 0% (0/25)
+- `.AX`: 0% (0/12)
+- `.T`: 0% (0/2)
+- `_CRYPTO`: 0% (0/10)
+
+**Symbol-Blacklist:** LiveCattle.FUT, NRC.OL, WWI.OL
+
+**Schwache Signaltypen:** TREND_PULLBACK, GOLDEN_CROSS, MACD_TURN_BELOW_SMA20, RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20, MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING, BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING
+
+**Anomalien:**
+- TREND_PULLBACK isoliert hat nur 2% Success Rate, muss mit GOLDEN_CROSS kombiniert werden
+- VERY_HIGH Conviction bei RSI-Extremwerten zeigt negative PnL-Historie trotz hoher Success Rate
+- Ghost-Raten auf .OL und _FUT strukturell hoch (100%)
+
+**LLM-Fazit:** Ghost-Raten auf .OL und _FUT sind kritisch hoch (100%), diese Exchanges sollten gefiltert werden. Das Signal TREND_PULLBACK scheitert isoliert fast immer (2% Success Rate), daher nur in Kombination mit GOLDEN_CROSS nutzen. VERY_HIGH Conviction Trades bei RSI-Extremwerten haben trotz hoher Success Rate negative durchschnittliche PnLs, was auf große Verluste bei wenigen Trades hindeutet.

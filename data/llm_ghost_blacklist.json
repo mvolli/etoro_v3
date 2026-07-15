@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-07-13T20:31:00.503903+00:00",
-  "auto_expires_at": "2026-07-20T20:31:00.503913+00:00",
+  "updated_at": "2026-07-14T20:31:14.396351+00:00",
+  "auto_expires_at": "2026-07-21T20:31:14.396365+00:00",
   "exchanges": [
     ".OL",
     "_FUT"
@@ -10,18 +10,25 @@
     "_FOREX"
   ],
   "symbols": [
-    "EURCHF=X",
-    "EURDKK=X",
-    "EURGBP",
     "LiveCattle.FUT",
     "NRC.OL",
     "WWI.OL"
   ],
   "stats": {
+    ".MI": {
+      "total": 6,
+      "ghost": 1,
+      "rate": 0.17
+    },
+    ".DE": {
+      "total": 10,
+      "ghost": 0,
+      "rate": 0.0
+    },
     ".L": {
-      "total": 36,
-      "ghost": 5,
-      "rate": 0.14
+      "total": 38,
+      "ghost": 7,
+      "rate": 0.18
     },
     ".ST": {
       "total": 6,
@@ -38,16 +45,6 @@
       "ghost": 1,
       "rate": 0.05
     },
-    ".DE": {
-      "total": 9,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    ".MI": {
-      "total": 5,
-      "ghost": 1,
-      "rate": 0.2
-    },
     ".ZU": {
       "total": 2,
       "ghost": 0,
@@ -59,12 +56,12 @@
       "rate": 0.5
     },
     "_OTHER": {
-      "total": 37,
+      "total": 32,
       "ghost": 0,
       "rate": 0.0
     },
     "_ASIA": {
-      "total": 24,
+      "total": 17,
       "ghost": 0,
       "rate": 0.0
     },
@@ -99,10 +96,10 @@
       "rate": 0.0
     },
     "_CRYPTO": {
-      "total": 11,
+      "total": 10,
       "ghost": 0,
       "rate": 0.0
     }
   },
-  "reason": "Ghost-Raten bei Futures (.FUT) und Oslo (.OL) bleiben kritisch (>50%), alle anderen Exchanges stabil. Das Signal TREND_PULLBACK ist isoliert fast wertlos (2% Success Rate), sollte nur noch mit GOLDEN_CROSS kombiniert werden. VERY_HIGH Conviction bei RSI-Extremwerten ist riskant aufgrund negativer PnL-Historie; Sizing oder SL prüfen."
+  "reason": "Ghost-Raten auf .OL und _FUT sind kritisch hoch (100%), diese Exchanges sollten gefiltert werden. Das Signal TREND_PULLBACK scheitert isoliert fast immer (2% Success Rate), daher nur in Kombination mit GOLDEN_CROSS nutzen. VERY_HIGH Conviction Trades bei RSI-Extremwerten haben trotz hoher Success Rate negative durchschnittliche PnLs, was auf große Verluste bei wenigen Trades hindeutet."
 }

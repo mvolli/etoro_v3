@@ -62,8 +62,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Auto: 5 Exchanges mit ≥60% Ghost-Rate",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '.DE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -73,8 +73,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Auto: 5 Exchanges mit ≥60% Ghost-Rate",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '.HE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -84,8 +84,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Auto: 5 Exchanges mit ≥60% Ghost-Rate",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '.ST': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -95,8 +95,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Auto: 5 Exchanges mit ≥60% Ghost-Rate",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '_FOREX': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -106,8 +106,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Auto: 5 Exchanges mit ≥60% Ghost-Rate",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '_FUT': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -117,8 +117,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Auto: 5 Exchanges mit ≥60% Ghost-Rate",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '.DE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -128,8 +128,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Auto: 5 Exchanges mit ≥60% Ghost-Rate",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '.HE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -139,8 +139,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Auto: 5 Exchanges mit ≥60% Ghost-Rate",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '.ST': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -150,8 +150,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Auto: 5 Exchanges mit ≥60% Ghost-Rate",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '_FOREX': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -161,8 +161,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Auto: 5 Exchanges mit ≥60% Ghost-Rate",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '_FUT': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -172,8 +172,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Das Portfolio befindet sich im CAUTION-Regime. Auffällig ist die extrem hohe Gho",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '.DE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -183,8 +183,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Das Portfolio befindet sich im CAUTION-Regime. Auffällig ist die extrem hohe Gho",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '.HE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -194,8 +194,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Das Portfolio befindet sich im CAUTION-Regime. Auffällig ist die extrem hohe Gho",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '.ST': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -205,8 +205,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Das Portfolio befindet sich im CAUTION-Regime. Auffällig ist die extrem hohe Gho",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '_FOREX': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -216,8 +216,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Das Portfolio befindet sich im CAUTION-Regime. Auffällig ist die extrem hohe Gho",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '_FUT': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -227,8 +227,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Regime CAUTION: Portfolio bei 9346 USD. Hohe Ghost-Raten im Forex und DE/HE Akti",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '.DE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -238,8 +238,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Regime CAUTION: Portfolio bei 9346 USD. Hohe Ghost-Raten im Forex und DE/HE Akti",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '.HE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -249,8 +249,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Regime CAUTION: Portfolio bei 9346 USD. Hohe Ghost-Raten im Forex und DE/HE Akti",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '.ST': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -260,8 +260,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Regime CAUTION: Portfolio bei 9346 USD. Hohe Ghost-Raten im Forex und DE/HE Akti",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '_FOREX': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -271,8 +271,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Regime CAUTION: Portfolio bei 9346 USD. Hohe Ghost-Raten im Forex und DE/HE Akti",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '_FUT': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -286,8 +286,8 @@
       "reason": "Niedrige Success Rate (23%) und negative PnL bei sehr hohen Volumen."
     },
     "reason": "Niedrige Success Rate (23%) und negative PnL bei sehr hohen Volumen.",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVE: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -301,8 +301,8 @@
       "reason": "Extrem hohe Fail-Rate (73%) bei geschlossen Trades."
     },
     "reason": "Extrem hohe Fail-Rate (73%) bei geschlossen Trades.",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Signal TREND_PULLBACK: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.4, 'skip': False, 'reason': 'Extrem hohe Fail-Rate (73%) bei geschlossen Trades.'})",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -316,8 +316,8 @@
       "reason": "0% Success Rate bei allen 8 abgeschlossenen Trades."
     },
     "reason": "0% Success Rate bei allen 8 abgeschlossenen Trades.",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Signal GOLDEN_CROSS: 4 Trades, avg_pnl=-0.33% (Gewicht={'score_multiplier': 0.2, 'skip': False, 'reason': '0% Success Rate bei allen 8 abgeschlossenen Trades.'})",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -327,8 +327,8 @@
     "old_value": null,
     "new_value": 2.5,
     "reason": "Reduzierung von 3.0% auf 2.5%, da unterperformende Signale (z.B. TREND_PULLBACK) häufiger ausgestoppt werden und die Verluste begrenzt werden sollen.",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Nach sl.default_pct=2.5: avg_pnl=-1.48%, win_rate=17% (6 Trades)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -338,8 +338,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Das Portfolio befindet sich im CAUTION-Regime. Besonders Forex (EURJPY) und deut",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '.DE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -349,8 +349,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Das Portfolio befindet sich im CAUTION-Regime. Besonders Forex (EURJPY) und deut",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '.HE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -360,8 +360,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Das Portfolio befindet sich im CAUTION-Regime. Besonders Forex (EURJPY) und deut",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '.ST': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -371,8 +371,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Das Portfolio befindet sich im CAUTION-Regime. Besonders Forex (EURJPY) und deut",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '_FOREX': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -382,8 +382,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Das Portfolio befindet sich im CAUTION-Regime. Besonders Forex (EURJPY) und deut",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '_FUT': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -397,8 +397,8 @@
       "reason": "0% Success Rate bei 8 Trades, sehr unzuverlässig im aktuellen Regime"
     },
     "reason": "0% Success Rate bei 8 Trades, sehr unzuverlässig im aktuellen Regime",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Signal GOLDEN_CROSS: 4 Trades, avg_pnl=-0.33% (Gewicht={'score_multiplier': 0.3, 'skip': False, 'reason': '0% Success Rate bei 8 Trades, sehr unzuverlässig im aktuellen Regime'})",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -412,8 +412,8 @@
       "reason": "2% Success Rate bei 44 Trades, hohe Fehlerrate"
     },
     "reason": "2% Success Rate bei 44 Trades, hohe Fehlerrate",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Signal TREND_PULLBACK: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.4, 'skip': False, 'reason': '2% Success Rate bei 44 Trades, hohe Fehlerrate'})",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -427,8 +427,8 @@
       "reason": "40% Success Rate, aber viele Failed Trades (-4.17% avg PnL), Konfirmation durch MACD nötig"
     },
     "reason": "40% Success Rate, aber viele Failed Trades (-4.17% avg PnL), Konfirmation durch ",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVE: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -438,8 +438,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Das Portfolio läuft im NORMAL-Regime mit 9340€ Equity. Auffällig ist die hohe Gh",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '.DE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -449,8 +449,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Das Portfolio läuft im NORMAL-Regime mit 9340€ Equity. Auffällig ist die hohe Gh",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '.HE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -460,8 +460,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Das Portfolio läuft im NORMAL-Regime mit 9340€ Equity. Auffällig ist die hohe Gh",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '.ST': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -471,8 +471,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Das Portfolio läuft im NORMAL-Regime mit 9340€ Equity. Auffällig ist die hohe Gh",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '_FOREX': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -482,8 +482,8 @@
     "old_value": false,
     "new_value": true,
     "reason": "Das Portfolio läuft im NORMAL-Regime mit 9340€ Equity. Auffällig ist die hohe Gh",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Ghost-Blacklist '_FUT': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -497,8 +497,8 @@
       "reason": "Hohe Ghost-Rate und negative PnL bei VERY_HIGH Conviction; Gewicht senken, um Fehlsignale zu filtern."
     },
     "reason": "Hohe Ghost-Rate und negative PnL bei VERY_HIGH Conviction; Gewicht senken, um Fe",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVE: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -512,8 +512,8 @@
       "reason": "0% Success Rate bei 8 Trades; Signal vorübergehend stark gewichtet reduzieren."
     },
     "reason": "0% Success Rate bei 8 Trades; Signal vorübergehend stark gewichtet reduzieren.",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Signal GOLDEN_CROSS: 4 Trades, avg_pnl=-0.33% (Gewicht={'score_multiplier': 0.2, 'skip': False, 'reason': '0% Success Rate bei 8 Trades; Signal vorübergehend stark gewichtet reduzieren.'})",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -527,8 +527,8 @@
       "reason": "2% Success Rate bei 44 Trades; sehr hohe Fehlerrate, Gewicht stark reduzieren."
     },
     "reason": "2% Success Rate bei 44 Trades; sehr hohe Fehlerrate, Gewicht stark reduzieren.",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Signal TREND_PULLBACK: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.4, 'skip': False, 'reason': '2% Success Rate bei 44 Trades; sehr hohe Fehlerrate, Gewicht stark reduzieren.'})",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -538,8 +538,8 @@
     "old_value": 2.5,
     "new_value": 3.0,
     "reason": "Erhöhung von 2.5% auf 3.0%, um Ghost-Orders in Forex und Small Caps zu überstehen, ohne das Max-Limit von 8% zu verletzen.",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Nach sl.default_pct=3.0: avg_pnl=-1.48%, win_rate=17% (6 Trades)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -549,8 +549,8 @@
     "old_value": 6.0,
     "new_value": 5.0,
     "reason": "Reduktion von 6.0% auf 5.0%, da die aktuellen Signale (RSI-Extrem) hohe Verlustraten aufweisen und das Risiko pro Trade gesenkt werden soll.",
-    "outcome": null,
-    "outcome_date": null
+    "outcome": "Nach sizing.medium_pct=5.0: avg_pnl=-1.48%, win_rate=17% (6 Trades)",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -561,9 +561,9 @@
     "new_value": true,
     "reason": "CAUTION-Regime aktiv: Ghost-Raten bei Forex und DE/ST-Exchanges kritisch hoch (>",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Ghost-Blacklist '.DE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -574,9 +574,9 @@
     "new_value": true,
     "reason": "CAUTION-Regime aktiv: Ghost-Raten bei Forex und DE/ST-Exchanges kritisch hoch (>",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Ghost-Blacklist '.HE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -587,9 +587,9 @@
     "new_value": true,
     "reason": "CAUTION-Regime aktiv: Ghost-Raten bei Forex und DE/ST-Exchanges kritisch hoch (>",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Ghost-Blacklist '.ST': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -600,9 +600,9 @@
     "new_value": true,
     "reason": "CAUTION-Regime aktiv: Ghost-Raten bei Forex und DE/ST-Exchanges kritisch hoch (>",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Ghost-Blacklist '_FOREX': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -613,9 +613,9 @@
     "new_value": true,
     "reason": "CAUTION-Regime aktiv: Ghost-Raten bei Forex und DE/ST-Exchanges kritisch hoch (>",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Ghost-Blacklist '_FUT': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -630,9 +630,9 @@
     },
     "reason": "Hohe Ghost-Rate und negative PnL bei CLOSED Trades; Gewicht senken.",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVE: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -647,9 +647,9 @@
     },
     "reason": "Beste Stabilitaet und positive Performance bei wenigen Trades; Gewicht erhohen.",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROV: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -664,9 +664,9 @@
     },
     "reason": "Aktuell 0% Success Rate; vorerst gewichtsenken bis Muster sich stabilisiert.",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal GOLDEN_CROSS: 4 Trades, avg_pnl=-0.33% (Gewicht={'score_multiplier': 0.5, 'skip': False, 'reason': 'Aktuell 0% Success Rate; vorerst gewichtsenken bis Muster sich stabilisiert.'})",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -682,9 +682,9 @@
       "n_trades": 6,
       "ghost_rate_total": 0.36
     },
-    "outcome": null,
-    "outcome_grade": null,
-    "outcome_date": null
+    "outcome": "Nach sl.default_pct=4.0: avg_pnl=-1.48%, win_rate=17% (6 Trades)",
+    "outcome_grade": "IMPROVED",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -700,9 +700,9 @@
       "n_trades": 6,
       "ghost_rate_total": 0.36
     },
-    "outcome": null,
-    "outcome_grade": null,
-    "outcome_date": null
+    "outcome": "Nach sizing.very_high_pct=6.0: avg_pnl=-1.48%, win_rate=17% (6 Trades)",
+    "outcome_grade": "IMPROVED",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -713,9 +713,9 @@
     "new_value": true,
     "reason": "CAUTION-Regime bestätigt: Ghost-Raten bei Forex und HE/DE Exchanges kritisch (>7",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Ghost-Blacklist '.DE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -726,9 +726,9 @@
     "new_value": true,
     "reason": "CAUTION-Regime bestätigt: Ghost-Raten bei Forex und HE/DE Exchanges kritisch (>7",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Ghost-Blacklist '.HE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -739,9 +739,9 @@
     "new_value": true,
     "reason": "CAUTION-Regime bestätigt: Ghost-Raten bei Forex und HE/DE Exchanges kritisch (>7",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Ghost-Blacklist '.ST': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -752,9 +752,9 @@
     "new_value": true,
     "reason": "CAUTION-Regime bestätigt: Ghost-Raten bei Forex und HE/DE Exchanges kritisch (>7",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Ghost-Blacklist '_FOREX': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -765,9 +765,9 @@
     "new_value": true,
     "reason": "CAUTION-Regime bestätigt: Ghost-Raten bei Forex und HE/DE Exchanges kritisch (>7",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Ghost-Blacklist '_FUT': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -782,9 +782,9 @@
     },
     "reason": "Hohe Ghost-Rate und negative PnL, aber noch aktive Trades vorhanden.",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVE: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -799,9 +799,9 @@
     },
     "reason": "100% Failed-Rate, nur als Filter-Komponente nutzen.",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal GOLDEN_CROSS: 4 Trades, avg_pnl=-0.33% (Gewicht={'score_multiplier': 0.3, 'skip': False, 'reason': '100% Failed-Rate, nur als Filter-Komponente nutzen.'})",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -816,9 +816,9 @@
     },
     "reason": "Hohe Failed-Rate, aber einzelne Wins zeigen Potenzial bei strenger Filterung.",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal TREND_PULLBACK: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.7, 'skip': False, 'reason': 'Hohe Failed-Rate, aber einzelne Wins zeigen Potenzial bei strenger Filterung.'})",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -834,9 +834,9 @@
       "n_trades": 20,
       "ghost_rate_total": 0.36
     },
-    "outcome": null,
-    "outcome_grade": null,
-    "outcome_date": null
+    "outcome": "Nach sl.default_pct=3.0: avg_pnl=-1.48%, win_rate=17% (6 Trades)",
+    "outcome_grade": "IMPROVED",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -852,9 +852,9 @@
       "n_trades": 20,
       "ghost_rate_total": 0.36
     },
-    "outcome": null,
-    "outcome_grade": null,
-    "outcome_date": null
+    "outcome": "Nach sizing.very_high_pct=5.0: avg_pnl=-1.48%, win_rate=17% (6 Trades)",
+    "outcome_grade": "IMPROVED",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -869,9 +869,9 @@
     },
     "reason": "Hohe Ghost-Rate und negative PnLs; Gewicht senken.",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVE: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -886,9 +886,9 @@
     },
     "reason": "Niedrige Success Rate (2%), aber hohe Frequenz; Filter schärfen.",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal TREND_PULLBACK: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.7, 'skip': False, 'reason': 'Niedrige Success Rate (2%), aber hohe Frequenz; Filter schärfen.'})",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -903,9 +903,9 @@
     },
     "reason": "Alleinige Signale fallen aus, nur in Kombination mit MACD/RSI verwenden.",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal GOLDEN_CROSS: 4 Trades, avg_pnl=-0.33% (Gewicht={'score_multiplier': 0.5, 'skip': True, 'reason': 'Alleinige Signale fallen aus, nur in Kombination mit MACD/RSI verwenden.'})",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -920,9 +920,9 @@
     },
     "reason": "Alleinige Signale schwach, aber mit BB_LOW_MACD_IMPROVING stabil (siehe Bible Ha",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal MACD_TURN_BELOW_SMA20: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -937,9 +937,9 @@
     },
     "reason": "Hohe Ghost-Rate und negative PnL bei CLOSED Trades; Signal ist zu aggressiv im a",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVE: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -954,9 +954,9 @@
     },
     "reason": "Niedrige Success Rate (0.02), aber hohe Frequenz; Gewichtung senken, um False Po",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal TREND_PULLBACK: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.6, 'skip': False, 'reason': 'Niedrige Success Rate (0.02), aber hohe Frequenz; Gewichtung senken, um False Positives zu reduzieren.'})",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -971,9 +971,9 @@
     },
     "reason": "Stabilstes Signal im CAUTION-Regime mit positiver Performance-Tendenz.",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROV: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -988,9 +988,9 @@
     },
     "reason": "Alleinige Nutzung führt zu 0% Success Rate; nur in Kombination mit MACD/RSI verw",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal GOLDEN_CROSS: 4 Trades, avg_pnl=-0.33% (Gewicht={'score_multiplier': 0.2, 'skip': False, 'reason': 'Alleinige Nutzung führt zu 0% Success Rate; nur in Kombination mit MACD/RSI verwenden.'})",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -1006,9 +1006,9 @@
       "n_trades": 14,
       "ghost_rate_total": 0.37
     },
-    "outcome": null,
-    "outcome_grade": null,
-    "outcome_date": null
+    "outcome": "Nach regime.caution_pct=3.0: avg_pnl=-1.48%, win_rate=17% (6 Trades)",
+    "outcome_grade": "IMPROVED",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -1023,9 +1023,9 @@
     },
     "reason": "Hohe Rejection-Rate (7) und negative PnL bei Closed Trades.",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVE: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -1040,9 +1040,9 @@
     },
     "reason": "Sehr hohe Rejection-Rate (15) und niedrige Success Rate (0.02).",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal TREND_PULLBACK: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.6, 'skip': False, 'reason': 'Sehr hohe Rejection-Rate (15) und niedrige Success Rate (0.02).'})",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -1057,9 +1057,9 @@
     },
     "reason": "Alle 8 Trades FAILED, isoliert fast unbrauchbar.",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal GOLDEN_CROSS: 4 Trades, avg_pnl=-0.33% (Gewicht={'score_multiplier': 0.3, 'skip': True, 'reason': 'Alle 8 Trades FAILED, isoliert fast unbrauchbar.'})",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -1074,9 +1074,9 @@
     },
     "reason": "Bestes Signal im CAUTION-Regime, trotz niedriger Success Rate (0.08) positive Pn",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROV: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -1091,9 +1091,9 @@
     },
     "reason": "0% Success Rate bei isolierter Nutzung, nur in Kombination mit MACD/RSI verwende",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal GOLDEN_CROSS: 4 Trades, avg_pnl=-0.33% (Gewicht={'score_multiplier': 0.2, 'skip': False, 'reason': '0% Success Rate bei isolierter Nutzung, nur in Kombination mit MACD/RSI verwenden.'})",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -1108,9 +1108,9 @@
     },
     "reason": "Hohe Fail-Rate (28/44), nur bei zusätzlicher Bestätigung (z.B. MACD Turn) gewich",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal TREND_PULLBACK: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.5, 'skip': False, 'reason': 'Hohe Fail-Rate (28/44), nur bei zusätzlicher Bestätigung (z.B. MACD Turn) gewichten.'})",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -1125,9 +1125,9 @@
     },
     "reason": "Niedrige Success Rate (38%) und negative PnL bei Closed Trades, SL-Überwachung e",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVE: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -1142,9 +1142,9 @@
     },
     "reason": "Hohe Fail-Rate (54) und negative PnL-Daten bei CLOSED Trades. Gewicht senken.",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVE: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -1159,9 +1159,9 @@
     },
     "reason": "Extrem niedrige Success Rate (2%) und hohe Fail-Rate. Nur noch in Kombination mi",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal TREND_PULLBACK: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.5, 'skip': False, 'reason': 'Extrem niedrige Success Rate (2%) und hohe Fail-Rate. Nur noch in Kombination mit GOLDEN_CROSS nutzen.'})",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-09",
@@ -1176,9 +1176,9 @@
     },
     "reason": "Stabilstes Signal im CAUTION-Regime, trotz niedriger Success Rate (8%) positive ",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROV: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-10",
@@ -1193,9 +1193,9 @@
     },
     "reason": "Isoliert fast immer fehlschlagend (98% Failure), Gewicht senken bis Filterung du",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal TREND_PULLBACK: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.4, 'skip': False, 'reason': 'Isoliert fast immer fehlschlagend (98% Failure), Gewicht senken bis Filterung durch GOLDEN_CROSS erzwungen wird.'})",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-10",
@@ -1210,9 +1210,9 @@
     },
     "reason": "Hohe Signalfrequenz, aber niedrige Success-Rate (38%) und negative PnL-Durchschn",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVE: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-10",
@@ -1227,9 +1227,9 @@
     },
     "reason": "Isoliert fast immer fehlgeschlagen (8 FAILED, 0 CLOSED/WIN). Nur in Kombination ",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal TREND_PULLBACK: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.5, 'skip': False, 'reason': 'Isoliert fast immer fehlgeschlagen (8 FAILED, 0 CLOSED/WIN). Nur in Kombination mit GOLDEN_CROSS akzeptabel.'})",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-10",
@@ -1244,9 +1244,9 @@
     },
     "reason": "Isoliert 100% Fehlgeschlagen. Muss mit MACD/RSI kombiniert werden.",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal GOLDEN_CROSS: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.5, 'skip': False, 'reason': 'Isoliert 100% Fehlgeschlagen. Muss mit MACD/RSI kombiniert werden.'})",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-10",
@@ -1261,9 +1261,9 @@
     },
     "reason": "Nur 11% Success Rate, aber 8 Rejections. Sehr instabil.",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVE: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-10",
@@ -1279,9 +1279,9 @@
       "n_trades": 12,
       "ghost_rate_total": 0.06
     },
-    "outcome": null,
-    "outcome_grade": null,
-    "outcome_date": null
+    "outcome": "Nach sl.default_pct=2.5: avg_pnl=0.43%, win_rate=33% (3 Trades)",
+    "outcome_grade": "IMPROVED",
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-10",
@@ -1296,9 +1296,9 @@
     },
     "reason": "Isolierte Success Rate bei 0.02, fast immer FAILED.",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal TREND_PULLBACK: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.5, 'skip': False, 'reason': 'Isolierte Success Rate bei 0.02, fast immer FAILED.'})",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-10",
@@ -1313,9 +1313,9 @@
     },
     "reason": "Isolierte Success Rate bei 0.0, nur in Kombination nutzen.",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal GOLDEN_CROSS: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.6, 'skip': False, 'reason': 'Isolierte Success Rate bei 0.0, nur in Kombination nutzen.'})",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-10",
@@ -1330,9 +1330,9 @@
     },
     "reason": "Success Rate bei 0.08, hohe Rejection-Rate.",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROV: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-11",
@@ -1347,9 +1347,9 @@
     },
     "reason": "Isoliert 0% Success Rate, fast immer Failed.",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal GOLDEN_CROSS: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.3, 'skip': False, 'reason': 'Isoliert 0% Success Rate, fast immer Failed.'})",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-11",
@@ -1364,9 +1364,9 @@
     },
     "reason": "Isoliert 0.02 Success Rate, nur mit GOLDEN_CROSS Filter verwenden.",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal TREND_PULLBACK: 3 Trades, avg_pnl=0.43% (Gewicht={'score_multiplier': 0.4, 'skip': False, 'reason': 'Isoliert 0.02 Success Rate, nur mit GOLDEN_CROSS Filter verwenden.'})",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-11",
@@ -1381,9 +1381,9 @@
     },
     "reason": "Hohe Success Rate (80%), aber negatives avg_pnl (-0.45). Gewicht leicht senken w",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVE: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-07-14"
   },
   {
     "date": "2026-07-12",
@@ -1501,6 +1501,57 @@
       "n_trades": 20,
       "ghost_rate_total": 0.09
     },
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-14",
+    "timestamp": "2026-07-14T20:31:14.400753+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "Isoliert fast immer fehlschlagend (2% Success Rate)"
+    },
+    "reason": "Isoliert fast immer fehlschlagend (2% Success Rate)",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-14",
+    "timestamp": "2026-07-14T20:31:14.402435+00:00",
+    "type": "signal_weight",
+    "key": "GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "Isoliert 0% Success Rate, nur in Kombination sinnvoll"
+    },
+    "reason": "Isoliert 0% Success Rate, nur in Kombination sinnvoll",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-14",
+    "timestamp": "2026-07-14T20:31:14.403985+00:00",
+    "type": "signal_weight",
+    "key": "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.8,
+      "skip": false,
+      "reason": "Hohe Success Rate (80%), aber negatives avg_pnl durch große Verluste"
+    },
+    "reason": "Hohe Success Rate (80%), aber negatives avg_pnl durch große Verluste",
+    "baseline": null,
     "outcome": null,
     "outcome_grade": null,
     "outcome_date": null

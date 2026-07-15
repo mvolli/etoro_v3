@@ -2,125 +2,67 @@
   {
     "symbol": "1929.HK",
     "recommendation": "HOLD",
-    "close_pct": 0,
-    "reason": "Positiv, aber Peak-Gewinn wird abgegeben (Δ -0.1%). Signal MACD_Dreht, aber RSI neutral (51). Kein sofortiger Exit, da PnL > 0 und kein starker Trendbruch.",
-    "ts": "2026-07-14T17:30:59",
-    "instrument_id": 13697,
-    "position_id": "3508362304",
-    "executed": false,
-    "executed_at": null
+    "reason": "Positiv im PnL (+1.81%), Signal TREND_PULLBACK mit GOLDEN_CROSS hat positive avg_pnl",
+    "ts": "2026-07-14T20:31:14"
   },
   {
     "symbol": "MUX.DE",
     "recommendation": "HOLD",
-    "close_pct": 0,
-    "reason": "Positiv, Golden Cross intakt, RSI 54. Peak-Rückgang (-0.8%) ist moderat. Keine Trigger für TIGHTEN oder EXIT.",
-    "ts": "2026-07-14T17:30:59",
-    "instrument_id": 3702,
-    "position_id": "3513175933",
-    "executed": false,
-    "executed_at": null
+    "reason": "Positiv im PnL (+0.74%), Signal TREND_PULLBACK mit GOLDEN_CROSS hat positive avg_pnl",
+    "ts": "2026-07-14T20:31:14"
   },
   {
     "symbol": "ALC.ZU",
-    "recommendation": "HOLD",
-    "close_pct": 0,
-    "reason": "Leichter Verlust (-2.0%), aber Signal ist GOLDEN_CROSS (historisch positiv). RSI 50 neutral. Kein EXIT-Signal trotz Verlust, da Trend noch intakt.",
-    "ts": "2026-07-14T17:30:59",
-    "instrument_id": 5804,
-    "position_id": "3513621488",
-    "executed": false,
-    "executed_at": null
+    "recommendation": "TIGHTEN",
+    "reason": "Im Minus (-2.03%), Signal TREND_PULLBACK mit GOLDEN_CROSS hat positive avg_pnl, aber Position zieht nach",
+    "ts": "2026-07-14T20:31:14"
   },
   {
     "symbol": "PXA.ASX",
-    "recommendation": "EXIT",
-    "close_pct": 100,
-    "reason": "Starker Verlust (-1.5%), RSI extrem oversold (24), MACD dreht unter SMA20. Historische Performance für dieses Signal-Kombi ist schlecht (0% Winrate, avg_pnl 0.00% bei n=2). Trend bricht zusammen.",
-    "ts": "2026-07-14T17:30:59",
-    "instrument_id": 7111,
-    "position_id": "3514082735",
-    "executed": true,
-    "executed_at": "2026-07-14T17:31:42",
-    "executed_reason": "llm_exit_100pct"
+    "recommendation": "TIGHTEN",
+    "reason": "Im Minus (-1.5%), Signal MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING hat negative avg_pnl (-2.49%)",
+    "ts": "2026-07-14T20:31:14"
   },
   {
     "symbol": "RBT.PA",
     "recommendation": "HOLD",
-    "close_pct": 0,
-    "reason": "Starker Gewinn (+2.2%), RSI 59 (nicht überkauft), MACD positiv. VolR 1.3 ist okay. Keine Gefahr eines sofortigen Umkehrs.",
-    "ts": "2026-07-14T17:30:59",
-    "instrument_id": 13029,
-    "position_id": "3512396786",
-    "executed": false,
-    "executed_at": null
+    "reason": "Positiv im PnL (+2.22%), Signal TREND_PULLBACK mit GOLDEN_CROSS hat positive avg_pnl",
+    "ts": "2026-07-14T20:31:14"
   },
   {
     "symbol": "BOKU.L",
     "recommendation": "HOLD",
-    "close_pct": 0,
-    "reason": "Verlust (-1.0%), aber RSI extrem oversold (22) und MACD verbessert sich. Historisch gutes Setup (BB_LOW_MACD_IMPROVING, avg_pnl +6.31%). Warten auf Erholung.",
-    "ts": "2026-07-14T17:30:59",
-    "instrument_id": 11312,
-    "position_id": "3514228834",
-    "executed": false,
-    "executed_at": null
+    "reason": "Leicht im Minus (-1.0%), Signal RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING hat positive avg_pnl (0.5)",
+    "ts": "2026-07-14T20:31:14"
   },
   {
     "symbol": "TKMS.DE",
-    "recommendation": "TIGHTEN",
-    "close_pct": 25,
-    "reason": "Gewinn (+2.6%), aber FADED (Momentum gebrochen) und Δ -1.4%. Peak-Gewinn wird abgegeben. Teilverkauf zur Absicherung empfohlen.",
-    "ts": "2026-07-14T17:30:59",
-    "instrument_id": 14253,
-    "position_id": "3514224665",
-    "executed": true,
-    "executed_at": "2026-07-14T17:31:42",
-    "executed_reason": "llm_tighten_25pct"
+    "recommendation": "HOLD",
+    "reason": "Positiv im PnL (+2.62%), Signal TREND_PULLBACK mit GOLDEN_CROSS hat positive avg_pnl",
+    "ts": "2026-07-14T20:31:14"
   },
   {
     "symbol": "RWAY.MI",
     "recommendation": "HOLD",
-    "close_pct": 0,
-    "reason": "Verlust (-0.2%), RSI oversold (24). Signal RSI_EXTREME_OVERSOLD hat schlechte Historie (0% Winrate), aber nur n=2. Da Verlust gering und RSI tief, wird auf Bounce gewartet.",
-    "ts": "2026-07-14T17:30:59",
-    "instrument_id": 3554,
-    "position_id": "3511866410",
-    "executed": false,
-    "executed_at": null
+    "reason": "Nahe am Break-Even, Signal RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20 hat 0% avg_pnl",
+    "ts": "2026-07-14T20:31:14"
   },
   {
     "symbol": "CA.PA",
     "recommendation": "HOLD",
-    "close_pct": 0,
-    "reason": "Positiv, Golden Cross, RSI 57. Peak-Rückgang (-0.9%) moderat. Keine Warnsignale.",
-    "ts": "2026-07-14T17:30:59",
-    "instrument_id": 1239,
-    "position_id": "3513176215",
-    "executed": false,
-    "executed_at": null
-  },
-  {
-    "symbol": "SSS_3000",
-    "recommendation": "TIGHTEN",
-    "close_pct": 20,
-    "reason": "Gewinn (+3.4%), aber FADED und Δ -0.6%. Da Signal UNBEKANNT, wird auf TA gestützt: Gewinnmitnahme bei Momentum-Brechung sinnvoll.",
-    "ts": "2026-07-14T17:30:59",
-    "instrument_id": 3000,
-    "position_id": "3477196916",
-    "executed": true,
-    "executed_at": "2026-07-14T17:31:42",
-    "executed_reason": "llm_tighten_20pct"
+    "reason": "Positiv im PnL (+0.24%), Signal TREND_PULLBACK mit GOLDEN_CROSS hat positive avg_pnl",
+    "ts": "2026-07-14T20:31:14"
   },
   {
     "symbol": "ALHRS.PA",
+    "recommendation": "TIGHTEN",
+    "reason": "Positiv im PnL (+2.48%), Signal BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD hat positives avg_pnl, aber hohe Volatilität",
+    "ts": "2026-07-14T20:31:14"
+  },
+  {
+    "symbol": "SSS_3000",
     "recommendation": "HOLD",
-    "close_pct": 0,
-    "reason": "Gewinn (+2.5%), aber Δ -3.2% (starker Rückgang). Signal ist BB_EXTREME_RSI_OVERSOLD (historisch sehr gut +6.31%). Trotz FADED wird gehalten, da Oversold-Situation starke Erholungswahrscheinlichkeit bietet.",
-    "ts": "2026-07-14T17:30:59",
-    "instrument_id": 13135,
-    "position_id": "3510095851",
-    "executed": false,
-    "executed_at": null
+    "reason": "Positiv im PnL (+3.48%), unbekanntes Signal, aber positiver Trend",
+    "ts": "2026-07-14T20:31:14"
   }
 ]
