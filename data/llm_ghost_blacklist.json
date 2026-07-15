@@ -1,18 +1,20 @@
 {
-  "updated_at": "2026-07-14T20:31:14.396351+00:00",
-  "auto_expires_at": "2026-07-21T20:31:14.396365+00:00",
+  "updated_at": "2026-07-15T19:28:22.531435+00:00",
+  "auto_expires_at": "2026-07-22T19:28:22.531448+00:00",
   "exchanges": [
     ".OL",
     "_FUT"
   ],
   "caution_exchanges": [
     ".MC",
-    "_FOREX"
+    "_FOREX",
+    "_CRYPTO"
   ],
   "symbols": [
     "LiveCattle.FUT",
     "NRC.OL",
-    "WWI.OL"
+    "WWI.OL",
+    "DOGE-USD"
   ],
   "stats": {
     ".MI": {
@@ -97,9 +99,9 @@
     },
     "_CRYPTO": {
       "total": 10,
-      "ghost": 0,
-      "rate": 0.0
+      "ghost": 3,
+      "rate": 0.3
     }
   },
-  "reason": "Ghost-Raten auf .OL und _FUT sind kritisch hoch (100%), diese Exchanges sollten gefiltert werden. Das Signal TREND_PULLBACK scheitert isoliert fast immer (2% Success Rate), daher nur in Kombination mit GOLDEN_CROSS nutzen. VERY_HIGH Conviction Trades bei RSI-Extremwerten haben trotz hoher Success Rate negative durchschnittliche PnLs, was auf große Verluste bei wenigen Trades hindeutet."
+  "reason": "Ghost-Raten auf .OL und _FUT sind kritisch hoch (100%), diese Exchanges sollten gefiltert werden. DOGE-USD hat 47 FAILED Trades — schlechtester Performer. Crypto (_CRYPTO) und _FOREX haben 50% Ghost-Rate, daher caution_exchanges. Das Signal TREND_PULLBACK scheitert isoliert fast immer (2% Success Rate), daher nur in Kombination mit GOLDEN_Cross nutzen. VERY_HIGH Conviction Trades bei RSI-Extremwerten haben trotz hoher Success Rate negative durchschnittliche PnLs."
 }

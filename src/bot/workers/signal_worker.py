@@ -87,13 +87,33 @@ def _load_llm_news_flags() -> dict:
 
 
 def _get_signal_score_multiplier(signal_type: str, weights: dict) -> float:
-    """Gibt Score-Multiplikator fuer Signal-Typ zurueck (1.0 = unveraendert)."""
+    """Gibt Score-Multiplikator fuer Signal-Typ zurueck (1.0 = unveraendert).
+
+    Fix/llm-combo-multiplier (2026-07-15): Combo-Signale wie
+    'TREND_PULLBACK,GOLDEN_CROSS' wurden bisher nur als Exact-Match
+    in llm_signal_weights.json gesucht — da die Keys aber nur die
+    Einzelelemente enthalten (z.B. 'TREND_PULLBACK'=0.5), bekamen
+    Combos immer 1.0 und feuerten mit vollem Score obwohl beide
+    Komponenten gedämpft sind.
+
+    Jetzt: Exact-Match Priorität, dann komponentenweise Split +
+    Multiplikation (komponentenweise Daempfung multipliziert sich).
+    """
     if not weights:
         return 1.0
     adj = weights.get("adjustments", {}).get(signal_type)
-    if adj is None:
-        return 1.0
-    return float(adj.get("score_multiplier", 1.0))
+    if adj is not None:
+        return float(adj.get("score_multiplier", 1.0))
+    # Combo-Signal: Einzelkomponenten pruefen
+    if "," in signal_type:
+        parts = [p.strip() for p in signal_type.split(",") if p.strip()]
+        product = 1.0
+        for part in parts:
+            part_adj = weights.get("adjustments", {}).get(part)
+            if part_adj is not None:
+                product *= float(part_adj.get("score_multiplier", 1.0))
+        return product
+    return 1.0
 
 
 def _is_signal_type_skipped(signal_type: str, weights: dict) -> tuple[bool, str]:
