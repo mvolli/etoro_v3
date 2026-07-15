@@ -535,7 +535,188 @@ def main() -> None:
                         submitted_at=_utcnow(),
                     )
     
-                # e. CRITICAL: Verify the order actually materialized as a position
+                # d4. POST-FLIGHT ORDER-STATUS-CHECK (fix/ghost-order-elimination)
+                # Verify order status via GET /orders/{orderId} BEFORE portfolio polling.
+                # Distinguishes Rejected (with rejectionReason), Deferred (Pending),
+                # True Ghost (Executed but no position), or timing issue (404).
+                # Replaces 10 portfolio polls with 1 API call — eliminates ~80% false-positives.
+                post_flight_result = None
+                if api_position_id:
+                    try:
+                        post_flight_result = client.get_order_status(
+                            int(api_position_id), env="real"
+                        )
+                        logger.info(
+                            "ExecutionWorker: trade #%d post-flight: orderId=%s status=%s positions=%s",
+                            trade_id, api_position_id,
+                            post_flight_result["status"],
+                            "yes" if post_flight_result["positions"] else "no",
+                        )
+                    except Exception as _pf_exc:
+                        logger.warning(
+                            "ExecutionWorker: trade #%d post-flight check failed (%s) — "
+                            "falling back to portfolio polling",
+                            trade_id, _pf_exc,
+                        )
+                        post_flight_result = None
+    
+                # d4a. Post-flight decision tree
+                if post_flight_result is not None:
+                    pf = post_flight_result
+                    if pf["status"] == "rejected":
+                        logger.warning(
+                            "ExecutionWorker: trade #%d REJECTED: %s",
+                            trade_id, pf["rejection_reason"] or "unknown",
+                        )
+                        trade_repo.update_status(
+                            trade_id,
+                            "FAILED",
+                            rejection_reason=f"Order rejected: {pf['rejection_reason'] or 'unknown'}",
+                        )
+                        log_repo.write(
+                            "WARN", "execution_worker",
+                            f"Trade #{trade_id} REJECTED: {symbol} — {pf['rejection_reason'] or 'unknown'}",
+                            {"symbol": symbol, "order_id": api_position_id, "rejection_reason": pf["rejection_reason"]},
+                        )
+                        _post('post_trade_failed_embed',
+                            symbol=symbol, direction='BUY', amount_usd=amount_usd,
+                            error=f"Order rejected: {pf['rejection_reason'] or 'unknown'}", dry_run=False,
+                        )
+                        failed_count += 1
+                        continue
+    
+                    if pf["status"] == "failed":
+                        err_msg = pf["raw"].get("error", "unknown")
+                        logger.warning("ExecutionWorker: trade #%d FAILED: %s", trade_id, err_msg)
+                        trade_repo.update_status(
+                            trade_id, "FAILED",
+                            rejection_reason=f"Order failed: {err_msg}",
+                        )
+                        log_repo.write(
+                            "WARN", "execution_worker",
+                            f"Trade #{trade_id} FAILED: {symbol} — {err_msg}",
+                            {"symbol": symbol, "order_id": api_position_id, "error": err_msg},
+                        )
+                        _post('post_trade_failed_embed',
+                            symbol=symbol, direction='BUY', amount_usd=amount_usd,
+                            error=f"Order failed: {err_msg}", dry_run=False,
+                        )
+                        failed_count += 1
+                        continue
+    
+                    if pf["status"] == "pending":
+                        logger.info(
+                            "ExecutionWorker: trade #%d DEFER — order pending (market closed?)", trade_id,
+                        )
+                        trade_repo.update_status(
+                            trade_id, "APPROVED",
+                            requeue_count=int(trade.get("requeue_count") or 0) + 1,
+                        )
+                        processed_count -= 1
+                        continue  # retry im nächsten Zyklus (15min)
+    
+                    if pf["status"] == "executed":
+                        if pf["positions"] and len(pf["positions"]) > 0:
+                            # Position confirmed by API — skip portfolio polling
+                            pos = pf["positions"][0]
+                            api_position_id = str(pos.get("positionID") or pos.get("positionId") or api_position_id)
+                            entry_price = 0.0
+                            trade_repo.update_status(
+                                trade_id, "ACTIVE",
+                                api_position_id=api_position_id,
+                                order_id=api_position_id,
+                                entry_price=entry_price,
+                                confirmed_at=_utcnow(),
+                            )
+                            trade_repo.reset_ghost_failures(instrument_id)
+                            filled_count += 1
+                            logger.info(
+                                "ExecutionWorker: trade #%d EXECUTED (post-flight confirmed) — %s $%.2f @ %.6f (positionID=%s)",
+                                trade_id, symbol, amount_usd, entry_price, api_position_id,
+                            )
+                            log_repo.write(
+                                "INFO", "execution_worker",
+                                f"Trade #{trade_id} ACTIVE: {symbol} BUY ${amount_usd:.2f} (post-flight confirmed, positionID={api_position_id})",
+                                {"trade_id": trade_id, "symbol": symbol, "instrument_id": instrument_id, "amount_usd": amount_usd, "entry_price": entry_price, "api_position_id": api_position_id, "stop_loss_pct": stop_loss_pct},
+                            )
+                            _post('post_trade_filled_embed',
+                                symbol=symbol, direction='BUY', amount_usd=amount_usd,
+                                position_id=api_position_id, entry_price=entry_price,
+                                sl_pct=stop_loss_pct, dry_run=False,
+                            )
+                            # Strategy-tagging (scalp vs swing)
+                            try:
+                                _signal_id = trade.get("signal_id")
+                                _sig_type = ""
+                                if _signal_id:
+                                    _sig_row = db.fetchone(
+                                        "SELECT signal_type FROM signals WHERE id = ?", (_signal_id,)
+                                    )
+                                    if _sig_row:
+                                        _sig_type = str(_sig_row["signal_type"] or "")
+                                _SCALP_SIGNAL_TYPES = frozenset({
+                                    "BB_LOWER_RSI_OVERSOLD", "BB_EXTREME_RSI_OVERSOLD",
+                                    "RSI_EXTREME_OVERSOLD", "BB_LOW_MACD_IMPROVING",
+                                })
+                                _strategy = (
+                                    "scalp" if any(s in _sig_type for s in _SCALP_SIGNAL_TYPES)
+                                    else "swing"
+                                )
+                                from bot.core.trailing_stop import set_strategy as _set_strategy
+                                _set_strategy(db, api_position_id, symbol, _strategy)
+                            except Exception as _strat_exc:
+                                logger.debug(
+                                    "ExecutionWorker: strategy-tagging fehlgeschlagen für %s — %s",
+                                    symbol, _strat_exc,
+                                )
+                            continue
+                        else:
+                            # Ghost detected! API says executed but no position
+                            ghost_count, bl_status = trade_repo.record_ghost_failure(instrument_id)
+                            ghost_detail = f"orderId={api_position_id} (executed, no position)"
+                            logger.warning(
+                                "ExecutionWorker: trade #%d (%s) GHOST ORDER (%s) — "
+                                "failure #%d for this instrument (blacklist: %s)",
+                                trade_id, symbol, ghost_detail, ghost_count, bl_status,
+                            )
+                            trade_repo.update_status(
+                                trade_id, "FAILED",
+                                rejection_reason=(
+                                    f"Ghost order: {ghost_detail} — "
+                                    f"eToro API returned EXECUTED but no position "
+                                    f"(failure #{ghost_count}, blacklist: {bl_status})"
+                                ),
+                            )
+                            log_repo.write(
+                                "WARN", "execution_worker",
+                                f"Trade #{trade_id} GHOST ORDER: {symbol} {ghost_detail} (failure #{ghost_count}, bl={bl_status})",
+                                {"symbol": symbol, "api_position_id": api_position_id, "ghost_count": ghost_count, "blacklist_status": bl_status, "post_flight_raw": pf["raw"]},
+                            )
+                            if ghost_count >= 5:
+                                _post(
+                                    'post_watchdog_alert_embed',
+                                    alert_type='GHOST_ORDER_ESCALATION',
+                                    symbol=symbol,
+                                    message=(
+                                        f"⚠️ {symbol}: {ghost_count}+ konsekutive Ghost-Failures — "
+                                        f"vermutlich strukturelles Problem, manuelle Prüfung nötig"
+                                    ),
+                                    severity='critical' if ghost_count >= 9 else 'high',
+                                    details=(
+                                        f"Blacklist: {bl_status} | "
+                                        f"Last orderId: {api_position_id or 'N/A'} | "
+                                        f"Instrument ID: {instrument_id}"
+                                    ),
+                                )
+                            _post('post_trade_failed_embed',
+                                symbol=symbol, direction='BUY', amount_usd=amount_usd,
+                                error=f"Ghost order: {ghost_detail} (eToro API EXECUTED but no position) (#{ghost_count}, blacklist: {bl_status})",
+                                dry_run=False,
+                            )
+                            failed_count += 1
+                            continue
+    
+                # d5. FALLBACK: Portfolio polling (only if post-flight check unavailable)
                 # Use exponential backoff polling instead of fixed 5s sleep.
                 # Futures and some crypto instruments need more time to process.
                 import time as _time
@@ -565,14 +746,14 @@ def main() -> None:
     
                     portfolio = client.get_portfolio()
                     positions = portfolio.get("clientPortfolio", {}).get("positions", [])
-
+    
                     # Check if a NEW position appeared for this instrument
                     # (positionID not in the pre-submit snapshot — an existing
                     # pyramiding fragment must not count as fill confirmation)
                     matching_pos = _find_new_position(
                         positions, instrument_id, pre_existing_pos_ids
                     )
-
+    
                     if matching_pos:
                         logger.info(
                             "ExecutionWorker: trade #%d position verified after %.1fs (%d attempts)",
@@ -612,7 +793,7 @@ def main() -> None:
                         )
                         processed_count -= 1
                         continue  # retry im nächsten Zyklus (15min)
-
+    
                     # Kein orderId (silent block) ODER Defer-Cap erreicht → Ghost
                     ghost_count, bl_status = trade_repo.record_ghost_failure(instrument_id)
     

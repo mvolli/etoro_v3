@@ -1051,6 +1051,93 @@ class EToroClient:
         )
 
     # ------------------------------------------------------------------
+    # Order status check (post-flight verification)
+    # ------------------------------------------------------------------
+
+    def get_order_status(self, order_id: int, env: str = "real") -> dict:
+        """Check order status via eToro API.
+
+        Endpoint: GET /api/v1/trading/info/{env}/orders/{order_id}
+
+        Used as a post-flight verification after POST /orders to distinguish
+        between Rejected (with rejectionReason), Deferred (Pending/market closed),
+        and True Ghost Orders (Executed but no position).
+
+        Returns dict with:
+          - status: "executed" | "pending" | "rejected" | "failed" | "cancelled" | "unknown"
+          - order_id: int
+          - instrument_id: int | None
+          - positions: list[dict] | None  # list of position dicts or None
+          - rejection_reason: str | None  # only if status="rejected"
+          - raw: dict  # raw API response for audit trail
+          - is_timing_issue: bool  # True if 404 (orderId not yet available)
+
+        Raises no exceptions — always returns a status dict for safe handling.
+        """
+        env_segment = "/demo" if env == "demo" else "/real"
+        url = f"{self.config.base_url.rstrip('/')}/trading/info{env_segment}/orders/{order_id}"
+
+        try:
+            resp = self._get_raw(url)
+            resp.raise_for_status()
+            raw = resp.json()
+        except APIError as exc:
+            if exc.status_code == 404:
+                # orderId noch nicht verfügbar (timing issue) — DEFER statt FAIL
+                return {
+                    "status": "pending",
+                    "order_id": order_id,
+                    "instrument_id": None,
+                    "positions": None,
+                    "rejection_reason": None,
+                    "raw": {"error": "404 - orderId not found yet"},
+                    "is_timing_issue": True,
+                }
+            return {
+                "status": "failed",
+                "order_id": order_id,
+                "instrument_id": None,
+                "positions": None,
+                "rejection_reason": None,
+                "raw": {"error": f"HTTP {exc.status_code}", "body": str(exc)},
+            }
+        except Exception as exc:
+            return {
+                "status": "failed",
+                "order_id": order_id,
+                "instrument_id": None,
+                "positions": None,
+                "rejection_reason": None,
+                "raw": {"error": f"Network error: {exc}"},
+            }
+
+        # Parse response — eBull status mapping (verified via app/providers/implementations/etoro_broker.py)
+        status_id = raw.get("statusID", "Unknown")
+        positions = raw.get("positions")
+        instrument_id = raw.get("instrumentID")
+        rejection_reason = raw.get("rejectionReason")
+
+        _STATUS_MAP = {
+            "Executed": "executed",
+            "Filled": "executed",
+            "Pending": "pending",
+            "Rejected": "rejected",
+            "Failed": "failed",
+            "Cancelled": "rejected",
+        }
+        status = _STATUS_MAP.get(status_id, "pending")  # default pending für unbekannte
+
+        return {
+            "status": status,
+            "order_id": order_id,
+            "instrument_id": instrument_id,
+            "positions": positions if positions else None,
+            "rejection_reason": rejection_reason,
+            "raw": raw,
+            "is_timing_issue": False,
+        }
+
+    # ------------------------------------------------------------------
     # Context manager support
     # ------------------------------------------------------------------
 
