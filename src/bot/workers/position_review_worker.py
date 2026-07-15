@@ -734,6 +734,14 @@ def main() -> int:
         else:
             print("[position_review] LLM gab keine evaluations zurück")
 
+        try:
+            from bot.core.heartbeat import record_duration as _rd
+            from bot.db.connection import DB as _DB_dur
+            from bot.db.repo import StateRepo as _SR_dur
+            _rd(_SR_dur(_DB_dur(db_path)), "position_review_worker", time.time() - t0)
+        except Exception:
+            pass
+
         return 0
 
 

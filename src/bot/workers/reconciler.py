@@ -504,6 +504,8 @@ def main() -> int:
 
         # ── 1. Load config ─────────────────────────────────────────────────────────
         try:
+            import time as _time_dur
+            _t_run_start = _time_dur.monotonic()
             cfg = _load_config()
         except Exception as exc:
             logger.critical(f"[{WORKER_NAME}] FATAL: Cannot load config: {exc}")
@@ -1298,6 +1300,12 @@ def main() -> int:
                     )
         except Exception as _hb_exc:
             logger.debug(f"[{WORKER_NAME}] Heartbeat-Embed uebersprungen: {_hb_exc}")
+
+        try:
+            from bot.core.heartbeat import record_duration as _rd
+            _rd(state_repo, "reconciler", _time_dur.monotonic() - _t_run_start)
+        except Exception:
+            pass
 
         # ── 14. Persist structured log entry ─────────────────────────────────────
         log_repo.write(

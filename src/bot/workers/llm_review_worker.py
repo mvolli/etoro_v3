@@ -1171,6 +1171,13 @@ def main() -> int:
         except Exception as _se_exc:
             print(f"[llm_review] Stale-Exit-Bewertung fehlgeschlagen: {_se_exc}")
 
+        try:
+            from bot.core.heartbeat import record_duration as _rd
+            from bot.db.connection import DB as _DB_dur
+            from bot.db.repo import StateRepo as _SR_dur
+            _rd(_SR_dur(_DB_dur(db_path)), "llm_review_worker", time.time() - t_start)
+        except Exception:
+            pass
         print(f"[llm_review] Fertig in {time.time() - t_start:.1f}s")
         return 0
 

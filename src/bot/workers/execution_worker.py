@@ -206,6 +206,8 @@ def main() -> None:
         # ── Heartbeat (dead-man's switch) ─────────────────────────────────────────
         from bot.core.heartbeat import record_heartbeat
         record_heartbeat(state_repo, "execution_worker")
+        import time as _time_dur
+        _t_run_start = _time_dur.monotonic()
 
         # ── Kill Switch check (fix/autonomy-hardening) ────────────────────────────
         # Previously the execution worker relied ONLY on the DB regime, which
@@ -823,6 +825,11 @@ def main() -> None:
             )
         else:
             logger.debug("ExecutionWorker: %d processed, 0 filled, 0 failed", processed_count)
+        try:
+            from bot.core.heartbeat import record_duration as _rd
+            _rd(state_repo, "execution_worker", _time_dur.monotonic() - _t_run_start)
+        except Exception:
+            pass
         log_repo.write(
             "INFO",
             "execution_worker",

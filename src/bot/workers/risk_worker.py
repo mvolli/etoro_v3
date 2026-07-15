@@ -109,6 +109,8 @@ def main() -> None:
         # ── Heartbeat (dead-man's switch) ─────────────────────────────────────────
         from bot.core.heartbeat import record_heartbeat
         record_heartbeat(state_repo, "risk_worker")
+        import time as _time_dur
+        _t_run_start = _time_dur.monotonic()
 
         closed_count = 0
         checked_count = 0
@@ -775,6 +777,11 @@ def main() -> None:
             "risk_worker",
             f"Run complete: checked={checked_count} closed={closed_count} regime={regime}",
         )
+        try:
+            from bot.core.heartbeat import record_duration as _rd
+            _rd(state_repo, "risk_worker", _time_dur.monotonic() - _t_run_start)
+        except Exception:
+            pass
 
         # ── Post Risk Worker Embed → nur bei Ereignissen (SL/Partials/Exits/Konzentr.)
         # Routine-Status wird vom monitor_worker (alle 30min) übernommen.
