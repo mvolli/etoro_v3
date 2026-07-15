@@ -59,6 +59,13 @@ sizing:                       # Position size as % of portfolio equity
   low_pct: 2.0                # Conviction tier: LOW / speculative
 
 trailing:                     # Dynamic profit-taking (runs each risk_worker cycle on LIVE PnL)
+  stale_exit:                 # fix/stale-exit (2026-07-15): totes Kapital freisetzen
+    enabled: false            # Rollout: 2-3 Tage Dry-Log ("STALE-Kandidat" im risk_worker-Log), dann true
+    min_days: 10              # Kalendertage seit openDateTime (~7 Handelstage)
+    pnl_band_pct: 1.5         # |PnL| < Band = seitwaerts (disjunkt zu BE 3.0 / SL)
+    min_peak_pct: 2.0         # Peak < Momentum-Fade-Arm-Schwelle: Position lief nie
+    llm_hold_grace_h: 24      # frische LLM-HOLD-Empfehlung schont ...
+    max_days: 20              # ... harter Deckel: dann Exit trotz HOLD
   momentum_fade:              # Universal quick-profit lock — protects a gain that starts fading
     enabled: true             # false → disable momentum-fade entirely (ladder/BE unchanged)
     arm_pct: 2.0              # Peak PnL must reach this before fade protection arms (%)

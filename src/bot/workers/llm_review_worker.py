@@ -64,7 +64,89 @@ BIBLE_HARD_LIMITS: dict[str, tuple] = {
     "regime.caution_pct":            (1.0,  8.0,   float),
     "regime.defensive_pct":          (3.0,  15.0,  float),
     "regime.critical_pct":           (8.0,  25.0,  float),
+    # fix/stale-exit (2026-07-15): LLM darf die Stale-Parameter nachjustieren
+    # (z.B. nach MISSED_UPSIDE-Haeufung min_days erhoehen) — in harten Grenzen.
+    "trailing.stale_exit.min_days":      (5,   30,   int),
+    "trailing.stale_exit.pnl_band_pct":  (0.5, 3.0,  float),
+    "trailing.stale_exit.min_peak_pct":  (1.0, 5.0,  float),
 }
+
+STALE_OUTCOMES_PATH = PROJECT_ROOT / "data" / "stale_exit_outcomes.json"
+
+
+def _evaluate_stale_exits(min_age_h: float = 72.0) -> int:
+    """Lernschleife fix/stale-exit: bewertet Stale-Exits nach >=72h REIN
+    yfinance-basiert (einheitsfest — eToro-Rate vs GBX bei .L vermeiden):
+    Referenz = erster Close ab Exit-Tag, Vergleich = letzter Close.
+    GOOD (<= +1.5% seither) / MISSED_UPSIDE (> +3%) / NEUTRAL dazwischen.
+    Neue Grades landen als strategy_note im Trading-Memory und fliessen so
+    in kuenftige LLM-Prompts (Parameter-Nachjustierung via BIBLE-Limits)."""
+    import json as _js
+    from datetime import datetime, timezone
+    try:
+        if not STALE_OUTCOMES_PATH.exists():
+            return 0
+        data = _js.loads(STALE_OUTCOMES_PATH.read_text()) or {}
+        entries = data.get("entries", [])
+        now = datetime.now(timezone.utc)
+        pending = []
+        for e in entries:
+            if e.get("outcome") is not None or not e.get("yf_symbol"):
+                continue
+            try:
+                ts = datetime.fromisoformat(e["ts"])
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=timezone.utc)
+                if (now - ts).total_seconds() >= min_age_h * 3600:
+                    pending.append((e, ts))
+            except Exception:
+                continue
+        if not pending:
+            return 0
+        import yfinance as yf
+        graded = 0
+        notes: list[str] = []
+        for e, ts in pending:
+            try:
+                hist = yf.Ticker(e["yf_symbol"]).history(period="1mo")["Close"].dropna()
+                if hist.empty:
+                    e["outcome"] = "NO_DATA"
+                    graded += 1
+                    continue
+                exit_date = ts.date()
+                ref = None
+                for idx, val in hist.items():
+                    if idx.date() >= exit_date:
+                        ref = float(val)
+                        break
+                if ref is None or ref <= 0:
+                    ref = float(hist.iloc[0])
+                delta_pct = (float(hist.iloc[-1]) / ref - 1) * 100
+                e["outcome"] = ("MISSED_UPSIDE" if delta_pct > 3.0
+                                else "GOOD" if delta_pct <= 1.5 else "NEUTRAL")
+                e["outcome_delta_pct"] = round(delta_pct, 2)
+                graded += 1
+                notes.append(f"Stale-Exit {e['symbol']}: {e['outcome']} "
+                             f"({delta_pct:+.1f}% seit Exit)")
+            except Exception:
+                continue
+        if graded:
+            tmp = STALE_OUTCOMES_PATH.with_suffix(".json.tmp")
+            tmp.write_text(_js.dumps(data, indent=1, ensure_ascii=False))
+            tmp.replace(STALE_OUTCOMES_PATH)
+            if notes:
+                try:
+                    mem = (_js.loads(TRADING_MEMORY_PATH.read_text())
+                           if TRADING_MEMORY_PATH.exists() else {})
+                    mem.setdefault("strategy_notes", []).extend(notes)
+                    mem["strategy_notes"] = mem["strategy_notes"][-50:]
+                    TRADING_MEMORY_PATH.write_text(
+                        _js.dumps(mem, indent=2, ensure_ascii=False))
+                except Exception:
+                    pass
+        return graded
+    except Exception:
+        return 0
 CONFIG_YAML_PATH = PROJECT_ROOT / "config" / "config.yaml"
 DECISION_LOG_PATH = PROJECT_ROOT / "data" / "llm_decision_log.json"   # Signal-Weights laenger gueltig als Ghost-Liste      # ab 60% Ghost-Rate → Exchange blockieren
 
@@ -1079,6 +1161,14 @@ def main() -> int:
 
         # Discord-Post
         _post_discord(blacklist, llm_analysis, ghost_rates, trade_count, ghost_count)
+
+        # Stale-Exit-Lernschleife (fix/stale-exit): 72h-Rueckblick
+        try:
+            _graded = _evaluate_stale_exits()
+            if _graded:
+                print(f"[llm_review] {_graded} Stale-Exit(s) bewertet (72h-Rueckblick)")
+        except Exception as _se_exc:
+            print(f"[llm_review] Stale-Exit-Bewertung fehlgeschlagen: {_se_exc}")
 
         print(f"[llm_review] Fertig in {time.time() - t_start:.1f}s")
         return 0

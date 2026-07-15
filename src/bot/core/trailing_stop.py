@@ -80,6 +80,106 @@ SCALP_MAX_PCT = 5.0
 SCALP_CLOSE_PCT = 25
 
 
+# ── Stale-Exit (fix/stale-exit 2026-07-15) ───────────────────────────────────
+# Totes Kapital: Position lief nie (Peak < Fade-Arm-Schwelle), haengt seit
+# min_days seitwaerts im PnL-Band und blockiert Slot + Cash. Die Parameter
+# garantieren Disjunktheit zu ALLEN bestehenden Exit-Mechaniken:
+#   min_peak < MOMENTUM_ARM_PCT (2.0)  => nie im Momentum-Fade-Revier
+#   |PnL| < Band (1.5) < BE-Trigger    => nie im BE/Ladder-Revier, kein SL-Fall
+STALE_EXIT_ENABLED = False        # Rollout-Schalter: Dry-Log bis config true
+STALE_MIN_DAYS = 10               # Kalendertage aus openDateTime (~7 Handelstage)
+STALE_PNL_BAND_PCT = 1.5          # |PnL| unter diesem Band = seitwaerts
+STALE_MIN_PEAK_PCT = 2.0          # Peak < Arm-Schwelle: Position lief nie
+STALE_LLM_HOLD_GRACE_H = 24.0     # frische HOLD-Empfehlung schont ...
+STALE_MAX_DAYS = 20               # ... aber harter Deckel: dann Exit trotz HOLD
+
+
+def is_stale_candidate(pnl_pct: float, peak_pnl_pct: float,
+                       days_held: int | None) -> bool:
+    """Pure decision: ist die Position totes Kapital? (fix/stale-exit)
+
+    days_held=None (fehlendes/kaputtes openDateTime) → False: ein
+    Datenfehler darf NIE einen Exit ausloesen (fail-safe)."""
+    if days_held is None or days_held < STALE_MIN_DAYS:
+        return False
+    if abs(pnl_pct) >= STALE_PNL_BAND_PCT:
+        return False
+    if peak_pnl_pct >= STALE_MIN_PEAK_PCT:
+        return False
+    return True
+
+
+def _load_fresh_llm_holds(grace_h: float) -> set:
+    """Symbole mit frischer HOLD-Empfehlung (< grace_h Stunden) aus
+    llm_position_recommendations.json (position_review_worker, 4x/Tag).
+    Fail-open: Fehler → leere Menge (die Regel entscheidet allein)."""
+    try:
+        from datetime import datetime, timezone
+        from pathlib import Path
+        path = (Path(__file__).resolve().parent.parent.parent.parent
+                / 'data' / 'llm_position_recommendations.json')
+        recs = json.loads(path.read_text())
+        if not isinstance(recs, list):
+            return set()
+        now = datetime.now(timezone.utc)
+        holds = set()
+        for r in recs:
+            if not isinstance(r, dict) or str(r.get('recommendation', '')).upper() != 'HOLD':
+                continue
+            try:
+                ts = datetime.fromisoformat(str(r.get('ts', '')))
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=timezone.utc)
+                if (now - ts).total_seconds() <= grace_h * 3600:
+                    holds.add(str(r.get('symbol', '')))
+            except Exception:
+                continue
+        return holds
+    except Exception:
+        return set()
+
+
+def _append_stale_outcome(db: Any, action: 'TrailingAction') -> None:
+    """Lernschleifen-Eintrag fuer den 72h-Rueckblick (llm_review bewertet
+    GOOD/NEUTRAL/MISSED_UPSIDE). yf_symbol wird mitgespeichert, damit der
+    spaetere Preisvergleich REIN yfinance-basiert ist (einheitsfest — die
+    eToro-Rate-vs-GBX-Falle bei .L-Titeln wird so vermieden)."""
+    try:
+        from datetime import datetime, timezone
+        from pathlib import Path
+        yf_symbol = None
+        try:
+            if db is not None:
+                row = db.fetchone(
+                    "SELECT yfinance_symbol FROM instruments WHERE instrument_id=?",
+                    (action.instrument_id,),
+                )
+                if row:
+                    yf_symbol = row["yfinance_symbol"]
+        except Exception:
+            pass
+        path = (Path(__file__).resolve().parent.parent.parent.parent
+                / 'data' / 'stale_exit_outcomes.json')
+        data = {'entries': []}
+        if path.exists():
+            data = json.loads(path.read_text()) or {'entries': []}
+        data.setdefault('entries', []).append({
+            'ts': datetime.now(timezone.utc).isoformat()[:19],
+            'symbol': action.symbol,
+            'yf_symbol': yf_symbol,
+            'position_id': action.position_id,
+            'instrument_id': action.instrument_id,
+            'exit_pnl_pct': round(action.pnl_pct, 2),
+            'outcome': None,
+        })
+        data['entries'] = data['entries'][-200:]
+        tmp = path.with_suffix('.json.tmp')
+        tmp.write_text(json.dumps(data, indent=1, ensure_ascii=False))
+        tmp.replace(path)
+    except Exception as exc:
+        logger.debug('[trailing] stale-outcome write failed: %s', exc)
+
+
 def apply_config(cfg: dict) -> None:
     """Wire the `trailing:` config block into module thresholds (idempotent).
 
@@ -89,7 +189,17 @@ def apply_config(cfg: dict) -> None:
     global MOMENTUM_FADE_ENABLED, MOMENTUM_ARM_PCT, MOMENTUM_RETRACE_FRAC
     global MOMENTUM_MIN_LOCK_PCT, MOMENTUM_FADE_CLOSE_PCT, MOMENTUM_MAX_RETRACE_ABS
     global SCALP_ENABLED, SCALP_ATR_MULT, SCALP_MIN_PCT, SCALP_MAX_PCT, SCALP_CLOSE_PCT
+    global STALE_EXIT_ENABLED, STALE_MIN_DAYS, STALE_PNL_BAND_PCT
+    global STALE_MIN_PEAK_PCT, STALE_LLM_HOLD_GRACE_H, STALE_MAX_DAYS
     t = ((cfg or {}).get('trailing') or {})
+    se = (t.get('stale_exit') or {})
+    if 'enabled' in se:
+        STALE_EXIT_ENABLED = bool(se['enabled'])
+    STALE_MIN_DAYS = int(se.get('min_days', STALE_MIN_DAYS))
+    STALE_PNL_BAND_PCT = float(se.get('pnl_band_pct', STALE_PNL_BAND_PCT))
+    STALE_MIN_PEAK_PCT = float(se.get('min_peak_pct', STALE_MIN_PEAK_PCT))
+    STALE_LLM_HOLD_GRACE_H = float(se.get('llm_hold_grace_h', STALE_LLM_HOLD_GRACE_H))
+    STALE_MAX_DAYS = int(se.get('max_days', STALE_MAX_DAYS))
     mf = (t.get('momentum_fade') or {})
     if 'enabled' in mf:
         MOMENTUM_FADE_ENABLED = bool(mf['enabled'])
@@ -483,6 +593,9 @@ def evaluate_trailing(
     ]
     atr_by_instrument = load_atr_pct(db, instrument_ids)
 
+    # Stale-Exit: frische LLM-HOLD-Empfehlungen einmal pro Lauf laden (Grace)
+    fresh_holds = _load_fresh_llm_holds(STALE_LLM_HOLD_GRACE_H)
+
     actions = []
     for pos in positions:
         pos_id = str(pos.get('positionID', ''))
@@ -554,6 +667,46 @@ def evaluate_trailing(
             # ladder never reaches — the whole point of momentum-fade.
             elif should_momentum_fade(pnl_pct, peak, faded):
                 actions.append(_fade_action())
+            else:
+                # ── Stale-Exit (fix/stale-exit 2026-07-15): totes Kapital.
+                # days_held aus openDateTime (Broker-Wahrheit); kaputter
+                # Timestamp → kein Exit (fail-safe in is_stale_candidate).
+                _stale_days = None
+                try:
+                    from bot.core.position_meta import days_held_from
+                    _stale_days = days_held_from(pos.get('openDateTime'))
+                except Exception:
+                    _stale_days = None
+                if is_stale_candidate(pnl_pct, peak, _stale_days):
+                    if symbol in fresh_holds and (_stale_days or 0) < STALE_MAX_DAYS:
+                        logger.info(
+                            '[trailing] STALE-Kandidat %s (%sd, %+.1f%%) — '
+                            'LLM-HOLD-Schonfrist (%.0fh), Deckel %dd',
+                            symbol, _stale_days, pnl_pct,
+                            STALE_LLM_HOLD_GRACE_H, STALE_MAX_DAYS,
+                        )
+                    elif not STALE_EXIT_ENABLED:
+                        logger.info(
+                            '[trailing] STALE-Kandidat %s: %sd seitwaerts '
+                            '(Peak +%.1f%%, PnL %+.1f%%) — Dry-Log '
+                            '(stale_exit.enabled=false)',
+                            symbol, _stale_days, peak, pnl_pct,
+                        )
+                    else:
+                        actions.append(TrailingAction(
+                            action='STALE_EXIT',
+                            symbol=symbol,
+                            position_id=pos_id,
+                            pnl_pct=pnl_pct,
+                            reason=(
+                                f'Stale-Exit: {_stale_days}d seitwaerts '
+                                f'(Peak +{peak:.1f}%, PnL {pnl_pct:+.1f}%) '
+                                f'— Kapital freigesetzt'
+                            ),
+                            instrument_id=instrument_id,
+                            amount_usd=amount,
+                            open_rate=open_rate,
+                        ))
             continue  # No structured profit-taking below the BE trigger
 
         taken = levels_taken.get(pos_id, set())
@@ -839,7 +992,7 @@ def execute_trailing_actions(
     """
     import time
     stats = {'partial_closes': 0, 'break_evens': 0, 'be_closes': 0,
-             'momentum_fades': 0, 'errors': []}
+             'momentum_fades': 0, 'stale_exits': 0, 'errors': []}
 
     for action in actions:
         # fix/stale-price-trailing (2026-07-14, HLAG.DE 21:49): Trigger
@@ -863,11 +1016,14 @@ def execute_trailing_actions(
             stats['break_evens'] += 1
             continue
 
-        if action.action == 'BE_CLOSE':
-            # Loss protection — runs in ALL regimes (unlike profit-taking).
-            logger.info('[trailing] BE_CLOSE: %s %+.1f%% — %s', action.symbol, action.pnl_pct, action.reason)
+        if action.action in ('BE_CLOSE', 'STALE_EXIT'):
+            # BE_CLOSE: Loss protection — runs in ALL regimes.
+            # STALE_EXIT (fix/stale-exit): Kapital-Freisetzung, ebenfalls in
+            # allen Regimes (De-Risking, kein Profit-Taking).
+            logger.info('[trailing] %s: %s %+.1f%% — %s', action.action,
+                        action.symbol, action.pnl_pct, action.reason)
             if dry_run:
-                stats['be_closes'] += 1
+                stats['be_closes' if action.action == 'BE_CLOSE' else 'stale_exits'] += 1
                 continue
             try:
                 result = client.close_position(
@@ -879,24 +1035,31 @@ def execute_trailing_actions(
                         client, action.instrument_id, action.position_id
                     )
                     if verified:
-                        logger.info('[trailing] BE_CLOSE verified: %s', detail)
-                        stats['be_closes'] += 1
+                        logger.info('[trailing] %s verified: %s', action.action, detail)
+                        if action.action == 'STALE_EXIT':
+                            stats['stale_exits'] += 1
+                            # Lernschleife: Eintrag fuer 72h-Rueckblick
+                            _append_stale_outcome(db, action)
+                            _embed_reason = f'💤 {action.reason}'
+                        else:
+                            stats['be_closes'] += 1
+                            _embed_reason = f'Break-Even-Schutz: {action.reason}'
                         _post_closed_embed(
                             action.symbol, action.position_id,
-                            f'Break-Even-Schutz: {action.reason}',
+                            _embed_reason,
                             pnl_pct=action.pnl_pct,
                             amount_usd=action.amount_usd,   # Full Close
                         )
                     else:
-                        logger.warning('[trailing] BE_CLOSE unverified: %s', detail)
-                        stats['errors'].append(f'{action.symbol}: BE_CLOSE unverified — {detail}')
+                        logger.warning('[trailing] %s unverified: %s', action.action, detail)
+                        stats['errors'].append(f'{action.symbol}: {action.action} unverified — {detail}')
                 else:
                     stats['errors'].append(
-                        f'{action.symbol}: BE_CLOSE close_position() returned empty/falsy result'
+                        f'{action.symbol}: {action.action} close_position() returned empty/falsy result'
                     )
                 time.sleep(0.5)
             except Exception as e:
-                msg = f'{action.symbol}: BE_CLOSE API call failed — {e}'
+                msg = f'{action.symbol}: {action.action} API call failed — {e}'
                 logger.error('[trailing] %s', msg)
                 stats['errors'].append(msg)
             continue
