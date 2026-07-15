@@ -1052,6 +1052,11 @@ def main() -> int:
     
         # ── 10. Summary ───────────────────────────────────────────────────────────
         elapsed = time.monotonic() - t_start
+        try:
+            from bot.core.heartbeat import record_duration as _rd
+            _rd(state_repo, "discovery_worker", elapsed)
+        except Exception:
+            pass
         summary = (
             f"DiscoveryWorker: scanned {n_scanned} symbols, "
             f"{k_candidates} BUY candidates, "

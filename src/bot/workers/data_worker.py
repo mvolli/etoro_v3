@@ -875,6 +875,12 @@ def run(project_root: Path | None = None) -> dict:
 
     # 11. Summary (logged at WARNING so it still shows on stdout if needed) ─────
     elapsed = time.monotonic() - t_start
+    try:
+        from bot.core.heartbeat import record_duration as _rd
+        from bot.db.repo import StateRepo as _SR_dur
+        _rd(_SR_dur(db), "data_worker", elapsed)
+    except Exception:
+        pass
     logger.warning(
         "DataWorker: %d symbols fetched, %d signals written (%.1fs, failed_cache=%d)",
         n_fetched, n_signals, elapsed, len(_FAILED_SYMBOLS_CACHE),

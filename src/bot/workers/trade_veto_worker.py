@@ -374,6 +374,12 @@ Antworte NUR mit JSON:
         _veto_log_write(log_entries)
 
         elapsed = time.monotonic() - t0
+        try:
+            from bot.core.heartbeat import record_duration as _rd
+            from bot.db.repo import StateRepo as _SR_dur
+            _rd(_SR_dur(db), WORKER_NAME, elapsed)
+        except Exception:
+            pass
         print(f"{WORKER_NAME}: {len(trades)} geprueft, {len(vetoed)} Veto, "
               f"{len(reduced)} verkleinert, {elapsed:.1f}s")
 

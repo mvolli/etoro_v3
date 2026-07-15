@@ -264,6 +264,9 @@ def main() -> None:
             print("SignalWorker: SKIPPED (already running)")
             return
 
+        import time as _time_dur
+        _t_run_start = _time_dur.monotonic()
+
         # ── 1. Setup ──────────────────────────────────────────────────────────────
         _load_env()
         cfg = _load_config()
@@ -1000,6 +1003,12 @@ def main() -> None:
                     },
                 )
     
+        try:
+            from bot.core.heartbeat import record_duration as _rd
+            _rd(state_repo, "signal_worker", _time_dur.monotonic() - _t_run_start)
+        except Exception:
+            pass
+
         # ── 6. Summary ────────────────────────────────────────────────────────────
         if approved_count > 0:
             print(f"SignalWorker: {evaluated_count} signals evaluated, {approved_count} trades approved")

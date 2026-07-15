@@ -25,6 +25,19 @@ EXPECTED_INTERVALS_MIN: dict[str, int] = {
     "discovery_worker": 120,
 }
 
+def record_duration(state_repo, worker_name: str, seconds: float) -> None:
+    """Schreibt LAST_DURATION_<NAME>_S in system_state (fix/duration-metrics
+    2026-07-15: Laufzeiten standen nur verstreut in stdout-Logs — jetzt
+    strukturiert abfragbar, z.B. fuer Budget-Checks der 120s-no_agent-Jobs).
+    Best-effort: darf nie einen Worker-Abschluss verhindern."""
+    try:
+        state_repo.set(
+            f"LAST_DURATION_{worker_name.upper()}_S", f"{float(seconds):.1f}"
+        )
+    except Exception:
+        pass
+
+
 # A worker is considered stale after this many missed intervals.
 STALE_FACTOR = 3
 

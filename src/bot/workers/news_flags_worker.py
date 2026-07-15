@@ -263,6 +263,11 @@ Antworte NUR mit JSON:
         tmp.replace(FLAGS_PATH)
 
         elapsed = time.monotonic() - t0
+        try:
+            from bot.core.heartbeat import record_duration as _rd
+            _rd(StateRepo(db), WORKER_NAME, elapsed)
+        except Exception:
+            pass
         summary = (f"{WORKER_NAME}: {len(symbols)} Symbole, "
                    f"{payload['headlines_seen']} Headlines, {len(flags)} Flags, {elapsed:.1f}s")
         print(summary)
