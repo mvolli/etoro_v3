@@ -1101,6 +1101,27 @@ class EToroClient:
                 "rejection_reason": None,
                 "raw": {"error": f"HTTP {exc.status_code}", "body": str(exc)},
             }
+        except requests.HTTPError as exc:
+            # raise_for_status() wirft HTTPError (z.B. 404/500/503)
+            status_code = exc.response.status_code if exc.response else 0
+            if status_code == 404:
+                return {
+                    "status": "pending",
+                    "order_id": order_id,
+                    "instrument_id": None,
+                    "positions": None,
+                    "rejection_reason": None,
+                    "raw": {"error": "404 - orderId not found yet"},
+                    "is_timing_issue": True,
+                }
+            return {
+                "status": "failed",
+                "order_id": order_id,
+                "instrument_id": None,
+                "positions": None,
+                "rejection_reason": None,
+                "raw": {"error": f"HTTP {status_code}", "body": str(exc)},
+            }
         except Exception as exc:
             return {
                 "status": "failed",
@@ -1124,8 +1145,16 @@ class EToroClient:
             "Rejected": "rejected",
             "Failed": "failed",
             "Cancelled": "rejected",
+            "PartiallyFilled": "executed",  # teilweise erfüllt = position existiert
+            "Expired": "failed",
+            "Triggered": "pending",
         }
-        status = _STATUS_MAP.get(status_id, "pending")  # default pending für unbekannte
+        status = _STATUS_MAP.get(status_id, "failed")  # KRITISCH FIX: unbekannter Status = failed, nicht pending
+        if status_id not in _STATUS_MAP:
+            logger.warning(
+                "get_order_status: UNKOWN status_id '%s' for orderId=%s — defaulting to 'failed'",
+                status_id, order_id,
+            )
 
         return {
             "status": status,

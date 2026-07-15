@@ -540,6 +540,7 @@ def main() -> None:
                 # Distinguishes Rejected (with rejectionReason), Deferred (Pending),
                 # True Ghost (Executed but no position), or timing issue (404).
                 # Replaces 10 portfolio polls with 1 API call — eliminates ~80% false-positives.
+                import time as _time  # früh importieren für Ghost-Retry
                 post_flight_result = None
                 if api_position_id:
                     try:
@@ -672,8 +673,52 @@ def main() -> None:
                             continue
                         else:
                             # Ghost detected! API says executed but no position
+                            # KRITISCH FIX: Nicht sofort als Ghost klassifizieren —
+                            # eToro kann mehrere Sekunden brauchen um Position zu erstellen.
+                            # Retry 2x mit 3s间隔 bevor als Ghost gebucht.
+                            ghost_confirmed = False
+                            for _ghost_retry in range(2):
+                                _time.sleep(3)
+                                _pf_retry = client.get_order_status(
+                                    int(api_position_id), env="real"
+                                )
+                                if _pf_retry.get("positions") and len(_pf_retry["positions"]) > 0:
+                                    # Position nach Retry erschienen
+                                    pos = _pf_retry["positions"][0]
+                                    api_position_id = str(pos.get("positionID") or pos.get("positionId") or api_position_id)
+                                    entry_price = 0.0
+                                    trade_repo.update_status(
+                                        trade_id, "ACTIVE",
+                                        api_position_id=api_position_id,
+                                        order_id=api_position_id,
+                                        entry_price=entry_price,
+                                        confirmed_at=_utcnow(),
+                                    )
+                                    trade_repo.reset_ghost_failures(instrument_id)
+                                    filled_count += 1
+                                    logger.info(
+                                        "ExecutionWorker: trade #%d EXECUTED (post-flight nach %ds Retry) — %s $%.2f @ %.6f (positionID=%s)",
+                                        trade_id, (_ghost_retry + 1) * 3, symbol, amount_usd, entry_price, api_position_id,
+                                    )
+                                    log_repo.write(
+                                        "INFO", "execution_worker",
+                                        f"Trade #{trade_id} ACTIVE: {symbol} BUY ${amount_usd:.2f} (post-flight confirmed after {(_ghost_retry + 1) * 3}s retry, positionID={api_position_id})",
+                                        {"trade_id": trade_id, "symbol": symbol, "instrument_id": instrument_id, "amount_usd": amount_usd, "entry_price": entry_price, "api_position_id": api_position_id, "stop_loss_pct": stop_loss_pct},
+                                    )
+                                    _post('post_trade_filled_embed',
+                                        symbol=symbol, direction='BUY', amount_usd=amount_usd,
+                                        position_id=api_position_id, entry_price=entry_price,
+                                        sl_pct=stop_loss_pct, dry_run=False,
+                                    )
+                                    ghost_confirmed = True
+                                    break
+                    
+                            if ghost_confirmed:
+                                continue
+                    
+                            # Nach 2 Retries immer noch keine Position → echter Ghost
                             ghost_count, bl_status = trade_repo.record_ghost_failure(instrument_id)
-                            ghost_detail = f"orderId={api_position_id} (executed, no position)"
+                            ghost_detail = f"orderId={api_position_id} (executed, no position after 2x3s retry)"
                             logger.warning(
                                 "ExecutionWorker: trade #%d (%s) GHOST ORDER (%s) — "
                                 "failure #%d for this instrument (blacklist: %s)",
