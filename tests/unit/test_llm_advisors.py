@@ -345,3 +345,19 @@ def test_category_majority_mr_wins():
 
 def test_category_tie_stays_mixed():
     assert _get_signal_category('RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20') == 'MIXED'
+
+
+# ── Deployment-Boost-Gates (fix/cash-deployment 2026-07-15) ──────────────────
+
+from bot.workers.signal_worker import _deployment_boost_applies
+
+
+def test_deployment_boost_all_conditions_met():
+    assert _deployment_boost_applies(35.0, 30.0, 'NORMAL', 1.0, False) is True
+
+
+def test_deployment_boost_blocked_individually():
+    assert _deployment_boost_applies(25.0, 30.0, 'NORMAL', 1.0, False) is False
+    assert _deployment_boost_applies(35.0, 30.0, 'CAUTION', 1.0, False) is False
+    assert _deployment_boost_applies(35.0, 30.0, 'NORMAL', 0.85, False) is False
+    assert _deployment_boost_applies(35.0, 30.0, 'NORMAL', 1.0, True) is False

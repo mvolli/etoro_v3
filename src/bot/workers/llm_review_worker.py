@@ -69,6 +69,7 @@ BIBLE_HARD_LIMITS: dict[str, tuple] = {
     "trailing.stale_exit.min_days":      (5,   30,   int),
     "trailing.stale_exit.pnl_band_pct":  (0.5, 3.0,  float),
     "trailing.stale_exit.min_peak_pct":  (1.0, 5.0,  float),
+    "trading.deployment_boost":          (1.0, 1.5,  float),
 }
 
 STALE_OUTCOMES_PATH = PROJECT_ROOT / "data" / "stale_exit_outcomes.json"

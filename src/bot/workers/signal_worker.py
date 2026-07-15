@@ -214,6 +214,21 @@ def _get_signal_category(signal_type: str) -> str:
     return "MIXED"
 
 
+def _deployment_boost_applies(cash_pct: float, cash_max_pct: float,
+                              regime: str, macro_scalar: float,
+                              has_news_flag: bool) -> bool:
+    """fix/cash-deployment (2026-07-15): Deployment-Boost NUR im
+    Schoenwetterfenster — Cash ueber Zielband, Regime NORMAL, Makro-Scalar
+    neutral (1.0) und kein News-Flag fuer das Symbol. Die Gates verhindern,
+    dass Deployment-Druck gegen die Daempfungs-Philosophie arbeitet
+    (Worst Case Kelly 1.5 x Boost 1.25 ~ 1.9x waere ohne sie inakzeptabel;
+    absolute Caps Instrument 10% / Exposure 75% bleiben nachgelagert)."""
+    return (cash_pct > cash_max_pct
+            and regime == "NORMAL"
+            and macro_scalar >= 1.0
+            and not has_news_flag)
+
+
 # ── Discord Embeds ─────────────────────────────────────────────────────────
 try:
     from pathlib import Path as _Path
@@ -707,23 +722,32 @@ def main() -> None:
         # soll ueberschuessiges Cash arbeiten, ohne die Qualitaetsschwelle zu
         # senken. Alle nachgelagerten Gates (Exposure, Cash-Floor, Kelly,
         # Diversity, Slippage) gelten unveraendert pro Kandidat.
-        max_candidates = 3
+        # fix/cash-deployment (2026-07-15, Umbau der adaptiven Slots):
+        # vorher nahmen die Extra-Slots einfach Top-4/5 des Pools — Slot 4/5
+        # konnten MEDIUM-Kandidaten sein, die >=4-HIGH+-Bedingung war nur
+        # ein Proxy. Jetzt: Basis 3 Slots fuer alle; bei Cash-Ueberschuss
+        # werden Slots 4-5 AUSSCHLIESSLICH mit HIGH/VERY_HIGH aus dem Rest
+        # befuellt — Qualitaet der Extra-Slots ist strukturell garantiert,
+        # eine Mindestanzahl-Schwelle ist damit ueberfluessig.
+        candidates = unique_candidates[:3]
         try:
             _cash_max_pct = float(cfg.get("trading", {}).get("cash_target_max_pct", 30.0))
-            _high_plus = sum(
-                1 for _s, _sym in unique_candidates
-                if (_s.get("conviction") or "").upper() in ("HIGH", "VERY_HIGH")
-            )
             _cash_pct = (cash_estimate / equity * 100.0) if equity > 0 else 0.0
-            if _cash_pct > _cash_max_pct and _high_plus >= 4:
-                max_candidates = 5
-                logger.info(
-                    "SignalWorker: Adaptive Slots 3->5 (Cash %.1f%% > %.1f%%, %d HIGH+-Kandidaten)",
-                    _cash_pct, _cash_max_pct, _high_plus,
-                )
+            if _cash_pct > _cash_max_pct:
+                _extra = [
+                    (_s, _sym) for _s, _sym in unique_candidates[3:]
+                    if (_s.get("conviction") or "").upper() in ("HIGH", "VERY_HIGH")
+                ][:2]
+                if _extra:
+                    candidates = candidates + _extra
+                    logger.info(
+                        "SignalWorker: Adaptive Slots 3->%d (Cash %.1f%% > %.1f%%, "
+                        "Extra-Slots nur HIGH+): %s",
+                        len(candidates), _cash_pct, _cash_max_pct,
+                        ", ".join(_sym for _s, _sym in _extra),
+                    )
         except Exception:
             pass
-        candidates = unique_candidates[:max_candidates]
     
         evaluated_count = 0
         approved_count = 0
@@ -777,6 +801,31 @@ def main() -> None:
                     "SignalWorker: %s News-Flag CAUTION — Groesse halbiert auf $%.2f (%s)",
                     symbol, buy_amount, (_nf.get("reason") or "")[:60],
                 )
+
+            # Deployment-Boost (fix/cash-deployment 2026-07-15): brachliegendes
+            # Kapital arbeiten lassen. Config-Default 1.0 = AUS — auf 1.25
+            # erhoehen, sobald der Stale-Exit scharf und bewaehrt ist (erst
+            # Kapital-Freisetzung beweisen, dann Deployment-Druck — sonst ist
+            # die Equity-Attribution zerstoert). Hart geclampt <= 1.5.
+            try:
+                _boost = float(cfg.get("trading", {}).get("deployment_boost", 1.0))
+                _boost = max(1.0, min(1.5, _boost))
+                if _boost > 1.0 and _deployment_boost_applies(
+                    cash_pct=(cash_estimate / equity * 100.0) if equity > 0 else 0.0,
+                    cash_max_pct=float(cfg.get("trading", {}).get("cash_target_max_pct", 30.0)),
+                    regime=regime,
+                    macro_scalar=_macro,
+                    has_news_flag=symbol in _news_flags,
+                ):
+                    _old_amt = buy_amount
+                    buy_amount = round(buy_amount * _boost, 2)
+                    logger.info(
+                        "SignalWorker: Deployment-Boost aktiv x%.2f — $%.2f -> $%.2f "
+                        "(Cash-Ueberschuss, NORMAL, Makro neutral)",
+                        _boost, _old_amt, buy_amount,
+                    )
+            except Exception as _db_exc:
+                logger.debug("SignalWorker: Deployment-Boost uebersprungen: %s", _db_exc)
     
             # Enforce minimum from regime params
             min_buy = regime_params.get("min_buy_usd", 50.0)
