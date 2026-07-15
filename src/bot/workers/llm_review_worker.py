@@ -307,68 +307,6 @@ def _compute_signal_perf(signal_stats: list[dict], ghost_signal_stats: dict | No
 
 # ── LLM Call ─────────────────────────────────────────────────────────────────
 
-def _collect_open_positions_for_llm(db_path, trade_perf: dict) -> list[dict]:
-    """Offene Positionen mit Signal-Typ + historischer Performance fuer LLM-Evaluation."""
-    import sqlite3
-    open_pos = []
-    try:
-        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT ps.instrument_id, ps.symbol, ps.unrealized_pnl_pct, ps.last_synced
-            FROM portfolio_snapshot ps ORDER BY ps.amount_usd DESC LIMIT 25
-        """)
-        open_pos = [dict(r) for r in cur.fetchall()]
-        for pos in open_pos:
-            iid = pos.get("instrument_id")
-            cur.execute("""
-                SELECT s.signal_type, t.created_at FROM trades t
-                JOIN signals s ON s.id = t.signal_id
-                WHERE t.instrument_id = ? AND t.status IN ('ACTIVE','CLOSED','CONFIRMED')
-                ORDER BY t.created_at DESC LIMIT 1
-            """, (iid,))
-            row = cur.fetchone()
-            pos["signal_type"] = row["signal_type"] if row else None
-            pos["opened_at"] = row["created_at"] if row else None
-        conn.close()
-    except Exception:
-        return []
-
-    sig_stats: dict = {}
-    for sp in (trade_perf.get("signal_perf_pnl") or []):
-        stype = sp.get("signal_type") or ""
-        sig_stats[stype] = {
-            "n": sp.get("n", 0), "avg_pnl": sp.get("avg_pnl"), "win_rate": sp.get("win_rate")
-        }
-
-    from datetime import datetime, timezone
-    now = datetime.now(timezone.utc)
-    enriched = []
-    for pos in open_pos:
-        stype = pos.get("signal_type") or ""
-        perf = sig_stats.get(stype, {})
-        days_held = None
-        if pos.get("opened_at"):
-            try:
-                opened = datetime.fromisoformat(pos["opened_at"].replace(" ", "T"))
-                if opened.tzinfo is None:
-                    opened = opened.replace(tzinfo=timezone.utc)
-                days_held = (now - opened).days
-            except Exception:
-                pass
-        enriched.append({
-            "symbol": pos.get("symbol", str(pos.get("instrument_id", "?"))) ,
-            "pnl_pct": round(float(pos.get("unrealized_pnl_pct") or 0), 2),
-            "days_held": days_held,
-            "signal_type": stype or "UNBEKANNT",
-            "sig_n": perf.get("n", 0),
-            "sig_avg_pnl": perf.get("avg_pnl"),
-            "sig_win_rate": perf.get("win_rate"),
-        })
-    return enriched
-
-
 def _call_llm(*args, **kwargs) -> dict | None:
     """Retry-Wrapper um _call_llm_once (fix/llm-fast-retry).
 
@@ -395,8 +333,7 @@ def _call_llm(*args, **kwargs) -> dict | None:
 def _call_llm_once(ghost_rates: dict, signal_perf: dict, state: dict, positions: list,
               trade_perf: dict | None = None, trading_memory: dict | None = None,
               slippage_top: dict | None = None, ghost_trends: dict | None = None,
-              non_tradable_ghost_count: int = 0,
-              open_positions_data: list | None = None) -> dict | None:
+              non_tradable_ghost_count: int = 0) -> dict | None:
     """Ruft llama-server auf und parst JSON-Antwort."""
     equity = state.get("CURRENT_EQUITY", "?")
     drawdown = state.get("CURRENT_DRAWDOWN_PCT", "?")
@@ -533,19 +470,6 @@ Ergaenze das JSON um folgende zusaetzliche Felder:
   "new_strategy_notes": ["Konkrete Strategie-Erkenntnis 1", "Erkenntnis 2"],
   "conviction_issues": ["z.B. VERY_HIGH Conviction hat 80% Verlustrate — ueberpruefen"]
 }}"""
-
-    if open_positions_data:
-        _open_pos_json = json.dumps(open_positions_data, ensure_ascii=False)
-        prompt += "\n\n## Offene Positionen (bitte evaluiere jede: HOLD / TIGHTEN / EXIT)\n"
-        prompt += _open_pos_json
-        prompt += "\n\nsig_n/sig_avg_pnl/sig_win_rate = historische Performance des Signal-Typs.\n"
-        prompt += "TIGHTEN = aggressivere Gewinnmitnahme empfohlen.\n"
-        prompt += "EXIT = Position schliessen (schlechte Signal-Performance + Position im Minus).\n"
-        prompt += "HOLD = weiterhalten.\n"
-        prompt += (
-            "Ergaenze JSON um: {\"position_recommendations\": "
-            "[{\"symbol\": \"XYZ\", \"recommendation\": \"HOLD\", \"reason\": \"...\"}]}"
-        )
 
     payload = json.dumps({
         "model": "local",
@@ -1103,16 +1027,16 @@ def main() -> int:
         )
         if non_tradable_ghost_count:
             print(f"[llm_review] {non_tradable_ghost_count} Ghost-Orders aus non-tradable Instrumenten (herausgefiltert)")
-        open_positions_data = _collect_open_positions_for_llm(db_path, trade_perf)
-        if open_positions_data:
-            print(f"[llm_review] {len(open_positions_data)} Positionen fuer LLM-Evaluation")
+        # fix/position-meta-dedup (2026-07-15): Positions-Empfehlungen macht
+        # ausschliesslich der position_review_worker (jetzt 4x/Tag inkl.
+        # 22:35 nach NYSE-Close) — die Doppel-Schreiber-Kollision auf
+        # llm_position_recommendations.json ist damit beseitigt.
         llm_analysis = _call_llm(
             ghost_rates, signal_perf, data["state"], data["positions"],
             trade_perf, trading_memory,
             slippage_top=data.get("slippage_top"),
             ghost_trends=ghost_trends,
             non_tradable_ghost_count=non_tradable_ghost_count,
-            open_positions_data=open_positions_data,
         )
         if llm_analysis:
             print(f"[llm_review] LLM-Antwort erhalten: {list(llm_analysis.keys())}")
@@ -1149,25 +1073,6 @@ def main() -> int:
                 })
                 memory["config_history"] = memory.get("config_history", [])[-20:]
                 TRADING_MEMORY_PATH.write_text(_json_mod.dumps(memory, indent=2, ensure_ascii=False))
-
-        if llm_analysis and llm_analysis.get("position_recommendations"):
-            _recs = llm_analysis["position_recommendations"]
-            _recs_path = PROJECT_ROOT / "data" / "llm_position_recommendations.json"
-            try:
-                import json as _jrec
-                _now_s = datetime.now(timezone.utc).isoformat()[:19]
-                _stamped = [
-                    {**r, "ts": _now_s}
-                    for r in _recs
-                    if isinstance(r, dict) and r.get("symbol")
-                ]
-                _recs_path.write_text(_jrec.dumps(_stamped, indent=2, ensure_ascii=False))
-                print(f"[llm_review] {len(_stamped)} Position-Recommendations:")
-                for _r in _stamped:
-                    print(f"  {_r.get('symbol')}: {_r.get('recommendation')} "
-                          f"— {(_r.get('reason') or '')[:80]}")
-            except Exception as _re:
-                print(f"[llm_review] Recommendations-Fehler: {_re}")
 
         # Insights-Log schreiben
         _append_insights(blacklist, llm_analysis, ghost_rates)

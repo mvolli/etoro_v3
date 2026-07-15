@@ -237,32 +237,12 @@ def _collect_data(db_path: Path) -> dict:
         """)
         open_pos = [dict(r) for r in cur.fetchall()]
 
-        # Signal-Typ + Eröffnungsdatum pro Position (neuester Trade per Instrument)
-        for pos in open_pos:
-            iid = pos.get("instrument_id")
-            cur.execute("""
-                SELECT s.signal_type, t.created_at
-                FROM trades t
-                JOIN signals s ON s.id = t.signal_id
-                WHERE t.instrument_id = ?
-                  AND t.status IN ('ACTIVE', 'CONFIRMED')
-                ORDER BY t.created_at DESC LIMIT 1
-            """, (iid,))
-            row = cur.fetchone()
-            pos["signal_type"] = row["signal_type"] if row else "UNBEKANNT"
-            pos["opened_at"] = row["created_at"] if row else None
-
-            # Tage gehalten
-            if pos.get("opened_at"):
-                try:
-                    opened = datetime.fromisoformat(pos["opened_at"].replace(" ", "T"))
-                    if opened.tzinfo is None:
-                        opened = opened.replace(tzinfo=timezone.utc)
-                    pos["days_held"] = (datetime.now(timezone.utc) - opened).days
-                except Exception:
-                    pos["days_held"] = None
-            else:
-                pos["days_held"] = None
+        # Signal-Typ + Eroeffnungsdatum + days_held — gemeinsames Modul
+        # (fix/position-meta-dedup 2026-07-15: Logik war zwischen
+        # position_review und llm_review dupliziert und divergierte bereits)
+        from bot.core.position_meta import enrich_signal_and_age
+        enrich_signal_and_age(cur, open_pos, statuses=("ACTIVE", "CONFIRMED"),
+                              default_signal_type="UNBEKANNT")
 
         data["positions"] = open_pos
 
