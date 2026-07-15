@@ -589,7 +589,20 @@ def _apply_sector_filter(
 
     for cand in candidates:
         sym = cand["symbol"]
-        sector = SECTOR_MAP.get(sym, "OTHER")
+        # fix/sector-other-falle (2026-07-15): SECTOR_MAP kennt nur ~35
+        # hardcodierte US-Symbole — ALLE anderen (die gesamte EU/Asia/
+        # Global-Rotation) fielen in EIN "OTHER"-Kontingent mit Cap 3.
+        # Die Discovery lieferte damit max. 3 Nicht-US-Kandidaten pro
+        # Lauf, egal wie viele qualifizierte Treffer der Scan fand.
+        # Pseudo-Sektor = Exchange-Suffix (Diversitaet ueber Boersen).
+        sector = SECTOR_MAP.get(sym)
+        if sector is None:
+            if "." in sym:
+                sector = "X_" + sym.rsplit(".", 1)[-1].upper()
+            elif sym.endswith("=X"):
+                sector = "X_FOREX"
+            else:
+                sector = "OTHER"
         count = sector_counts.get(sector, 0)
         if count < max_per_sector:
             filtered.append(cand)

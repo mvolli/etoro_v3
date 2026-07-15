@@ -182,18 +182,35 @@ def _get_signal_category(signal_type: str) -> str:
         Signal-Typen beim Einfuehren auffallen (SIGNAL_CATEGORY pflegen!)
     """
     parts = [p.strip() for p in (signal_type or "").split(",") if p.strip()]
-    cats = {SIGNAL_CATEGORY[p] for p in parts if p in SIGNAL_CATEGORY}
-    unknown = [p for p in parts if p not in SIGNAL_CATEGORY]
+    counts: dict[str, int] = {}
+    unknown: list[str] = []
+    for p in parts:
+        cat = SIGNAL_CATEGORY.get(p)
+        if cat is None:
+            unknown.append(p)
+        else:
+            counts[cat] = counts.get(cat, 0) + 1
     if unknown and parts:
         logger.warning(
             "SignalWorker: Signal-Typ(en) %s nicht in SIGNAL_CATEGORY — "
             "Diversity-Gate fail-open, bitte Kategorie-Map pflegen",
             ",".join(unknown[:3]),
         )
-    if not cats:
+    if not counts:
         return "UNKNOWN"
-    if len(cats) == 1:
-        return cats.pop()
+    if len(counts) == 1:
+        return next(iter(counts))
+    # fix/diversity-majority (2026-07-15): vorher galt JEDER Kombo mit
+    # beiden Familien als MIXED — aber 2xMR+1xTF ist semantisch ein
+    # Mean-Reversion-Entry mit Trend-Bestaetigung. Mehrheitsregel;
+    # nur echter Gleichstand bleibt MIXED. (Live-Portfolio 2026-07-15:
+    # MIXED 6/11 → 2/11, MR 1 → 5 — ehrlichere Kappen-Verteilung.)
+    mr = counts.get("MEAN_REVERSION", 0)
+    tf = counts.get("TREND_FOLLOWING", 0)
+    if mr > tf:
+        return "MEAN_REVERSION"
+    if tf > mr:
+        return "TREND_FOLLOWING"
     return "MIXED"
 
 
@@ -530,7 +547,30 @@ def main() -> None:
                 pass
             return "", ""
 
+        # Diversity-Gate: Kategorie-Verteilung aller offenen Positionen —
+        # VOR dem eligible-Loop, damit der Precheck unten Kandidaten an der
+        # Kappe gar nicht erst in die knappen Slots laesst (fix/diversity-
+        # slot-guard, 2026-07-15).
+        _open_signal_cats: dict[str, int] = {}
+        try:
+            # fix/diversity-fanout (2026-07-14): COUNT(*) zaehlte JOIN-Paare —
+            # DISTINCT api_position_id zaehlt echte Positionen (konsistent zum
+            # Nenner position_count).
+            _cat_rows = db.fetchall("""
+                SELECT sig.signal_type, COUNT(DISTINCT ps.api_position_id) as n
+                FROM portfolio_snapshot ps
+                JOIN trades t ON t.instrument_id = ps.instrument_id AND t.status = 'ACTIVE'
+                JOIN signals sig ON sig.id = t.signal_id
+                GROUP BY sig.signal_type
+            """)
+            for _r in _cat_rows:
+                _cat = _get_signal_category(str(_r["signal_type"]))
+                _open_signal_cats[_cat] = _open_signal_cats.get(_cat, 0) + int(_r["n"])
+        except Exception as _dg_exc:
+            logger.debug("SignalWorker: Diversity-Gate Daten nicht verfuegbar: %s", _dg_exc)
+
         skipped_closed: list[str] = []
+        skipped_diversity: list[str] = []
         eligible: list[tuple[dict, str]] = []  # (signal, symbol) — open market, not blacklisted
     
         for signal in buy_signals:
@@ -588,6 +628,20 @@ def main() -> None:
                 signal_repo.update_signal_status(signal_id, "REJECTED")
                 continue
 
+            # Diversity-Precheck (fix/diversity-slot-guard, 2026-07-15):
+            # Kandidaten, deren Kategorie bereits an der 45%-Kappe ist,
+            # wuerden im Gate deterministisch geblockt — sie duerfen keinen
+            # der 3-5 knappen Slots belegen (Vorfall 2026-07-15: alle 5
+            # Slots an MIXED/TF-Kandidaten verschwendet, 0 Trades trotz
+            # Pool). Skip statt REJECT: gibt ein Exit Kapazitaet frei, ist
+            # das Signal (TTL 24h) sofort wieder Kandidat.
+            _pre_cat = _get_signal_category(signal.get("signal_type", ""))
+            if (_pre_cat != "UNKNOWN" and position_count > 0
+                    and _open_signal_cats.get(_pre_cat, 0) / position_count
+                        >= MAX_CATEGORY_FRACTION):
+                skipped_diversity.append(f"{symbol}({_pre_cat})")
+                continue
+
             # News/Earnings-Risk-Flag (fix/llm-news-flags): AVOID → Signal
             # ueberspringen, bleibt FRESH (Flag-TTL 12h laeuft vor Signal-TTL
             # 24h ab — das Ereignis kann vorbeigehen). Kein REJECT.
@@ -613,6 +667,13 @@ def main() -> None:
 
             eligible.append((signal, symbol))
     
+        if skipped_diversity:
+            logger.info(
+                "SignalWorker: %d Kandidat(en) am Diversity-Precheck uebersprungen "
+                "(Kategorie an 45%%-Kappe, Signal bleibt FRESH): %s",
+                len(skipped_diversity), ", ".join(skipped_diversity[:6]),
+            )
+
         # Sort by boosted score descending — only among OPEN, non-blacklisted
         # signals. The boost (get_score_boost) prioritizes stocks/ETFs over
         # crypto/commodities/indices when raw scores are close, without
@@ -673,26 +734,6 @@ def main() -> None:
             for p in open_positions_raw
         ]
     
-        # Diversity-Gate: Kategorie-Verteilung aller offenen Positionen (einmalig)
-        _open_signal_cats: dict[str, int] = {}
-        try:
-            # fix/diversity-fanout (2026-07-14): COUNT(*) zaehlte JOIN-Paare —
-            # 2 Positionen x 2 ACTIVE-Trades desselben Instruments = 4 statt 2.
-            # DISTINCT api_position_id zaehlt echte Positionen (konsistent zum
-            # Nenner position_count).
-            _cat_rows = db.fetchall("""
-                SELECT sig.signal_type, COUNT(DISTINCT ps.api_position_id) as n
-                FROM portfolio_snapshot ps
-                JOIN trades t ON t.instrument_id = ps.instrument_id AND t.status = 'ACTIVE'
-                JOIN signals sig ON sig.id = t.signal_id
-                GROUP BY sig.signal_type
-            """)
-            for _r in _cat_rows:
-                _cat = _get_signal_category(str(_r["signal_type"]))
-                _open_signal_cats[_cat] = _open_signal_cats.get(_cat, 0) + int(_r["n"])
-        except Exception as _dg_exc:
-            logger.debug("SignalWorker: Diversity-Gate Daten nicht verfuegbar: %s", _dg_exc)
-
         for signal, symbol in candidates:
             instrument_id = signal["instrument_id"]
             conviction = signal.get("conviction", "MEDIUM")
@@ -913,6 +954,11 @@ def main() -> None:
                 cash_estimate -= buy_amount
                 position_count += 1
                 open_positions.append({"symbol": symbol, "amount_usd": buy_amount})
+                # Kategorie-Projektion aktualisieren, damit das Gate fuer die
+                # naechsten Kandidaten dieses Laufs den neuen Stand sieht
+                _appr_cat = _get_signal_category(signal.get("signal_type", ""))
+                if _appr_cat != "UNKNOWN":
+                    _open_signal_cats[_appr_cat] = _open_signal_cats.get(_appr_cat, 0) + 1
     
                 logger.info(
                     "SignalWorker: APPROVED trade #%d — %s %s $%.2f (conviction=%s score=%.2f signal_price=%.4f)",

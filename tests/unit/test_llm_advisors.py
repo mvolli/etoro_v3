@@ -328,3 +328,20 @@ def test_get_position_units_fails_open_on_api_error():
         raise RuntimeError('API down')
     client.get_portfolio = _boom
     assert EToroClient.get_position_units(client, 1) is None
+
+
+# ── Mehrheitsregel fuer Diversity-Kategorien (fix/diversity-majority) ────────
+
+def test_category_majority_mr_wins():
+    # 2x Mean-Reversion + 1x Trend-Following → MR-Entry mit Trend-Bestaetigung
+    assert _get_signal_category(
+        'RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING'
+    ) == 'MEAN_REVERSION'
+    # 3x MR + 1x TF
+    assert _get_signal_category(
+        'BB_LOWER_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING'
+    ) == 'MEAN_REVERSION'
+
+
+def test_category_tie_stays_mixed():
+    assert _get_signal_category('RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20') == 'MIXED'
