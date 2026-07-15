@@ -1,0 +1,120 @@
+"""fix/ghost-defer-idempotent (2026-07-16): Post-flight-Status-Auswertung.
+
+Testet die reine Entscheidungslogik resolve_deferred_action sowie
+get_order_status-Klassifikation (Transportfehler vs. echter Order-Status)
+mit einem Fake-Client — KEINE Live-DB, KEINE Netzwerk-Calls.
+"""
+import types
+
+from bot.api.client import APIError, EToroClient
+from bot.workers.execution_worker import DEFER_CAP, resolve_deferred_action
+
+
+# ── get_order_status via Fake-Client ─────────────────────────────────────────
+
+class _FakeResp:
+    def __init__(self, payload):
+        self._payload = payload
+
+    def raise_for_status(self):
+        pass
+
+    def json(self):
+        return self._payload
+
+
+def _api_error(status_code):
+    exc = APIError.__new__(APIError)
+    exc.status_code = status_code
+    return exc
+
+
+def _get_status(payload=None, exc=None):
+    fake = types.SimpleNamespace()
+    fake.config = types.SimpleNamespace(base_url="https://api.example.invalid/")
+
+    def _get_raw(url):
+        if exc is not None:
+            raise exc
+        return _FakeResp(payload)
+
+    fake._get_raw = _get_raw
+    return EToroClient.get_order_status(fake, 42)
+
+
+def test_executed_with_positions():
+    r = _get_status({"statusID": "Executed", "positions": [{"positionID": 7}],
+                     "instrumentID": 22})
+    assert r["status"] == "executed"
+    assert r["positions"] == [{"positionID": 7}]
+    assert r["transport_error"] is False
+
+
+def test_rejected_carries_reason():
+    r = _get_status({"statusID": "Rejected", "rejectionReason": "Insufficient funds"})
+    assert r["status"] == "rejected"
+    assert r["rejection_reason"] == "Insufficient funds"
+
+
+def test_unknown_status_id_defaults_to_failed():
+    r = _get_status({"statusID": "TotallyNewStatus"})
+    assert r["status"] == "failed"
+    assert r["transport_error"] is False
+
+
+def test_404_is_timing_issue_pending():
+    r = _get_status(exc=_api_error(404))
+    assert r["status"] == "pending"
+    assert r["is_timing_issue"] is True
+
+
+def test_http_5xx_is_transport_error_not_failed():
+    r = _get_status(exc=_api_error(503))
+    assert r["status"] == "unknown"
+    assert r["transport_error"] is True
+
+
+def test_network_error_is_transport_error():
+    r = _get_status(exc=RuntimeError("connection reset"))
+    assert r["status"] == "unknown"
+    assert r["transport_error"] is True
+
+
+# ── resolve_deferred_action Matrix ───────────────────────────────────────────
+
+def test_action_executed_with_position_is_active():
+    pf = {"status": "executed", "positions": [{"positionID": 1}]}
+    assert resolve_deferred_action(pf, 1) == "ACTIVE"
+
+
+def test_action_executed_without_position_defers_then_ghosts():
+    pf = {"status": "executed", "positions": None}
+    assert resolve_deferred_action(pf, 1) == "DEFER"
+    assert resolve_deferred_action(pf, DEFER_CAP) == "GHOST_FAILED"
+
+
+def test_action_pending_defers_then_ghosts():
+    pf = {"status": "pending", "is_timing_issue": False}
+    assert resolve_deferred_action(pf, 0) == "DEFER"
+    assert resolve_deferred_action(pf, DEFER_CAP) == "GHOST_FAILED"
+
+
+def test_action_404_means_repost():
+    pf = {"status": "pending", "is_timing_issue": True}
+    # 404 = eToro kennt die Order nicht -> neuer POST ist sicher, kein Defer
+    assert resolve_deferred_action(pf, 1) == "REPOST"
+    assert resolve_deferred_action(pf, DEFER_CAP + 5) == "REPOST"
+
+
+def test_action_rejected_and_failed():
+    assert resolve_deferred_action({"status": "rejected"}, 1) == "FAILED_REJECTED"
+    assert resolve_deferred_action({"status": "failed"}, 1) == "FAILED"
+
+
+def test_action_transport_error_never_marks_failed():
+    pf = {"status": "unknown", "transport_error": True}
+    assert resolve_deferred_action(pf, 1) == "DEFER"
+    assert resolve_deferred_action(pf, DEFER_CAP) == "GHOST_FAILED"
+    # Belt & braces: selbst ein "failed" MIT transport_error darf nie FAILED werden
+    pf2 = {"status": "failed", "transport_error": True}
+    assert resolve_deferred_action(pf2, 1) == "DEFER"

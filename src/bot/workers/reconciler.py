@@ -727,7 +727,7 @@ def main() -> int:
                     (s for s in all_snapshots if s["api_position_id"] == pos_id),
                     None,
                 )
-                if snap and trade.get("entry_price") is None:
+                if snap and not trade.get("entry_price"):  # None ODER 0.0 (Post-flight schrieb frueher 0.0)
                     open_price = snap.get("open_price")
                     if open_price:
                         try:

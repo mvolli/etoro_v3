@@ -174,6 +174,75 @@ def classify_requeue(trade: dict, now: datetime | None = None) -> bool:
     return age is not None and 0 <= age <= REQUEUE_MAX_AGE_MIN
 
 
+# ── fix/ghost-defer-idempotent (2026-07-16) ──────────────────────────────────
+# Ein DEFER liess bisher die orderId der bereits platzierten Order ungenutzt:
+# der naechste Zyklus POSTete blind eine NEUE Order. Wenn die alte spaeter
+# fuellte, hatten wir zwei Positionen fuer ein Sizing (Doppel-Fill) — die
+# letzte strukturelle Ghost-/Duplikat-Quelle. Jetzt wird eine vorhandene
+# orderId beim Wiederanlauf zuerst per GET /orders/{id} aufgeloest; neu
+# gePOSTet wird NUR, wenn eToro die Order nachweislich nicht kennt (404).
+DEFER_CAP = 3  # max. DEFER-Zyklen pro Order (Spiegel des Portfolio-Polling-Caps)
+
+_SCALP_SIGNAL_TYPES = frozenset({
+    "BB_LOWER_RSI_OVERSOLD", "BB_EXTREME_RSI_OVERSOLD",
+    "RSI_EXTREME_OVERSOLD", "BB_LOW_MACD_IMPROVING",
+})
+
+
+def resolve_deferred_action(pf: dict, defer_count: int, cap: int = DEFER_CAP) -> str:
+    """Pure decision: was passiert mit einem deferten Trade, dessen fruehere
+    Order per GET /orders/{id} aufgeloest wurde?
+
+    Rueckgabe:
+      ACTIVE          — executed + Position vorhanden -> Trade bestaetigen
+      DEFER           — pending / Zustand unklar (Transportfehler) -> warten
+      REPOST          — eToro kennt die orderId nicht (404) -> neuer POST sicher
+      FAILED_REJECTED — eToro hat abgelehnt (rejectionReason)
+      FAILED          — eToro meldet Failed/Expired (echter API-Status)
+      GHOST_FAILED    — Defer-Cap erreicht ohne Aufloesung -> Ghost-Maschinerie
+    """
+    status = pf.get("status")
+    below_cap = defer_count < cap
+    if status == "executed":
+        if pf.get("positions"):
+            return "ACTIVE"
+        return "DEFER" if below_cap else "GHOST_FAILED"
+    if status == "pending":
+        if pf.get("is_timing_issue"):
+            return "REPOST"
+        return "DEFER" if below_cap else "GHOST_FAILED"
+    if status == "rejected":
+        return "FAILED_REJECTED"
+    if status == "failed" and not pf.get("transport_error"):
+        return "FAILED"
+    # unknown / Transportfehler: Order-Zustand unbekannt — NIE blind neu POSTen
+    return "DEFER" if below_cap else "GHOST_FAILED"
+
+
+def _apply_strategy_tag(db, trade: dict, api_position_id: str, symbol: str) -> None:
+    """Scalp/Swing-Tagging fuers Trailing (best effort, wirft nie)."""
+    import logging as _logging
+    try:
+        _sig_type = ""
+        _signal_id = trade.get("signal_id")
+        if _signal_id:
+            _sig_row = db.fetchone(
+                "SELECT signal_type FROM signals WHERE id = ?", (_signal_id,)
+            )
+            if _sig_row:
+                _sig_type = str(_sig_row["signal_type"] or "")
+        _strategy = (
+            "scalp" if any(s in _sig_type for s in _SCALP_SIGNAL_TYPES) else "swing"
+        )
+        from bot.core.trailing_stop import set_strategy as _set_strategy
+        _set_strategy(db, api_position_id, symbol, _strategy)
+    except Exception as _strat_exc:
+        _logging.getLogger(__name__).debug(
+            "ExecutionWorker: strategy-tagging fehlgeschlagen fuer %s — %s",
+            symbol, _strat_exc,
+        )
+
+
 def main() -> None:
     # ── Worker lock: prevent overlapping cron invocations ────────────────────
     from bot.core.worker_lock import worker_lock
@@ -345,6 +414,99 @@ def main() -> None:
             processed_count += 1
             trade_repo.update_status(trade_id, "SUBMITTING", submitted_at=_utcnow())
     
+            # a2. Deferred-Order-Resolution (fix/ghost-defer-idempotent):
+            # Traegt der Trade bereits eine orderId aus einem frueheren POST,
+            # wird DIESE Order aufgeloest statt blind eine zweite zu platzieren.
+            # Laeuft bewusst VOR den Gates — eine platzierte Order aufzuloesen
+            # ist Buchhaltung, keine neue Risiko-Entscheidung.
+            _prev_order_id = str(trade.get("order_id") or "").strip()
+            _prev_defers = int(trade.get("requeue_count") or 0)
+            if _prev_order_id.isdigit() and _prev_defers > 0:
+                pf_prev = client.get_order_status(int(_prev_order_id), env="real")
+                _action = resolve_deferred_action(pf_prev, _prev_defers, DEFER_CAP)
+                logger.info(
+                    "ExecutionWorker: trade #%d deferred-order-check orderId=%s status=%s -> %s",
+                    trade_id, _prev_order_id, pf_prev.get("status"), _action,
+                )
+                if _action == "ACTIVE":
+                    pos = (pf_prev.get("positions") or [{}])[0]
+                    api_position_id = str(
+                        pos.get("positionID") or pos.get("positionId") or _prev_order_id
+                    )
+                    trade_repo.update_status(
+                        trade_id, "ACTIVE",
+                        api_position_id=api_position_id,
+                        order_id=_prev_order_id,
+                        entry_price=None,  # Reconciler backfillt openRate
+                        confirmed_at=_utcnow(),
+                    )
+                    trade_repo.reset_ghost_failures(instrument_id)
+                    _apply_strategy_tag(db, trade, api_position_id, symbol)
+                    filled_count += 1
+                    log_repo.write(
+                        "INFO", "execution_worker",
+                        f"Trade #{trade_id} ACTIVE: {symbol} BUY ${amount_usd:.2f} "
+                        f"(deferte Order aufgeloest, positionID={api_position_id})",
+                        {"trade_id": trade_id, "symbol": symbol,
+                         "order_id": _prev_order_id, "api_position_id": api_position_id},
+                    )
+                    _post('post_trade_filled_embed',
+                        symbol=symbol, direction='BUY', amount_usd=amount_usd,
+                        position_id=api_position_id, entry_price=0.0,
+                        sl_pct=stop_loss_pct, dry_run=False,
+                    )
+                    continue
+                if _action == "DEFER":
+                    trade_repo.update_status(
+                        trade_id, "APPROVED", requeue_count=_prev_defers + 1,
+                    )
+                    processed_count -= 1
+                    continue
+                if _action in ("FAILED_REJECTED", "FAILED"):
+                    _reason = (
+                        f"Order rejected: {pf_prev.get('rejection_reason') or 'unknown'}"
+                        if _action == "FAILED_REJECTED"
+                        else "Order failed: statusID=Failed/Expired (deferte Order)"
+                    )
+                    trade_repo.update_status(
+                        trade_id, "FAILED", rejection_reason=_reason[:200],
+                    )
+                    log_repo.write(
+                        "WARN", "execution_worker",
+                        f"Trade #{trade_id} {_action}: {symbol} — {_reason}",
+                        {"symbol": symbol, "order_id": _prev_order_id},
+                    )
+                    _post('post_trade_failed_embed',
+                        symbol=symbol, direction='BUY', amount_usd=amount_usd,
+                        error=_reason[:150], dry_run=False,
+                    )
+                    failed_count += 1
+                    continue
+                if _action == "GHOST_FAILED":
+                    ghost_count, bl_status = trade_repo.record_ghost_failure(instrument_id)
+                    _reason = (
+                        f"Ghost order: orderId={_prev_order_id} nach {_prev_defers} Defers "
+                        f"nicht aufgeloest (letzter Status: {pf_prev.get('status')}, "
+                        f"failure #{ghost_count}, blacklist: {bl_status})"
+                    )
+                    trade_repo.update_status(
+                        trade_id, "FAILED", rejection_reason=_reason[:200],
+                    )
+                    log_repo.write(
+                        "WARN", "execution_worker",
+                        f"Trade #{trade_id} GHOST ORDER (Defer-Cap): {symbol} orderId={_prev_order_id}",
+                        {"symbol": symbol, "order_id": _prev_order_id,
+                         "ghost_count": ghost_count, "blacklist_status": bl_status},
+                    )
+                    _post('post_trade_failed_embed',
+                        symbol=symbol, direction='BUY', amount_usd=amount_usd,
+                        error=_reason[:150], dry_run=False,
+                    )
+                    failed_count += 1
+                    continue
+                # _action == "REPOST": 404 — eToro kennt die Order nicht (mehr).
+                # Normaler Flow POSTet frisch; alle Gates greifen wie gewohnt.
+
             # b. Double-safety regime check (V5: NORMAL / CAUTION / DEFENSIVE / CRITICAL)
             regime = state_repo.get_regime()
             if regime in ("DEFENSIVE", "CRITICAL"):
@@ -606,12 +768,36 @@ def main() -> None:
                         continue
     
                     if pf["status"] == "pending":
+                        # fix/ghost-defer-idempotent: Cap wie im Fallback-Pfad —
+                        # ohne Cap deferte eine ewig-pendende Order unbegrenzt.
+                        _pend_defers = int(trade.get("requeue_count") or 0)
+                        if _pend_defers >= DEFER_CAP:
+                            ghost_count, bl_status = trade_repo.record_ghost_failure(instrument_id)
+                            _reason = (
+                                f"Ghost order: orderId={api_position_id} dauerhaft pending "
+                                f"({_pend_defers} Defers, failure #{ghost_count}, blacklist: {bl_status})"
+                            )
+                            trade_repo.update_status(
+                                trade_id, "FAILED", rejection_reason=_reason[:200],
+                            )
+                            log_repo.write(
+                                "WARN", "execution_worker",
+                                f"Trade #{trade_id} GHOST ORDER (pending-Cap): {symbol} orderId={api_position_id}",
+                                {"symbol": symbol, "order_id": api_position_id, "ghost_count": ghost_count},
+                            )
+                            _post('post_trade_failed_embed',
+                                symbol=symbol, direction='BUY', amount_usd=amount_usd,
+                                error=_reason[:150], dry_run=False,
+                            )
+                            failed_count += 1
+                            continue
                         logger.info(
-                            "ExecutionWorker: trade #%d DEFER — order pending (market closed?)", trade_id,
+                            "ExecutionWorker: trade #%d DEFER %d/%d — order pending (market closed?)",
+                            trade_id, _pend_defers + 1, DEFER_CAP,
                         )
                         trade_repo.update_status(
                             trade_id, "APPROVED",
-                            requeue_count=int(trade.get("requeue_count") or 0) + 1,
+                            requeue_count=_pend_defers + 1,
                         )
                         processed_count -= 1
                         continue  # retry im nächsten Zyklus (15min)
@@ -620,13 +806,14 @@ def main() -> None:
                         if pf["positions"] and len(pf["positions"]) > 0:
                             # Position confirmed by API — skip portfolio polling
                             pos = pf["positions"][0]
+                            _order_ref = api_position_id  # orderId sichern, BEVOR die Variable zur positionID wird
                             api_position_id = str(pos.get("positionID") or pos.get("positionId") or api_position_id)
-                            entry_price = 0.0
+                            entry_price = 0.0  # nur Anzeige — DB bekommt None, Reconciler backfillt openRate
                             trade_repo.update_status(
                                 trade_id, "ACTIVE",
                                 api_position_id=api_position_id,
-                                order_id=api_position_id,
-                                entry_price=entry_price,
+                                order_id=_order_ref,
+                                entry_price=None,
                                 confirmed_at=_utcnow(),
                             )
                             trade_repo.reset_ghost_failures(instrument_id)
@@ -685,16 +872,18 @@ def main() -> None:
                                 if _pf_retry.get("positions") and len(_pf_retry["positions"]) > 0:
                                     # Position nach Retry erschienen
                                     pos = _pf_retry["positions"][0]
+                                    _order_ref = api_position_id
                                     api_position_id = str(pos.get("positionID") or pos.get("positionId") or api_position_id)
-                                    entry_price = 0.0
+                                    entry_price = 0.0  # nur Anzeige — DB bekommt None (Reconciler-Backfill)
                                     trade_repo.update_status(
                                         trade_id, "ACTIVE",
                                         api_position_id=api_position_id,
-                                        order_id=api_position_id,
-                                        entry_price=entry_price,
+                                        order_id=_order_ref,
+                                        entry_price=None,
                                         confirmed_at=_utcnow(),
                                     )
                                     trade_repo.reset_ghost_failures(instrument_id)
+                                    _apply_strategy_tag(db, trade, api_position_id, symbol)
                                     filled_count += 1
                                     logger.info(
                                         "ExecutionWorker: trade #%d EXECUTED (post-flight nach %ds Retry) — %s $%.2f @ %.6f (positionID=%s)",

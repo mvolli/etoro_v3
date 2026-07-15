@@ -1094,12 +1094,13 @@ class EToroClient:
                     "is_timing_issue": True,
                 }
             return {
-                "status": "failed",
+                "status": "unknown",  # Transportfehler != Order-Failure — Worker faellt auf Portfolio-Polling zurueck
                 "order_id": order_id,
                 "instrument_id": None,
                 "positions": None,
                 "rejection_reason": None,
                 "raw": {"error": f"HTTP {exc.status_code}", "body": str(exc)},
+                "transport_error": True,
             }
         except requests.HTTPError as exc:
             # raise_for_status() wirft HTTPError (z.B. 404/500/503)
@@ -1115,21 +1116,23 @@ class EToroClient:
                     "is_timing_issue": True,
                 }
             return {
-                "status": "failed",
+                "status": "unknown",  # Transportfehler != Order-Failure — Worker faellt auf Portfolio-Polling zurueck
                 "order_id": order_id,
                 "instrument_id": None,
                 "positions": None,
                 "rejection_reason": None,
                 "raw": {"error": f"HTTP {status_code}", "body": str(exc)},
+                "transport_error": True,
             }
         except Exception as exc:
             return {
-                "status": "failed",
+                "status": "unknown",  # Netzfehler: Order-Zustand unbekannt, NIE als failed buchen
                 "order_id": order_id,
                 "instrument_id": None,
                 "positions": None,
                 "rejection_reason": None,
                 "raw": {"error": f"Network error: {exc}"},
+                "transport_error": True,
             }
 
         # Parse response — eBull status mapping (verified via app/providers/implementations/etoro_broker.py)
@@ -1164,6 +1167,7 @@ class EToroClient:
             "rejection_reason": rejection_reason,
             "raw": raw,
             "is_timing_issue": False,
+            "transport_error": False,
         }
 
     # ------------------------------------------------------------------
