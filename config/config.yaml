@@ -29,10 +29,10 @@ trading:
   cash_target_min_pct: 15.0   # Minimum idle cash as % of portfolio equity
   cash_target_max_pct: 30.0   # Maximum idle cash as % of portfolio equity (soft ceiling)
   cash_emergency_pct: 10.0    # Hard floor — no new buys below this cash level
-  deployment_boost: 1.0       # fix/cash-deployment (2026-07-15): >1.0 boostet Positionsgroessen
-                              # bei Cash-Ueberschuss (Gates: NORMAL-Regime + Makro-Scalar 1.0 +
-                              # kein News-Flag; hart geclampt 1.5). Auf 1.25 erhoehen, sobald
-                              # trailing.stale_exit enabled und bewaehrt ist.
+  deployment_boost: 1.25      # fix/cash-deployment (2026-07-15): boostet Positionsgroessen bei
+                              # Cash-Ueberschuss (Gates: NORMAL-Regime + Makro-Scalar 1.0 +
+                              # kein News-Flag; hart geclampt 1.5). SCHARF seit 2026-07-15
+                              # zusammen mit stale_exit (User-Entscheid, engmaschige Beobachtung).
 
 risk:
   daily_loss_limit_pct: 5.0   # Auto-kill-switch: intraday equity drop from day start (%; 0 = disabled)
@@ -64,7 +64,7 @@ sizing:                       # Position size as % of portfolio equity
 
 trailing:                     # Dynamic profit-taking (runs each risk_worker cycle on LIVE PnL)
   stale_exit:                 # fix/stale-exit (2026-07-15): totes Kapital freisetzen
-    enabled: false            # Rollout: 2-3 Tage Dry-Log ("STALE-Kandidat" im risk_worker-Log), dann true
+    enabled: true             # SCHARF seit 2026-07-15 (User-Entscheid: sofort live, engmaschige Beobachtung)
     min_days: 10              # Kalendertage seit openDateTime (~7 Handelstage)
     pnl_band_pct: 1.5         # |PnL| < Band = seitwaerts (disjunkt zu BE 3.0 / SL)
     min_peak_pct: 2.0         # Peak < Momentum-Fade-Arm-Schwelle: Position lief nie
