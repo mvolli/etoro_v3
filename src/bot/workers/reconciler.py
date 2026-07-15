@@ -1227,6 +1227,78 @@ def main() -> int:
             positions_summary=positions_for_embed,
          )
     
+        # ── 13b. 30-min-Portfolio-Heartbeat (fix/monitor-fold, 2026-07-15) ───────
+        # Uebernommen vom aufgeloesten monitor_worker: der Reconciler hat hier
+        # die frischesten Daten (AVAILABLE_CASH statt equity-exposure-
+        # Schaetzung). Zeitbasiertes Gate statt Tick-Modulo — robust gegen
+        # Lock-Skips. Worker-Staleness-Checks NICHT uebernommen: der
+        # Kill-Switch-Watchdog ist die alleinige (externe, selbstheilende)
+        # Instanz. WICHTIG: keine prints — Reconciler-stdout geht an Discord.
+        try:
+            from datetime import datetime as _hb_dt, timezone as _hb_tz
+            _hb_due = True
+            _hb_last = state_repo.get("HEARTBEAT_EMBED_AT") or ""
+            if _hb_last:
+                _last_dt = _hb_dt.fromisoformat(_hb_last)
+                if _last_dt.tzinfo is None:
+                    _last_dt = _last_dt.replace(tzinfo=_hb_tz.utc)
+                _hb_due = (_hb_dt.now(_hb_tz.utc) - _last_dt).total_seconds() >= 29 * 60
+            if _hb_due:
+                state_repo.set("HEARTBEAT_EMBED_AT", _hb_dt.now(_hb_tz.utc).isoformat())
+                try:
+                    _tick = int(state_repo.get("MONITOR_TICK") or "0") + 1
+                    state_repo.set("MONITOR_TICK", str(_tick))
+                except Exception:
+                    _tick = 0
+                _cash_pct = (cash_val / current_equity * 100) if current_equity > 0 else 0.0
+                _severity = ("CRITICAL" if drawdown_pct >= 8.0
+                             else "WARNING" if drawdown_pct >= 4.0 else "OK")
+                _discord(
+                    "post_heartbeat_embed",
+                    tick=_tick,
+                    equity=current_equity,
+                    cash=cash_val,
+                    position_count=position_count,
+                    drawdown_pct=drawdown_pct,
+                    severity=_severity,
+                    cb_active=regime in ("DEFENSIVE", "CRITICAL"),
+                    elapsed_s=0.0,
+                    cb_status={"regime": regime, "drawdown_pct": drawdown_pct,
+                               "peak_equity": peak_equity},
+                )
+                # Cash-Emergency-Floor (aus monitor_worker uebernommen, aber
+                # gegen den ECHTEN Cash-Wert AVAILABLE_CASH statt Schaetzung)
+                _emergency_pct = float(cfg.get("trading", {}).get("cash_emergency_pct", 10.0))
+                if current_equity > 0 and _cash_pct < _emergency_pct:
+                    log_repo.write("ERROR", WORKER_NAME,
+                                   f"Cash-Emergency: {_cash_pct:.1f}%",
+                                   {"cash": cash_val, "equity": current_equity})
+                    _discord(
+                        "post_alert_embed",
+                        title="🚨 Cash-Emergency-Floor verletzt",
+                        description=(
+                            f"Cash {_cash_pct:.1f}% liegt unter dem {_emergency_pct:.0f}%-Hard-Floor "
+                            f"(${cash_val:.2f} / ${current_equity:.2f}). Der 15%-Soft-Floor haette "
+                            f"Buys laengst blockieren muessen — Positionsgroessen/Reconcile pruefen!"
+                        ),
+                        severity="CRITICAL",
+                    )
+                # Regime-Alert (DEFENSIVE/CRITICAL) — 1x pro 30-min-Fenster
+                if regime in ("DEFENSIVE", "CRITICAL"):
+                    _risk_scalar = float(state_repo.get("RISK_SCALAR") or "0.5")
+                    _discord(
+                        "post_alert_embed",
+                        title=f"{'🔴' if regime == 'CRITICAL' else '🟠'} {regime}-Regime aktiv",
+                        description=(
+                            f"Drawdown: **{drawdown_pct:.2f}%** | risk_scalar={_risk_scalar:.2f}\n"
+                            f"Equity: **${current_equity:.2f}** | Peak: **${peak_equity:.2f}**\n"
+                            f"{'Nur VERY_HIGH Signale' if regime == 'CRITICAL' else 'Nur HIGH+ Signale'} — kein Pyramiding."
+                        ),
+                        severity="CRITICAL" if regime == "CRITICAL" else "WARNING",
+                    )
+        except Exception as _hb_exc:
+            logger.debug(f"[{WORKER_NAME}] Heartbeat-Embed uebersprungen: {_hb_exc}")
+
         # ── 14. Persist structured log entry ─────────────────────────────────────
         log_repo.write(
             "INFO",

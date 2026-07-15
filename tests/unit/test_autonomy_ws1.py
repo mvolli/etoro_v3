@@ -112,13 +112,13 @@ def test_corrupt_tripped_at_fails_safe(ks):
 
 # ── 1b. Monitor-Heartbeat ─────────────────────────────────────────────────────
 
-def test_monitor_worker_is_heartbeat_monitored():
+def test_heartbeat_intervals_cover_core_workers():
+    # fix/monitor-fold (2026-07-15): monitor_worker wurde in den Reconciler
+    # gefaltet — 6 Kern-Worker bleiben ueberwacht (extern via Watchdog).
     from bot.core.heartbeat import EXPECTED_INTERVALS_MIN
-    assert EXPECTED_INTERVALS_MIN.get("monitor_worker") == 30
-    # all 7 workers covered — no blind spot
     assert set(EXPECTED_INTERVALS_MIN) == {
         "data_worker", "risk_worker", "reconciler", "signal_worker",
-        "execution_worker", "monitor_worker", "discovery_worker",
+        "execution_worker", "discovery_worker",
     }
 
 

@@ -2,9 +2,12 @@
 """Worker heartbeat — dead-man's switch support (fix/autonomy-hardening).
 
 Every worker records a LAST_RUN_<NAME> timestamp in system_state at the
-start of each successful (lock-acquired) cycle. The monitor worker calls
-get_stale_workers() and raises a CRITICAL Discord alert when any worker
-has been silent for longer than STALE_FACTOR × its expected interval.
+start of each successful (lock-acquired) cycle. Staleness wird extern vom
+Kill-Switch-Watchdog (bash, 5-min-Cron, Self-Healing) geprueft — dessen
+Schwellen sind STALE_FACTOR x Intervall und muessen mit dieser Tabelle
+synchron bleiben. get_stale_workers() bleibt als testbare Library-Funktion.
+(fix/monitor-fold 2026-07-15: der monitor_worker wurde in den Reconciler
+gefaltet; der doppelte interne Staleness-Check entfiel.)
 
 Pure logic + thin state_repo wrapper — unit-testable without DB.
 """
@@ -19,11 +22,6 @@ EXPECTED_INTERVALS_MIN: dict[str, int] = {
     "reconciler": 5,
     "signal_worker": 15,
     "execution_worker": 15,
-    # fix/monitor-self-heartbeat: der Monitor prueft alle anderen, war aber
-    # selbst unueberwacht (blinder Fleck des Dead-Man's-Switch). Er schreibt
-    # jetzt einen eigenen Heartbeat; Staleness wird zusaetzlich extern vom
-    # Kill-Switch-Watchdog (5-min-Cron) geprueft.
-    "monitor_worker": 30,
     "discovery_worker": 120,
 }
 

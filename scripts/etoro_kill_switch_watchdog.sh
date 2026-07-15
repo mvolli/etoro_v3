@@ -93,7 +93,6 @@ HEARTBEAT_SQL_BASE="
                    WHEN 'LAST_RUN_RECONCILER'       THEN 15
                    WHEN 'LAST_RUN_SIGNAL_WORKER'    THEN 45
                    WHEN 'LAST_RUN_EXECUTION_WORKER' THEN 45
-                   WHEN 'LAST_RUN_MONITOR_WORKER'   THEN 90
                    WHEN 'LAST_RUN_DISCOVERY_WORKER' THEN 360
                END AS lim
         FROM system_state
