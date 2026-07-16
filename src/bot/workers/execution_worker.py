@@ -219,6 +219,57 @@ def resolve_deferred_action(pf: dict, defer_count: int, cap: int = DEFER_CAP) ->
     return "DEFER" if below_cap else "GHOST_FAILED"
 
 
+_MIN_AMOUNT_RE = re.compile(r"MinimumPositionAmount:\s*(\d+(?:\.\d+)?)")
+
+
+def parse_min_position_amount(reason: str | None) -> float | None:
+    """Extrahiert das Broker-Minimum aus eToro-Fehler 720 (pure, testbar)."""
+    if not reason:
+        return None
+    m = _MIN_AMOUNT_RE.search(reason)
+    return float(m.group(1)) if m else None
+
+
+def is_internal_only_error(reason: str | None) -> bool:
+    """eToro-Fehler 814: Instrument nur intern sichtbar, nie handelbar (pure)."""
+    return bool(reason) and "visible internal only" in reason
+
+
+def _learn_from_rejection(db, instrument_id, symbol: str, reason: str | None) -> None:
+    """Aus Order-Ablehnungen lernen (fix/order-error-learning 2026-07-16):
+    720 -> instruments.min_position_amount (signal_worker sized dann gar nicht
+    erst darunter), 814 -> is_tradable=0 (Discovery/Signal filtern darauf).
+    Best effort, wirft nie."""
+    import logging as _logging
+    log = _logging.getLogger(__name__)
+    try:
+        broker_min = parse_min_position_amount(reason)
+        if broker_min:
+            db.execute(
+                "UPDATE instruments SET min_position_amount = ? WHERE instrument_id = ?",
+                (broker_min, instrument_id),
+            )
+            log.info(
+                "ExecutionWorker: %s Broker-Minimum $%.0f gelernt (eToro 720)",
+                symbol, broker_min,
+            )
+        if is_internal_only_error(reason):
+            db.execute(
+                "UPDATE instruments SET is_tradable = 0, "
+                "tradability_checked_at = datetime('now') WHERE instrument_id = ?",
+                (instrument_id,),
+            )
+            log.info(
+                "ExecutionWorker: %s dauerhaft nicht handelbar (eToro 814) — is_tradable=0",
+                symbol,
+            )
+    except Exception as exc:
+        log.warning(
+            "ExecutionWorker: learn_from_rejection fehlgeschlagen fuer %s: %s",
+            symbol, exc,
+        )
+
+
 def _apply_strategy_tag(db, trade: dict, api_position_id: str, symbol: str) -> None:
     """Scalp/Swing-Tagging fuers Trailing (best effort, wirft nie)."""
     import logging as _logging
@@ -463,6 +514,10 @@ def main() -> None:
                     processed_count -= 1
                     continue
                 if _action in ("FAILED_REJECTED", "FAILED"):
+                    if _action == "FAILED_REJECTED":
+                        _learn_from_rejection(
+                            db, instrument_id, symbol, pf_prev.get("rejection_reason"),
+                        )
                     _reason = (
                         f"Order rejected: {pf_prev.get('rejection_reason') or 'unknown'}"
                         if _action == "FAILED_REJECTED"
@@ -731,6 +786,7 @@ def main() -> None:
                             "ExecutionWorker: trade #%d REJECTED: %s",
                             trade_id, pf["rejection_reason"] or "unknown",
                         )
+                        _learn_from_rejection(db, instrument_id, symbol, pf.get("rejection_reason"))
                         trade_repo.update_status(
                             trade_id,
                             "FAILED",

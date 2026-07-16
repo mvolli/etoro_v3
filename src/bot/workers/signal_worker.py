@@ -864,6 +864,32 @@ def main() -> None:
                     f"{symbol}: Groesse ${buy_amount:.2f} < Min ${min_buy:.0f} (Kelly/CAUTION)"
                 )
                 continue
+
+            # Broker-Minimum (fix/order-error-learning 2026-07-16): eToro-Fehler
+            # 720 nennt pro Instrument ein Mindest-Positionsvolumen (NATGAS:
+            # $1000 bei x1); der execution_worker lernt den Wert aus der
+            # Ablehnung in instruments.min_position_amount. Unterhalb wird gar
+            # nicht erst approved — Groesse wird NIE hochskaliert (Sizing-Treue).
+            _broker_min = None
+            try:
+                _min_row = signal_repo.db.fetchone(
+                    "SELECT min_position_amount FROM instruments WHERE instrument_id = ?",
+                    (signal.get("instrument_id"),),
+                )
+                if _min_row and _min_row["min_position_amount"]:
+                    _broker_min = float(_min_row["min_position_amount"])
+            except Exception:
+                _broker_min = None  # Spalte fehlt (aeltere Test-DBs) -> fail-open
+            if _broker_min and buy_amount < _broker_min:
+                logger.info(
+                    "SignalWorker: %s buy_amount $%.2f < Broker-Minimum $%.0f — Signal REJECTED",
+                    symbol, buy_amount, _broker_min,
+                )
+                signal_repo.update_signal_status(signal_id, "REJECTED")
+                blocked_reasons.append(
+                    f"{symbol}: ${buy_amount:.2f} < Broker-Min ${_broker_min:.0f} (eToro 720)"
+                )
+                continue
     
             # c. Run master buy gate V5
             # fix/sl-gate-wiring: entry_price/sl_price wurden als 0 übergeben —

@@ -147,3 +147,37 @@ def test_action_transport_error_never_marks_failed():
     # Belt & braces: selbst ein "failed" MIT transport_error darf nie FAILED werden
     pf2 = {"status": "failed", "transport_error": True}
     assert resolve_deferred_action(pf2, 1) == "DEFER"
+
+
+# ── fix/order-error-learning (2026-07-16) ────────────────────────────────────
+
+from bot.workers.execution_worker import (
+    is_internal_only_error,
+    parse_min_position_amount,
+)
+
+
+def test_error_message_becomes_rejection_reason():
+    # Live-Befund: statusID=4 traegt errorCode/errorMessage, rejectionReason leer
+    r = _get_status({
+        "statusID": 4, "errorCode": 720,
+        "errorMessage": "Error opening position - ... MinimumPositionAmount: 1000 (Dollars)",
+    })
+    assert r["status"] == "rejected"
+    assert r["rejection_reason"].startswith("eToro 720:")
+    assert r["error_code"] == 720
+
+
+def test_parse_min_position_amount():
+    msg = ("eToro 720: Error opening position - Initial Leveraged Position "
+           "Amount is under the minimum defined Leveraged Amount in the system. "
+           "leveraged InitialPositionAmount: 50.00 MinimumPositionAmount: 1000 (Dollars)")
+    assert parse_min_position_amount(msg) == 1000.0
+    assert parse_min_position_amount("kein Treffer") is None
+    assert parse_min_position_amount(None) is None
+
+
+def test_internal_only_detection():
+    assert is_internal_only_error("eToro 814: instrument is visible internal only")
+    assert not is_internal_only_error("eToro 604: insufficient funds for the order")
+    assert not is_internal_only_error(None)

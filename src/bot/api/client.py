@@ -1140,6 +1140,14 @@ class EToroClient:
         positions = raw.get("positions")
         instrument_id = raw.get("instrumentID")
         rejection_reason = raw.get("rejectionReason")
+        error_code = raw.get("errorCode")
+        error_message = raw.get("errorMessage")
+        if not rejection_reason and error_message:
+            # fix/order-error-learning (Live-Befund 2026-07-16): eToro liefert
+            # Ablehnungsgruende als errorCode/errorMessage (720=unter
+            # MinimumPositionAmount, 814=instrument internal only,
+            # 604=insufficient funds) — rejectionReason bleibt dabei leer.
+            rejection_reason = f"eToro {error_code}: {error_message}"
 
         # fix/order-status-numeric (Live-Befund 2026-07-16, Trades #438/439/442):
         # der v1-Endpoint liefert statusID NUMERISCH — die eBull-String-Map
@@ -1189,6 +1197,7 @@ class EToroClient:
             "instrument_id": instrument_id,
             "positions": positions if positions else None,
             "rejection_reason": rejection_reason,
+            "error_code": error_code,
             "raw": raw,
             "is_timing_issue": False,
             "transport_error": False,
