@@ -1141,23 +1141,47 @@ class EToroClient:
         instrument_id = raw.get("instrumentID")
         rejection_reason = raw.get("rejectionReason")
 
+        # fix/order-status-numeric (Live-Befund 2026-07-16, Trades #438/439/442):
+        # der v1-Endpoint liefert statusID NUMERISCH — die eBull-String-Map
+        # griff nie, default 'failed' verbuchte real gefuellte Orders als
+        # FAILED (verwaiste Positionen). Verifizierte Semantik:
+        #   3 = Executed (positions[] gefuellt)   4 = nicht ausgefuehrt
+        #   1 = angenommen/queued (POST-Antwort)
         _STATUS_MAP = {
+            # numerisch (v1, live verifiziert 2026-07-16)
+            1: "pending",
+            3: "executed",
+            4: "failed",
+            # String-Varianten (eBull) — falls andere API-Versionen sie liefern
             "Executed": "executed",
             "Filled": "executed",
             "Pending": "pending",
             "Rejected": "rejected",
             "Failed": "failed",
             "Cancelled": "rejected",
-            "PartiallyFilled": "executed",  # teilweise erfüllt = position existiert
+            "PartiallyFilled": "executed",
             "Expired": "failed",
             "Triggered": "pending",
         }
-        status = _STATUS_MAP.get(status_id, "failed")  # KRITISCH FIX: unbekannter Status = failed, nicht pending
-        if status_id not in _STATUS_MAP:
-            logger.warning(
-                "get_order_status: UNKOWN status_id '%s' for orderId=%s — defaulting to 'failed'",
-                status_id, order_id,
-            )
+        if positions:
+            # Staerkstes Signal: eine gefuellte Position IST die Ausfuehrung,
+            # egal was statusID behauptet.
+            status = "executed"
+        elif rejection_reason:
+            status = "rejected"
+        else:
+            status = _STATUS_MAP.get(status_id)
+            if status is None:
+                # Unbekannte statusID OHNE Position: pending statt failed —
+                # der Worker deferred gecappt (DEFER_CAP) und loest die Order
+                # idempotent erneut auf. Ein falsches 'failed' dagegen erzeugt
+                # verwaiste Positionen (Vorfall Trade #442).
+                status = "pending"
+                logger.warning(
+                    "get_order_status: unbekannte statusID %r fuer orderId=%s "
+                    "(errorCode=%r) — behandle als 'pending' (gecappter Defer)",
+                    status_id, order_id, raw.get("errorCode"),
+                )
 
         return {
             "status": status,

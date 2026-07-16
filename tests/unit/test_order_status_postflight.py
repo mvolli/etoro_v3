@@ -56,10 +56,39 @@ def test_rejected_carries_reason():
     assert r["rejection_reason"] == "Insufficient funds"
 
 
-def test_unknown_status_id_defaults_to_failed():
+def test_unknown_status_id_defaults_to_pending():
+    # fix/order-status-numeric: unbekannte statusID OHNE Position -> pending
+    # (gecappter Defer loest idempotent auf); 'failed' erzeugte Orphans (#442).
     r = _get_status({"statusID": "TotallyNewStatus"})
-    assert r["status"] == "failed"
+    assert r["status"] == "pending"
     assert r["transport_error"] is False
+
+
+def test_numeric_status_3_executed_with_positions():
+    # Live verifiziert 2026-07-16: Order 1531989003 (VIS.MC)
+    r = _get_status({"statusID": 3, "positions": [{"positionID": 3516306523,
+                                                   "rate": 55.2}],
+                     "instrumentID": 5544, "errorCode": 0})
+    assert r["status"] == "executed"
+
+
+def test_numeric_status_4_failed_without_positions():
+    # Live verifiziert 2026-07-16: NATGAS/TEK.L (Ghost-Pattern)
+    r = _get_status({"statusID": 4, "positions": [], "errorCode": 0})
+    assert r["status"] == "failed"
+
+
+def test_numeric_status_1_pending():
+    r = _get_status({"statusID": 1, "positions": []})
+    assert r["status"] == "pending"
+
+
+def test_positions_override_any_status_id():
+    # positions[] gefuellt schlaegt JEDE statusID-Interpretation
+    r = _get_status({"statusID": 999, "positions": [{"positionID": 1}]})
+    assert r["status"] == "executed"
+    r2 = _get_status({"statusID": 4, "positions": [{"positionID": 2}]})
+    assert r2["status"] == "executed"
 
 
 def test_404_is_timing_issue_pending():
