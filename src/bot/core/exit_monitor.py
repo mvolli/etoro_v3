@@ -69,42 +69,25 @@ def _gate_due(state_repo) -> bool:
     return True
 
 
-def _batch_1h_closes(yf_syms: list[str]) -> dict:
-    """Ein yf.download fuer alle Symbole (5d/60m); letzte (angebrochene)
-    Stunde wird verworfen — nur fertige Bars zaehlen."""
-    out: dict = {}
-    try:
-        import yfinance as yf
+def closes_from_candles(candles: list[dict]):
+    """Pure: eToro-Candles -> Close-Serie; die letzte (angebrochene) Bar
+    faellt weg — nur fertige Stunden zaehlen (feat/etoro-native-candles)."""
+    import pandas as pd
 
-        data = yf.download(
-            yf_syms, period="5d", interval="60m",
-            progress=False, auto_adjust=True, group_by="ticker", threads=True,
-        )
-        if data is None or data.empty:
-            return out
-        for sym in yf_syms:
-            try:
-                if len(yf_syms) == 1:
-                    closes = data["Close"].dropna()
-                else:
-                    closes = data[sym]["Close"].dropna()
-                if len(closes) >= 2:
-                    out[sym] = closes.iloc[:-1]  # angebrochene Stunde weg
-            except Exception:
-                continue
-    except Exception as exc:
-        logger.debug("exit_monitor: Batch-Fetch fehlgeschlagen: %s", exc)
-    return out
+    closes = pd.Series(
+        [c.get("close") for c in (candles or [])], dtype="float64"
+    ).dropna().reset_index(drop=True)
+    return closes.iloc[:-1] if len(closes) >= 2 else closes.iloc[0:0]
 
 
-def run_exit_monitor(db, state_repo, positions: list[dict], cfg: dict) -> dict:
+def run_exit_monitor(db, state_repo, positions: list[dict], cfg: dict, client=None) -> dict:
     """Stuendlicher 1H-Scan der offenen Positionen -> SELL-Signale (FRESH).
 
     Gibt {'scanned': n, 'signals': n, 'symbols': [...]} zurueck.
     """
     stats: dict = {"scanned": 0, "signals": 0, "symbols": []}
     em_cfg = (cfg.get("exits") or {}).get("signal_exit_1h") or {}
-    if not em_cfg.get("enabled", False):
+    if not em_cfg.get("enabled", False) or client is None:
         return stats
     if not positions or not _gate_due(state_repo):
         return stats
@@ -125,7 +108,6 @@ def run_exit_monitor(db, state_repo, positions: list[dict], cfg: dict) -> dict:
     if not sym_map:
         return stats
 
-    closes_by_yf = _batch_1h_closes([yf for _, yf in sym_map.values()])
     rsi_max = float(em_cfg.get("rsi_max", RSI_MAX))
 
     from bot.db.repo import SignalRepo
@@ -134,8 +116,12 @@ def run_exit_monitor(db, state_repo, positions: list[dict], cfg: dict) -> dict:
     for iid, (symbol, yf_sym) in sym_map.items():
         stats["scanned"] += 1
         try:
-            closes = closes_by_yf.get(yf_sym)
-            if closes is None:
+            import time as _t
+            _t.sleep(0.15)  # sanfter Takt gegen die eToro-API
+            # feat/etoro-native-candles: direkt per instrument_id — kein
+            # yfinance-Symbol-Mapping (ALC.ZU/.L-Suffix-Problemklasse) mehr.
+            closes = closes_from_candles(client.get_candles(iid, "OneHour", 80))
+            if closes is None or len(closes) < 35:
                 continue
             hit = detect_trend_kipp_1h(closes, rsi_max=rsi_max)
             if not hit:

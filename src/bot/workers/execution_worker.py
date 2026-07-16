@@ -662,6 +662,32 @@ def main() -> None:
                 failed_count += 1
                 continue
 
+            # c2b. Spread-Gate (feat/spread-gate, OSS-Fund 2026-07-16):
+            #      (ask-bid)/mid aus der Echtzeit-Rate — schuetzt vor stillen
+            #      Kosten illiquider Titel (EU-Smallcap-Klasse). Fail-open
+            #      bei fehlendem bid/ask.
+            from bot.core.risk import check_spread_gate
+            _max_spread = float(cfg.get("trading", {}).get("max_spread_pct", 1.5))
+            _sp_ok, _spread_pct = check_spread_gate(client.get_rate(instrument_id), _max_spread)
+            if not _sp_ok:
+                reason = f"Spread-Gate: {_spread_pct:.2f}% > {_max_spread:.2f}% (bid/ask)"
+                trade_repo.record_slippage_reject(instrument_id, symbol, source="spread")
+                logger.warning(
+                    "ExecutionWorker: trade #%d (%s) BLOCKED — %s", trade_id, symbol, reason,
+                )
+                trade_repo.update_status(trade_id, "REJECTED", rejection_reason=reason[:200])
+                log_repo.write(
+                    "WARN", "execution_worker",
+                    f"Trade #{trade_id} REJECTED — {reason}",
+                    {"symbol": symbol, "spread_pct": _spread_pct},
+                )
+                _post('post_trade_failed_embed',
+                    symbol=symbol, direction='BUY', amount_usd=amount_usd,
+                    error=reason[:150], dry_run=False,
+                )
+                failed_count += 1
+                continue
+
             # d0. Snapshot existing positionIDs for this instrument BEFORE
             #     submitting (fix/ghost-order-id-diff). Verification below
             #     only accepts a position whose ID is NOT in this set —
@@ -692,6 +718,7 @@ def main() -> None:
                     amount_usd=amount_usd,
                     stop_loss_pct=stop_loss_pct,
                     symbol=symbol,
+                    take_profit_pct=float(cfg.get("sl", {}).get("safety_tp_pct", 25.0)),
                 )
     
                 # d1. BLOCKED path — open_position() returned a soft-block dict
@@ -713,6 +740,7 @@ def main() -> None:
                         "ExecutionWorker: trade #%d (%s) BLOCKED by open_position(): %s",
                         trade_id, symbol, block_error,
                     )
+                    _learn_from_rejection(db, instrument_id, symbol, block_error)
                     trade_repo.update_status(
                         trade_id,
                         "FAILED",

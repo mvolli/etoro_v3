@@ -50,3 +50,42 @@ def test_rsi_max_parameter_respected():
     # Mit rsi_max=0 kann nie ein Treffer entstehen
     for cut in range(52, len(closes) + 1):
         assert detect_trend_kipp_1h(closes[:cut], rsi_max=0.0) is None
+
+
+# ── OSS-Harvest (2026-07-16): Candles-Parsing, Spread-Gate, Earnings-Trigger ─
+
+from bot.core.exit_monitor import closes_from_candles
+from bot.core.risk import check_spread_gate
+from bot.core.earnings_exit import should_trigger
+
+_EE_CFG = {"exits": {"earnings_exit": {"days_before": 2, "min_exposure_pct": 5.0}}}
+
+
+def test_closes_from_candles_drops_partial_bar():
+    candles = [{"close": 1.0}, {"close": 2.0}, {"close": 3.0}]
+    s = closes_from_candles(candles)
+    assert list(s) == [1.0, 2.0]  # letzte (angebrochene) Bar weg
+    assert len(closes_from_candles([])) == 0
+    assert len(closes_from_candles([{"close": 5.0}])) == 0
+
+
+def test_spread_gate_blocks_wide_spread():
+    ok, pct = check_spread_gate({"bid": 100.0, "ask": 103.0}, 1.5)
+    assert ok is False and pct is not None and pct > 2.9
+
+
+def test_spread_gate_passes_tight_and_fails_open():
+    ok, pct = check_spread_gate({"bid": 100.0, "ask": 100.5}, 1.5)
+    assert ok is True and pct is not None
+    assert check_spread_gate(None, 1.5) == (True, None)
+    assert check_spread_gate({"bid": 0, "ask": 100}, 1.5) == (True, None)
+    assert check_spread_gate({"bid": 101, "ask": 100}, 1.5) == (True, None)
+
+
+def test_earnings_trigger_matrix():
+    assert should_trigger(1, 6.0, _EE_CFG) is True
+    assert should_trigger(0, 5.0, _EE_CFG) is True
+    assert should_trigger(3, 10.0, _EE_CFG) is False   # zu weit weg
+    assert should_trigger(1, 4.9, _EE_CFG) is False    # Position zu klein
+    assert should_trigger(None, 10.0, _EE_CFG) is False
+    assert should_trigger(-1, 10.0, _EE_CFG) is False  # Earnings vorbei

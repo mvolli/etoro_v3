@@ -53,11 +53,17 @@ sl:                           # Stop-loss configuration
   default_pct: 2.5            # Default stop-loss distance from entry (%)
   emergency_pct: 4.0          # Widened SL used in high-volatility / emergency mode
   warning_pct: 2.0            # SL proximity warning threshold (% from current price)
+  safety_tp_pct: 25.0         # feat/tp-safety-net: weites Broker-TP als Crash-Netz (Trailing bleibt primaer)
 
 exits:                        # feat/exit-monitor-1h (2026-07-16, OSS-Report P17)
   signal_exit_1h:
     enabled: true             # 1H-Trend-Kipp -> SELL-Signal (sell_exits fuehrt aus)
     rsi_max: 50.0             # Bear-Cross zaehlt nur mit RSI unter dieser Schwelle
+  earnings_exit:              # feat/earnings-exit (OSS-Fund investpilot, 2026-07-16)
+    enabled: true
+    days_before: 2            # Earnings-Termin in <= N Kalendertagen
+    min_exposure_pct: 5.0     # nur Positionen >= x% der Equity de-risken
+    close_pct: 50.0           # Teilverkauf ueber die sell_exits-Maschinerie
 
 sizing:                       # Position size as % of portfolio equity
   very_high_pct: 8.0          # Conviction tier: VERY HIGH (fix 2026-07-14: stand auf 4.0 und war

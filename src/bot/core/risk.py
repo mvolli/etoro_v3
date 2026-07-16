@@ -764,3 +764,21 @@ def evaluate_sl(pnl_pct: float) -> SLAction:
     if pnl_pct <= SL_WARNING_PCT:
         return SLAction("WARNING", f"SL-WARNING: {pnl_pct:.2f}% ≤ {SL_WARNING_PCT:.0f}%", pnl_pct)
     return SLAction("OK", f"SL OK: {pnl_pct:.2f}%", pnl_pct)
+
+
+def check_spread_gate(rate: dict | None, max_spread_pct: float) -> tuple[bool, float | None]:
+    """Spread-Gate (feat/spread-gate, OSS-Fund 2026-07-16): (ask-bid)/mid in %.
+
+    Fail-open (True, None) bei fehlendem/inkonsistentem bid/ask — das Gate
+    schuetzt vor stillen Kosten, darf aber nie ein Ausfall-Blocker sein.
+    """
+    try:
+        bid = float((rate or {}).get("bid") or 0.0)
+        ask = float((rate or {}).get("ask") or 0.0)
+        if bid <= 0 or ask <= 0 or ask < bid:
+            return True, None
+        mid = (ask + bid) / 2.0
+        spread_pct = (ask - bid) / mid * 100.0
+        return spread_pct <= float(max_spread_pct), round(spread_pct, 4)
+    except Exception:
+        return True, None

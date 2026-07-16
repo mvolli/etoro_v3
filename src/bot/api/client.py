@@ -612,6 +612,7 @@ class EToroClient:
         amount_usd: float,
         stop_loss_pct: float = 3.0,
         symbol: str = "",
+        take_profit_pct: float | None = None,
     ) -> dict:
         """Open a new long position on *instrument_id*.
 
@@ -710,6 +711,25 @@ class EToroClient:
                                 f"(allowOpenPosition={e.get('allowOpenPosition')})"
                             ),
                         }
+                    # 1b) minPositionExposure — Broker-Minimum (GEHEBELTER
+                    #     Betrag; OSS-Fund 2026-07-16: stand schon immer in
+                    #     der Eligibility-Antwort). Proaktiver Block VOR dem
+                    #     POST; Fehlertext kompatibel zum 720-Lerner des
+                    #     execution_workers (MinimumPositionAmount-Regex).
+                    _min_exp = e.get("minPositionExposure")
+                    if _min_exp and float(amount_usd) < float(_min_exp):
+                        logger.warning(
+                            "open_position BLOCKED: %s Order $%.2f < minPositionExposure $%.0f",
+                            _symbol_for_preflight, amount_usd, float(_min_exp),
+                        )
+                        return {
+                            "success": False,
+                            "error": (
+                                f"MinimumPositionAmount: {float(_min_exp):.0f} (Dollars) "
+                                f"> Order ${float(amount_usd):.2f} (minPositionExposure, Eligibility)"
+                            ),
+                        }
+
                     # 2) allowEntryOrders — Markt gerade offen? (ersetzt statische market_hours)
                     #    False = Markt geschlossen / Maintenance / eToro-Restriction
                     #    Fail-open: wenn Feld fehlt, annehmen dass offen
@@ -896,6 +916,24 @@ class EToroClient:
                         instrument_id, sl_distance_pct, min_sl_pct, max_sl_pct
                     )
 
+        # feat/tp-safety-net (OSS-Fund 2026-07-16): weit gesetztes Broker-TP
+        # als Crash-Sicherheitsnetz — faellt der Bot aus, realisiert eToro
+        # den Gewinn. Primaerer Mechanismus bleibt Trailing/Ladder; Default
+        # +25% liegt bewusst darueber. Bounds aus leverageConfigs geclampt.
+        take_profit_rate = None
+        if take_profit_pct and current_price:
+            _tp_pct = float(take_profit_pct)
+            try:
+                for _lc in (elig_data or {}).get("leverageConfigs", []) or []:
+                    if _lc.get("direction") == "long" and 1 in (_lc.get("leverageValues") or []):
+                        _tp_max = float(_lc.get("maxTakeProfitPercentage") or 0) or None
+                        if _tp_max:
+                            _tp_pct = min(_tp_pct, _tp_max)
+                        break
+            except Exception:
+                pass
+            take_profit_rate = round(float(current_price) * (1.0 + _tp_pct / 100.0), 6)
+
         body = {
             "transaction": "Buy",
             "instrumentId": instrument_id,
@@ -904,6 +942,9 @@ class EToroClient:
             "isNoStopLoss": False,
             "stopLossRate": stop_loss_rate,
         }
+        if take_profit_rate:
+            body["isNoTakeProfit"] = False
+            body["takeProfitRate"] = take_profit_rate
 
         logger.debug(
             "open_position instrument=%s symbol=%s amount=%.2f sl_pct=%.1f sl_rate=%.6f",
@@ -913,7 +954,19 @@ class EToroClient:
             stop_loss_pct,
             stop_loss_rate,
         )
-        return self.post("/trading/execution/orders", body, v2=True)
+        try:
+            return self.post("/trading/execution/orders", body, v2=True)
+        except APIError as exc:
+            # Retry-ohne-TP (OSS-Muster): manche Instrumente lehnen TP im
+            # POST ab — daran darf die Order nicht scheitern.
+            if take_profit_rate and getattr(exc, "status_code", 0) == 400:
+                logger.warning(
+                    "open_position: TakeProfit abgelehnt (%s) — Retry ohne TP", exc
+                )
+                body.pop("takeProfitRate", None)
+                body.pop("isNoTakeProfit", None)
+                return self.post("/trading/execution/orders", body, v2=True)
+            raise
 
     def get_position_units(self, position_id: str | int) -> float | None:
         """Echte Unit-Anzahl einer offenen Position aus dem Live-Portfolio.
@@ -1202,6 +1255,51 @@ class EToroClient:
             "is_timing_issue": False,
             "transport_error": False,
         }
+
+    # ------------------------------------------------------------------
+    # Market data: Echtzeit-Rate + native Candles (OSS-Fund 2026-07-16)
+    # ------------------------------------------------------------------
+
+    def get_rate(self, instrument_id: int) -> dict | None:
+        """Echtzeit-Rate (bid/ask/lastExecution) fuer EIN Instrument.
+
+        Dokumentierter eToro-Bug: der Endpoint akzeptiert nur EINE ID pro
+        Call — Komma-Listen liefern HTTP 500 (trading-Repo README).
+        """
+        try:
+            resp = self.get(
+                "/market-data/instruments/rates",
+                params={"instrumentIds": str(instrument_id)},
+            )
+            rates = resp.get("rates", []) if isinstance(resp, dict) else []
+            return rates[0] if rates else None
+        except (APIError, TypeError, ValueError) as exc:
+            logger.warning("get_rate(%s) fehlgeschlagen: %s", instrument_id, exc)
+            return None
+
+    def get_candles(
+        self, instrument_id: int, interval: str = "OneHour", count: int = 100
+    ) -> list[dict]:
+        """eToro-eigene OHLCV-Kerzen — direkt per instrument_id, KEIN
+        yfinance-Symbol-Mapping noetig (OSS-Fund 2026-07-16).
+
+        GET /market-data/instruments/{id}/history/candles/asc/{interval}/{count}
+        Intervalle: OneMinute..OneWeek, max 1000 Bars.
+        Response-Shape: candles[0].candles[] mit fromDate/open/high/low/close/volume.
+        """
+        try:
+            resp = self.get(
+                f"/market-data/instruments/{int(instrument_id)}/history/"
+                f"candles/asc/{interval}/{int(count)}"
+            )
+            outer = (resp or {}).get("candles") or []
+            inner = (outer[0] or {}).get("candles") if outer else []
+            return inner or []
+        except (APIError, TypeError, ValueError, IndexError) as exc:
+            logger.warning(
+                "get_candles(%s, %s) fehlgeschlagen: %s", instrument_id, interval, exc
+            )
+            return []
 
     # ------------------------------------------------------------------
     # Context manager support

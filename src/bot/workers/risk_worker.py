@@ -754,7 +754,7 @@ def main() -> None:
         # konsumiert sie direkt im Anschluss (feat/exit-monitor-1h).
         try:
             from bot.core.exit_monitor import run_exit_monitor
-            _em = run_exit_monitor(db, state_repo, raw_positions, cfg)
+            _em = run_exit_monitor(db, state_repo, raw_positions, cfg, client=client)
             if _em.get("signals"):
                 log_repo.write(
                     "INFO", "risk_worker",
@@ -795,6 +795,32 @@ def main() -> None:
         except Exception as _se_exc:
             logger.error('RiskWorker: SELL-Exits failed: %s', _se_exc)
             log_repo.write('ERROR', 'risk_worker', f'SELL-Exits crashed: {_se_exc}')
+
+        # Earnings-Exit (feat/earnings-exit, 1x taeglich via Gate): bestehende
+        # grosse Positionen vor Earnings de-risken — After-Hours-Gaps umgehen
+        # den SL (ROKU-Fallstudie aus dem OSS-Vergleich).
+        try:
+            from bot.core.earnings_exit import run_earnings_exit
+            _ee = run_earnings_exit(db, state_repo, client, raw_positions, cfg)
+            if _ee.get("actions"):
+                closed_count += int(_ee.get("closed") or 0)
+                log_repo.write(
+                    "INFO", "risk_worker",
+                    f"Earnings-Exit: {_ee['actions']} Aktion(en), {_ee['closed']} ausgefuehrt",
+                    {"symbols": _ee.get("symbols")},
+                )
+                _discord(
+                    "post_alert_embed",
+                    title=f"📅 Earnings-Exit: {', '.join(_ee.get('symbols', []))[:200]}",
+                    description=(
+                        f"{_ee['actions']} Position(en) vor Earnings de-risked "
+                        f"({_ee['closed']} Teilverkaeufe bestaetigt) — "
+                        f"After-Hours-Gap-Schutz."
+                    ),
+                    severity="WARNING",
+                )
+        except Exception as _ee_exc:
+            logger.warning('RiskWorker: earnings_exit failed: %s', _ee_exc)
 
         # ── 5. Summary + Discord Embed ────────────────────────────────────────────
         logger.info("RiskWorker: checked %d positions, closed %d, regime=%s", checked_count, closed_count, regime)

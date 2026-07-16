@@ -96,6 +96,16 @@ def run_macro_pass(state_repo) -> bool:
     regime = state_repo.get("CURRENT_REGIME") or "?"
     dd = state_repo.get("DRAWDOWN_PCT") or "?"
 
+    # Fear&Greed-Index (alternative.me, gratis/ohne Auth — OSS-Fund 2026-07-16)
+    try:
+        import json as _json
+        import urllib.request as _url
+        with _url.urlopen("https://api.alternative.me/fng/?limit=1", timeout=5) as _r:
+            _fng = _json.loads(_r.read())["data"][0]
+        macro["fear_greed"] = f"{_fng['value']} ({_fng['value_classification']})"
+    except Exception:
+        macro["fear_greed"] = "?"
+
     prompt = f"""/no_think
 Du bist Makro-Risiko-Advisor fuer einen autonomen Trading-Bot (nur Long-BUYs,
 Mean-Reversion + Trend-Following, Haltedauer Tage). Bewerte das Marktumfeld
@@ -113,6 +123,7 @@ Du kannst NUR daempfen (max 1.0). Sei nicht schreckhaft: normale Schwankungen
 SPY: {macro['spy_1d']}% (1d), {macro['spy_5d']}% (5d)
 QQQ: {macro['qqq_1d']}% (1d), {macro['qqq_5d']}% (5d)
 VIX: {macro['vix']} (5d-Delta: {macro['vix_5d_delta'] if macro['vix_5d_delta'] is not None else '?'})
+Crypto Fear&Greed: {macro['fear_greed']}
 Bot-Regime (rueckwaertsgewandt): {regime}, Drawdown {dd}%
 
 Antworte NUR mit JSON:
