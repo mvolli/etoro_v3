@@ -524,6 +524,11 @@ Gib JSON mit genau diesen Feldern zurück:
 ## Bible Hard Limits (darf die LLM NIEMALS ueberschreiten)
 {json.dumps(limits_summary, ensure_ascii=False)}
 
+WICHTIG: Die Conviction-Leiter muss MONOTON bleiben (very_high_pct >=
+high_pct >= medium_pct >= low_pct) — invertierende Aenderungen werden
+verworfen. Wenn ein Signal-TYP schlecht performt, daempfe ihn ueber
+signal_weight_updates (score_multiplier/skip), NICHT ueber die Sizing-Leiter.
+
 Ergaenze das JSON AUCH um:
 {{
   "config_adjustments": {{
@@ -715,6 +720,44 @@ def _evaluate_past_decisions(trades: list, log: list) -> tuple[list, list]:
     return log, insights
 
 
+_SIZING_LADDER = (
+    "sizing.very_high_pct", "sizing.high_pct", "sizing.medium_pct", "sizing.low_pct",
+)
+
+
+def _read_sizing_ladder(content: str) -> dict:
+    """Liest die aktuellen Werte der vier Conviction-Stufen aus config.yaml-Text."""
+    import re as _re
+    vals: dict = {}
+    for key in _SIZING_LADDER:
+        field = key.split(".", 1)[1]
+        m = _re.search(rf"[ \t]+{_re.escape(field)}:[ \t]*([0-9]+(?:\.?[0-9]*)?)", content)
+        vals[key] = float(m.group(1)) if m else None
+    return vals
+
+
+def _ladder_violation(key: str, new_value: float, current: dict) -> str | None:
+    """Conviction-Leiter muss monoton bleiben: very_high >= high >= medium >= low.
+
+    User-Entscheid 2026-07-14 — eine invertierte Leiter bedeutet, dass die
+    staerkste Ueberzeugung die KLEINSTE Position bekommt. Die LLM hat das
+    zweimal versucht (5->4 am 13.07., 8->6 am 15.07.); schwache Signal-TYPEN
+    gehoeren in signal_weights gedaempft, nicht in die Leiter.
+    Gibt Begruendung zurueck wenn verletzt, sonst None (fail-open bei
+    unvollstaendig lesbaren Werten — dann greifen nur die Bible-Limits)."""
+    if key not in _SIZING_LADDER:
+        return None
+    vals = dict(current)
+    vals[key] = new_value
+    order = [vals.get(k) for k in _SIZING_LADDER]
+    if any(v is None for v in order):
+        return None
+    for a, b, ka, kb in zip(order, order[1:], _SIZING_LADDER, _SIZING_LADDER[1:]):
+        if a < b:
+            return f"Leiter invertiert: {ka}={a} < {kb}={b}"
+    return None
+
+
 def _validate_config_adjustment(key: str, value) -> tuple[bool, str, object]:
     """Prueft ob Config-Aenderung innerhalb der Bible Hard Limits liegt.
     Gibt (ok, reason, clamped_value) zurueck."""
@@ -750,6 +793,16 @@ def _update_config_yaml(adjustments: dict, baseline: dict | None = None) -> list
         ok, msg, validated = _validate_config_adjustment(key, value)
         if not ok:
             skipped.append(f"{key}: {msg}")
+            continue
+
+        # fix/sizing-ladder-guard: Cross-Parameter-Constraint (Monotonie)
+        _lv = _ladder_violation(key, float(validated), _read_sizing_ladder(content))
+        if _lv:
+            skipped.append(
+                f"{key}: {_lv} — Conviction-Leiter muss monoton bleiben "
+                f"(User-Entscheid 2026-07-14); schwache Signal-Typen via "
+                f"signal_weights daempfen, nicht via Leiter-Inversion"
+            )
             continue
 
         # Dot-notation aufloesen: "sl.default_pct" -> section="sl", field="default_pct"

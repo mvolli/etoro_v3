@@ -361,3 +361,45 @@ def test_deployment_boost_blocked_individually():
     assert _deployment_boost_applies(35.0, 30.0, 'CAUTION', 1.0, False) is False
     assert _deployment_boost_applies(35.0, 30.0, 'NORMAL', 0.85, False) is False
     assert _deployment_boost_applies(35.0, 30.0, 'NORMAL', 1.0, True) is False
+
+
+# ── Sizing-Ladder-Guard (fix/sizing-ladder-guard 2026-07-16) ─────────────────
+
+from bot.workers.llm_review_worker import _ladder_violation, _read_sizing_ladder
+
+_LADDER_OK = {
+    "sizing.very_high_pct": 8.0, "sizing.high_pct": 7.0,
+    "sizing.medium_pct": 5.0, "sizing.low_pct": 2.0,
+}
+
+
+def test_ladder_guard_blocks_inversion():
+    # Der reale Vorfall: very_high 8 -> 6 bei high=7
+    v = _ladder_violation("sizing.very_high_pct", 6.0, _LADDER_OK)
+    assert v is not None and "invertiert" in v
+
+
+def test_ladder_guard_allows_monotone_changes():
+    assert _ladder_violation("sizing.very_high_pct", 10.0, _LADDER_OK) is None
+    assert _ladder_violation("sizing.medium_pct", 3.0, _LADDER_OK) is None
+    # Absenkung auf Gleichstand ist erlaubt (>=, nicht >)
+    assert _ladder_violation("sizing.very_high_pct", 7.0, _LADDER_OK) is None
+
+
+def test_ladder_guard_ignores_other_keys_and_incomplete():
+    assert _ladder_violation("sl.default_pct", 99.0, _LADDER_OK) is None
+    incomplete = dict(_LADDER_OK, **{"sizing.low_pct": None})
+    assert _ladder_violation("sizing.very_high_pct", 1.0, incomplete) is None
+
+
+def test_read_sizing_ladder_parses_yaml_text():
+    content = (
+        "sizing:\n"
+        "  very_high_pct: 8.0          # kommentar\n"
+        "  high_pct: 7.0\n"
+        "  medium_pct: 5.0\n"
+        "  low_pct: 2.0\n"
+    )
+    vals = _read_sizing_ladder(content)
+    assert vals["sizing.very_high_pct"] == 8.0
+    assert vals["sizing.low_pct"] == 2.0
