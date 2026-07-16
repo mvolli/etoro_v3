@@ -786,14 +786,32 @@ def main() -> None:
         # ── Post Risk Worker Embed → nur bei Ereignissen (SL/Partials/Exits/Konzentr.)
         # Routine-Status wird vom monitor_worker (alle 30min) übernommen.
         _ks_active = is_kill_switch_active()
-        _has_event = (
+        _hard_event = (
             closed_count > 0
             or trailing_partial_count > 0
             or sell_exit_closed > 0
             or conc_closed > 0
-            or conc_warned > 0
             or _ks_active
         )
+        # feat/result-embeds (2026-07-16): eine STEHENDE Konzentrations-
+        # Warnung feuerte sonst jeden 5-min-Lauf ein Embed (nachtelang).
+        # Warn-only -> max 1x/Stunde; echte Aktionen posten immer sofort.
+        _has_event = _hard_event
+        if not _hard_event and conc_warned > 0:
+            try:
+                from datetime import datetime as _cw_dt, timezone as _cw_tz
+                _cw_last = state_repo.get("CONC_WARN_EMBED_AT") or ""
+                _cw_due = True
+                if _cw_last:
+                    _last_dt = _cw_dt.fromisoformat(_cw_last)
+                    if _last_dt.tzinfo is None:
+                        _last_dt = _last_dt.replace(tzinfo=_cw_tz.utc)
+                    _cw_due = (_cw_dt.now(_cw_tz.utc) - _last_dt).total_seconds() >= 55 * 60
+                if _cw_due:
+                    state_repo.set("CONC_WARN_EMBED_AT", _cw_dt.now(_cw_tz.utc).isoformat())
+                _has_event = _cw_due
+            except Exception:
+                _has_event = True  # fail-open
         if _has_event:
          try:
             _discord(

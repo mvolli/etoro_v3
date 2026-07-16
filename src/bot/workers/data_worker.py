@@ -886,8 +886,28 @@ def run(project_root: Path | None = None) -> dict:
         n_fetched, n_signals, elapsed, len(_FAILED_SYMBOLS_CACHE),
     )
 
-    # Discord: Data Worker Embed → nur wenn Signale generiert wurden
+    # Discord: Data Worker Embed → nur wenn Signale generiert wurden,
+    # gedrosselt auf 1x/Stunde (feat/result-embeds 2026-07-16): zu
+    # Marktzeiten generiert fast jeder 5-min-Lauf Signale — 12 Embeds/h
+    # waren Rauschen. Approval/Veto/Fill posten eigene Embeds.
+    _de_due = False
     if n_signals > 0:
+        try:
+            from datetime import datetime as _de_dt, timezone as _de_tz
+            from bot.db.repo import StateRepo as _SR_de
+            _de_sr = _SR_de(db)
+            _de_last = _de_sr.get("DATA_EMBED_AT") or ""
+            _de_due = True
+            if _de_last:
+                _last_dt = _de_dt.fromisoformat(_de_last)
+                if _last_dt.tzinfo is None:
+                    _last_dt = _last_dt.replace(tzinfo=_de_tz.utc)
+                _de_due = (_de_dt.now(_de_tz.utc) - _last_dt).total_seconds() >= 55 * 60
+            if _de_due:
+                _de_sr.set("DATA_EMBED_AT", _de_dt.now(_de_tz.utc).isoformat())
+        except Exception:
+            _de_due = True  # fail-open: lieber ein Embed zu viel
+    if _de_due:
      try:
         open_regions = get_market_status()
         _post(
