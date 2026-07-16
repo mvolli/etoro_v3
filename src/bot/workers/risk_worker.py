@@ -749,6 +749,32 @@ def main() -> None:
         # Instrumente → Partial-Close (Gewinnmitnahme bei Überhitzung).
         # Vorher wurden SELL-Signale generiert und gespeichert, aber von
         # keinem Worker konsumiert.
+        # P2 Exit-Signal-Monitor (1H, Stunden-Gate): schreibt SELL-Signale
+        # fuer kippende Trends der offenen Positionen; process_sell_exits
+        # konsumiert sie direkt im Anschluss (feat/exit-monitor-1h).
+        try:
+            from bot.core.exit_monitor import run_exit_monitor
+            _em = run_exit_monitor(db, state_repo, raw_positions, cfg)
+            if _em.get("signals"):
+                log_repo.write(
+                    "INFO", "risk_worker",
+                    f"Exit-Monitor 1H: {_em['signals']} SELL-Signal(e) "
+                    f"({_em['scanned']} Positionen gescannt)",
+                    {"symbols": _em.get("symbols")},
+                )
+                _discord(
+                    "post_alert_embed",
+                    title=f"📉 1H-Trend-Kipp: {', '.join(_em.get('symbols', []))[:200]}",
+                    description=(
+                        "MACD-Bear-Cross + RSI<50 auf Stundenkerzen — "
+                        "SELL-Signal erzeugt; Gewinnmitnahme erfolgt nur bei "
+                        "profitabler Position (sell_exits, 50% Partial)."
+                    ),
+                    severity="INFO",
+                )
+        except Exception as _em_exc:
+            logger.warning("RiskWorker: exit_monitor failed: %s", _em_exc)
+
         try:
             from bot.core.sell_exits import process_sell_exits
             from bot.db.repo import SignalRepo as _SignalRepo

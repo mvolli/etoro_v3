@@ -366,6 +366,8 @@ def _batch_fetch(
     result: dict[str, pd.DataFrame] = {}
     total_batches = (len(symbols) + batch_size - 1) // batch_size
 
+    pulse_movers: list[tuple[str, float]] = []  # feat/pulse-scanner (P16)
+
     for batch_idx in range(total_batches):
         batch_symbols = symbols[batch_idx * batch_size : (batch_idx + 1) * batch_size]
 
@@ -746,6 +748,19 @@ def run(project_root: Path | None = None) -> dict:
                 logger.debug("[%s] %s: no indicators computed", WORKER_NAME, original_sym)
                 continue
 
+            # P5 Pulse-Scanner (feat/pulse-scanner, OSS-Report P16): Sharp
+            # Moves im ohnehin gefetchten Universe sammeln — reine Info,
+            # keine Execution. Crypto-Schwelle hoeher (bewegt sich staendig).
+            try:
+                _pu_closes = df["Close"].dropna()
+                if len(_pu_closes) >= 2:
+                    _pu_mv = (float(_pu_closes.iloc[-1]) / float(_pu_closes.iloc[-2]) - 1.0) * 100.0
+                    _pu_thresh = 8.0 if category == "crypto" else 5.0
+                    if abs(_pu_mv) >= _pu_thresh:
+                        pulse_movers.append((original_sym, _pu_mv))
+            except Exception:
+                pass
+
             # 6. Generate signal
             result = generate_signal(original_sym, indicators)
 
@@ -885,6 +900,32 @@ def run(project_root: Path | None = None) -> dict:
         "DataWorker: %d symbols fetched, %d signals written (%.1fs, failed_cache=%d)",
         n_fetched, n_signals, elapsed, len(_FAILED_SYMBOLS_CACHE),
     )
+
+    # P5 Pulse-Embed: Sharp Moves als Rotations-Hinweis, max 1x/Stunde.
+    if pulse_movers:
+        try:
+            from datetime import datetime as _pu_dt, timezone as _pu_tz
+            from bot.db.repo import StateRepo as _SR_pu
+            _pu_sr = _SR_pu(db)
+            _pu_last = _pu_sr.get("PULSE_EMBED_AT") or ""
+            _pu_due = True
+            if _pu_last:
+                _pu_last_dt = _pu_dt.fromisoformat(_pu_last)
+                if _pu_last_dt.tzinfo is None:
+                    _pu_last_dt = _pu_last_dt.replace(tzinfo=_pu_tz.utc)
+                _pu_due = (_pu_dt.now(_pu_tz.utc) - _pu_last_dt).total_seconds() >= 55 * 60
+            if _pu_due:
+                _pu_sr.set("PULSE_EMBED_AT", _pu_dt.now(_pu_tz.utc).isoformat())
+                _pu_top = sorted(pulse_movers, key=lambda m: -abs(m[1]))[:5]
+                _post("post_alert_embed",
+                    title=f"⚡ Pulse: {len(pulse_movers)} Sharp Move(s) im Universe",
+                    description="\n".join(
+                        f"• **{s}**: {mv:+.1f}% (Tagesmove)" for s, mv in _pu_top
+                    ),
+                    severity="INFO",
+                )
+        except Exception:
+            pass
 
     # Discord: Data Worker Embed → nur wenn Signale generiert wurden,
     # gedrosselt auf 1x/Stunde (feat/result-embeds 2026-07-16): zu
