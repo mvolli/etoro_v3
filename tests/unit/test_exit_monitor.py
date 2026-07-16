@@ -12,9 +12,12 @@ def _uptrend(n=60):
 
 
 def _kipp_series():
-    """Anstieg, dann klarer Bruch — MACD kreuzt irgendwo im Abstieg bearish."""
-    up = [100.0 + i * 0.5 for i in range(50)]
-    down = [up[-1] - i * 1.2 for i in range(1, 15)]
+    """Anstieg, dann harter Bruch — MACD kreuzt im Abstieg bearish, waehrend
+    der RSI bereits unter 50 liegt (flacher Anstieg + steiler Abfall; bei
+    zu sanftem Bruch faellt der Cross in ein Fenster mit RSI>50 und das
+    2-Bar-Erkennungsfenster verstreicht — empirisch kalibriert)."""
+    up = [100.0 + i * 0.3 for i in range(50)]
+    down = [up[-1] - i * 2.0 for i in range(1, 18)]
     return up + down
 
 
