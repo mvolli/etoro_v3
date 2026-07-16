@@ -83,9 +83,23 @@ def _clip_embed_limits(embed: dict) -> dict:
     return embed
 
 
+# feat/candle-charts (2026-07-16): Ein-Schuss-Slot fuer ein Embed-Bild.
+# attach_chart(png) vor einem post_*-Aufruf setzen — _post_embed konsumiert
+# es genau einmal (Single-Thread-Worker, kein Locking noetig) und haengt es
+# als Multipart-Attachment (attachment://chart.png) an. Kein Hosting noetig.
+_PENDING_CHART: dict = {"png": None}
+
+
+def attach_chart(png_bytes: bytes | None) -> None:
+    """Bild fuer das NAECHSTE Embed vormerken (einmalig konsumiert)."""
+    _PENDING_CHART["png"] = png_bytes
+
+
 def _post_embed(embed: dict, channel_id: str, dry_run: bool = False) -> bool:
     """Sende ein Discord Embed. Gibt True bei Erfolg zurück."""
     embed = _clip_embed_limits(embed)
+    png = _PENDING_CHART.get("png")
+    _PENDING_CHART["png"] = None  # immer konsumieren — nie ans falsche Embed
     if dry_run:
         logger.info(f"[discord_embeds DRY-RUN] '{embed.get('title', '?')}' → channel {channel_id}")
         return True
@@ -96,15 +110,36 @@ def _post_embed(embed: dict, channel_id: str, dry_run: bool = False) -> bool:
         return False
 
     try:
-        payload = json.dumps({"embeds": [embed]}).encode("utf-8")
-        conn = http.client.HTTPSConnection("discord.com", timeout=10)
+        if png:
+            embed["image"] = {"url": "attachment://chart.png"}
+            import uuid as _uuid
+            boundary = "----v3chart" + _uuid.uuid4().hex
+            payload_json = json.dumps({
+                "embeds": [embed],
+                "attachments": [{"id": 0, "filename": "chart.png"}],
+            })
+            payload = b"".join([
+                (f"--{boundary}\r\nContent-Disposition: form-data; "
+                 f"name=\"payload_json\"\r\nContent-Type: application/json"
+                 f"\r\n\r\n{payload_json}\r\n").encode("utf-8"),
+                (f"--{boundary}\r\nContent-Disposition: form-data; "
+                 f"name=\"files[0]\"; filename=\"chart.png\"\r\n"
+                 f"Content-Type: image/png\r\n\r\n").encode("utf-8"),
+                png,
+                f"\r\n--{boundary}--\r\n".encode("utf-8"),
+            ])
+            content_type = f"multipart/form-data; boundary={boundary}"
+        else:
+            payload = json.dumps({"embeds": [embed]}).encode("utf-8")
+            content_type = "application/json"
+        conn = http.client.HTTPSConnection("discord.com", timeout=15)
         conn.request(
             "POST",
             f"/api/v10/channels/{channel_id}/messages",
             body=payload,
             headers={
                 "Authorization":  f"Bot {token}",
-                "Content-Type":   "application/json",
+                "Content-Type":   content_type,
                 "Content-Length": str(len(payload)),
             },
         )

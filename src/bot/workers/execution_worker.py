@@ -43,9 +43,38 @@ try:
 except Exception:
     _DE = None
 
+_CHART_CTX: dict = {}
+
+
+def _set_chart_ctx(client, instrument_id, symbol) -> None:
+    """Kontext fuer den automatischen Entry-Chart im Fill-Embed."""
+    _CHART_CTX.update(client=client, instrument_id=instrument_id, symbol=symbol)
+
+
+def _entry_chart_png() -> bytes | None:
+    """1H-Entry-Chart aus eToro-Candles (best effort, wirft nie)."""
+    try:
+        from bot.core.candle_chart import render_candles_png
+        c = _CHART_CTX.get("client")
+        iid = _CHART_CTX.get("instrument_id")
+        if not c or not iid:
+            return None
+        return render_candles_png(
+            c.get_candles(int(iid), "OneHour", 60),
+            f"{_CHART_CTX.get('symbol')} — 1H (eToro)",
+        )
+    except Exception:
+        return None
+
+
 def _post(fn_name: str, **kwargs) -> None:
     """Best-effort Discord post. Never raises."""
     try:
+        # feat/candle-charts: Fill-Embeds bekommen automatisch den 1H-Chart
+        if fn_name == "post_trade_filled_embed" and _DE and hasattr(_DE, "attach_chart"):
+            _png = _entry_chart_png()
+            if _png:
+                _DE.attach_chart(_png)
         if _DE and hasattr(_DE, fn_name):
             getattr(_DE, fn_name)(**kwargs)
     except Exception as _e:
@@ -431,6 +460,7 @@ def main() -> None:
             trade_id = trade["id"]
             instrument_id = trade["instrument_id"]
             symbol = trade.get("symbol", str(instrument_id))
+            _set_chart_ctx(client, instrument_id, symbol)
             amount_usd = float(trade.get("amount_usd", 0.0))
             stop_loss_pct = float(trade.get("stop_loss_pct") or cfg.get("sl", {}).get("default_pct", 3.0))
     

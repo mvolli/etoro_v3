@@ -85,7 +85,7 @@ def run_exit_monitor(db, state_repo, positions: list[dict], cfg: dict, client=No
 
     Gibt {'scanned': n, 'signals': n, 'symbols': [...]} zurueck.
     """
-    stats: dict = {"scanned": 0, "signals": 0, "symbols": []}
+    stats: dict = {"scanned": 0, "signals": 0, "symbols": [], "hits": []}
     em_cfg = (cfg.get("exits") or {}).get("signal_exit_1h") or {}
     if not em_cfg.get("enabled", False) or client is None:
         return stats
@@ -145,6 +145,7 @@ def run_exit_monitor(db, state_repo, positions: list[dict], cfg: dict, client=No
             )
             stats["signals"] += 1
             stats["symbols"].append(symbol)
+            stats["hits"].append((iid, symbol))
             logger.info(
                 "exit_monitor: %s TREND_KIPP_1H (RSI %.0f, MACD-Diff %.4f) -> SELL-Signal",
                 symbol, hit["rsi"], hit["macd_hist"],

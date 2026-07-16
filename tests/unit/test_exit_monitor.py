@@ -89,3 +89,40 @@ def test_earnings_trigger_matrix():
     assert should_trigger(1, 4.9, _EE_CFG) is False    # Position zu klein
     assert should_trigger(None, 10.0, _EE_CFG) is False
     assert should_trigger(-1, 10.0, _EE_CFG) is False  # Earnings vorbei
+
+
+# ── feat/candle-charts (2026-07-16) ──────────────────────────────────────────
+
+from bot.core.candle_chart import render_candles_png
+
+
+def _fake_candles(n=40):
+    out = []
+    px = 100.0
+    for i in range(n):
+        px += (1 if i % 3 else -1) * 0.6
+        out.append({
+            "fromDate": f"2026-07-16T{i % 24:02d}:00:00Z",
+            "open": px, "high": px + 0.5, "low": px - 0.5, "close": px + 0.2,
+        })
+    return out
+
+
+def test_render_candles_png_produces_png():
+    png = render_candles_png(_fake_candles(), "TEST — 1H", entry=100.0, sl=95.0)
+    assert png is not None and png[:8] == b"\x89PNG\r\n\x1a\n"
+    assert len(png) > 5000
+
+
+def test_render_candles_png_fails_safe():
+    assert render_candles_png([], "leer") is None
+    assert render_candles_png([{"close": 1}], "zu kurz") is None
+
+
+def test_attach_chart_is_consumed_once():
+    from bot import discord_embeds as DE
+    DE.attach_chart(b"\x89PNGfake")
+    assert DE._PENDING_CHART["png"] is not None
+    # dry_run konsumiert den Slot, haengt aber nichts an
+    assert DE._post_embed({"title": "t"}, "0", dry_run=True) is True
+    assert DE._PENDING_CHART["png"] is None

@@ -762,6 +762,22 @@ def main() -> None:
                     f"({_em['scanned']} Positionen gescannt)",
                     {"symbols": _em.get("symbols")},
                 )
+                # feat/candle-charts: Kerzen des (ersten) Kipps anhaengen
+                try:
+                    _hits = _em.get("hits") or []
+                    if _hits:
+                        from bot.core.candle_chart import render_candles_png
+                        import sys as _sys
+                        from pathlib import Path as _P
+                        _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
+                        import discord_embeds as _DE_ch
+                        _iid0, _sym0 = _hits[0]
+                        _DE_ch.attach_chart(render_candles_png(
+                            client.get_candles(int(_iid0), "OneHour", 60),
+                            f"{_sym0} — 1H Trend-Kipp",
+                        ))
+                except Exception:
+                    pass
                 _discord(
                     "post_alert_embed",
                     title=f"📉 1H-Trend-Kipp: {', '.join(_em.get('symbols', []))[:200]}",
