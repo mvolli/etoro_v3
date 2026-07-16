@@ -126,3 +126,16 @@ def test_attach_chart_is_consumed_once():
     # dry_run konsumiert den Slot, haengt aber nichts an
     assert DE._post_embed({"title": "t"}, "0", dry_run=True) is True
     assert DE._PENDING_CHART["png"] is None
+
+
+def test_story_interval_by_holding_period():
+    from bot.core.candle_chart import pick_story_interval
+    assert pick_story_interval(None)[0] == 'OneHour'
+    assert pick_story_interval(1.0)[0] == 'OneHour'
+    assert pick_story_interval(5.0)[0] == 'FourHours'
+    assert pick_story_interval(20.0)[0] == 'OneDay'
+
+
+def test_render_with_exit_level():
+    png = render_candles_png(_fake_candles(), 'X', entry=100.0, exit_level=104.0)
+    assert png is not None and png[:8] == b'\x89PNG\r\n\x1a\n'

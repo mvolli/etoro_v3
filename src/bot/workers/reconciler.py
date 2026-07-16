@@ -1093,7 +1093,21 @@ def main() -> int:
                     )
                     finalized_count += 1
                     
-                    # Send finalization embed to Discord
+                    # Send finalization embed to Discord (+ Trade-Story-Chart)
+                    try:
+                        from bot.core.candle_chart import trade_story_png
+                        import sys as _sys
+                        from pathlib import Path as _P
+                        _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
+                        import discord_embeds as _DE_st
+                        _DE_st.attach_chart(trade_story_png(
+                            client, trade.get("instrument_id"), symbol,
+                            entry=float(matched.get("openRate", 0) or trade.get("entry_price") or 0) or None,
+                            exit_price=final_close_price,
+                            opened_at=trade.get("confirmed_at") or trade.get("created_at"),
+                        ))
+                    except Exception:
+                        pass
                     _discord(
                         "post_position_closed_embed",
                         symbol=symbol,
@@ -1123,6 +1137,20 @@ def main() -> int:
                         # fix/duplicate-close-embed: 9a postet ohne PnL kein
                         # Embed mehr — dieser Fallback ist dann die einzige
                         # Nutzer-Meldung. Ehrlich labeln statt $0.00 anzuzeigen.
+                        try:
+                            from bot.core.candle_chart import trade_story_png
+                            import sys as _sys
+                            from pathlib import Path as _P
+                            _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
+                            import discord_embeds as _DE_st
+                            _DE_st.attach_chart(trade_story_png(
+                                client, trade.get("instrument_id"), symbol,
+                                entry=float(trade.get("entry_price") or 0) or None,
+                                exit_price=float(trade.get("exit_price") or 0) or None,
+                                opened_at=trade.get("confirmed_at") or trade.get("created_at"),
+                            ))
+                        except Exception:
+                            pass
                         _discord(
                             "post_position_closed_embed",
                             symbol=symbol,

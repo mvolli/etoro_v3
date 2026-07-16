@@ -21,6 +21,7 @@ def render_candles_png(
     entry: float | None = None,
     sl: float | None = None,
     tp: float | None = None,
+    exit_level: float | None = None,
 ) -> bytes | None:
     """eToro-Candles (fromDate/open/high/low/close) -> PNG-Bytes."""
     try:
@@ -53,6 +54,7 @@ def render_candles_png(
             (entry, "#3498DB", "Entry"),
             (sl, "#E67E22", "SL"),
             (tp, "#F1C40F", "TP"),
+            (exit_level, "#9B59B6", "Exit"),
         ):
             if level:
                 ax.axhline(float(level), color=color, linestyle="--",
@@ -83,4 +85,51 @@ def render_candles_png(
         return buf.getvalue()
     except Exception as exc:
         logger.debug("render_candles_png fehlgeschlagen: %s", exc)
+        return None
+
+
+def pick_story_interval(days_held: float | None) -> tuple[str, int, str]:
+    """Pure: Chart-Intervall nach Haltedauer, damit die ganze Story passt."""
+    if days_held is None or days_held <= 2.5:
+        return "OneHour", 72, "1H"
+    if days_held <= 12:
+        return "FourHours", 80, "4H"
+    return "OneDay", 90, "1D"
+
+
+def trade_story_png(
+    client,
+    instrument_id,
+    symbol: str,
+    entry: float | None = None,
+    exit_price: float | None = None,
+    opened_at=None,
+) -> bytes | None:
+    """Trade-Story-Chart fuer Close-Embeds (feat/trade-story-charts).
+
+    Intervall richtet sich nach der Haltedauer (openDateTime, Broker-
+    Wahrheit); Entry/Exit als Level-Linien. Best effort, wirft nie.
+    """
+    try:
+        if client is None or instrument_id is None:
+            return None
+        days = None
+        if opened_at:
+            from datetime import datetime, timezone
+
+            s = str(opened_at).replace("Z", "+00:00")
+            dt = datetime.fromisoformat(s)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            days = (datetime.now(timezone.utc) - dt).total_seconds() / 86400.0
+        interval, count, label = pick_story_interval(days)
+        candles = client.get_candles(int(instrument_id), interval, count)
+        return render_candles_png(
+            candles,
+            f"{symbol} — {label} Trade-Story",
+            entry=float(entry) if entry else None,
+            exit_level=float(exit_price) if exit_price else None,
+        )
+    except Exception as exc:
+        logger.debug("trade_story_png fehlgeschlagen: %s", exc)
         return None

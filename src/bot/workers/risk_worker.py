@@ -318,6 +318,20 @@ def main() -> None:
                         
                         # ── Discord: CLOSE Embed → #etoro-trades ────────────────
                         try:
+                            try:
+                                from bot.core.candle_chart import trade_story_png
+                                import sys as _sys
+                                from pathlib import Path as _P
+                                _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
+                                import discord_embeds as _DE_st
+                                _DE_st.attach_chart(trade_story_png(
+                                    client, pos.get("instrumentID"), symbol,
+                                    entry=float(pos.get("openRate", 0) or 0) or None,
+                                    exit_price=close_price,
+                                    opened_at=pos.get("openDateTime"),
+                                ))
+                            except Exception:
+                                pass
                             _discord(
                                 "post_position_closed_embed",
                                 symbol=symbol,
@@ -353,6 +367,20 @@ def main() -> None:
                         
                         # ── Discord: Provisional CLOSE Embed → #etoro-trades ────
                         try:
+                            try:
+                                from bot.core.candle_chart import trade_story_png
+                                import sys as _sys
+                                from pathlib import Path as _P
+                                _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
+                                import discord_embeds as _DE_st
+                                _DE_st.attach_chart(trade_story_png(
+                                    client, pos.get("instrumentID"), symbol,
+                                    entry=float(pos.get("openRate", 0) or 0) or None,
+                                    exit_price=close_price,
+                                    opened_at=pos.get("openDateTime"),
+                                ))
+                            except Exception:
+                                pass
                             _discord(
                                 "post_position_closed_embed",
                                 symbol=symbol,
