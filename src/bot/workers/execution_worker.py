@@ -511,6 +511,14 @@ def main() -> None:
                     trade_repo.update_status(
                         trade_id, "APPROVED", requeue_count=_prev_defers + 1,
                     )
+                    _post('post_alert_embed',
+                        title=f"⏳ DEFER {_prev_defers + 1}/{DEFER_CAP} — {symbol}",
+                        description=(
+                            f"Order {_prev_order_id} noch nicht aufgeloest "
+                            f"(Status: {pf_prev.get('status')}) — naechster Versuch in 15min."
+                        ),
+                        severity="INFO", channel="trades",
+                    )
                     processed_count -= 1
                     continue
                 if _action in ("FAILED_REJECTED", "FAILED"):
@@ -855,6 +863,14 @@ def main() -> None:
                             trade_id, "APPROVED",
                             requeue_count=_pend_defers + 1,
                         )
+                        _post('post_alert_embed',
+                            title=f"⏳ DEFER {_pend_defers + 1}/{DEFER_CAP} — {symbol}",
+                            description=(
+                                f"Order {api_position_id} pending bei eToro "
+                                f"(Markt zu?) — naechster Versuch in 15min."
+                            ),
+                            severity="INFO", channel="trades",
+                        )
                         processed_count -= 1
                         continue  # retry im nächsten Zyklus (15min)
     
@@ -1080,6 +1096,14 @@ def main() -> None:
                         )
                         trade_repo.update_status(
                             trade_id, "APPROVED", requeue_count=_defer_count + 1,
+                        )
+                        _post('post_alert_embed',
+                            title=f"⏳ DEFER {_defer_count + 1}/3 — {symbol}",
+                            description=(
+                                f"Order {api_position_id} angenommen, Position noch "
+                                f"nicht sichtbar — naechster Versuch in 15min."
+                            ),
+                            severity="INFO", channel="trades",
                         )
                         processed_count -= 1
                         continue  # retry im nächsten Zyklus (15min)

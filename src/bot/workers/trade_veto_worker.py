@@ -392,6 +392,23 @@ Antworte NUR mit JSON:
                     description=(("Veto: " + ", ".join(vetoed) + "\n") if vetoed else "")
                                 + (("Verkleinert: " + ", ".join(reduced)) if reduced else ""),
                     severity="WARNING",
+                    channel="trades",
+                )
+            except Exception:
+                pass
+        elif trades:
+            # feat/result-embeds (2026-07-16): auch die Freigabe ist ein
+            # Ergebnis — sonst ist ein pruefender LLM-Lauf unsichtbar.
+            try:
+                sys.path.insert(0, str(SRC_DIR / "bot"))
+                import discord_embeds as _DE
+                _DE.post_alert_embed(
+                    title=f"🟢 Pre-Trade-Veto: {len(trades)} geprueft — alle freigegeben",
+                    description=", ".join(
+                        str(t.get("symbol") or t.get("instrument_id")) for t in trades
+                    )[:1000],
+                    severity="INFO",
+                    channel="trades",
                 )
             except Exception:
                 pass
