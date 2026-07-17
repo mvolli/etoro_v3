@@ -288,6 +288,18 @@ Antworte NUR mit JSON: {{"verdict": "KEEP|ROLLBACK", "note": "kurz, deutsch"}}""
                 for h in state["history"][-5:]
             ]
 
+            # Analyst-Hinweise (fix/sl-experiment-seed 2026-07-17):
+            # kuratierte Hypothesen aus Trade-Reviews — Kontext fuer die
+            # LLM, keine Anweisung. Datei optional, fail-open.
+            try:
+                from pathlib import Path as _P
+                _hints = json.loads(
+                    (_P(__file__).resolve().parents[3] / "data" /
+                     "experiment_hints.json").read_text(encoding="utf-8")
+                )
+            except Exception:
+                _hints = []
+
             result = call_llm_json(f"""/no_think
 Du bist Tuning-Analyst eines autonomen Trading-Bots. Schlage GENAU EINE
 Parameteraenderung vor, die die 30-Tage-Performance verbessern koennte.
@@ -304,6 +316,9 @@ Kleine Schritte (max ~20% Aenderung). Waehle NUR aus der Whitelist.
 
 ## Fruehere Experimente (nicht wiederholen was ROLLBACK war)
 {json.dumps(recent_history, ensure_ascii=False)}
+
+## Analysten-Hinweise (Kontext, optional)
+{json.dumps(_hints, ensure_ascii=False)}
 
 Antworte NUR mit JSON:
 {{"param": "sl.default_pct", "new_value": 3.0,

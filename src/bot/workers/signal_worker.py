@@ -920,6 +920,24 @@ def main() -> None:
                         f"{symbol}: Post-Loss-Cooldown ({_cd_h:.0f}h seit Verlust-Close)"
                     )
                     continue
+
+            # MR-Sperre ausserhalb NORMAL (User-Entscheid 2026-07-17): 9/12
+            # der juengsten Verlust-Trades waren Mean-Reversion-Kaeufe unter
+            # der SMA20 im schwachen Markt (Messer-Fangen). Reine
+            # MEAN_REVERSION-Signale werden in CAUTION/DEFENSIVE nicht
+            # approved; MIXED und TREND_FOLLOWING bleiben erlaubt.
+            if (
+                cfg.get("trading", {}).get("block_mean_reversion_in_caution", True)
+                and regime != "NORMAL"
+                and _get_signal_category(str(signal.get("signal_type") or "")) == "MEAN_REVERSION"
+            ):
+                logger.info(
+                    "SignalWorker: %s MEAN_REVERSION in %s geblockt — Signal REJECTED",
+                    symbol, regime,
+                )
+                signal_repo.update_signal_status(signal_id, "REJECTED")
+                blocked_reasons.append(f"{symbol}: MEAN_REVERSION in {regime} gesperrt")
+                continue
     
             # c. Run master buy gate V5
             # fix/sl-gate-wiring: entry_price/sl_price wurden als 0 übergeben —
