@@ -890,6 +890,36 @@ def main() -> None:
                     f"{symbol}: ${buy_amount:.2f} < Broker-Min ${_broker_min:.0f} (eToro 720)"
                 )
                 continue
+
+            # Post-Loss-Cooldown (fix/post-loss-cooldown 2026-07-17): nach
+            # einem Verlust-Close desselben Instruments X Stunden keinen
+            # neuen BUY — verhindert das LUS1.DE-Muster (#446 oeffnete in
+            # der Minute des #439-Close und starb 12min spaeter am SL).
+            # Oversold-Signale feuern nach einem SL-Kill naturgemaess sofort
+            # wieder; ein frischer Verlust ist aber die Widerlegung der
+            # Einstiegsthese, kein neues Setup.
+            _cd_h = float(cfg.get("trading", {}).get("post_loss_cooldown_h", 24.0))
+            if _cd_h > 0:
+                try:
+                    _cd_row = signal_repo.db.fetchone(
+                        "SELECT closed_at FROM trades "
+                        "WHERE instrument_id = ? AND status = 'CLOSED' "
+                        "AND pnl_usd < 0 AND closed_at >= datetime('now', ?) "
+                        "ORDER BY closed_at DESC LIMIT 1",
+                        (signal.get("instrument_id"), f"-{_cd_h} hours"),
+                    )
+                except Exception:
+                    _cd_row = None  # fail-open
+                if _cd_row:
+                    logger.info(
+                        "SignalWorker: %s Post-Loss-Cooldown (%sh) — Verlust-Close %s, Signal REJECTED",
+                        symbol, _cd_h, _cd_row["closed_at"],
+                    )
+                    signal_repo.update_signal_status(signal_id, "REJECTED")
+                    blocked_reasons.append(
+                        f"{symbol}: Post-Loss-Cooldown ({_cd_h:.0f}h seit Verlust-Close)"
+                    )
+                    continue
     
             # c. Run master buy gate V5
             # fix/sl-gate-wiring: entry_price/sl_price wurden als 0 übergeben —
