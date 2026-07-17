@@ -1,30 +1,41 @@
 {
-  "updated_at": "2026-07-14T20:31:14.399470+00:00",
-  "auto_expires_at": "2026-07-28T20:31:14.399481+00:00",
+  "updated_at": "2026-07-16T20:31:15.350759+00:00",
+  "auto_expires_at": "2026-07-30T20:31:15.350765+00:00",
   "adjustments": {
-    "TREND_PULLBACK": {
-      "score_multiplier": 0.5,
-      "skip": false,
-      "reason": "Isoliert fast immer fehlschlagend (2% Success Rate)"
-    },
-    "GOLDEN_CROSS": {
-      "score_multiplier": 0.5,
-      "skip": false,
-      "reason": "Isoliert 0% Success Rate, nur in Kombination sinnvoll"
-    },
     "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD": {
+      "score_multiplier": 0.6,
+      "skip": false,
+      "reason": "Hohe Reject-Rate (7/13) und negativer avg_pnl (-0.42%)"
+    },
+    "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": {
       "score_multiplier": 0.8,
       "skip": false,
-      "reason": "Hohe Success Rate (80%), aber negatives avg_pnl durch große Verluste"
+      "reason": "Hohe Ghost-Rate (6/12) durch Marktzeiten, aber positive PnL wenn ausgeführt"
+    },
+    "TREND_PULLBACK,GOLDEN_CROSS": {
+      "score_multiplier": 0.7,
+      "skip": false,
+      "reason": "Nur mit GOLDEN_CROSS-Filter verwenden, isoliert fehleranfällig"
+    },
+    "TREND_PULLBACK": {
+      "score_multiplier": 0.3,
+      "skip": false,
+      "reason": "Isoliert katastrophal (44 Trades, 0% WR, -3.09% avg_pnl) — stark daempfen"
+    },
+    "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": {
+      "score_multiplier": 1.5,
+      "skip": false,
+      "reason": "Beste Performance (6 Trades, 50% WR, +4.81% avg_pnl) — boosten"
     }
   },
   "strategy_notes": [
-    "Futures (_FUT) und Osloer Aktien (.OL) aufgrund 100% Ghost-Rate strikt filtern",
-    "TREND_PULLBACK nur noch mit GOLDEN_CROSS-Filter verwenden",
-    "VERY_HIGH Conviction bei RSI-Extremwerten erfordert strengeren SL oder kleineres Sizing"
+    "VERY_HIGH Conviction bei RSI-Extremwerten erfordert strengeren SL oder kleineres Sizing aufgrund negativer PnL-Historie.",
+    "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING Signale sind profitabel, aber anfällig für Ghost-Orders bei geschlossenen Märkten.",
+    "Slippage-Rejects bei .L und .PA Instrumenten deuten auf Liquiditätsprobleme hin.",
+    "2026-07-16: TREND_PULLBACK isoliert auf 0.3 gedämpft, 4-Signal-Kombi auf 1.5 geboostet."
   ],
   "conviction_issues": [
-    "VERY_HIGH Conviction bei RSI-Extremwerten hat 80% Success Rate, aber negatives avg_pnl (-0.43%) aufgrund großer Verluste bei den 20% Losses",
-    "GOLDEN_Cross isoliert hat 0% Success Rate und 0% Closed, aber 8 Failed Trades"
+    "VERY_HIGH Conviction Signale haben eine Verlustrate von ca. 80% in der historischen PnL-Datenbank",
+    "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING zeigt hohe Volatilität im PnL (-2.86% bis +22.17%)"
   ]
 }
