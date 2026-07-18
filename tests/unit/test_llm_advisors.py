@@ -403,3 +403,19 @@ def test_read_sizing_ladder_parses_yaml_text():
     vals = _read_sizing_ladder(content)
     assert vals["sizing.very_high_pct"] == 8.0
     assert vals["sizing.low_pct"] == 2.0
+
+
+# ── No-Boost-Clamp (fix/no-boost-weights 2026-07-17) ─────────────────────────
+
+def test_score_multiplier_never_boosts():
+    from bot.workers.signal_worker import _get_signal_score_multiplier
+    w = {"adjustments": {
+        "COMBO_A": {"score_multiplier": 1.5},
+        "PART1": {"score_multiplier": 1.4}, "PART2": {"score_multiplier": 0.5},
+    }}
+    # Exact-Match-Boost wird geclampt
+    assert _get_signal_score_multiplier("COMBO_A", w) == 1.0
+    # Komponenten-Produkt: 1.4 -> 1.0, 0.5 bleibt
+    assert _get_signal_score_multiplier("PART1,PART2", w) == 0.5
+    # Daempfung unveraendert
+    assert _get_signal_score_multiplier("PART2", w) == 0.5

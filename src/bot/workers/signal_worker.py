@@ -103,7 +103,10 @@ def _get_signal_score_multiplier(signal_type: str, weights: dict) -> float:
         return 1.0
     adj = weights.get("adjustments", {}).get(signal_type)
     if adj is not None:
-        return float(adj.get("score_multiplier", 1.0))
+        # fix/no-boost-weights: asymmetrische Rechte — die LLM darf
+        # daempfen/skippen, NIE verstaerken. Hart geclampt (45fc9e1
+        # versuchte 1.5x auf Basis von 6 Trades).
+        return min(1.0, float(adj.get("score_multiplier", 1.0)))
     # Combo-Signal: Einzelkomponenten pruefen
     if "," in signal_type:
         parts = [p.strip() for p in signal_type.split(",") if p.strip()]
@@ -111,7 +114,7 @@ def _get_signal_score_multiplier(signal_type: str, weights: dict) -> float:
         for part in parts:
             part_adj = weights.get("adjustments", {}).get(part)
             if part_adj is not None:
-                product *= float(part_adj.get("score_multiplier", 1.0))
+                product *= min(1.0, float(part_adj.get("score_multiplier", 1.0)))
         return product
     return 1.0
 

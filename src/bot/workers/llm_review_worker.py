@@ -554,6 +554,11 @@ Ergaenze das JSON um folgende zusaetzliche Felder:
   ...ghost/signal/regime Felder wie oben...,
   "signal_weight_adjustments": {{
     "SIGNAL_TYP": {{"score_multiplier": 0.5, "skip": false, "reason": "kurze Begruendung"}}
+
+REGEL: score_multiplier MAXIMAL 1.0 — Daempfen und Skippen ist erlaubt,
+VERSTAERKEN nicht (asymmetrische Rechte: Halluzination darf nur
+Gelegenheiten kosten, nie Geld). Werte >1.0 werden vom Code auf 1.0
+geclampt.
   }},
   "new_strategy_notes": ["Konkrete Strategie-Erkenntnis 1", "Erkenntnis 2"],
   "conviction_issues": ["z.B. VERY_HIGH Conviction hat 80% Verlustrate — ueberpruefen"]
@@ -973,7 +978,8 @@ def _update_trading_memory(llm_analysis: dict, trade_perf: dict,
             memory["signal_insights"][sig_type] = []
         memory["signal_insights"][sig_type].append({
             "date": now[:10],
-            "score_multiplier": adj.get("score_multiplier", 1.0),
+            # fix/no-boost-weights: nie >1.0 persistieren
+            "score_multiplier": min(1.0, float(adj.get("score_multiplier", 1.0) or 1.0)),
             "skip": adj.get("skip", False),
             "reason": adj.get("reason", ""),
         })
