@@ -31,6 +31,7 @@ trading:
   cash_emergency_pct: 10.0    # Hard floor — no new buys below this cash level
   post_loss_cooldown_h: 24.0
   block_mean_reversion_in_caution: true  # 2026-07-17: kein Messer-Fangen ausserhalb NORMAL  # fix/post-loss-cooldown: nach Verlust-Close X h kein Re-Entry (LUS1.DE-Muster)
+  max_spread_pct_crypto: 3.0  # feat/crypto-247: Krypto-Spreads strukturell breiter
   deployment_boost: 1.25      # fix/cash-deployment (2026-07-15): boostet Positionsgroessen bei
                               # Cash-Ueberschuss (Gates: NORMAL-Regime + Makro-Scalar 1.0 +
                               # kein News-Flag; hart geclampt 1.5). SCHARF seit 2026-07-15
@@ -71,7 +72,7 @@ sizing:                       # Position size as % of portfolio equity
   very_high_pct: 8.0          # Conviction tier: VERY HIGH (fix 2026-07-14: stand auf 4.0 und war
                               # damit KLEINER als HIGH — invertierte Conviction-Leiter. Schwache
                               # Signal-Typen bremst heute der Kelly-Faktor, nicht dieser Wert.)
-  high_pct: 7.0               # Conviction tier: HIGH
+  high_pct: 6.0               # Conviction tier: HIGH
   medium_pct: 5.0             # Conviction tier: MEDIUM
   low_pct: 2.0                # Conviction tier: LOW / speculative
 

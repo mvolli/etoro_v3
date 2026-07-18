@@ -697,7 +697,21 @@ def main() -> None:
             #      Kosten illiquider Titel (EU-Smallcap-Klasse). Fail-open
             #      bei fehlendem bid/ask.
             from bot.core.risk import check_spread_gate
-            _max_spread = float(cfg.get("trading", {}).get("max_spread_pct", 1.5))
+            # Krypto hat strukturell breitere Spreads (eToro 1-3%) — eigene
+            # Schwelle, sonst waere Wochenend-Trading faktisch tot.
+            try:
+                _ac_row = db.fetchone(
+                    "SELECT asset_class FROM instruments WHERE instrument_id = ?",
+                    (instrument_id,),
+                )
+                _is_crypto = bool(_ac_row and _ac_row["asset_class"] == "crypto")
+            except Exception:
+                _is_crypto = False
+            _max_spread = float(
+                cfg.get("trading", {}).get("max_spread_pct_crypto", 3.0)
+                if _is_crypto
+                else cfg.get("trading", {}).get("max_spread_pct", 1.5)
+            )
             _sp_ok, _spread_pct = check_spread_gate(client.get_rate(instrument_id), _max_spread)
             if not _sp_ok:
                 reason = f"Spread-Gate: {_spread_pct:.2f}% > {_max_spread:.2f}% (bid/ask)"
