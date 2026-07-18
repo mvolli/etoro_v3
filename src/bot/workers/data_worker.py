@@ -366,8 +366,6 @@ def _batch_fetch(
     result: dict[str, pd.DataFrame] = {}
     total_batches = (len(symbols) + batch_size - 1) // batch_size
 
-    pulse_movers: list[tuple[str, float]] = []  # feat/pulse-scanner (P16)
-
     for batch_idx in range(total_batches):
         batch_symbols = symbols[batch_idx * batch_size : (batch_idx + 1) * batch_size]
 
@@ -624,6 +622,7 @@ def run(project_root: Path | None = None) -> dict:
         {symbols_fetched, signals_generated, elapsed_s}
     """
     t_start = time.monotonic()
+    pulse_movers: list[tuple[str, float]] = []  # feat/pulse-scanner (P16)
 
     if project_root is None:
         project_root = _PROJECT_ROOT
