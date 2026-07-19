@@ -124,7 +124,7 @@ MAX_DOWNLOAD_TIMEOUT = 60    # per-batch timeout in seconds
 # Symbols are auto-retried after COOLDOWN_DAYS and purged after CLEANUP_DAYS.
 _FAILED_SYMBOLS_CACHE: set[str] = set()   # in-memory mirror for fast lookups within a session
 _MAX_FAILED_CACHE = 200                   # soft cap for logging
-_COOLDOWN_DAYS = 7                        # retry a failed symbol after N days
+_COOLDOWN_DAYS = 2                        # retry a failed symbol after N days (2026-07-19: 7->2 — echte Dauer-Leichen kosten alle 2 Tage einen Fetch, ein Fehl-Eintrag kostet sonst tagelang ein gutes Symbol)
 _CLEANUP_DAYS = 90                        # purge entries older than N days
 
 def _ensure_instrument_atr_columns(db: "DB") -> None:
@@ -398,11 +398,13 @@ def _batch_fetch(
                 time.sleep(wait_time)
 
         if not batch_success:
-            # All retries exhausted — cache every symbol in this batch as failed (in-memory only, persisted at end of run)
-            for sym in batch_symbols:
-                _FAILED_SYMBOLS_CACHE.add(sym)
+            # fix/failed-cache-expiry (2026-07-19): Batch-Fehlschlag ist ein
+            # TRANSPORT-Problem (Rate-Limit/Netz), kein Symbol-Problem —
+            # NICHT cachen. Am 14.07. hat ein einziger Rate-Limit-Burst so
+            # NVDA/SPY/TSLA + das halbe Forex-Buch fuer Tage gesperrt.
+            # Einzel-Symbol-Fehler (leere Daten, Rescue-Fail) cachen weiter.
             logger.warning(
-                "[%s] Batch %d: all retries exhausted — cached %d symbols as failed",
+                "[%s] Batch %d: all retries exhausted — transport error, %d symbols NOT cached",
                 WORKER_NAME, batch_idx + 1, len(batch_symbols),
             )
             continue
@@ -647,6 +649,7 @@ def run(project_root: Path | None = None) -> dict:
     # 0. Initialize persistent failed-symbol cache ----------------------------
     _ensure_failed_symbols_table(db)
     _load_failed_cache(db)
+    _preloaded_failed = set(_FAILED_SYMBOLS_CACHE)  # fix/failed-cache-expiry: Diff-Basis fuer Schritt 10
 
     # 2. Determine symbol lists -----------------------------------------------
 
@@ -883,7 +886,12 @@ def run(project_root: Path | None = None) -> dict:
     _update_portfolio_prices(db, price_data, alias_to_original)
 
     # 10. Persist failed symbols to DB & cleanup stale entries -----------------
-    for sym in _FAILED_SYMBOLS_CACHE:
+    # fix/failed-cache-expiry (2026-07-19): NUR die in diesem Lauf neu
+    # gescheiterten Symbole persistieren. Vorher wurde der komplette beim
+    # Start geladene Cache jedes Mal mit frischem last_failed_at
+    # zurueckgeschrieben — der Cooldown konnte nie ablaufen, einmal
+    # gescheiterte Symbole blieben fuer immer gesperrt (Roach Motel).
+    for sym in _FAILED_SYMBOLS_CACHE - _preloaded_failed:
         _cache_failed_symbol(sym, db)
     _cleanup_old_failed_symbols(db)
 
@@ -926,27 +934,27 @@ def run(project_root: Path | None = None) -> dict:
         except Exception:
             pass
 
-    # Discord: Data Worker Embed → nur wenn Signale generiert wurden,
-    # gedrosselt auf 1x/Stunde (feat/result-embeds 2026-07-16): zu
-    # Marktzeiten generiert fast jeder 5-min-Lauf Signale — 12 Embeds/h
-    # waren Rauschen. Approval/Veto/Fill posten eigene Embeds.
+    # Discord: Data Worker Embed — 1x/Stunde, AUCH bei 0 Signalen
+    # (fix/data-heartbeat 2026-07-19): das Embed ist der Daten-Heartbeat.
+    # Am 18.07. lieferte der Worker den ganzen Handelstag 0 Signale
+    # (yfinance-Ausfall) und niemand hat es gesehen, weil das Embed an
+    # n_signals > 0 gekoppelt war — ausgerechnet im Stoerfall Funkstille.
     _de_due = False
-    if n_signals > 0:
-        try:
-            from datetime import datetime as _de_dt, timezone as _de_tz
-            from bot.db.repo import StateRepo as _SR_de
-            _de_sr = _SR_de(db)
-            _de_last = _de_sr.get("DATA_EMBED_AT") or ""
-            _de_due = True
-            if _de_last:
-                _last_dt = _de_dt.fromisoformat(_de_last)
-                if _last_dt.tzinfo is None:
-                    _last_dt = _last_dt.replace(tzinfo=_de_tz.utc)
-                _de_due = (_de_dt.now(_de_tz.utc) - _last_dt).total_seconds() >= 55 * 60
-            if _de_due:
-                _de_sr.set("DATA_EMBED_AT", _de_dt.now(_de_tz.utc).isoformat())
-        except Exception:
-            _de_due = True  # fail-open: lieber ein Embed zu viel
+    try:
+        from datetime import datetime as _de_dt, timezone as _de_tz
+        from bot.db.repo import StateRepo as _SR_de
+        _de_sr = _SR_de(db)
+        _de_last = _de_sr.get("DATA_EMBED_AT") or ""
+        _de_due = True
+        if _de_last:
+            _last_dt = _de_dt.fromisoformat(_de_last)
+            if _last_dt.tzinfo is None:
+                _last_dt = _last_dt.replace(tzinfo=_de_tz.utc)
+            _de_due = (_de_dt.now(_de_tz.utc) - _last_dt).total_seconds() >= 55 * 60
+        if _de_due:
+            _de_sr.set("DATA_EMBED_AT", _de_dt.now(_de_tz.utc).isoformat())
+    except Exception:
+        _de_due = True  # fail-open: lieber ein Embed zu viel
     if _de_due:
      try:
         open_regions = get_market_status()
