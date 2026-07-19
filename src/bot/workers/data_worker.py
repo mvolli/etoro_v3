@@ -117,7 +117,10 @@ BATCH_SIZE = 40              # symbols per yf.download() call
 BATCH_PAUSE_S = 1.5          # seconds between batches (rate limiting)
 MAX_BATCH_RETRIES = 2        # retry count for failed batches
 RETRY_BACKOFF_BASE = 2.0     # exponential backoff: 2^attempt seconds
-MAX_DOWNLOAD_TIMEOUT = 60    # per-batch timeout in seconds
+MAX_DOWNLOAD_TIMEOUT = 60    # per-batch timeout in seconds (jetzt auch an yf.download uebergeben)
+FETCH_DEADLINE_S = 75        # perf/rate-limit-hardening: Gesamt-Zeitbudget des Fetch —
+                             # der Cron-Budget-Kill (~120s) verliert ALLES, Teil-Universum ist besser
+_MAX_RESCUES_PER_RUN = 8     # Einzel-Rescue-Calls pro Lauf (Rate-Limit-Druck begrenzen)
 
 # Failed symbol tracking: persistent SQLite-based cache to avoid repeated
 # yf.download() calls on known-bad tickers (eToro CFDs Yahoo doesn't know).
@@ -365,8 +368,21 @@ def _batch_fetch(
 
     result: dict[str, pd.DataFrame] = {}
     total_batches = (len(symbols) + batch_size - 1) // batch_size
+    t_fetch0 = time.monotonic()
+    rescues_done = 0
 
     for batch_idx in range(total_batches):
+        # perf/rate-limit-hardening (2026-07-19): hartes Zeitbudget — laeuft
+        # der Fetch in den Cron-Budget-Kill (~120s), geht der GANZE Lauf
+        # verloren (Verdacht 18.07.: ganztags 0 Signale). Teil-Universum ist
+        # besser; Tier 1 (Portfolio) steht vorne und ueberlebt immer.
+        _spent = time.monotonic() - t_fetch0
+        if _spent > FETCH_DEADLINE_S:
+            logger.warning(
+                "[%s] Fetch-Zeitbudget erschoepft (%.0fs > %ds) — %d/%d Batches uebersprungen",
+                WORKER_NAME, _spent, FETCH_DEADLINE_S, total_batches - batch_idx, total_batches,
+            )
+            break
         batch_symbols = symbols[batch_idx * batch_size : (batch_idx + 1) * batch_size]
 
         logger.info(
@@ -385,6 +401,7 @@ def _batch_fetch(
                     auto_adjust=True,
                     progress=False,
                     threads=True,
+                    timeout=MAX_DOWNLOAD_TIMEOUT,
                 )
                 batch_success = True
                 break
@@ -431,6 +448,7 @@ def _batch_fetch(
                 logger.warning("[%s] %s: single-symbol extraction failed — %s", WORKER_NAME, sym, exc)
         else:
             # Multi-symbol: two-level MultiIndex columns (Attribute, Ticker)
+            _batch_missing: list[tuple[str, str]] = []
             for sym in batch_symbols:
                 try:
                     # xs(level=1) selects columns for this ticker
@@ -441,18 +459,39 @@ def _batch_fetch(
                         result[sym] = df
                     else:
                         # Symbol in response but no valid data (all NaN / delisted)
-                        _rescue_or_mark_failed(
-                            sym, result, f"{len(df)} rows after dropna (delisted/no-data)",
-                            original_sym=(sym_to_original or {}).get(sym),
+                        _batch_missing.append(
+                            (sym, f"{len(df)} rows after dropna (delisted/no-data)")
                         )
                 except KeyError:
                     # Symbol not in response — likely invalid ticker (eToro CFD)
-                    _rescue_or_mark_failed(
-                        sym, result, "not found in batch response",
-                        original_sym=(sym_to_original or {}).get(sym),
-                    )
+                    _batch_missing.append((sym, "not found in batch response"))
                 except Exception as exc:
                     logger.warning("[%s] %s: extraction failed — %s", WORKER_NAME, sym, exc)
+
+            # perf/rate-limit-hardening (2026-07-19): verliert ein Batch mehr
+            # als die Haelfte seiner Symbole, ist das ein Rate-Limit-/
+            # Transport-Muster (14.07. 16:41: NVDA/SPY/TSLA + halbes Forex-
+            # Buch im selben Sekundenschlag "failed"), kein Symbol-Problem —
+            # dann weder Einzel-Rescues (verstaerken das Rate-Limit noch)
+            # noch Failed-Cache. Sonst normale Rescues, aber mit Lauf-Budget.
+            if _batch_missing and len(_batch_missing) > len(batch_symbols) // 2:
+                logger.warning(
+                    "[%s] Batch %d: %d/%d symbols missing — transport-verdaechtig, weder Rescue noch Caching",
+                    WORKER_NAME, batch_idx + 1, len(_batch_missing), len(batch_symbols),
+                )
+            else:
+                for sym, _miss_reason in _batch_missing:
+                    if rescues_done >= _MAX_RESCUES_PER_RUN:
+                        logger.warning(
+                            "[%s] Rescue-Budget (%d) erschoepft — %s diesen Lauf uebersprungen (kein Caching)",
+                            WORKER_NAME, _MAX_RESCUES_PER_RUN, sym,
+                        )
+                        continue
+                    rescues_done += 1
+                    _rescue_or_mark_failed(
+                        sym, result, _miss_reason,
+                        original_sym=(sym_to_original or {}).get(sym),
+                    )
 
         # Rate limiting: pause between batches (not after last one)
         if batch_idx < total_batches - 1:
@@ -729,15 +768,10 @@ def run(project_root: Path | None = None) -> dict:
     n_signals = 0
     new_signals_list: list[dict] = []
 
+    _items_by_yf = {item['yf_symbol']: item for item in all_items}
     for yf_sym, df in price_data.items():
         original_sym = alias_to_original.get(yf_sym, yf_sym)
-
-        # Find the watchlist item for this symbol to get category and instrument_id
-        watch_item = None
-        for item in all_items:
-            if item['yf_symbol'] == yf_sym:
-                watch_item = item
-                break
+        watch_item = _items_by_yf.get(yf_sym)
 
         category = watch_item['category'] if watch_item else 'stocks'
         instrument_id_from_db = watch_item.get('instrument_id') if watch_item else None
@@ -862,11 +896,13 @@ def run(project_root: Path | None = None) -> dict:
         except Exception as exc:
             elapsed = time.monotonic() - t_sym_start
             if elapsed > 5.0:
+                # perf/rate-limit-hardening: Langsamkeit ist Maschinenlast
+                # (LLM laeuft auf derselben Box), kein Symbol-Defekt —
+                # nicht mehr als failed cachen, nur warnen.
                 logger.warning(
-                    "[%s] %s: processing took %.1fs → cached as failed",
+                    "[%s] %s: processing took %.1fs (slow — not cached)",
                     WORKER_NAME, original_sym, elapsed,
                 )
-                _FAILED_SYMBOLS_CACHE.add(yf_sym)
             logger.error(
                 "[%s] Error processing %s (%.1fs): %s",
                 WORKER_NAME, original_sym, elapsed, exc, exc_info=True,
