@@ -387,15 +387,21 @@ Antworte NUR mit JSON:
                     continue
                 outcome = _apply_decision(db, trade, dec, min_buy)
                 if outcome in ("VETO", "REDUCE"):
-                    (vetoed if outcome == "VETO" else reduced).append(trade["symbol"])
+                    # fix/veto-reason (2026-07-20): den LLM-Grund je Symbol
+                    # mitfuehren — das Embed zeigte bisher nur Symbolnamen,
+                    # die eigentliche Aussage ("warum verkleinert?") fehlte.
+                    _v_reason = str(dec.get("reason", "")).strip() or "kein Grund angegeben"
+                    (vetoed if outcome == "VETO" else reduced).append(
+                        (trade["symbol"], _v_reason[:120])
+                    )
                     log_entries.append({
                         "ts": now_iso, "trade_id": trade["id"],
                         "symbol": trade["symbol"], "yf_symbol": trade.get("yfinance_symbol"),
-                        "decision": outcome, "reason": str(dec.get("reason", ""))[:180],
+                        "decision": outcome, "reason": _v_reason[:180],
                         "signal_price": trade.get("signal_price"),
                     })
                     logger.info("[%s] %s %s — %s", WORKER_NAME, outcome,
-                                trade["symbol"], str(dec.get("reason", ""))[:120])
+                                trade["symbol"], _v_reason[:120])
             _veto_log_write(log_entries)
         elif result is None:
             logger.warning("[%s] LLM nicht verfuegbar — fail-open, %d Trades unveraendert",
@@ -420,10 +426,11 @@ Antworte NUR mit JSON:
             try:
                 sys.path.insert(0, str(SRC_DIR / "bot"))
                 import discord_embeds as _DE
+                _v_lines = [f"🛑 **{sym}** — {rsn}" for sym, rsn in vetoed]
+                _v_lines += [f"📉 **{sym}** verkleinert — {rsn}" for sym, rsn in reduced]
                 _DE.post_alert_embed(
                     title=f"🛑 Pre-Trade-Veto: {len(vetoed)} Veto, {len(reduced)} verkleinert",
-                    description=(("Veto: " + ", ".join(vetoed) + "\n") if vetoed else "")
-                                + (("Verkleinert: " + ", ".join(reduced)) if reduced else ""),
+                    description="\n".join(_v_lines)[:1900] or "—",
                     severity="WARNING",
                     channel="trades",
                 )

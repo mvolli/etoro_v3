@@ -688,7 +688,8 @@ def main() -> None:
                     symbol=symbol,
                     direction='BUY',
                     amount_usd=amount_usd,
-                    error=f"Slippage gate: {reason[:150]}",
+                    error=f"Slippage-Gate: {reason[:150]}",
+                    blocked=True,  # fix/risk-block-framing: Schutz, kein Fehler
                     dry_run=False,
                 )
                 failed_count += 1
@@ -729,7 +730,8 @@ def main() -> None:
                 )
                 _post('post_trade_failed_embed',
                     symbol=symbol, direction='BUY', amount_usd=amount_usd,
-                    error=reason[:150], dry_run=False,
+                    error=reason[:150], blocked=True,  # fix/risk-block-framing
+                    dry_run=False,
                 )
                 failed_count += 1
                 continue

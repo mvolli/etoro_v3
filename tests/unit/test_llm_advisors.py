@@ -449,6 +449,7 @@ def test_non_experiment_param_still_allowed(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(lrw, "CONFIG_YAML_PATH", cfg)
     monkeypatch.setattr(lrw, "_active_experiment_param", lambda: "sl.default_pct")
+    monkeypatch.setattr(lrw, "_load_decision_log", lambda: [])  # kein 24h-Cooldown
     applied = lrw._update_config_yaml(
         {"sizing.high_pct": {"value": 6.5, "reason": "ok"}}
     )

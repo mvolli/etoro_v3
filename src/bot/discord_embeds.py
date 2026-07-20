@@ -1669,11 +1669,18 @@ def post_trade_failed_embed(
     error: str = "",
     reason: str = "",
     is_ghost: bool = False,
+    blocked: bool = False,
     dry_run: bool = False,
 ) -> bool:
-    """Trade FAILED / GHOST Embed → #etoro-trades.
+    """Trade FAILED / GHOST / BLOCKIERT Embed → #etoro-trades.
 
-    Wird gepostet wenn ein BUY/SELL von eToro abgelehnt wurde oder als Ghost erkannt.
+    Wird gepostet wenn ein BUY/SELL von eToro abgelehnt, als Ghost erkannt
+    oder von einem deterministischen Risiko-Gate gestoppt wurde.
+
+    fix/risk-block-framing (2026-07-20): ein Spread-/Slippage-Gate-Block
+    ist KEIN Fehler — das System hat korrekt Kapital geschuetzt (HAYD.L
+    3.77% Spread). Rotes "TRADE FAILED / Fehler" war irrefuehrend; solche
+    Blocks sind jetzt orange "BLOCKIERT — Risiko-Schutz".
     """
     display = resolve_instrument_display(symbol)
     if is_ghost:
@@ -1681,6 +1688,11 @@ def post_trade_failed_embed(
         emoji  = "👻"
         title  = f"GHOST ORDER — {display}"
         desc   = "Order von eToro akzeptiert, aber keine Position erstellt"
+    elif blocked:
+        color  = COLOR_ORANGE
+        emoji  = "🛡️"
+        title  = f"TRADE BLOCKIERT — {display}"
+        desc   = "Order vom Risiko-Gate gestoppt — kein Fehler, Kapital geschützt"
     else:
         color  = COLOR_RED
         emoji  = "❌"
@@ -1692,7 +1704,8 @@ def post_trade_failed_embed(
         {"name": "💵 Betrag",   "value": f"`${amount_usd:,.2f}`",     "inline": True},
     ]
     if error:
-        fields.append({"name": "🔴 Fehler", "value": f"```{error[:200]}```", "inline": False})
+        _err_label = "🛡️ Risiko-Gate" if blocked else "🔴 Fehler"
+        fields.append({"name": _err_label, "value": f"```{error[:200]}```", "inline": False})
     if reason:
         fields.append({"name": "📝 Grund",  "value": f"`{reason[:100]}`",    "inline": False})
 
@@ -1701,15 +1714,16 @@ def post_trade_failed_embed(
         "description": desc,
         "color":       color,
         "fields":      fields,
-        "footer":      {"text": "eToro RoBoCop · Trade Failure"},
+        "footer":      {"text": "eToro RoBoCop · " + ("Risiko-Schutz" if blocked else "Trade Failure")},
         "timestamp":   _ts(),
     }
 
     ok = _post_embed(embed, DISCORD_TRADE_CHANNEL, dry_run)
     if ok:
-        level = "WARN" if is_ghost else "ERROR"
+        level = "INFO" if blocked else ("WARN" if is_ghost else "ERROR")
+        _kind = "BLOCKIERT" if blocked else ("GHOST" if is_ghost else "FAILED")
         insert_system_log(level, "discord_embeds",
-                          f"P11 Trade {'GHOST' if is_ghost else 'FAILED'}: {direction} {symbol} ${amount_usd:.2f}")
+                          f"P11 Trade {_kind}: {direction} {symbol} ${amount_usd:.2f}")
     return ok
 
 
