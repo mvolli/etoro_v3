@@ -787,6 +787,80 @@ def main() -> int:
         if evicted:
             logger.info("[%s] Evicted %d stale discovered watchlist slots", WORKER_NAME, evicted)
 
+        # ── Market-Movers-Pass (feat/market-movers 2026-07-20) ────────────────
+        # eToro-API-weit statt nur Watchlist: Bulk-Schlusskurse (1 Call) +
+        # Batch-Rates fuer offene tradebare Instrumente -> |Tagesmove| >=
+        # Schwelle -> Top-N in watchlist('movers.discovered'). Beobachtung
+        # und Signal-Generierung uebernimmt der data_worker automatisch im
+        # naechsten 5-min-Lauf; alle Gates (MR-Sperre, Cooldown, Veto)
+        # gelten unveraendert. Eviction via _evict_stale_discovered-TTL.
+        try:
+            _mv_cfg = (cfg.get("discovery", {}) or {}).get("movers_scan", {}) or {}
+            if verify_client is not None and _mv_cfg.get("enabled", True):
+                from bot.core.market_movers import compute_movers
+                _mv_closings = verify_client.get_all_closing_prices()
+                _mv_rows = db.fetchall(
+                    "SELECT instrument_id, symbol, asset_class FROM instruments "
+                    "WHERE is_active = 1 AND is_tradable = 1"
+                )
+                _mv_meta = {int(r["instrument_id"]): r for r in _mv_rows}
+                _mv_open_ids = [
+                    int(c["instrumentId"]) for c in _mv_closings
+                    if c.get("isMarketOpen") and int(c.get("instrumentId", -1)) in _mv_meta
+                ]
+                _mv_cap_ids = int(_mv_cfg.get("max_rates_ids", 2000))
+                _mv_rates = verify_client.get_rates_batch(_mv_open_ids[:_mv_cap_ids])
+                _mv_movers = compute_movers(
+                    _mv_closings, _mv_rates,
+                    {k: (r["asset_class"] or "") for k, r in _mv_meta.items()},
+                    min_pct=float(_mv_cfg.get("min_move_pct", 5.0)),
+                    min_pct_crypto=float(_mv_cfg.get("min_move_pct_crypto", 8.0)),
+                    top_n=int(_mv_cfg.get("top_n", 10)),
+                )
+                _mv_slot_cap = int(_mv_cfg.get("watchlist_cap", 15))
+                _mv_count = (db.fetchone(
+                    "SELECT count(*) AS n FROM watchlist WHERE category = 'movers.discovered'"
+                ) or {"n": 0})["n"]
+                _mv_added = []
+                for _mv_iid, _mv_move in _mv_movers:
+                    _mv_sym = _mv_meta[_mv_iid]["symbol"]
+                    _hit = db.fetchone(
+                        "SELECT id FROM watchlist WHERE instrument_id = ?", (_mv_iid,)
+                    )
+                    if _hit is not None:
+                        # schon beobachtet (egal welche Kategorie) — nur Frische markieren
+                        db.execute(
+                            "UPDATE watchlist SET last_signal_at = datetime('now','utc') "
+                            "WHERE id = ?",
+                            (_hit["id"],),
+                        )
+                        continue
+                    if _mv_count >= _mv_slot_cap:
+                        break
+                    db.execute(
+                        "INSERT INTO watchlist (symbol, instrument_id, category, last_score, last_signal_at) "
+                        "VALUES (?, ?, 'movers.discovered', ?, datetime('now','utc'))",
+                        (_mv_sym, _mv_iid, abs(_mv_move)),
+                    )
+                    _mv_count += 1
+                    _mv_added.append((_mv_sym, _mv_move))
+                logger.info(
+                    "[%s] Movers-Pass: %d offene IDs, %d Mover >= Schwelle, %d neu in Watchlist",
+                    WORKER_NAME, len(_mv_open_ids[:_mv_cap_ids]), len(_mv_movers), len(_mv_added),
+                )
+                if _mv_added:
+                    _discord(
+                        "post_alert_embed",
+                        title=f"🌊 Market-Movers: {len(_mv_added)} neue Beobachtung(en)",
+                        description="\n".join(
+                            f"• **{sym}**: {mv:+.1f}% Tagesmove (API-weit entdeckt)"
+                            for sym, mv in _mv_added[:8]
+                        ),
+                        severity="INFO",
+                    )
+        except Exception as _mv_exc:
+            logger.warning("[%s] Movers-Pass fehlgeschlagen: %s", WORKER_NAME, _mv_exc)
+
         # ── Release DB connection before yfinance (prevents lock conflicts with data_worker) ──
         db.close()
         logger.info("[%s] DB released — starting yfinance batch fetch", WORKER_NAME)

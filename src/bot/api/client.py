@@ -1047,6 +1047,55 @@ class EToroClient:
         )
         return self.post(endpoint, body)
 
+    def get_all_closing_prices(self) -> list:
+        """GET /market-data/instruments/history/closing-price — Schlusskurse
+        ALLER Instrumente (daily/weekly/monthly + isMarketOpen) in EINEM Call.
+
+        feat/market-movers (2026-07-20): Basis fuer den marktweiten
+        Mover-Scan im discovery_worker. Achtung: price=-1.0 ist das
+        eToro-Sentinel fuer "kein Wert".
+        """
+        resp = self.get("/market-data/instruments/history/closing-price")
+        if isinstance(resp, list):
+            return resp
+        if isinstance(resp, dict):
+            for key in ("closingPrices", "instruments", "data"):
+                val = resp.get(key)
+                if isinstance(val, list):
+                    return val
+        return []
+
+    def get_rates_batch(self, instrument_ids: list, chunk_size: int = 100) -> dict:
+        """Live-Rates fuer viele IDs -> {instrument_id: rate_dict}.
+
+        WICHTIG (feat/market-movers 2026-07-20): instrumentIds MUSS als
+        rohes Komma in der URL stehen — ueber params= encodiert requests
+        das Komma zu %2C und die API antwortet 400 ("not a valid
+        integer"). DAS war der "Rates kann nur 1 ID"-Mythos; Batch
+        funktioniert (verifiziert: 20 IDs in 0.1s). Best-effort:
+        fehlgeschlagene Chunks werden geloggt und uebersprungen.
+        """
+        out: dict = {}
+        ids = [int(i) for i in instrument_ids]
+        for i in range(0, len(ids), chunk_size):
+            chunk = ids[i : i + chunk_size]
+            try:
+                resp = self.get(
+                    "/market-data/instruments/rates?instrumentIds="
+                    + ",".join(str(x) for x in chunk)
+                )
+                rates = resp.get("rates") if isinstance(resp, dict) else resp
+                for r in rates or []:
+                    iid = r.get("instrumentID") or r.get("instrumentId")
+                    if iid is not None:
+                        out[int(iid)] = r
+            except Exception as exc:
+                logger.warning(
+                    "get_rates_batch: Chunk %d-%d fehlgeschlagen: %s",
+                    i, i + len(chunk), exc,
+                )
+        return out
+
     def get_instrument_eligibility(self, instrument_id: int) -> dict:
         """Return eligibility and pricing info for a single instrument.
 
