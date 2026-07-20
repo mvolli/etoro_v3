@@ -663,7 +663,7 @@ def run(project_root: Path | None = None) -> dict:
         {symbols_fetched, signals_generated, elapsed_s}
     """
     t_start = time.monotonic()
-    pulse_movers: list[tuple[str, float]] = []  # feat/pulse-scanner (P16)
+    pulse_movers: list = []  # feat/pulse-scanner (P16): (symbol, move_pct, df) — df fuer das Chart-Grid
 
     if project_root is None:
         project_root = _PROJECT_ROOT
@@ -797,7 +797,7 @@ def run(project_root: Path | None = None) -> dict:
                     _pu_mv = (float(_pu_closes.iloc[-1]) / float(_pu_closes.iloc[-2]) - 1.0) * 100.0
                     _pu_thresh = 8.0 if category == "crypto" else 5.0
                     if abs(_pu_mv) >= _pu_thresh:
-                        pulse_movers.append((original_sym, _pu_mv))
+                        pulse_movers.append((original_sym, _pu_mv, df))
             except Exception:
                 pass
 
@@ -974,10 +974,19 @@ def run(project_root: Path | None = None) -> dict:
             if _pu_due:
                 _pu_sr.set("PULSE_EMBED_AT", _pu_dt.now(_pu_tz.utc).isoformat())
                 _pu_top = sorted(pulse_movers, key=lambda m: -abs(m[1]))[:5]
+                # feat/pulse-charts: Mini-Kerzen-Grid der Top-Mover aus den
+                # bereits im Speicher liegenden DataFrames (kein API-Call).
+                try:
+                    from bot.core.candle_chart import pulse_grid_png as _pu_grid
+                    _pu_png = _pu_grid(_pu_top)
+                    if _pu_png and _DE:
+                        _DE.attach_chart(_pu_png)
+                except Exception:
+                    pass
                 _post("post_alert_embed",
                     title=f"⚡ Pulse: {len(pulse_movers)} Sharp Move(s) im Universe",
                     description="\n".join(
-                        f"• **{s}**: {mv:+.1f}% (Tagesmove)" for s, mv in _pu_top
+                        f"• **{s}**: {mv:+.1f}% (Tagesmove)" for s, mv, _pu_df in _pu_top
                     ),
                     severity="INFO",
                 )

@@ -133,3 +133,59 @@ def trade_story_png(
     except Exception as exc:
         logger.debug("trade_story_png fehlgeschlagen: %s", exc)
         return None
+
+
+def pulse_grid_png(movers, bars: int = 30) -> bytes | None:
+    """[(symbol, move_pct, ohlcv_df), ...] -> Grid-PNG (max 5 Mini-Panels).
+
+    feat/pulse-charts (2026-07-20): Kerzenpanels der Sharp Movers aus den
+    im data_worker OHNEHIN gefetchten yfinance-DataFrames — kein extra
+    API-Call. Panel-Titel traegt den Tagesmove, Farbe nach Vorzeichen.
+    """
+    try:
+        movers = [
+            (s, mv, df) for s, mv, df in (movers or [])
+            if df is not None and len(df) >= 5
+        ][:5]
+        if not movers:
+            return None
+        import io as _io
+
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        n = len(movers)
+        fig, axes = plt.subplots(1, n, figsize=(3.1 * n, 3.0), dpi=110)
+        if n == 1:
+            axes = [axes]
+        fig.patch.set_facecolor(_BG)
+        for ax, (sym, mv, df) in zip(axes, movers):
+            d = df.tail(bars)
+            o = [float(x) for x in d["Open"]]
+            h = [float(x) for x in d["High"]]
+            l = [float(x) for x in d["Low"]]
+            cl = [float(x) for x in d["Close"]]
+            ax.set_facecolor(_BG)
+            for i in range(len(d)):
+                color = _UP if cl[i] >= o[i] else _DOWN
+                ax.vlines(i, l[i], h[i], color=color, linewidth=0.7)
+                ax.bar(i, abs(cl[i] - o[i]) or (h[i] - l[i]) * 0.001,
+                       bottom=min(o[i], cl[i]), width=0.65, color=color,
+                       edgecolor=color, linewidth=0.4)
+            ax.set_title(f"{sym} {mv:+.1f}%",
+                         color=(_UP if mv >= 0 else _DOWN),
+                         fontsize=10, fontweight="bold")
+            ax.tick_params(colors=_FG, labelsize=6)
+            ax.yaxis.tick_right()
+            ax.set_xticks([])
+            for sp in ax.spines.values():
+                sp.set_color("#4A4D53")
+        fig.tight_layout()
+        buf = _io.BytesIO()
+        fig.savefig(buf, format="png", facecolor=_BG, bbox_inches="tight")
+        plt.close(fig)
+        return buf.getvalue()
+    except Exception:
+        logger.debug("pulse_grid_png failed", exc_info=True)
+        return None
