@@ -419,3 +419,38 @@ def test_score_multiplier_never_boosts():
     assert _get_signal_score_multiplier("PART1,PART2", w) == 0.5
     # Daempfung unveraendert
     assert _get_signal_score_multiplier("PART2", w) == 0.5
+
+
+# ── Experiment-Lock (fix/experiment-lock 2026-07-20) ─────────────────────────
+
+def test_experiment_param_locked_for_review(monkeypatch, tmp_path):
+    """Review-Autonomie darf den Parameter eines aktiven Experiments
+    nicht ueberschreiben (19.07.: Review drehte sl.default_pct zurueck,
+    waehrend das Experiment 3.0 mass)."""
+    import bot.workers.llm_review_worker as lrw
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text("sl:\n  default_pct: 3.0\n", encoding="utf-8")
+    monkeypatch.setattr(lrw, "CONFIG_YAML_PATH", cfg)
+    monkeypatch.setattr(lrw, "_active_experiment_param", lambda: "sl.default_pct")
+    applied = lrw._update_config_yaml(
+        {"sl.default_pct": {"value": 2.5, "reason": "Verschaerfung"}}
+    )
+    assert applied == []
+    assert "default_pct: 3.0" in cfg.read_text(encoding="utf-8")
+
+
+def test_non_experiment_param_still_allowed(monkeypatch, tmp_path):
+    import bot.workers.llm_review_worker as lrw
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text(
+        "sizing:\n  very_high_pct: 8.0\n  high_pct: 7.0\n"
+        "  medium_pct: 5.0\n  low_pct: 2.0\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(lrw, "CONFIG_YAML_PATH", cfg)
+    monkeypatch.setattr(lrw, "_active_experiment_param", lambda: "sl.default_pct")
+    applied = lrw._update_config_yaml(
+        {"sizing.high_pct": {"value": 6.5, "reason": "ok"}}
+    )
+    assert any("high_pct" in a for a in applied)
+    assert "high_pct: 6.5" in cfg.read_text(encoding="utf-8")

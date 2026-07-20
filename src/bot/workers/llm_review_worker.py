@@ -782,6 +782,24 @@ def _validate_config_adjustment(key: str, value) -> tuple[bool, str, object]:
     return True, "OK", v
 
 
+def _active_experiment_param() -> str | None:
+    """Parameter des aktuell laufenden Config-Experiments (oder None).
+
+    fix/experiment-lock (2026-07-20): der Experiment-Loop (So 05:00,
+    14d-Messung gegen Baseline) und die Review-Config-Autonomie sind
+    zwei unabhaengige Schreiber derselben Datei. Am 19.07. 20:30 hat
+    der Review sl.default_pct auf 2.5 zurueckgedreht, waehrend das
+    Experiment gerade 3.0 misst — die Messung lief ab da ins Leere.
+    """
+    try:
+        exp = json.loads(
+            (PROJECT_ROOT / "data" / "llm_config_experiments.json").read_text(encoding="utf-8")
+        )
+        return (exp.get("active") or {}).get("param") or None
+    except Exception:
+        return None
+
+
 def _update_config_yaml(adjustments: dict, baseline: dict | None = None) -> list[str]:
     """Schreibt validierte Config-Aenderungen in config.yaml (Kommentare bleiben erhalten).
     Gibt Liste der angewendeten Aenderungen zurueck."""
@@ -809,6 +827,17 @@ def _update_config_yaml(adjustments: dict, baseline: dict | None = None) -> list
                 f"{key}: {_lv} — Conviction-Leiter muss monoton bleiben "
                 f"(User-Entscheid 2026-07-14); schwache Signal-Typen via "
                 f"signal_weights daempfen, nicht via Leiter-Inversion"
+            )
+            continue
+
+        # fix/experiment-lock (2026-07-20): Parameter mit AKTIVEM
+        # Config-Experiment sind fuer die Review-Autonomie gesperrt —
+        # vierter Vorfall der Klasse "Konvention ohne Code-Clamp".
+        _exp_param = _active_experiment_param()
+        if _exp_param and key == _exp_param:
+            skipped.append(
+                f"{key}: GESPERRT — aktives Config-Experiment misst diesen "
+                f"Parameter (14d-Fenster); Aenderung nur via Experiment-Loop"
             )
             continue
 
