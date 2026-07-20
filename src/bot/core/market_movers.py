@@ -17,6 +17,8 @@ def compute_movers(
     min_pct: float = 5.0,
     min_pct_crypto: float = 8.0,
     top_n: int = 10,
+    max_pct: float = 25.0,
+    min_price: float = 0.5,
 ) -> list:
     """Top-N Mover nach |Tagesmove| -> [(instrument_id, move_pct)].
 
@@ -24,6 +26,12 @@ def compute_movers(
     rates:    {instrument_id: rate_dict} aus get_rates_batch().
     Nur offene Maerkte (isMarketOpen) und plausible Preise; -1.0 ist
     das eToro-Sentinel fuer fehlende Werte.
+
+    fix/movers-sanity (2026-07-20, erster Live-Lauf): max_pct + min_price
+    filtern Pennystock-Artefakte — VXT.DE "+170%"/PLAZ.L "+107%" waren
+    Mini-Kurse, bei denen ein Tick riesige Prozente macht. Solche Werte
+    sind Datenrauschen oder untradebare Illiquiditaet, keine Mover —
+    sie verdraengten im ersten Lauf alle 10 Slots.
     """
     out: list = []
     for c in closings or []:
@@ -40,9 +48,11 @@ def compute_movers(
             last, daily = float(last), float(daily)
         except (TypeError, ValueError):
             continue
-        if last <= 0 or daily <= 0:
+        if last <= 0 or daily < min_price:
             continue
         move = (last / daily - 1.0) * 100.0
+        if abs(move) > max_pct:
+            continue
         thresh = (
             min_pct_crypto
             if asset_class_by_id.get(iid) == "crypto"

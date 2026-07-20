@@ -45,3 +45,11 @@ def test_top_n_cap():
     out = compute_movers(closings, rates, {}, top_n=5)
     assert len(out) == 5
     assert out[0][0] == 19  # groesster Move zuerst
+
+
+def test_pennystock_artifacts_filtered():
+    """fix/movers-sanity: >max_pct oder Mini-Kurse fliegen raus (VXT.DE +170%)."""
+    closings = [_closing(1, 0.02), _closing(2, 100.0), _closing(3, 100.0)]
+    rates = {1: _rate(0.05), 2: _rate(270.0), 3: _rate(110.0)}  # +150%, +170%, +10%
+    out = compute_movers(closings, rates, {}, max_pct=25.0, min_price=0.5)
+    assert [i for i, _ in out] == [3]

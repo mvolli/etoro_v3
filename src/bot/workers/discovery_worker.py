@@ -816,6 +816,8 @@ def main() -> int:
                     min_pct=float(_mv_cfg.get("min_move_pct", 5.0)),
                     min_pct_crypto=float(_mv_cfg.get("min_move_pct_crypto", 8.0)),
                     top_n=int(_mv_cfg.get("top_n", 10)),
+                    max_pct=float(_mv_cfg.get("max_move_pct", 25.0)),
+                    min_price=float(_mv_cfg.get("min_price", 0.5)),
                 )
                 _mv_slot_cap = int(_mv_cfg.get("watchlist_cap", 15))
                 _mv_count = (db.fetchone(
