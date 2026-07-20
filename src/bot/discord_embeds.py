@@ -1081,6 +1081,7 @@ def post_data_worker_embed(
     elapsed_s: float,
     new_signals: list = None,
     market_status: str = "",
+    top_candidate: dict = None,
     dry_run: bool = False,
 ) -> bool:
     """Data Worker Summary — data-rich Embed mit Fetch-Stats, Signalen und Märkten → #etoro-trading.
@@ -1115,7 +1116,7 @@ def post_data_worker_embed(
     pipeline_lines = [
         f"Tier 1 (Portfolio): **{tier1_count}** Symbole",
         f"Tier 2 (Watchlist): **{tier2_open}** offen / {tier2_closed} closed ({tier2_total} total)",
-        f"Failed-Cache: **{failed_cache_size}** Symbole (cooldown 7d)",
+        f"Failed-Cache: **{failed_cache_size}** Symbole (cooldown 2d)",
     ]
     fields.append({
         "name": "📡 Data Pipeline",
@@ -1128,6 +1129,14 @@ def post_data_worker_embed(
         f"Neue Signale: **{signals_generated}**",
         f"Expired: **{signals_expired}**",
     ]
+    if signals_generated == 0 and top_candidate:
+        # feat/heartbeat-top-candidate: warum ist nichts los? Der beste
+        # BUY unterhalb der Schwelle zeigt es auf einen Blick.
+        signal_lines.append(
+            f"Bester Kandidat: **{top_candidate.get('symbol', '?')}** "
+            f"{top_candidate.get('score', 0):.0f}/{top_candidate.get('min_score', 30):.0f}"
+            + (f" ({top_candidate.get('types', '')})" if top_candidate.get('types') else "")
+        )
     fields.append({
         "name": "📊 Signale",
         "value": "\n".join(signal_lines),

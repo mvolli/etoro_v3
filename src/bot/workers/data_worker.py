@@ -767,6 +767,10 @@ def run(project_root: Path | None = None) -> dict:
     signal_repo = SignalRepo(db)
     n_signals = 0
     new_signals_list: list[dict] = []
+    # feat/heartbeat-top-candidate (2026-07-19): bester BUY unterhalb der
+    # Speicherschwelle — macht im Stunden-Embed Stille von Stoerung
+    # unterscheidbar ("bester Score 15/30" = Markt gibt nichts her).
+    top_candidate: dict | None = None
 
     _items_by_yf = {item['yf_symbol']: item for item in all_items}
     for yf_sym, df in price_data.items():
@@ -799,6 +803,16 @@ def run(project_root: Path | None = None) -> dict:
 
             # 6. Generate signal
             result = generate_signal(original_sym, indicators)
+
+            if result.direction == "BUY" and (
+                top_candidate is None or result.score > top_candidate["score"]
+            ):
+                top_candidate = {
+                    "symbol": original_sym,
+                    "score": result.score,
+                    "types": ",".join(result.signal_types or []),
+                    "min_score": MIN_SIGNAL_SCORE,
+                }
 
             # Resolve instrument_id — done before the HOLD-filter below so ATR
             # gets refreshed for every symbol we have data for (incl. open
@@ -1008,6 +1022,7 @@ def run(project_root: Path | None = None) -> dict:
             elapsed_s=elapsed,
             new_signals=new_signals_list,
             market_status=str(open_regions),
+            top_candidate=top_candidate,
         )
      except Exception as _emb_exc:
         logger.debug("DataWorker: Discord embed failed: %s", _emb_exc)
