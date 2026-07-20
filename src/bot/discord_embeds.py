@@ -1629,8 +1629,15 @@ def post_trade_filled_embed(
 
     fields = [
         {"name": "💵 Betrag",    "value": f"`${amount_usd:,.2f}`",          "inline": True},
-        {"name": "📈 Kurs",      "value": f"`${entry_price:,.4f}`" if entry_price else "`–`", "inline": True},
-        {"name": "🛡️ Stop-Loss", "value": f"`${sl_price:,.4f}` ({sl_pct:.1f}%)" if sl_price else "`–`", "inline": True},
+        # fix/filled-embed-fields (2026-07-20, PARRO.PA): im Pickup-Pfad
+        # (deferte Order aufgeloest) ist der Fill-Kurs noch unbekannt —
+        # der Reconciler traegt ihn nach. Ehrlich sagen statt "-", und den
+        # Stop wenigstens als Prozent zeigen (der ist immer bekannt).
+        {"name": "📈 Kurs",      "value": f"`${entry_price:,.4f}`" if entry_price else "`folgt (Backfill)`", "inline": True},
+        {"name": "🛡️ Stop-Loss", "value": (
+            f"`${sl_price:,.4f}` ({sl_pct:.1f}%)" if sl_price
+            else (f"`-{sl_pct:.1f}%`" if sl_pct else "`–`")
+        ), "inline": True},
     ]
     if position_id:
         fields.append({"name": "🆔 Position-ID", "value": f"`{position_id}`", "inline": True})

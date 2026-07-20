@@ -534,7 +534,9 @@ def main() -> None:
                     _post('post_trade_filled_embed',
                         symbol=symbol, direction='BUY', amount_usd=amount_usd,
                         position_id=api_position_id, entry_price=0.0,
-                        sl_pct=stop_loss_pct, dry_run=False,
+                        sl_pct=stop_loss_pct,
+                        reason=f"Deferte Order {_prev_order_id} aufgeloest — Kurs folgt via Reconciler",
+                        dry_run=False,
                     )
                     continue
                 if _action == "DEFER":
