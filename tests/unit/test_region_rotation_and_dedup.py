@@ -175,3 +175,18 @@ def test_trend_pullback_macd_floor_scales_with_price():
     # Niedrigpreisig: -0.004 bei $10 = -0.04% — muss blocken (alter Floor liess durch)
     low = generate_signal("PENNY", _tp_indicators(10.0, -0.004))
     assert "TREND_PULLBACK" not in low.signal_types
+
+
+def test_has_fresh_signal_blocks_rejected_until_ttl(sig_db):
+    """fix/rejected-signal-dedup: REJECTED innerhalb TTL blockt Neuerzeugung,
+    nach TTL-Ablauf ist der Weg wieder frei (transiente Gruende heilen)."""
+    repo = SignalRepo(sig_db)
+    repo.create(instrument_id=1, signal_type="RSI_EXTREME_OVERSOLD", conviction="MEDIUM",
+                score=30.0, ttl_minutes=60)
+    sig_db.execute("UPDATE signals SET status='REJECTED' WHERE instrument_id=1")
+    assert repo.has_fresh_signal(1, "RSI_EXTREME_OVERSOLD") is True
+    # TTL abgelaufen -> Dedup gibt frei
+    sig_db.execute(
+        "UPDATE signals SET expires_at=datetime('now','utc','-1 minute') WHERE instrument_id=1"
+    )
+    assert repo.has_fresh_signal(1, "RSI_EXTREME_OVERSOLD") is False

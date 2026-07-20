@@ -422,13 +422,20 @@ class SignalRepo:
         nicht mehr, ~4200 Signale/Tag am 2026-07-13). Storage-Dedup braucht
         FRESH-Semantik, Trade-Cooldown braucht CONSUMED-Semantik — daher
         zwei getrennte Methoden.
+
+        fix/rejected-signal-dedup (2026-07-20): REJECTED blockt jetzt
+        ebenfalls bis zum TTL-Ablauf — der signal_worker lehnte sonst
+        alle 15 min dasselbe frisch erzeugte Signal erneut ab (ART.L:
+        12 identische Zeilen an einem Vormittag, MR-Sperre in CAUTION).
+        Transiente Ablehnungsgruende (Regime-Wechsel, Cooldown-Ende)
+        heilen automatisch: nach TTL (60 min) darf neu erzeugt werden.
         """
         row = self.db.fetchone(
             """
             SELECT 1 FROM signals
              WHERE instrument_id = ?
                AND signal_type = ?
-               AND status = 'FRESH'
+               AND status IN ('FRESH', 'REJECTED')
                AND expires_at > datetime('now','utc')
              LIMIT 1
             """,
