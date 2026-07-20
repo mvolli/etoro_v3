@@ -559,6 +559,8 @@ REGEL: score_multiplier MAXIMAL 1.0 — Daempfen und Skippen ist erlaubt,
 VERSTAERKEN nicht (asymmetrische Rechte: Halluzination darf nur
 Gelegenheiten kosten, nie Geld). Werte >1.0 werden vom Code auf 1.0
 geclampt.
+
+{__import__("bot.core.signal_scorecard", fromlist=["STRATEGY_RULES"]).STRATEGY_RULES}
   }},
   "new_strategy_notes": ["Konkrete Strategie-Erkenntnis 1", "Erkenntnis 2"],
   "conviction_issues": ["z.B. VERY_HIGH Conviction hat 80% Verlustrate — ueberpruefen"]
@@ -1153,6 +1155,16 @@ def main() -> int:
 
         ghost_rates = _compute_ghost_rates(trades)
         signal_perf = _compute_signal_perf(data["signal_stats"], data.get("ghost_signal_stats"))
+        # feat/signal-scorecard: deterministische Faktenbasis fuer ALLE
+        # LLM-Advisor refreshen (Veto liest die Datei bei jedem Lauf).
+        try:
+            from bot.core.signal_scorecard import refresh_scorecard_from_path
+            refresh_scorecard_from_path(
+                PROJECT_ROOT / "data" / "trading.db",
+                PROJECT_ROOT / "data" / "signal_scorecard.json",
+            )
+        except Exception:
+            pass
 
         print(f"[llm_review] Ghost-Raten berechnet: {len(ghost_rates)} Exchanges analysiert")
         for suffix, stats in sorted(ghost_rates.items(), key=lambda x: -x[1]["rate"]):

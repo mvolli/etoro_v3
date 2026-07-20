@@ -311,6 +311,36 @@ def main() -> int:
             f"{p['symbol']} {p.get('unrealized_pnl_pct') or 0:+.1f}%" for p in positions
         ) or "keine"
 
+        # feat/signal-scorecard: 30d-DB-Bilanz der Signal-Kombos der
+        # Kandidaten — die LLM sieht Fakten statt zu raten. Datei wird
+        # vom llm_review_worker taeglich refresht; fail-open.
+        scorecard_block = "- keine Scorecard-Daten"
+        try:
+            _sc = json.loads(
+                (PROJECT_ROOT / "data" / "signal_scorecard.json").read_text(encoding="utf-8")
+            )
+            _by_combo = {c["signal"]: c for c in _sc.get("combos", [])}
+            _sc_lines = []
+            for _st in sorted({t.get("signal_type") or "" for t in trades if t.get("signal_type")}):
+                _c = _by_combo.get(_st)
+                if _c:
+                    _sc_lines.append(
+                        f"- {_st}: WR {_c['win_rate_pct']}% (n={_c['n']}, "
+                        f"{_c['pnl_usd']:+.0f}$, {_c['sl_kills']} SL-Kills)"
+                    )
+                else:
+                    _sc_lines.append(f"- {_st}: keine 30d-Historie — konservativ pruefen")
+            _ms = _sc.get("macd_split", {})
+            if _ms.get("with") and _ms.get("without"):
+                _sc_lines.append(
+                    f"- Merksatz: Kombos MIT MACD-Komponente WR {_ms['with']['win_rate_pct']}% "
+                    f"vs OHNE {_ms['without']['win_rate_pct']}% — Oversold ohne MACD-Wende ist ein Messer."
+                )
+            if _sc_lines:
+                scorecard_block = "\n".join(_sc_lines)
+        except Exception:
+            pass
+
         prompt = f"""/no_think
 Du bist die letzte Pruefinstanz vor der Order-Ausfuehrung eines autonomen
 eToro-Bots. Die Trades unten haben alle mechanischen Gates bereits bestanden.
@@ -320,6 +350,9 @@ Marktumfeld fuer diesen Trade-Typ, offensichtliche Haeufung). Im Zweifel: APPROV
 
 ## Markt
 SPY {market['spy_1d_pct']}% | QQQ {market['qqq_1d_pct']}% | VIX {market['vix']} ({market['vix_label']})
+
+## Signal-Scorecard (30d, DB-verifiziert — Kombos mit WR < 25% bei n >= 5 brauchen einen konkreten Grund fuer APPROVE)
+{scorecard_block}
 
 ## Offene Positionen
 {pos_block}
