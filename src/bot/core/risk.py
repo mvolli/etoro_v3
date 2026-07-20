@@ -406,6 +406,32 @@ def check_sl_quality_gate(
     ])
 
 
+def adaptive_sl_pct(
+    default_pct: float,
+    atr_pct: float | None,
+    multiple: float = 1.5,
+    max_pct: float = 6.0,
+) -> float:
+    """ATR-adaptiver Stop-Loss (feat/strategy-gates 2026-07-20).
+
+    Trade-Analyse-Fakt (30d, DB-verifiziert): 11 der 17 SL-Kill-Symbole
+    hatten eine Tages-ATR UEBER dem fixen Stop (LUS1.DE 7.4%, INTC 9.6%,
+    BOKU.L 7.0% vs 2.5%) — der Stop lag unter dem normalen Tagesrauschen,
+    die Trades starben am Rauschen statt am Trend. Gewinner brauchten
+    Zeit (Median 143h vs 45h bei Verlierern) und bekamen sie so nie.
+
+    sl = clamp(multiple * atr_pct, default_pct, max_pct); ohne ATR-Wert
+    bleibt der Default. Das Sizing skaliert im signal_worker gegenlaeufig
+    (Risk-Parity), damit das Dollar-Risiko pro Trade konstant bleibt.
+    """
+    try:
+        if not atr_pct or float(atr_pct) <= 0:
+            return float(default_pct)
+        return float(min(max(float(default_pct), multiple * float(atr_pct)), max_pct))
+    except (TypeError, ValueError):
+        return float(default_pct)
+
+
 def calculate_sl_price(
     entry_price: float,
     symbol: str,

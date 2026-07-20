@@ -941,19 +941,67 @@ def main() -> None:
                 signal_repo.update_signal_status(signal_id, "REJECTED")
                 blocked_reasons.append(f"{symbol}: MEAN_REVERSION in {regime} gesperrt")
                 continue
+
+            # MACD-Bestaetigungspflicht fuer Oversold (feat/strategy-gates
+            # 2026-07-20, 30d-DB-Fakten): Oversold-Kombis OHNE MACD-
+            # Komponente = WR 8% (63 Trades, -159 USD); MIT = WR 32%.
+            # Alle grossen Gewinner (BABA/CVX/LHYFE) hatten die MACD-Wende
+            # dabei, alle Messer-Kills (HDF -31$, RWAY, LUS1 bei RSI 11-21)
+            # nicht. Reines Oversold ist der Preis im freien Fall — die
+            # MACD-Wende ist der Beleg, dass der Fall bremst.
+            _st_upper = str(signal.get("signal_type") or "").upper()
+            if (
+                cfg.get("trading", {}).get("require_macd_confirmation_for_oversold", True)
+                and "OVERSOLD" in _st_upper
+                and "MACD" not in _st_upper
+            ):
+                logger.info(
+                    "SignalWorker: %s Oversold ohne MACD-Bestaetigung (%s) — Signal REJECTED",
+                    symbol, _st_upper[:60],
+                )
+                signal_repo.update_signal_status(signal_id, "REJECTED")
+                blocked_reasons.append(f"{symbol}: Oversold ohne MACD-Wende (Messer-Schutz)")
+                continue
     
             # c. Run master buy gate V5
             # fix/sl-gate-wiring: entry_price/sl_price wurden als 0 übergeben —
             # das SL-Quality-Gate (Bible Rule 1) prüfte damit NIE etwas.
             # Jetzt: Signalpreis als Entry, SL daraus mit derselben Formel
             # berechnet, die später open_position() verwendet.
-            from bot.core.risk import calculate_sl_price
+            from bot.core.risk import adaptive_sl_pct, calculate_sl_price
             gate_entry_price = float(signal.get("price") or 0.0)
+
+            # feat/strategy-gates (2026-07-20): Stop atmet mit der Tagesvola
+            # (11/17 SL-Kills hatten ATR > Fix-SL — Rauschen, nicht Trend).
+            # Sizing skaliert gegenlaeufig (Risk-Parity, Faktor-Floor 0.6),
+            # damit das Dollar-Risiko pro Trade konstant bleibt; das Broker-
+            # Minimum sichert der Execution-Preflight ab.
+            _sl_default = float(cfg.get("sl", {}).get("default_pct", 3.0))
+            _sl_pct_final = _sl_default
+            if cfg.get("sl", {}).get("atr_adaptive", True):
+                try:
+                    _atr_row = signal_repo.db.fetchone(
+                        "SELECT atr_pct FROM instruments WHERE instrument_id = ?",
+                        (signal.get("instrument_id"),),
+                    )
+                    _sl_pct_final = adaptive_sl_pct(
+                        _sl_default,
+                        _atr_row["atr_pct"] if _atr_row else None,
+                        multiple=float(cfg.get("sl", {}).get("atr_multiple", 1.5)),
+                        max_pct=float(cfg.get("sl", {}).get("max_pct", 6.0)),
+                    )
+                except Exception:
+                    _sl_pct_final = _sl_default
+                if _sl_pct_final > _sl_default and buy_amount > 0:
+                    _parity = max(_sl_default / _sl_pct_final, 0.6)
+                    buy_amount = round(buy_amount * _parity, 2)
+                    logger.info(
+                        "SignalWorker: %s ATR-SL %.2f%% (Default %.2f%%) — Sizing x%.2f (Risk-Parity)",
+                        symbol, _sl_pct_final, _sl_default, _parity,
+                    )
+
             gate_sl_price = (
-                calculate_sl_price(
-                    gate_entry_price, symbol,
-                    float(cfg.get("sl", {}).get("default_pct", 3.0)),
-                )
+                calculate_sl_price(gate_entry_price, symbol, _sl_pct_final)
                 if gate_entry_price > 0 else 0.0
             )
 
@@ -1076,7 +1124,7 @@ def main() -> None:
                     symbol=symbol,
                     direction="BUY",
                     amount_usd=buy_amount,
-                    stop_loss_pct=cfg.get("sl", {}).get("default_pct", 3.0),
+                    stop_loss_pct=_sl_pct_final,  # feat/strategy-gates: ATR-adaptiv
                     signal_id=signal_id,
                     signal_price=signal_price,
                 )

@@ -31,6 +31,7 @@ trading:
   cash_emergency_pct: 10.0    # Hard floor — no new buys below this cash level
   post_loss_cooldown_h: 24.0
   block_mean_reversion_in_caution: true  # 2026-07-17: kein Messer-Fangen ausserhalb NORMAL  # fix/post-loss-cooldown: nach Verlust-Close X h kein Re-Entry (LUS1.DE-Muster)
+  require_macd_confirmation_for_oversold: true  # 2026-07-20: Oversold ohne MACD-Wende = WR 8% (63 Trades) — Messer-Schutz
   max_spread_pct_crypto: 3.0  # feat/crypto-247: Krypto-Spreads strukturell breiter
   deployment_boost: 1.25      # fix/cash-deployment (2026-07-15): boostet Positionsgroessen bei
                               # Cash-Ueberschuss (Gates: NORMAL-Regime + Makro-Scalar 1.0 +
@@ -57,6 +58,9 @@ sl:                           # Stop-loss configuration
   emergency_pct: 4.0          # Widened SL used in high-volatility / emergency mode
   warning_pct: 2.0            # SL proximity warning threshold (% from current price)
   safety_tp_pct: 25.0         # feat/tp-safety-net: weites Broker-TP als Crash-Netz (Trailing bleibt primaer)
+  atr_adaptive: true          # feat/strategy-gates 2026-07-20: SL = clamp(atr_multiple*ATR, default, max) + Risk-Parity-Sizing
+  atr_multiple: 1.5
+  max_pct: 6.0                # Obergrenze des ATR-SL
 
 exits:                        # feat/exit-monitor-1h (2026-07-16, OSS-Report P17)
   signal_exit_1h:
