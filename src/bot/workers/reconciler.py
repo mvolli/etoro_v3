@@ -196,6 +196,56 @@ def match_late_fill_multi(
     return matched
 
 
+def infer_close_reason(matched: dict, trade_id: int) -> str:
+    """Schliessungsgrund aus einem get_trade_history-Eintrag herleiten.
+
+    feat/close-reason-inference (2026-07-20, User-Feedback MSI #464):
+    "Finalisiert — API bestaetigt" sagt nur DASS zu, nicht WARUM. Die
+    History-API liefert kein closeReason-Feld, aber stopLossRate/
+    takeProfitRate + closeRate reichen fuer eine belastbare Herleitung:
+    Fill am/unter dem Stop => Broker-SL (inkl. Gap-Ausweis), Fill am/
+    ueber dem TP => Broker-TP, sonst extern (manuell/eToro-seitig) —
+    Bot-initiierte Closes laufen ueber den sell_exits/trailing-Pfad
+    und kommen hier gar nicht an.
+    """
+    def _f(key: str) -> float:
+        try:
+            return float(matched.get(key, 0) or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    close, sl, tp = _f("closeRate"), _f("stopLossRate"), _f("takeProfitRate")
+    is_buy = bool(matched.get("isBuy", True))
+
+    dur = ""
+    try:
+        from datetime import datetime as _dt
+        o = _dt.fromisoformat(str(matched["openTimestamp"]).replace("Z", "+00:00"))
+        c = _dt.fromisoformat(str(matched["closeTimestamp"]).replace("Z", "+00:00"))
+        hours = (c - o).total_seconds() / 3600.0
+        if hours >= 48:
+            dur = f", Haltedauer {hours / 24:.1f}d"
+        elif hours >= 0:
+            dur = f", Haltedauer {hours:.0f}h"
+    except Exception:
+        pass
+
+    base = f"Trade #{trade_id}, API-bestätigt via Reconciler{dur}"
+    if not close:
+        return f"✅ Finalisiert — {base}"
+
+    tol = 0.005  # 0.5% Toleranz: Fills landen selten exakt auf dem Level
+    sl_hit = sl and ((is_buy and close <= sl * (1 + tol)) or (not is_buy and close >= sl * (1 - tol)))
+    tp_hit = tp and ((is_buy and close >= tp * (1 - tol)) or (not is_buy and close <= tp * (1 + tol)))
+    if sl_hit:
+        gap = (close / sl - 1) * 100 if is_buy else (sl / close - 1) * 100
+        gap_txt = f" (Fill {gap:+.2f}% zum Stop = Gap/Slippage)" if abs(gap) > 0.05 else ""
+        return f"🛑 Broker-Stop-Loss @ ${sl:g} ausgelöst{gap_txt} — {base}"
+    if tp_hit:
+        return f"🎯 Broker-Take-Profit @ ${tp:g} erreicht — {base}"
+    return f"✋ Extern geschlossen (nicht vom Bot: manuell oder eToro-seitig) — {base}"
+
+
 def _load_config() -> dict:
     """Load config/config.yaml relative to project root. Raises on missing file."""
     config_path = PROJECT_ROOT / "config" / "config.yaml"
@@ -1117,7 +1167,7 @@ def main() -> int:
                         close_price=final_close_price,
                         pnl_usd=final_pnl_usd,
                         pnl_pct=final_pnl_pct,
-                        reason=f"✅ Finalisiert (Reconciler): Trade #{t_id} — API bestätigt",
+                        reason=infer_close_reason(matched, t_id),
                     )
                     
                     msg = f"Trade {t_id} ({symbol}) finalized from API: PnL=${final_pnl_usd:.2f} ({final_pnl_pct:+.2f}%)"
