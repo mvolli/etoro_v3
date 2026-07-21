@@ -996,10 +996,24 @@ def main() -> int:
 
             if instrument_id is None:
                 # Last chance: an existing (non-placeholder) instruments row.
+                # Prioritize: 1) exact symbol match, 2) yfinance_symbol match,
+                # 3) tradable > non-tradable, 4) lowest instrument_id (stable).
                 row = db.fetchone(
-                    "SELECT instrument_id FROM instruments WHERE symbol = ? LIMIT 1",
+                    """SELECT instrument_id FROM instruments
+                       WHERE symbol = ?
+                       ORDER BY instrument_id LIMIT 1""",
                     (symbol,),
                 )
+                if row is None:
+                    # symbol != yfinance_symbol for many EU/Asia instruments
+                    # (e.g. NOKIA.HE has symbol='NOK', symbol='NOKIASEK.ST', etc.)
+                    row = db.fetchone(
+                        """SELECT instrument_id FROM instruments
+                           WHERE yfinance_symbol = ?
+                             AND (is_tradable IS NULL OR is_tradable = 1)
+                           ORDER BY instrument_id LIMIT 1""",
+                        (symbol,),
+                    )
                 if row is not None:
                     instrument_id = int(row["instrument_id"])
 
