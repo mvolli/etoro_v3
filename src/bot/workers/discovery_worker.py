@@ -496,6 +496,46 @@ def _symbol_to_instrument_id(
     return None
 
 
+def resolve_instrument_id_last_chance(db: Any, symbol: str) -> int | None:
+    """Letzte Instanz der Instrument-ID-Aufloesung aus der instruments-Tabelle.
+
+    Reihenfolge (feat/discovery-nokia-id-resolution 120f4db, hier ausgelagert
+    + getestet 2026-07-22):
+      1) exakter symbol-Match, niedrigste instrument_id (stabil)
+      2) sonst yfinance_symbol-Match, NUR handelbare (is_tradable IS NULL/1),
+         niedrigste instrument_id
+
+    Grund fuer (2): Fuer viele EU/Asia-Werte gilt symbol != yfinance_symbol —
+    z.B. teilen sich fuer yfinance_symbol='NOKIA.HE' drei Instrumente
+    (1115=NOK/US-ADR handelbar, 13030=NOKIA.PA nicht handelbar,
+    1017859=NOKIASEK.ST Stockholm); ohne yfinance-Fallback wurde NOKIA.HE gar
+    nicht oder falsch aufgeloest.
+
+    WICHTIG: Diese Funktion SCHLAEGT NUR EINEN KANDIDATEN VOR. Die eigentliche
+    Sicherung ist der nachgelagerte Preis+Identitaets-Cross-Check
+    (verify_candidate): ein durch yfinance-Kollision falsch aufgeloestes
+    Instrument faellt am Preis-Mismatch heraus und wird NICHT gespeichert.
+    Darum ist der tolerante Fallback (auch bei 45-113 Kollisionen) sicher.
+
+    Gibt die instrument_id (int) zurueck oder None.
+    """
+    row = db.fetchone(
+        "SELECT instrument_id FROM instruments WHERE symbol = ? "
+        "ORDER BY instrument_id LIMIT 1",
+        (symbol,),
+    )
+    if row is None:
+        row = db.fetchone(
+            "SELECT instrument_id FROM instruments WHERE yfinance_symbol = ? "
+            "AND (is_tradable IS NULL OR is_tradable = 1) "
+            "ORDER BY instrument_id LIMIT 1",
+            (symbol,),
+        )
+    if row is None:
+        return None
+    return int(row["instrument_id"])
+
+
 def _batch_fetch(symbols: list[str]) -> dict[str, Any]:
     """
     Download 3 months of OHLCV data for all symbols in one yf.download() call.
@@ -995,27 +1035,10 @@ def main() -> int:
                 instrument_id = _symbol_to_instrument_id(symbol, instrument_map)
 
             if instrument_id is None:
-                # Last chance: an existing (non-placeholder) instruments row.
-                # Prioritize: 1) exact symbol match, 2) yfinance_symbol match,
-                # 3) tradable > non-tradable, 4) lowest instrument_id (stable).
-                row = db.fetchone(
-                    """SELECT instrument_id FROM instruments
-                       WHERE symbol = ?
-                       ORDER BY instrument_id LIMIT 1""",
-                    (symbol,),
-                )
-                if row is None:
-                    # symbol != yfinance_symbol for many EU/Asia instruments
-                    # (e.g. NOKIA.HE has symbol='NOK', symbol='NOKIASEK.ST', etc.)
-                    row = db.fetchone(
-                        """SELECT instrument_id FROM instruments
-                           WHERE yfinance_symbol = ?
-                             AND (is_tradable IS NULL OR is_tradable = 1)
-                           ORDER BY instrument_id LIMIT 1""",
-                        (symbol,),
-                    )
-                if row is not None:
-                    instrument_id = int(row["instrument_id"])
+                # Last chance (ausgelagert + getestet): existierende
+                # instruments-Zeile — nachgelagert per Preis-Cross-Check
+                # (verify_candidate) verifiziert, schlaegt nur vor.
+                instrument_id = resolve_instrument_id_last_chance(db, symbol)
 
             if instrument_id is None:
                 n_unresolved += 1
