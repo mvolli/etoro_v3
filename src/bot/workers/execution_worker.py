@@ -212,6 +212,29 @@ def classify_requeue(trade: dict, now: datetime | None = None) -> bool:
 # gePOSTet wird NUR, wenn eToro die Order nachweislich nicht kennt (404).
 DEFER_CAP = 3  # max. DEFER-Zyklen pro Order (Spiegel des Portfolio-Polling-Caps)
 
+
+def market_closed_too_old(trade: dict, max_hours: float, now=None) -> bool:
+    """True wenn ein bei geschlossenem Markt haengender APPROVED-Trade zu alt ist.
+
+    fix/market-closed-ttl (2026-07-22): Orders bei geschlossenem Markt
+    bleiben APPROVED und werden alle 15min neu versucht — bisher OHNE Cap.
+    BTC-USD #472 haing so 5h+ in APPROVED und wurde jeden Veto-Zyklus neu
+    geprueft (Embed-Spam). Ein Signal, das X Stunden nicht ausfuehrbar war,
+    ist veraltet (die Einstiegsthese gilt nicht mehr) -> verwerfen.
+    """
+    from datetime import datetime, timezone
+    ts = trade.get("approved_at") or trade.get("created_at")
+    if not ts:
+        return False
+    try:
+        dt = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return False
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    now = now or datetime.now(timezone.utc)
+    return (now - dt).total_seconds() > max_hours * 3600.0
+
 _SCALP_SIGNAL_TYPES = frozenset({
     "BB_LOWER_RSI_OVERSOLD", "BB_EXTREME_RSI_OVERSOLD",
     "RSI_EXTREME_OVERSOLD", "BB_LOW_MACD_IMPROVING",
@@ -633,6 +656,19 @@ def main() -> None:
                     'ExecutionWorker: %s — Markt statisch geschlossen (%s), DEFER bis Marktöffnung',
                     symbol, mkt_status,
                 )
+                # fix/market-closed-ttl: nach X h haengender Marktschluss ->
+                # Signal veraltet, Trade verwerfen (kein Endlos-Retry).
+                _mc_max = float(cfg.get("execution", {}).get("market_closed_max_hours", 4.0))
+                if market_closed_too_old(trade, _mc_max):
+                    trade_repo.update_status(
+                        trade_id, "REJECTED",
+                        rejection_reason=f"Markt >{_mc_max:.0f}h geschlossen — Signal veraltet, verworfen",
+                    )
+                    log_repo.write("INFO", "execution_worker",
+                        f"Trade #{trade_id} REJECTED — Markt >{_mc_max:.0f}h zu, Signal veraltet",
+                        {"symbol": symbol})
+                    failed_count += 1
+                    continue
                 # fix/submitting-revert: Trade ist bereits SUBMITTING (lock_for_submission).
                 # Ohne Revert markiert der Reconciler es nach 5 min als stale FAILED.
                 trade_repo.update_status(trade_id, "APPROVED")
@@ -779,6 +815,18 @@ def main() -> None:
                             "ExecutionWorker: trade #%d (%s) — allowEntryOrders=false, DEFER",
                             trade_id, symbol,
                         )
+                        # fix/market-closed-ttl: Cap gegen Endlos-Retry (BTC #472).
+                        _mc_max = float(cfg.get("execution", {}).get("market_closed_max_hours", 4.0))
+                        if market_closed_too_old(trade, _mc_max):
+                            trade_repo.update_status(
+                                trade_id, "REJECTED",
+                                rejection_reason=f"allowEntryOrders>{_mc_max:.0f}h false — Signal veraltet, verworfen",
+                            )
+                            log_repo.write("INFO", "execution_worker",
+                                f"Trade #{trade_id} REJECTED — allowEntryOrders >{_mc_max:.0f}h false",
+                                {"symbol": symbol})
+                            failed_count += 1
+                            continue
                         # fix/submitting-revert: Revert SUBMITTING → APPROVED für Retry.
                         trade_repo.update_status(trade_id, "APPROVED")
                         processed_count -= 1

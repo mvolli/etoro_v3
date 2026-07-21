@@ -152,3 +152,6 @@ memory:                       # feat/qmd-memory 2026-07-22: Bot liest+schreibt d
     binary: /home/mvolli/.local/bin/qmd
     collection: hermes-workspace
     recall_limit: 5
+
+execution:
+  market_closed_max_hours: 4.0  # fix/market-closed-ttl: APPROVED-Trade nach X h Marktschluss verwerfen
