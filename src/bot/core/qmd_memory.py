@@ -107,7 +107,7 @@ def qmd_reindex(
     """
     try:
         proc = subprocess.run(
-            [binary, "update", "--collection", collection],
+            [binary, "update", collection],  # qmd update nimmt den Collection-Namen POSITIONAL (--collection existiert nur bei search)
             capture_output=True, text=True, timeout=timeout,
         )
         return proc.returncode == 0
