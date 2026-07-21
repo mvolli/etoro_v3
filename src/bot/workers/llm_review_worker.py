@@ -34,6 +34,13 @@ if str(SRC_DIR) not in sys.path:
 
 GHOST_BLACKLIST_PATH = PROJECT_ROOT / "data" / "llm_ghost_blacklist.json"
 INSIGHTS_PATH = PROJECT_ROOT / "docs" / "llm_insights.md"
+
+# feat/qmd-memory: Config einmalig laden (fuer QMD-Settings in _call_llm_once)
+try:
+    import yaml as _yaml
+    CFG = _yaml.safe_load(CONFIG_YAML_PATH.read_text(encoding="utf-8")) or {}
+except Exception:
+    CFG = {}
 LLM_URL = "http://127.0.0.1:8080/v1/chat/completions"
 LLM_TIMEOUT_S = 85  # < 120s cron budget
 ANALYSIS_WINDOW_DAYS = 14
@@ -486,6 +493,27 @@ Gib JSON mit genau diesen Feldern zurück:
     if trading_memory and trading_memory.get("strategy_notes"):
         prev_insights = " | ".join(trading_memory["strategy_notes"][-3:])
 
+    # feat/qmd-memory: semantischer Recall der eigenen dokumentierten Lern-
+    # Historie (docs/llm_insights.md etc.) — der Bot "erinnert" sich aktiv an
+    # frueher Geschlussfolgertes, nicht nur an die letzten 3 JSON-Notes.
+    _qmd_block = ""
+    try:
+        if CFG.get("memory", {}).get("qmd", {}).get("enabled", True):
+            from bot.core.qmd_memory import qmd_recall_block
+            # QMD nutzt AND-Semantik -> mehrere KURZE fokussierte Queries.
+            _qmd_queries = [
+                f"{regime} regime", "stop loss strategy", "signal quality",
+                "ghost order", "mean reversion",
+            ]
+            _qmd_block = qmd_recall_block(
+                _qmd_queries,
+                binary=CFG.get("memory", {}).get("qmd", {}).get("binary", "/home/mvolli/.local/bin/qmd"),
+                collection=CFG.get("memory", {}).get("qmd", {}).get("collection", "hermes-workspace"),
+                limit=int(CFG.get("memory", {}).get("qmd", {}).get("recall_limit", 5)),
+            )
+    except Exception:
+        _qmd_block = ""
+
     # Kuerzlich abgeschlossene Trades (mit PnL)
     recent_closed = ""
     if trade_perf and trade_perf.get("closed"):
@@ -548,6 +576,8 @@ Ergaenze das JSON AUCH um:
 
 ## Bisherige LLM-Erkenntnisse (Langzeitgedaechtnis)
 {prev_insights or 'Erster Run — kein Vorwissen'}
+
+{_qmd_block or ''}
 
 Ergaenze das JSON um folgende zusaetzliche Felder:
 {{
@@ -1259,6 +1289,14 @@ def main() -> int:
 
         # Insights-Log schreiben
         _append_insights(blacklist, llm_analysis, ghost_rates)
+        # feat/qmd-memory: frische Insights sofort durchsuchbar machen
+        try:
+            if CFG.get("memory", {}).get("qmd", {}).get("enabled", True):
+                from bot.core.qmd_memory import qmd_reindex
+                if qmd_reindex():
+                    print("[llm_review] QMD reindexiert — Insights sofort recall-bar")
+        except Exception:
+            pass
 
         # Discord-Post
         _post_discord(blacklist, llm_analysis, ghost_rates, trade_count, ghost_count)

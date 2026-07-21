@@ -145,3 +145,10 @@ cache:
 #     open: "15:30"            # NYSE open in Europe/Berlin = CET/CEST
 #     close: "22:00"           # NYSE close in Europe/Berlin
 #   timezone: "Europe/Berlin"  # All market_hours times were in this timezone
+
+memory:                       # feat/qmd-memory 2026-07-22: Bot liest+schreibt die QMD-Wissensbasis
+  qmd:
+    enabled: true
+    binary: /home/mvolli/.local/bin/qmd
+    collection: hermes-workspace
+    recall_limit: 5
