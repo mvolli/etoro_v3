@@ -363,24 +363,33 @@ def post_heartbeat_embed(
     # damit Problem-Positionen sofort ins Auge fallen).
     if positions_summary:
         _ps = sorted(positions_summary, key=lambda x: (x.get("unrealized_pnl_pct") if x.get("unrealized_pnl_pct") is not None else 0.0))
-        _lines = []
-        for _p in _ps[:25]:
+        _CAP = 30
+        _entries = []
+        for _p in _ps[:_CAP]:
             _sym = str(_p.get("symbol") or "?")
             _pnl = _p.get("unrealized_pnl_pct")
             _nosl = " ⚠️" if _p.get("is_no_stop_loss") else ""
             if _pnl is None:
-                _lines.append(f"⚪ {_sym}{_nosl}")
+                _entries.append(f"⚪ {_sym}{_nosl}")
             else:
                 _em = "🟢" if _pnl >= 0 else "🔴"
-                _lines.append(f"{_em} {_sym} {_pnl:+.1f}%{_nosl}")
-        _val = " · ".join(_lines)
-        if len(positions_summary) > 25:
-            _val += f" · +{len(positions_summary) - 25} weitere"
-        fields.append({
-            "name":  f"📋 Offene Positionen ({len(positions_summary)})",
-            "value": _val[:1020] or "keine",
-            "inline": False,
-        })
+                _entries.append(f"{_em} {_sym} {_pnl:+.1f}%{_nosl}")
+        _n = len(positions_summary)
+        # Dreispaltig: inline-Felder rendern nebeneinander. In bis zu 3
+        # moeglichst gleich grosse Spalten aufteilen (Reihenfolge nach PnL,
+        # schlechteste zuerst -> obere linke Spalte).
+        _per = -(-len(_entries) // 3) if _entries else 0   # ceil(n/3)
+        _cols = [_entries[i:i + _per] for i in range(0, len(_entries), _per)] if _per else [[]]
+        for _ci, _col in enumerate(_cols[:3]):
+            _name = f"📋 Offene Positionen ({_n})" if _ci == 0 else "\u200b"
+            _cval = "\n".join(_col)
+            if _ci == len(_cols[:3]) - 1 and _n > _CAP:
+                _cval += f"\n… +{_n - _CAP} weitere"
+            fields.append({
+                "name":  _name,
+                "value": (_cval or "\u200b")[:1020],
+                "inline": True,
+            })
 
     # T10.2: Pipeline Duration per Phase (if available)
     if phase_durations:

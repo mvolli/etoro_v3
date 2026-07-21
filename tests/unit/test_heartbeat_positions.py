@@ -1,4 +1,4 @@
-"""feat/heartbeat-positions: offene Positionen im Heartbeat-Embed."""
+"""feat/heartbeat-positions: offene Positionen dreispaltig im Heartbeat-Embed."""
 from unittest import mock
 
 import bot.discord_embeds as DE
@@ -18,30 +18,53 @@ def _base(**extra):
     return d
 
 
-def test_positions_field_present_and_sorted(monkeypatch):
+def _pos_fields(embed):
+    # Positions-Spalten sind die letzten Felder (phase_durations fehlt im Test).
+    flds = embed["fields"]
+    idx = next((i for i, f in enumerate(flds) if "Offene Positionen" in f["name"]), None)
+    return flds[idx:] if idx is not None else []
+
+
+def test_three_inline_columns(monkeypatch):
     seen = _capture(monkeypatch)
-    DE.post_heartbeat_embed(**_base(positions_summary=[
-        {"symbol": "BTC-USD", "unrealized_pnl_pct": 0.5},
-        {"symbol": "MSI", "unrealized_pnl_pct": -3.5},
-        {"symbol": "NG.L", "unrealized_pnl_pct": 1.2, "is_no_stop_loss": 1},
-    ]))
-    fld = next(f for f in seen["embed"]["fields"] if "Offene Positionen" in f["name"])
-    assert "(3)" in fld["name"]
-    # schlechteste zuerst
-    assert fld["value"].index("MSI") < fld["value"].index("BTC-USD")
-    assert "🔴 MSI -3.5%" in fld["value"]
-    assert "⚠️" in fld["value"]  # NG.L ohne SL
+    pos = [{"symbol": f"S{i}", "unrealized_pnl_pct": float(i - 3)} for i in range(9)]
+    DE.post_heartbeat_embed(**_base(positions_summary=pos))
+    cols = _pos_fields(seen["embed"])
+    assert len(cols) == 3
+    assert all(c["inline"] for c in cols)
+    assert "(9)" in cols[0]["name"]
+    # schlechteste (S0 = -3%) in der ersten Spalte oben
+    assert cols[0]["value"].startswith("🔴 S0")
 
 
-def test_no_positions_field_when_empty(monkeypatch):
+def test_all_positions_present(monkeypatch):
+    seen = _capture(monkeypatch)
+    pos = [{"symbol": f"X{i}", "unrealized_pnl_pct": 1.0} for i in range(7)]
+    DE.post_heartbeat_embed(**_base(positions_summary=pos))
+    joined = " ".join(c["value"] for c in _pos_fields(seen["embed"]))
+    for i in range(7):
+        assert f"X{i}" in joined
+
+
+def test_no_field_when_empty(monkeypatch):
     seen = _capture(monkeypatch)
     DE.post_heartbeat_embed(**_base(positions_summary=None))
     assert not any("Offene Positionen" in f["name"] for f in seen["embed"]["fields"])
 
 
-def test_overflow_capped(monkeypatch):
+def test_overflow_note(monkeypatch):
     seen = _capture(monkeypatch)
     many = [{"symbol": f"S{i}", "unrealized_pnl_pct": float(i)} for i in range(40)]
     DE.post_heartbeat_embed(**_base(positions_summary=many))
-    fld = next(f for f in seen["embed"]["fields"] if "Offene Positionen" in f["name"])
-    assert "weitere" in fld["value"] and "(40)" in fld["name"]
+    cols = _pos_fields(seen["embed"])
+    assert "(40)" in cols[0]["name"]
+    assert any("weitere" in c["value"] for c in cols)
+
+
+def test_no_stop_loss_marker(monkeypatch):
+    seen = _capture(monkeypatch)
+    DE.post_heartbeat_embed(**_base(positions_summary=[
+        {"symbol": "NG.L", "unrealized_pnl_pct": 1.2, "is_no_stop_loss": 1},
+    ]))
+    joined = " ".join(c["value"] for c in _pos_fields(seen["embed"]))
+    assert "⚠️" in joined and "NG.L" in joined
