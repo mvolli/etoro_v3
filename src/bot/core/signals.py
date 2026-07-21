@@ -45,7 +45,7 @@ MACD_SIGNAL = 9
 
 ATR_PERIOD = 14
 
-GOLDEN_CROSS_LOOKBACK_DAYS = 5   # GOLDEN_CROSS nur, wenn SMA20 die SMA50 innerhalb
+GOLDEN_CROSS_LOOKBACK_DAYS = 2   # GOLDEN_CROSS nur, wenn SMA20 die SMA50 innerhalb
                                  # der letzten N Bars von unten gekreuzt hat (Ereignis,
                                  # nicht Dauerzustand — fix/golden-cross-event)
 
@@ -243,12 +243,12 @@ def generate_signal(symbol: str, indicators: dict) -> SignalResult:
 
     Rules (BUY):
     1. BB Lower + RSI < 30 + price > SMA50 + vol_ratio < 1.5 → VERY_HIGH
-    2. BB %B < 0.05 + RSI < 30 + price > SMA50 + vol_ratio < 1.5 → VERY_HIGH
+    2. BB %B < 0.05 + RSI < 30 + price > SMA50 + vol_ratio < 1.5 → HIGH
     3. RSI < 25 → HIGH (MEDIUM wenn price < SMA50 * 0.90, tief im Downtrend)
     4. MACD histogram increasing + below SMA20 → MEDIUM
     5. BB %B < 0.1 + MACD improving → MEDIUM-HIGH
     6. Trend pullback: above SMA50, near/below SMA20, RSI 35-55 → HIGH
-    7. Golden Cross: SMA20 kreuzt SMA50 binnen 5 Bars + MACD positiv + RSI < 60 → HIGH
+    7. Golden Cross: SMA20 kreuzt SMA50 binnen 2 Bars + MACD positiv + RSI < 60 → HIGH
 
     Rules (SELL):
     1. BB Upper + RSI > 70 → SELL / take profits
@@ -280,7 +280,7 @@ def generate_signal(symbol: str, indicators: dict) -> SignalResult:
         if (bb_pct < BB_LOWER_EXTREME and rsi < RSI_OVERSOLD
                 and price > sma50           # Aufwärtstrend-Filter
                 and vol_ratio < 1.5):       # kein Distributions-Volumen
-            signals.append(("BB_EXTREME_RSI_OVERSOLD", CONVICTION_VERY_HIGH, 40.0))
+            signals.append(("BB_EXTREME_RSI_OVERSOLD", CONVICTION_HIGH, 25.0))
 
     # Rule 3: RSI extreme oversold — Conviction hängt vom Trend ab.
     # Tief im Downtrend (price < sma50 * 0.90) = MEDIUM (Vorsicht: weitere Verluste möglich)
