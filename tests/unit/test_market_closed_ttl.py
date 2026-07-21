@@ -30,3 +30,14 @@ def test_missing_and_broken_timestamp_failsafe():
 def test_created_at_fallback():
     ts = (datetime.now(timezone.utc) - timedelta(hours=6)).strftime("%Y-%m-%d %H:%M:%S")
     assert market_closed_too_old({"created_at": ts}, 4.0) is True
+
+def test_created_at_is_primary_anchor():
+    """created_at (Signalalter) hat Vorrang vor approved_at — ein alt
+    erstellter, spaet approvter Trade gilt als veraltet (BTC #472)."""
+    now = datetime.now(timezone.utc)
+    trade = {
+        "created_at": (now - timedelta(hours=6)).strftime("%Y-%m-%d %H:%M:%S"),
+        "approved_at": (now - timedelta(hours=1)).strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    assert market_closed_too_old(trade, 4.0) is True
+

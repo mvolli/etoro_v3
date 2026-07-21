@@ -439,19 +439,35 @@ Antworte NUR mit JSON:
         elif trades:
             # feat/result-embeds (2026-07-16): auch die Freigabe ist ein
             # Ergebnis — sonst ist ein pruefender LLM-Lauf unsichtbar.
+            # fix/veto-allclear-dedup (2026-07-22): NUR posten wenn sich das
+            # Set der APPROVED-Trades geaendert hat. Ein bei geschlossenem
+            # Markt haengender Trade (BTC #472) erzeugte sonst alle 15min
+            # dasselbe "alle freigegeben"-Embed (User-Beschwerde 2x).
+            _ac_key = ",".join(sorted(str(t.get("id")) for t in trades))
+            _ac_post = True
             try:
-                sys.path.insert(0, str(SRC_DIR / "bot"))
-                import discord_embeds as _DE
-                _DE.post_alert_embed(
-                    title=f"🟢 Pre-Trade-Veto: {len(trades)} geprueft — alle freigegeben",
-                    description=", ".join(
-                        str(t.get("symbol") or t.get("instrument_id")) for t in trades
-                    )[:1000],
-                    severity="INFO",
-                    channel="trades",
-                )
+                from bot.db.repo import StateRepo as _SR_ac
+                _ac_sr = _SR_ac(db)
+                if _ac_sr.get("VETO_ALLCLEAR_IDS") == _ac_key:
+                    _ac_post = False
+                else:
+                    _ac_sr.set("VETO_ALLCLEAR_IDS", _ac_key)
             except Exception:
-                pass
+                _ac_post = True  # fail-open: lieber ein Embed zu viel
+            if _ac_post:
+                try:
+                    sys.path.insert(0, str(SRC_DIR / "bot"))
+                    import discord_embeds as _DE
+                    _DE.post_alert_embed(
+                        title=f"🟢 Pre-Trade-Veto: {len(trades)} geprueft — alle freigegeben",
+                        description=", ".join(
+                            str(t.get("symbol") or t.get("instrument_id")) for t in trades
+                        )[:1000],
+                        severity="INFO",
+                        channel="trades",
+                    )
+                except Exception:
+                    pass
         return 0
 
 

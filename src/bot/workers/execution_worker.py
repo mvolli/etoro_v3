@@ -223,7 +223,10 @@ def market_closed_too_old(trade: dict, max_hours: float, now=None) -> bool:
     ist veraltet (die Einstiegsthese gilt nicht mehr) -> verwerfen.
     """
     from datetime import datetime, timezone
-    ts = trade.get("approved_at") or trade.get("created_at")
+    # created_at = Signal-Geburt (echtes Alter); approved_at kann nachlaufen
+    # (BTC #472: created 05:18, approved 07:18 -> 2h Differenz liess den Cap
+    # zu spaet greifen). Anker aufs frueheste bekannte Timestamp.
+    ts = trade.get("created_at") or trade.get("approved_at")
     if not ts:
         return False
     try:
