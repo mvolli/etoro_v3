@@ -35,6 +35,26 @@ logger = logging.getLogger(__name__)
 BASE_URL_V1 = "https://public-api.etoro.com/api/v1"
 BASE_URL_V2 = "https://public-api.etoro.com/api/v2"
 
+
+def blocks_on_entry_orders(elig: dict, is_crypto: bool) -> bool:
+    """True wenn allowEntryOrders=false einen Market-Order-Open blocken soll.
+
+    fix/crypto-entry-orders (2026-07-22): allowEntryOrders regelt PENDING/
+    LIMIT-Entry-Orders — NICHT die Marktoeffnung. Der Bot sendet aber
+    MARKET-Orders (Sofort-Open); das korrekte Gate dafuer ist
+    allowOpenPosition (separat geprueft).
+
+    Live verifiziert: BTC/ETH/XRP haben allowOpenPosition=True,
+    allowEntryOrders=False bei FRISCHEM Live-Kurs — der Krypto-Markt ist
+    24/7 offen, allowEntryOrders=False ist strukturell (eToro erlaubt keine
+    Krypto-Limit-Entries). Krypto wurde dadurch seit Aktivierung NIE
+    ausgefuehrt. Fuer Krypto daher NICHT auf allowEntryOrders blocken;
+    fuer Aktien bleibt es der Marktzeit-Proxy (Boerse zu -> false).
+    """
+    if is_crypto:
+        return False
+    return not elig.get("allowEntryOrders", True)
+
 _TRANSIENT_ERRORS = (Timeout, ConnectionError)
 
 
@@ -613,6 +633,7 @@ class EToroClient:
         stop_loss_pct: float = 3.0,
         symbol: str = "",
         take_profit_pct: float | None = None,
+        is_crypto: bool = False,
     ) -> dict:
         """Open a new long position on *instrument_id*.
 
@@ -730,16 +751,24 @@ class EToroClient:
                             ),
                         }
 
-                    # 2) allowEntryOrders — Markt gerade offen? (ersetzt statische market_hours)
-                    #    False = Markt geschlossen / Maintenance / eToro-Restriction
-                    #    Fail-open: wenn Feld fehlt, annehmen dass offen
-                    if not e.get("allowEntryOrders", True):
+                    # 2) allowEntryOrders — Marktzeit-Proxy NUR fuer Nicht-Krypto.
+                    #    Krypto ist 24/7 offen; allowEntryOrders=false ist dort
+                    #    strukturell (keine Limit-Entries) und darf einen
+                    #    Market-Order-Open NICHT blocken (fix/crypto-entry-orders).
+                    #    allowOpenPosition (oben) ist das echte Market-Order-Gate.
+                    if blocks_on_entry_orders(e, is_crypto):
                         msg = (
                             f"Markt geschlossen für {_symbol_for_preflight} "
                             f"(allowEntryOrders=false laut eToro Eligibility-API)"
                         )
                         logger.warning("open_position BLOCKED: %s", msg)
                         return {"success": False, "error": msg}
+                    if is_crypto and not e.get("allowEntryOrders", True):
+                        logger.info(
+                            "open_position: %s allowEntryOrders=false ignoriert "
+                            "(Krypto 24/7, Market-Order via allowOpenPosition)",
+                            _symbol_for_preflight,
+                        )
                     # 3) Validate SL is within allowed bounds from leverageConfigs
                     #    We'll validate the computed SL rate after we have current_price
                     break

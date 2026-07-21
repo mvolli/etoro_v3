@@ -806,6 +806,7 @@ def main() -> None:
                     stop_loss_pct=stop_loss_pct,
                     symbol=symbol,
                     take_profit_pct=float(cfg.get("sl", {}).get("safety_tp_pct", 25.0)),
+                    is_crypto=_is_crypto,  # fix/crypto-entry-orders: 24/7-Market-Order
                 )
     
                 # d1. BLOCKED path — open_position() returned a soft-block dict
