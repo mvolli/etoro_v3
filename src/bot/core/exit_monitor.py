@@ -25,7 +25,7 @@ GATE_MINUTES = 55
 
 
 def detect_trend_kipp_1h(closes, rsi_max: float = RSI_MAX) -> dict | None:
-    """Pure: MACD(12/26/9)-Linie kreuzt in den letzten 2 abgeschlossenen
+    """Pure: MACD(12/26/9)-Linie kreuzt innerhalb von ~5 abgeschlossenen
     1H-Bars unter die Signallinie UND RSI(14) < rsi_max -> Trend kippt.
 
     Rueckgabe {'rsi':..., 'macd_hist':...} bei Treffer, sonst None.
@@ -43,8 +43,12 @@ def detect_trend_kipp_1h(closes, rsi_max: float = RSI_MAX) -> dict | None:
         if len(diff) < 3 or rsi_series.empty:
             return None
         rsi = float(rsi_series.iloc[-1])
-        crossed = float(diff.iloc[-1]) < 0 and (
-            float(diff.iloc[-2]) > 0 or float(diff.iloc[-3]) > 0
+        # fix/exit-kipp-macd-window: MACD-Cross muss innerhalb der letzten
+        # ~5 Bars passiert sein (TTL 90 min = 3 Bars, Puffer auf 5).
+        # Vorher: nur letzte 2 Bars => Cross bei Bar 50 verpasst bis Bar 67.
+        LOOKBACK = 5
+        crossed = float(diff.iloc[-1]) < 0 and any(
+            float(diff.iloc[-i]) > 0 for i in range(2, min(LOOKBACK + 1, len(diff)))
         )
         if crossed and rsi < rsi_max:
             return {"rsi": rsi, "macd_hist": float(diff.iloc[-1])}
