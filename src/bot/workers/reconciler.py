@@ -1343,6 +1343,7 @@ def main() -> int:
                     severity=_severity,
                     cb_active=regime in ("DEFENSIVE", "CRITICAL"),
                     elapsed_s=0.0,
+                    positions_summary=positions_for_embed,  # feat/heartbeat-positions
                     cb_status={"regime": regime, "drawdown_pct": drawdown_pct,
                                "peak_equity": peak_equity},
                 )

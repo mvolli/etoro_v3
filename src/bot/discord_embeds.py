@@ -283,6 +283,7 @@ def post_heartbeat_embed(
     elapsed_s: float,
     cb_status: dict = None,
     phase_durations: dict = None,
+    positions_summary: list = None,
     dry_run: bool = False,
 ) -> bool:
     """Pipeline-Heartbeat — alle 30min (TAKT_MONITORING) in #etoro-trading.
@@ -355,6 +356,31 @@ def post_heartbeat_embed(
             "inline": True,
         },
     ]
+
+    # feat/heartbeat-positions (2026-07-22): offene Positionen direkt im
+    # Heartbeat — bisher nur im post_reconciler_embed (feuert nur bei
+    # Close/Orphan, also selten). Sortiert nach PnL (schlechteste zuerst,
+    # damit Problem-Positionen sofort ins Auge fallen).
+    if positions_summary:
+        _ps = sorted(positions_summary, key=lambda x: (x.get("unrealized_pnl_pct") if x.get("unrealized_pnl_pct") is not None else 0.0))
+        _lines = []
+        for _p in _ps[:25]:
+            _sym = str(_p.get("symbol") or "?")
+            _pnl = _p.get("unrealized_pnl_pct")
+            _nosl = " ⚠️" if _p.get("is_no_stop_loss") else ""
+            if _pnl is None:
+                _lines.append(f"⚪ {_sym}{_nosl}")
+            else:
+                _em = "🟢" if _pnl >= 0 else "🔴"
+                _lines.append(f"{_em} {_sym} {_pnl:+.1f}%{_nosl}")
+        _val = " · ".join(_lines)
+        if len(positions_summary) > 25:
+            _val += f" · +{len(positions_summary) - 25} weitere"
+        fields.append({
+            "name":  f"📋 Offene Positionen ({len(positions_summary)})",
+            "value": _val[:1020] or "keine",
+            "inline": False,
+        })
 
     # T10.2: Pipeline Duration per Phase (if available)
     if phase_durations:
