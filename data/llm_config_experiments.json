@@ -1,0 +1,17 @@
+{
+  "active": {
+    "param": "sl.default_pct",
+    "old_value": 2.5,
+    "new_value": 3.0,
+    "hypothesis": "Ein leicht erhohter Stop-Loss von 2.5% auf 3.0% reduziert das vorzeitige Ausstoppen bei normalem Marktrauschen, was die Win-Rate und damit die durchschnittliche PnL pro Trade erhohen sollte.",
+    "started_at": "2026-07-19T03:00:37.752918+00:00",
+    "start_equity": 9206.599999999999,
+    "baseline": {
+      "n": 89,
+      "win_rate": 0.157,
+      "avg_pnl_pct": -0.019,
+      "sum_pnl_usd": -167.07
+    }
+  },
+  "history": []
+}

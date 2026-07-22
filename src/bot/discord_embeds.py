@@ -32,8 +32,31 @@ logger = logging.getLogger("discord_embeds")
 
 
 def insert_system_log(level: str, category: str, message: str, details: str = "") -> None:
-    """No-op stub — V3 uses bot.db.repo.LogRepo instead of infrastructure_module."""
+    """Persistiert ein Embed-Ereignis in trading.db.system_log (fail-open).
+
+    feat/close-history-observability (2026-07-22): war ein No-op-Stub — dadurch
+    fehlte jede persistente Close-Historie (Cron-Outputs rotieren nach ~4h, und
+    das per importlib geladene Modul nutzt keinen LogRepo). Schreibt jetzt
+    leichtgewichtig via eigener Connection (busy_timeout gegen Worker-Locks),
+    damit Partial-/Full-Closes + FILLED-Events einen durablen DB-Record haben.
+    Darf NIE werfen (wird aus dem Embed-Post-Pfad gerufen).
+    """
     logger.debug("[discord_embeds] log(%s, %s): %s", level, category, message)
+    try:
+        import sqlite3
+        conn = sqlite3.connect(str(_TRADING_DB_PATH), timeout=3)
+        try:
+            conn.execute("PRAGMA busy_timeout=3000")
+            conn.execute(
+                "INSERT INTO system_log (ts, level, worker, message, details) "
+                "VALUES (datetime('now','utc'), ?, ?, ?, ?)",
+                (level, category, message, (details or None)),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception:
+        pass
 
 # ─── Channels ────────────────────────────────────────────────────────────────
 DISCORD_MAIN_CHANNEL  = "1513971015108263957"   # #etoro-trading

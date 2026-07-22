@@ -31,7 +31,6 @@ trading:
   cash_emergency_pct: 10.0    # Hard floor — no new buys below this cash level
   post_loss_cooldown_h: 24.0
   block_mean_reversion_in_caution: true  # 2026-07-17: kein Messer-Fangen ausserhalb NORMAL  # fix/post-loss-cooldown: nach Verlust-Close X h kein Re-Entry (LUS1.DE-Muster)
-  require_macd_confirmation_for_oversold: true  # 2026-07-20: Oversold ohne MACD-Wende = WR 8% (63 Trades) — Messer-Schutz
   max_spread_pct_crypto: 3.0  # feat/crypto-247: Krypto-Spreads strukturell breiter
   deployment_boost: 1.25      # fix/cash-deployment (2026-07-15): boostet Positionsgroessen bei
                               # Cash-Ueberschuss (Gates: NORMAL-Regime + Makro-Scalar 1.0 +
@@ -54,13 +53,10 @@ regime:                       # Drawdown-from-rolling-peak → 4-state regime (r
   critical_exit_pct: 13.0     # DD < 13.0% → back to DEFENSIVE
 
 sl:                           # Stop-loss configuration
-  default_pct: 3.0            # Default stop-loss distance from entry (%) — AKTIVES Experiment (2.5->3.0, 14d seit 2026-07-19)
+  default_pct: 2.5            # Default stop-loss distance from entry (%)
   emergency_pct: 4.0          # Widened SL used in high-volatility / emergency mode
   warning_pct: 2.0            # SL proximity warning threshold (% from current price)
   safety_tp_pct: 25.0         # feat/tp-safety-net: weites Broker-TP als Crash-Netz (Trailing bleibt primaer)
-  atr_adaptive: true          # feat/strategy-gates 2026-07-20: SL = clamp(atr_multiple*ATR, default, max) + Risk-Parity-Sizing
-  atr_multiple: 1.5
-  max_pct: 6.0                # Obergrenze des ATR-SL
 
 exits:                        # feat/exit-monitor-1h (2026-07-16, OSS-Report P17)
   signal_exit_1h:
@@ -73,7 +69,7 @@ exits:                        # feat/exit-monitor-1h (2026-07-16, OSS-Report P17
     close_pct: 50.0           # Teilverkauf ueber die sell_exits-Maschinerie
 
 sizing:                       # Position size as % of portfolio equity
-  very_high_pct: 7.0          # Conviction tier: VERY HIGH (fix 2026-07-14: stand auf 4.0 und war
+  very_high_pct: 8.0          # Conviction tier: VERY HIGH (fix 2026-07-14: stand auf 4.0 und war
                               # damit KLEINER als HIGH — invertierte Conviction-Leiter. Schwache
                               # Signal-Typen bremst heute der Kelly-Faktor, nicht dieser Wert.)
   high_pct: 6.0               # Conviction tier: HIGH
@@ -120,15 +116,6 @@ sector_limits:
   max_per_sector_pct: 20.0
 
 discovery:
-  movers_scan:                # feat/market-movers 2026-07-20: API-weiter Daily-Mover-Scan (Bulk-Closing + Batch-Rates)
-    enabled: true
-    min_move_pct: 5.0
-    min_move_pct_crypto: 8.0
-    top_n: 10
-    max_move_pct: 25.0        # fix/movers-sanity: darueber = Pennystock-Artefakt/Datenrauschen
-    min_price: 0.5            # Mindest-Schlusskurs — Mini-Kurse machen aus Ticks Riesenprozente
-    max_rates_ids: 2000       # Budget-Deckel: max. IDs pro Lauf fuer Batch-Rates
-    watchlist_cap: 15         # eigener movers.discovered-Pool, TTL-Eviction wie alle *.discovered
   max_price_deviation_pct: 25.0  # Identity guard: max yfinance↔eToro price deviation (scale-aware GBp/GBP)
 
 discord:
@@ -145,13 +132,3 @@ cache:
 #     open: "15:30"            # NYSE open in Europe/Berlin = CET/CEST
 #     close: "22:00"           # NYSE close in Europe/Berlin
 #   timezone: "Europe/Berlin"  # All market_hours times were in this timezone
-
-memory:                       # feat/qmd-memory 2026-07-22: Bot liest+schreibt die QMD-Wissensbasis
-  qmd:
-    enabled: true
-    binary: /home/mvolli/.local/bin/qmd
-    collection: hermes-workspace
-    recall_limit: 5
-
-execution:
-  market_closed_max_hours: 4.0  # fix/market-closed-ttl: APPROVED-Trade nach X h Marktschluss verwerfen

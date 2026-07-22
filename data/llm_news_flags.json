@@ -1,7 +1,26 @@
 {
-  "generated_at": "2026-07-15T03:15:16.488836+00:00",
-  "auto_expires_at": "2026-07-15T15:15:16.488836+00:00",
-  "symbols_scanned": 25,
-  "headlines_seen": 8,
-  "flags": {}
+  "generated_at": "2026-07-22T11:15:15.356145+00:00",
+  "auto_expires_at": "2026-07-22T23:15:15.356145+00:00",
+  "symbols_scanned": 51,
+  "headlines_seen": 14,
+  "flags": {
+    "ACE.MI": {
+      "flag": "AVOID",
+      "severity": "HIGH",
+      "reason": "Earnings am 2026-07-23",
+      "source": "earnings_calendar"
+    },
+    "NEE.RTH": {
+      "flag": "AVOID",
+      "severity": "HIGH",
+      "reason": "Earnings am 2026-07-24",
+      "source": "earnings_calendar"
+    },
+    "BTC-USD": {
+      "flag": "CAUTION",
+      "severity": "MEDIUM",
+      "reason": "Satsuma Technology windet BTC-Treasury-Strategie ab",
+      "source": "news_llm"
+    }
+  }
 }

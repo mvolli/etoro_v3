@@ -1,71 +1,77 @@
 {
-  "updated_at": "2026-07-15T19:28:22.531435+00:00",
-  "auto_expires_at": "2026-07-22T19:28:22.531448+00:00",
+  "updated_at": "2026-07-21T20:30:38.983403+00:00",
+  "auto_expires_at": "2026-07-28T20:30:38.983412+00:00",
   "exchanges": [
+    ".L",
     ".OL",
+    "_FOREX",
     "_FUT"
   ],
-  "caution_exchanges": [
-    ".MC",
-    "_FOREX",
-    "_CRYPTO"
-  ],
+  "caution_exchanges": [],
   "symbols": [
+    "ALFA.L",
+    "COA.L",
+    "EURGBP",
+    "HAYD.L",
     "LiveCattle.FUT",
-    "NRC.OL",
-    "WWI.OL",
-    "DOGE-USD"
+    "OXB.L",
+    "TBCG.L"
   ],
   "stats": {
-    ".MI": {
-      "total": 6,
+    ".RTH": {
+      "total": 2,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    "_ASIA": {
+      "total": 18,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    ".ST": {
+      "total": 7,
       "ghost": 1,
-      "rate": 0.17
+      "rate": 0.14
+    },
+    ".MC": {
+      "total": 8,
+      "ghost": 1,
+      "rate": 0.12
+    },
+    ".MI": {
+      "total": 7,
+      "ghost": 1,
+      "rate": 0.14
     },
     ".DE": {
-      "total": 10,
+      "total": 20,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    ".ZU": {
+      "total": 3,
       "ghost": 0,
       "rate": 0.0
     },
     ".L": {
-      "total": 38,
-      "ghost": 7,
-      "rate": 0.18
+      "total": 15,
+      "ghost": 5,
+      "rate": 0.33
     },
-    ".ST": {
-      "total": 6,
+    ".PA": {
+      "total": 23,
       "ghost": 1,
-      "rate": 0.17
+      "rate": 0.04
+    },
+    "_OTHER": {
+      "total": 15,
+      "ghost": 2,
+      "rate": 0.13
     },
     ".ASX": {
       "total": 8,
       "ghost": 1,
       "rate": 0.12
-    },
-    ".PA": {
-      "total": 19,
-      "ghost": 1,
-      "rate": 0.05
-    },
-    ".ZU": {
-      "total": 2,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    ".MC": {
-      "total": 2,
-      "ghost": 1,
-      "rate": 0.5
-    },
-    "_OTHER": {
-      "total": 32,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    "_ASIA": {
-      "total": 17,
-      "ghost": 0,
-      "rate": 0.0
     },
     "_FUT": {
       "total": 2,
@@ -73,35 +79,15 @@
       "rate": 1.0
     },
     "_FOREX": {
-      "total": 6,
-      "ghost": 3,
-      "rate": 0.5
-    },
-    ".OL": {
       "total": 3,
       "ghost": 3,
       "rate": 1.0
     },
-    ".HK": {
-      "total": 25,
+    ".OL": {
+      "total": 3,
       "ghost": 0,
       "rate": 0.0
-    },
-    ".AX": {
-      "total": 12,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    ".T": {
-      "total": 2,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    "_CRYPTO": {
-      "total": 10,
-      "ghost": 3,
-      "rate": 0.3
     }
   },
-  "reason": "Ghost-Raten auf .OL und _FUT sind kritisch hoch (100%), diese Exchanges sollten gefiltert werden. DOGE-USD hat 47 FAILED Trades — schlechtester Performer. Crypto (_CRYPTO) und _FOREX haben 50% Ghost-Rate, daher caution_exchanges. Das Signal TREND_PULLBACK scheitert isoliert fast immer (2% Success Rate), daher nur in Kombination mit GOLDEN_Cross nutzen. VERY_HIGH Conviction Trades bei RSI-Extremwerten haben trotz hoher Success Rate negative durchschnittliche PnLs."
+  "reason": "CAUTION-Regime: Portfolio bei 9149 USD. Ghost-Raten bei .L und Forex steigen. Signale wie GOLDEN_CROSS und TREND_PULLBACK verlieren häufig an Rejection. VERY_HIGH Conviction Trades zeigen negative Durchschnitts-PnL. SL bei 3% beibehalten, aber Signal-Gewichte anpassen."
 }

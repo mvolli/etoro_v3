@@ -8,6 +8,244 @@
    "decision": "REDUCE",
    "reason": "QQQ stark negativ (-1.9%), RSI noch nicht extrem tief, Risiko-Management empfohlen.",
    "signal_price": 100.0
+  },
+  {
+   "ts": "2026-07-15T12:34:35.020061+00:00",
+   "trade_id": 422,
+   "symbol": "SALT.L",
+   "yf_symbol": "SALT.L",
+   "decision": "REDUCE",
+   "reason": "RSI < 20 extrem oversold, Risiko eines falschen Breakouts hoch.",
+   "signal_price": 22.0
+  },
+  {
+   "ts": "2026-07-15T12:49:36.765620+00:00",
+   "trade_id": 422,
+   "symbol": "SALT.L",
+   "yf_symbol": "SALT.L",
+   "decision": "REDUCE",
+   "reason": "RSI extrem oversold, Liquidity-Risiko bei Penny-Stock",
+   "signal_price": 22.0
+  },
+  {
+   "ts": "2026-07-15T13:04:38.588860+00:00",
+   "trade_id": 422,
+   "symbol": "SALT.L",
+   "yf_symbol": "SALT.L",
+   "decision": "VETO",
+   "reason": "RSI extrem oversold (<20), Risiko eines 'falling knife' trotz Signal.",
+   "signal_price": 22.0,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -6.82
+  },
+  {
+   "ts": "2026-07-15T13:04:38.588860+00:00",
+   "trade_id": 425,
+   "symbol": "LUS1.DE",
+   "yf_symbol": "LUS1.DE",
+   "decision": "REDUCE",
+   "reason": "RSI sehr niedrig (21.7), vorsichtige Positionierung empfohlen.",
+   "signal_price": 14.949999809265137
+  },
+  {
+   "ts": "2026-07-15T13:04:38.588860+00:00",
+   "trade_id": 426,
+   "symbol": "CNS.L",
+   "yf_symbol": "CNS.L",
+   "decision": "REDUCE",
+   "reason": "RSI sehr niedrig (22.5), vorsichtige Positionierung empfohlen.",
+   "signal_price": 9.015000343322754
+  },
+  {
+   "ts": "2026-07-15T13:19:37.823688+00:00",
+   "trade_id": 424,
+   "symbol": "AOM.L",
+   "yf_symbol": "AOM.L",
+   "decision": "REDUCE",
+   "reason": "RSI extrem oversold (17.6), Risiko eines falschen Bounces hoch.",
+   "signal_price": 197.0
+  },
+  {
+   "ts": "2026-07-15T13:34:38.164062+00:00",
+   "trade_id": 424,
+   "symbol": "AOM.L",
+   "yf_symbol": "AOM.L",
+   "decision": "REDUCE",
+   "reason": "RSI 17.7 extrem oversold, hohes Reversal-Risiko, Position verkleinern.",
+   "signal_price": 197.0
+  },
+  {
+   "ts": "2026-07-15T13:49:39.085189+00:00",
+   "trade_id": 424,
+   "symbol": "AOM.L",
+   "yf_symbol": "AOM.L",
+   "decision": "REDUCE",
+   "reason": "RSI extrem oversold (<18), hohes Rebound-Risiko, aber Volatilitaet hoch.",
+   "signal_price": 197.0
+  },
+  {
+   "ts": "2026-07-15T14:34:41.603996+00:00",
+   "trade_id": 431,
+   "symbol": "NATGAS",
+   "yf_symbol": "NG=F",
+   "decision": "REDUCE",
+   "reason": "NATGAS volatil, Score niedriger als bei AOM.L, Risikoreduktion empfohlen",
+   "signal_price": 2.8980000019073486
+  },
+  {
+   "ts": "2026-07-15T14:49:44.320405+00:00",
+   "trade_id": 431,
+   "symbol": "NATGAS",
+   "yf_symbol": "NG=F",
+   "decision": "REDUCE",
+   "reason": "NATGAS ist volatil; RSI bei 37.8 deutet auf noch bestehende Abwärtsdynamik hin, daher Positionsgrösse halbieren.",
+   "signal_price": 2.8980000019073486
+  },
+  {
+   "ts": "2026-07-15T15:04:45.024398+00:00",
+   "trade_id": 431,
+   "symbol": "NATGAS",
+   "yf_symbol": "NG=F",
+   "decision": "REDUCE",
+   "reason": "Niedriges Score (35) und RSI noch nicht extrem oversold; Risiko im aktuellen Kontext minimieren.",
+   "signal_price": 2.8980000019073486
+  },
+  {
+   "ts": "2026-07-16T07:19:28.078165+00:00",
+   "trade_id": 437,
+   "symbol": "TEK.L",
+   "yf_symbol": "TEK.L",
+   "decision": "REDUCE",
+   "reason": "RSI von 7.05 ist extrem oversold; Risiko eines technischen Fehlsignals oder weiteren Nachverkaufens.",
+   "signal_price": 4.150000095367432
+  },
+  {
+   "ts": "2026-07-16T14:49:48.328358+00:00",
+   "trade_id": 451,
+   "symbol": "LUS1.DE",
+   "yf_symbol": "LUS1.DE",
+   "decision": "REDUCE",
+   "reason": "RSI ~17.6 ist extrem oversold, aber bereits bestehende Short-Position (-0.6%) erfordert Risikokontrolle.",
+   "signal_price": 15.550000190734863
+  },
+  {
+   "ts": "2026-07-20T15:19:43.385676+00:00",
+   "trade_id": 469,
+   "symbol": "HAYD.L",
+   "yf_symbol": "HAYD.L",
+   "decision": "REDUCE",
+   "reason": "Signal RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20 hat historisch WR 0.0% (n=6). Reduktion zur Risikostreuung.",
+   "signal_price": 0.25999999046325684
+  },
+  {
+   "ts": "2026-07-20T15:34:48.989566+00:00",
+   "trade_id": 470,
+   "symbol": "FHZN.ZU",
+   "yf_symbol": "FHZN.SW",
+   "decision": "VETO",
+   "reason": "MACD-Kombo WR 0.0% bei n=3; RSI ~37 noch nicht im tiefen Oversold, Risiko zu hoch.",
+   "signal_price": 233.0,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.26
+  },
+  {
+   "ts": "2026-07-21T08:34:53.500490+00:00",
+   "trade_id": 473,
+   "symbol": "Z29.DE",
+   "yf_symbol": "Z29.DE",
+   "decision": "REDUCE",
+   "reason": "RSI < 50 ohne klare MACD-Wende, WR 7.8% (Messer-Szenario).",
+   "signal_price": 40.599998474121094
+  },
+  {
+   "ts": "2026-07-21T09:34:45.591916+00:00",
+   "trade_id": 474,
+   "symbol": "Z29.DE",
+   "yf_symbol": "Z29.DE",
+   "decision": "REDUCE",
+   "reason": "WR 21.4% bei n=14; RSI ~48 ist nicht klar oversold, Risiko eines 'fallenden Messers' hoch.",
+   "signal_price": 40.599998474121094
+  },
+  {
+   "ts": "2026-07-21T10:34:49.858746+00:00",
+   "trade_id": 475,
+   "symbol": "Z29.DE",
+   "yf_symbol": "Z29.DE",
+   "decision": "REDUCE",
+   "reason": "RSI ~48.5 deutet auf kein klares Oversold hin; Kombos ohne MACD-Wende haben WR 7.8%.",
+   "signal_price": 40.599998474121094
+  },
+  {
+   "ts": "2026-07-21T11:04:51.936966+00:00",
+   "trade_id": 478,
+   "symbol": "MEL.MC",
+   "yf_symbol": "MEL.MC",
+   "decision": "REDUCE",
+   "reason": "RSI ~28 ist stark oversold (Messergefahr). Bei WR 25% und hoher Volatilität im unteren BB-Test: Position halbieren, um SL-Risiko zu minimieren.",
+   "signal_price": 10.579999923706055
+  },
+  {
+   "ts": "2026-07-21T12:49:57.411601+00:00",
+   "trade_id": 479,
+   "symbol": "NELLY.ST",
+   "yf_symbol": "NELLY.ST",
+   "decision": "REDUCE",
+   "reason": "Kombination TREND_PULLBACK,GOLDEN_CROSS hat WR von 21.4% (n=14). RSI ~49 ist nicht klar oversold, daher kein MACD-Wende-Signal vorhanden. Risiko wird durch Reduzierung halbiert.",
+   "signal_price": 35.119998931884766
+  },
+  {
+   "ts": "2026-07-21T13:35:01.438910+00:00",
+   "trade_id": 479,
+   "symbol": "NELLY.ST",
+   "yf_symbol": "NELLY.ST",
+   "decision": "VETO",
+   "reason": "WR 21.4% bei n=14; RSI ~49 (nicht oversold) ohne MACD-Wende-Komponente; hohes SL-Risiko.",
+   "signal_price": 35.119998931884766
+  },
+  {
+   "ts": "2026-07-21T13:35:01.438910+00:00",
+   "trade_id": 480,
+   "symbol": "NEI_14796",
+   "yf_symbol": "NEE",
+   "decision": "REDUCE",
+   "reason": "Selbes Signal mit schlechter WR; RSI ~50 neutral, kein klarer Momentum-Shift; Reduktion zur Risikostreuung.",
+   "signal_price": 88.0
+  },
+  {
+   "ts": "2026-07-21T14:05:01.226787+00:00",
+   "trade_id": 481,
+   "symbol": "NEI_14796",
+   "yf_symbol": "NEE",
+   "decision": "REDUCE",
+   "reason": "WR 21.4% unter 25%-Schwelle; RSI ~49 nicht klar oversold, Risiko-Reduktion empfohlen.",
+   "signal_price": 87.8499984741211
+  },
+  {
+   "ts": "2026-07-21T15:34:31.080356+00:00",
+   "trade_id": 482,
+   "symbol": "NEI_14796",
+   "yf_symbol": "NEE",
+   "decision": "REDUCE",
+   "reason": "WR 21.4% bei Kombi ohne MACD-Wende; RSI ~50 nicht klar oversold, Risiko mindern",
+   "signal_price": 87.87000274658203
+  },
+  {
+   "ts": "2026-07-21T16:34:10.280988+00:00",
+   "trade_id": 483,
+   "symbol": "NEE.RTH",
+   "yf_symbol": "NEE",
+   "decision": "REDUCE",
+   "reason": "Kombination TREND_PULLBACK,GOLDEN_CROSS hat WR 21.4% (n=14). RSI ~50 zeigt keine klare MACD-Wende/Oversold-Bedingung, was das Risiko bei diesem spezifischen Combo erhöht.",
+   "signal_price": 87.88999938964844
+  },
+  {
+   "ts": "2026-07-21T17:34:12.946636+00:00",
+   "trade_id": 484,
+   "symbol": "NEE.RTH",
+   "yf_symbol": "NEE",
+   "decision": "REDUCE",
+   "reason": "Kombination TREND_PULLBACK,GOLDEN_CROSS hat WR von 21.4% (n=14). RSI ~49 ist nicht klar oversold, daher fehlt die MACD-Komponente zur Risikostreuung. Im Zweifel verkleinern.",
+   "signal_price": 87.86000061035156
   }
  ]
 }

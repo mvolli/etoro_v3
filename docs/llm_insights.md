@@ -539,3 +539,204 @@
 - Ghost-Raten auf .OL und _FUT strukturell hoch (100%)
 
 **LLM-Fazit:** Ghost-Raten auf .OL und _FUT sind kritisch hoch (100%), diese Exchanges sollten gefiltert werden. Das Signal TREND_PULLBACK scheitert isoliert fast immer (2% Success Rate), daher nur in Kombination mit GOLDEN_CROSS nutzen. VERY_HIGH Conviction Trades bei RSI-Extremwerten haben trotz hoher Success Rate negative durchschnittliche PnLs, was auf große Verluste bei wenigen Trades hindeutet.
+
+## 2026-07-15 20:31 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_FUT`: 100% (2/2) ← GEBLOCKT
+- `_FOREX`: 100% (3/3) ← GEBLOCKT
+- `.OL`: 100% (3/3) ← GEBLOCKT
+- `.MC`: 33% (1/3) ⚠ CAUTION
+- `.L`: 22% (10/45)
+- `.MI`: 17% (1/6)
+- `.ST`: 17% (1/6)
+- `_OTHER`: 14% (2/14)
+- `.ASX`: 12% (1/8)
+- `.PA`: 5% (1/20)
+- `.DE`: 0% (0/11)
+- `.ZU`: 0% (0/2)
+- `_ASIA`: 0% (0/17)
+- `.HK`: 0% (0/3)
+- `.AX`: 0% (0/11)
+- `.T`: 0% (0/2)
+- `_CRYPTO`: 0% (0/8)
+
+**Symbol-Blacklist:** EURGBP, LiveCattle.FUT, NRC.OL, WWI.OL
+
+**Schwache Signaltypen:** BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD, BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING, GOLDEN_CROSS, MACD_TURN_BELOW_SMA20, TREND_PULLBACK
+
+**Anomalien:**
+- TREND_PULLBACK isoliert hat nur 4% Success Rate bei 27 Trades
+- VERY_HIGH Conviction RSI-Signale zeigen negative avg_pnl Historie
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING hat hohe Ghost-Rate (5/7)
+
+**LLM-Fazit:** Das Regime ist NORMAL, aber die Signal-Qualität leidet unter hohen Ghost-Raten bei Futures und .OL-Aktien sowie strukturellen Ablehnungen bei Forex. Besonders das isolierte TREND_PULLBACK-Signal und RSI-Extremwerte mit VERY_HIGH Conviction verlieren häufig Geld. Es wird empfohlen, den Golden-Cross-Filter für Trend-Pullbacks beizubehalten und das Sizing bei RSI-Overbought/ Oversold-Signalen zu reduzieren.
+
+## 2026-07-16 20:31 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_FUT`: 100% (2/2) ← GEBLOCKT
+- `_FOREX`: 100% (3/3) ← GEBLOCKT
+- `.OL`: 100% (3/3) ← GEBLOCKT
+- `.L`: 23% (5/22)
+- `.ST`: 20% (1/5)
+- `.MC`: 17% (1/6)
+- `.MI`: 17% (1/6)
+- `_OTHER`: 14% (2/14)
+- `.ASX`: 12% (1/8)
+- `.PA`: 5% (1/22)
+- `.DE`: 0% (0/15)
+- `.ZU`: 0% (0/2)
+- `_ASIA`: 0% (0/17)
+
+**Symbol-Blacklist:** EURGBP, LiveCattle.FUT, NRC.OL, WWI.OL
+
+**Schwache Signaltypen:** BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD, BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING, MACD_TURN_BELOW_SMA20, TREND_PULLBACK,GOLDEN_CROSS
+
+**Anomalien:**
+- VERY_HIGH Conviction Signale zeigen negative durchschnittliche PnL-Historie (-0.42%)
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING hat hohe Ghost-Rate (50%) bei geschlossenen Märkten
+- Slippage-Rejects konzentrieren sich auf .L und .PA Suffixe
+
+**LLM-Fazit:** CAUTION-Regime aktiv: Ghost-Raten bei Futures, Forex und .OL liegen bei 100%. VERY_HIGH Conviction Signale (RSI-Extremwerte) performen historisch negativ. MACD-Signale leiden unter Markt-Timing-Fehlern. Filter für _FUT, _FOREX und .OL bleiben aktiv.
+
+## 2026-07-17 20:31 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_FUT`: 100% (2/2) ← GEBLOCKT
+- `_FOREX`: 100% (3/3) ← GEBLOCKT
+- `.OL`: 100% (3/3) ← GEBLOCKT
+- `.L`: 21% (5/24)
+- `.ST`: 17% (1/6)
+- `.MI`: 17% (1/6)
+- `.MC`: 14% (1/7)
+- `_OTHER`: 12% (2/16)
+- `.ASX`: 12% (1/8)
+- `.PA`: 4% (1/24)
+- `_ASIA`: 0% (0/17)
+- `.DE`: 0% (0/16)
+- `.ZU`: 0% (0/2)
+
+**Symbol-Blacklist:** EURGBP, LiveCattle.FUT, NRC.OL, WWI.OL
+
+**Schwache Signaltypen:** BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD, BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING, TREND_PULLBACK,GOLDEN_CROSS
+
+**Anomalien:**
+- VERY_HIGH Conviction Signale zeigen negative avg_pnl (-0.42 bis -0.53)
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING hat 0 Wins in 3 Trades
+- Slippage-Rejects konzentrieren sich auf .L und .PA Instrumente
+
+**LLM-Fazit:** CAUTION-Regime aktiv: Ghost-Raten bei Futures, Forex und .OL liegen bei 100%. VERY_HIGH Conviction Signale (RSI-Extrem) performen schlecht (negativer PnL), daher Sizing senken. TREND_PULLBACK,GOLDEN_CROSS hat hohe Reject-Rate, aber stabiler als erwartet. Liquiditätsprobleme bei .L/.PA beachten.
+
+## 2026-07-18 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_FUT`: 100% (2/2) ← GEBLOCKT
+- `_FOREX`: 100% (3/3) ← GEBLOCKT
+- `.OL`: 100% (3/3) ← GEBLOCKT
+- `.L`: 21% (5/24)
+- `.ST`: 17% (1/6)
+- `.MI`: 17% (1/6)
+- `.MC`: 14% (1/7)
+- `_OTHER`: 12% (2/16)
+- `.ASX`: 12% (1/8)
+- `.PA`: 4% (1/24)
+- `_ASIA`: 0% (0/17)
+- `.DE`: 0% (0/16)
+- `.ZU`: 0% (0/2)
+
+**Symbol-Blacklist:** EURGBP, LiveCattle.FUT, NRC.OL, WWI.OL
+
+**Schwache Signaltypen:** BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD, BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING, TREND_PULLBACK,GOLDEN_CROSS
+
+**Anomalien:**
+- VERY_HIGH Conviction Signale zeigen negative PnL-Historie (z.B. RSI_EXTREME_OVERSOLD Kombinationen)
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING hat 0 Wins in 3 abgeschlossenen Trades
+- Slippage-Rejects konzentrieren sich auf .L und .PA Instrumenten
+
+**LLM-Fazit:** CAUTION-Regime aktiv. Ghost-Raten bei Futures, Forex und .OL bleiben bei 100%. Signale mit RSI-Extremwerten und MACD-Divergenz performen schlecht (hohe Reject-Rate, negative PnL). Slippage-Probleme bei .L/.PA Instrumenten. Keine strukturellen Exchange-Blöcke geändert, da .DE stabil ist.
+
+## 2026-07-19 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_FUT`: 100% (2/2) ← GEBLOCKT
+- `_FOREX`: 100% (3/3) ← GEBLOCKT
+- `.L`: 21% (5/24)
+- `.ST`: 17% (1/6)
+- `.MI`: 17% (1/6)
+- `.MC`: 14% (1/7)
+- `_OTHER`: 12% (2/16)
+- `.ASX`: 12% (1/8)
+- `.PA`: 4% (1/24)
+- `_ASIA`: 0% (0/17)
+- `.DE`: 0% (0/16)
+- `.ZU`: 0% (0/2)
+- `.OL`: 0% (0/3) ← GEBLOCKT
+
+**Symbol-Blacklist:** EURGBP, LiveCattle.FUT
+
+**Schwache Signaltypen:** BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD, MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING
+
+**Anomalien:**
+- VERY_HIGH Conviction Signale zeigen negative PnL-Historie (z.B. RSI_EXTREME_OVERSOLD)
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING hat 0 Wins in 3 Trades
+- Slippage-Rejects gehaeuft bei .L und .PA Instrumenten
+
+**LLM-Fazit:** CAUTION-Regime aktiv. Ghost-Raten bei Futures und Forex stabil hoch (100%). Signale mit RSI-Extremwerten und MACD-Unterperformance zeigen negative PnL-Historie. Slippage-Probleme bei .L/.PA Instrumenten beachten.
+
+## 2026-07-21 00:26 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_FUT`: 100% (2/2) ← GEBLOCKT
+- `_FOREX`: 100% (3/3) ← GEBLOCKT
+- `.L`: 33% (5/15) ← GEBLOCKT
+- `.ST`: 17% (1/6)
+- `.MI`: 17% (1/6)
+- `.MC`: 14% (1/7)
+- `_OTHER`: 12% (2/16)
+- `.ASX`: 12% (1/8)
+- `.PA`: 4% (1/24)
+- `.ZU`: 0% (0/3)
+- `.DE`: 0% (0/17)
+- `_ASIA`: 0% (0/15)
+- `.OL`: 0% (0/3) ← GEBLOCKT
+
+**Symbol-Blacklist:** BOKU.L, COA.L, EURGBP, LiveCattle.FUT, OXB.L, RBD.L, TBCG.L
+
+**Schwache Signaltypen:** TREND_PULLBACK,GOLDEN_CROSS
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS zeigt negative PnL (-0.91%) trotz hoher Conviction
+- VERY_HIGH Conviction Signale haben historisch schlechte PnL (z.B. RSI-Extrem)
+- Slippage-Rejects konzentrieren sich auf .L und .PA Instrumente
+
+**LLM-Fazit:** Ghost-Raten bei .L, _FUT und _FOREX bleiben kritisch (>33%). Das Signal TREND_PULLBACK,GOLDEN_CROSS verliert konsistent Geld und sollte gedämpft werden. Im CAUTION-Regime auf Slippage bei .L/PA Achten.
+
+## 2026-07-21 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_FUT`: 100% (2/2) ← GEBLOCKT
+- `_FOREX`: 100% (3/3) ← GEBLOCKT
+- `.L`: 33% (5/15) ← GEBLOCKT
+- `.ST`: 14% (1/7)
+- `.MI`: 14% (1/7)
+- `_OTHER`: 13% (2/15)
+- `.MC`: 12% (1/8)
+- `.ASX`: 12% (1/8)
+- `.PA`: 4% (1/23)
+- `.RTH`: 0% (0/2)
+- `_ASIA`: 0% (0/18)
+- `.DE`: 0% (0/20)
+- `.ZU`: 0% (0/3)
+- `.OL`: 0% (0/3) ← GEBLOCKT
+
+**Symbol-Blacklist:** ALFA.L, COA.L, EURGBP, HAYD.L, LiveCattle.FUT, OXB.L, TBCG.L
+
+**Schwache Signaltypen:** TREND_PULLBACK,GOLDEN_CROSS, RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS: Hohe Rejection-Rate (24/71), aber niedrige Success-Rate (37%) deutet auf falsche Trend-Identifikation hin
+- VERY_HIGH Conviction Signale zeigen negative PnL-Durchschnitte (z.B. -0.42% bei BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD)
+- Slippage-Rejects bei .L Instrumenten (HAYD.L, THRU.L, SALT.L) deuten auf Liquiditätsengpässe hin
+
+**LLM-Fazit:** CAUTION-Regime: Portfolio bei 9149 USD. Ghost-Raten bei .L und Forex steigen. Signale wie GOLDEN_CROSS und TREND_PULLBACK verlieren häufig an Rejection. VERY_HIGH Conviction Trades zeigen negative Durchschnitts-PnL. SL bei 3% beibehalten, aber Signal-Gewichte anpassen.
