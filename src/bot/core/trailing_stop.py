@@ -809,6 +809,7 @@ def _post_closed_embed(symbol: str, position_id: str, reason: str,
                 pnl_usd=pnl_usd,
                 pnl_pct=pnl_pct,
                 reason=reason,
+                close_pct=close_pct,
             )
     except Exception:
         pass

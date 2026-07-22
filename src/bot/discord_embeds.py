@@ -1946,9 +1946,10 @@ def post_position_closed_embed(
     pnl_usd: float = 0.0,
     pnl_pct: float = 0.0,
     reason: str = "",
+    close_pct: float = 100.0,
     dry_run: bool = False,
 ) -> bool:
-    """Position CLOSED Embed → #etoro-trades.
+    """Position CLOSED / TEILVERKAUF Embed → #etoro-trades.
 
     Wird gepostet wenn eine Position geschlossen wird:
     - SL-Trigger (Rule 1: -3% Hard Close, -4% Emergency)
@@ -1966,7 +1967,8 @@ def post_position_closed_embed(
         result = f"Verlust: **${pnl_usd:+.2f}**"
 
     fields = [
-        {"name": "💵 Betrag",    "value": f"`${amount_usd:,.2f}`",         "inline": True},
+        {"name": ("💵 Teil-Betrag" if (close_pct and close_pct < 99.5) else "💵 Betrag"),
+         "value": f"`${amount_usd:,.2f}`" + (f" ({close_pct:.0f}%)" if (close_pct and close_pct < 99.5) else ""), "inline": True},
         {"name": "📊 PnL",      "value": f"`${pnl_usd:+.2f}` ({pnl_pct:+.1f}%)" if pnl_pct else f"`${pnl_usd:+.2f}`", "inline": True},
         {"name": "📋 Grund",    "value": f"`{reason[:80]}`" if reason else "`–`", "inline": False},
     ]
@@ -1977,12 +1979,24 @@ def post_position_closed_embed(
     if position_id:
         fields.append({"name": "🆔 Position", "value": f"`{position_id}`", "inline": True})
 
+    # feat/partial-close-embed (2026-07-22): Teilverkaeufe (close_pct < 100)
+    # klar als solche kennzeichnen — vorher titelten sie "POSITION CLOSED"
+    # wie ein Full-Close und waren im Channel nicht unterscheidbar.
+    _partial = bool(close_pct) and close_pct < 99.5
+    if _partial:
+        _title = f"✂️ TEILVERKAUF {close_pct:.0f}% — {resolve_instrument_display(symbol)}"
+        _desc = f"{result} · Rest der Position bleibt offen"
+        _foot = "eToro RoBoCop · Partial Close (Profit-Taking)"
+    else:
+        _title = f"{emoji} POSITION CLOSED — {resolve_instrument_display(symbol)}"
+        _desc = result
+        _foot = "eToro RoBoCop · Position Close"
     embed = {
-        "title":       f"{emoji} POSITION CLOSED — {resolve_instrument_display(symbol)}",
-        "description": result,
+        "title":       _title,
+        "description": _desc,
         "color":       color,
         "fields":      fields,
-        "footer":      {"text": "eToro RoBoCop · Position Close"},
+        "footer":      {"text": _foot},
         "timestamp":   _ts(),
     }
 
