@@ -749,6 +749,13 @@ def main() -> int:
                     "DELETE FROM portfolio_snapshot WHERE api_position_id = ?",
                     (orphan_id,),
                 )
+                # feat/orphan-position-state-cleanup: die Trailing-/Peak-State-Zeile
+                # einer nicht mehr live existierenden Position ist ebenfalls Orphan
+                # (sonst driften position_state-Count und ACTIVE-Trades auseinander).
+                db.execute(
+                    "DELETE FROM position_state WHERE position_id = ?",
+                    (orphan_id,),
+                )
                 orphan_count += 1
                 msg = f"Orphan position removed: {orphan_id}"
                 logger.warning(f"[{WORKER_NAME}] WARNING: {msg}")
@@ -793,6 +800,19 @@ def main() -> int:
                             msg = f"Failed to backfill entry_price for trade {trade['id']}: {exc}"
                             logger.warning(f"[{WORKER_NAME}] WARNING: {msg}")
                             log_repo.write("WARNING", WORKER_NAME, msg)
+                # feat/sl-price-persist: echten Broker-SL-Kurs (stopLossRate) in
+                # trades.stop_loss_price spiegeln — bleibt beim Trailing synchron
+                # und killt den wiederkehrenden "stop_loss_price IS NULL"-Fehlalarm.
+                # Der SL SELBST sitzt broker-seitig (kein PATCH-Endpoint); das ist
+                # reine Metadaten-Konsistenz.
+                if snap:
+                    _slr = snap.get("stop_loss_rate")
+                    try:
+                        if _slr and float(_slr) > 0 and (trade.get("stop_loss_price") or 0.0) != float(_slr):
+                            trade_repo.update_status(trade["id"], "ACTIVE", stop_loss_price=float(_slr))
+                    except Exception as _sl_exc:
+                        logger.debug("[%s] stop_loss_price-Sync fuer %s fehlgeschlagen: %s",
+                                     WORKER_NAME, trade.get("id"), _sl_exc)
                 continue  # still live — leave alone
     
             # ── Fresh-fill grace (fix/fresh-fill-orphan-guard, audit crit #4) ─────
