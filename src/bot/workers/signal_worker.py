@@ -1234,6 +1234,7 @@ def main() -> None:
             _sweep_orders, _sweep_reasons = plan_core_sweep(
                 cfg, equity=equity, cash=cash_estimate, regime=regime,
                 held_instrument_ids=_held_ids, atr_by_id=_atr_by_id, rsi_by_id=_rsi_by_id,
+                db=signal_repo.db,
             )
             if _sweep_reasons:
                 logger.info("SignalWorker: %s", _sweep_reasons[0])

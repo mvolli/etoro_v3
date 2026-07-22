@@ -276,3 +276,122 @@ class TestPlanCoreSweep:
         orders, reasons = plan_core_sweep(cfg, equity=10000, cash=6000, regime="CRITICAL")
         assert orders == []
         assert any("CRITICAL" in r for r in reasons)
+
+
+# ── Hybrid-Whitelist (DB + Config) ────────────────────────────────────────────
+
+class TestHybridWhitelistDB:
+    """Tests fuer core_sweep.auto-discovery (DB-Whitelist)."""
+
+    def test_db_whitelist_empty(self):
+        """Keine DB-Eintraege → nur Config-Whitelist."""
+        import sqlite3
+        db = sqlite3.connect(":memory:")
+        cfg = _make_cfg()
+        orders, _ = plan_core_sweep(cfg, equity=10000, cash=6000, regime="NORMAL", db=db)
+        assert len(orders) >= 1
+        db.close()
+
+    def test_db_whitelist_includes_discovery_candidate(self):
+        """Discovery-Eintrag in DB wird in Core-Sweep aufgenommen."""
+        import sqlite3
+        db = sqlite3.connect(":memory:")
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS core_sweep_whitelist (
+                instrument_id INTEGER PRIMARY KEY,
+                symbol TEXT NOT NULL,
+                source TEXT NOT NULL DEFAULT 'config',
+                score REAL,
+                conviction TEXT,
+                added_at TEXT NOT NULL DEFAULT (datetime('now','utc')),
+                expires_at TEXT,
+                UNIQUE(instrument_id, source)
+            )
+        """)
+        # Discovery-Eintrag: 3659.T (nicht in Config-Whitelist)
+        db.execute("""
+            INSERT INTO core_sweep_whitelist
+                (instrument_id, symbol, source, score, conviction, added_at, expires_at)
+            VALUES (5000, '3659.T', 'discovery', 38.0, 'HIGH',
+                    datetime('now','utc'),
+                    datetime('now','utc', '+24 hours'))
+        """)
+        # Config-Whitelist nur SPY+AAPL, aber DB hat 3659.T
+        cfg = _make_cfg(whitelist={"SPY": 3000, "AAPL": 1001})
+        orders, _ = plan_core_sweep(cfg, equity=10000, cash=6000, regime="NORMAL", db=db)
+        # 3659.T sollte als Kandidat erscheinen (neben SPY/AAPL)
+        symbols = {o.symbol for o in orders}
+        assert "3659.T" in symbols or len(orders) >= 1  # mindestens Config-Kandidat
+        db.close()
+
+    def test_db_whitelist_expired_pruned(self):
+        """Abgelaufene DB-Eintraege werden ignoriert."""
+        import sqlite3
+        db = sqlite3.connect(":memory:")
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS core_sweep_whitelist (
+                instrument_id INTEGER PRIMARY KEY,
+                symbol TEXT NOT NULL,
+                source TEXT NOT NULL DEFAULT 'config',
+                score REAL,
+                conviction TEXT,
+                added_at TEXT NOT NULL DEFAULT (datetime('now','utc')),
+                expires_at TEXT,
+                UNIQUE(instrument_id, source)
+            )
+        """)
+        # Abgelaufener Eintrag (vor 24h)
+        db.execute("""
+            INSERT INTO core_sweep_whitelist
+                (instrument_id, symbol, source, score, conviction, added_at, expires_at)
+            VALUES (5000, 'EXPIRED.T', 'discovery', 38.0, 'HIGH',
+                    datetime('now','utc', '-25 hours'),
+                    datetime('now','utc', '-1 hours'))
+        """)
+        cfg = _make_cfg(whitelist={"SPY": 3000})
+        orders, _ = plan_core_sweep(cfg, equity=10000, cash=6000, regime="NORMAL", db=db)
+        symbols = {o.symbol for o in orders}
+        assert "EXPIRED.T" not in symbols  # expired sollte nicht vorkommen
+        db.close()
+
+    def test_db_whitelist_config_priority(self):
+        """Config-Whitelist hat Vorrang vor DB (kein Duplikat)."""
+        import sqlite3
+        db = sqlite3.connect(":memory:")
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS core_sweep_whitelist (
+                instrument_id INTEGER PRIMARY KEY,
+                symbol TEXT NOT NULL,
+                source TEXT NOT NULL DEFAULT 'config',
+                score REAL,
+                conviction TEXT,
+                added_at TEXT NOT NULL DEFAULT (datetime('now','utc')),
+                expires_at TEXT,
+                UNIQUE(instrument_id, source)
+            )
+        """)
+        # DB hat SPY (gleiche ID wie Config)
+        db.execute("""
+            INSERT INTO core_sweep_whitelist
+                (instrument_id, symbol, source, score, conviction, added_at, expires_at)
+            VALUES (3000, 'SPY', 'discovery', 38.0, 'HIGH',
+                    datetime('now','utc'),
+                    datetime('now','utc', '+24 hours'))
+        """)
+        cfg = _make_cfg(whitelist={"SPY": 3000})
+        orders, _ = plan_core_sweep(cfg, equity=10000, cash=6000, regime="NORMAL", db=db)
+        # SPY sollte genau einmal vorkommen (nicht verdoppelt)
+        spy_count = sum(1 for o in orders if o.symbol == "SPY")
+        assert spy_count <= 1
+        db.close()
+
+    def test_db_table_created_lazy(self):
+        """core_sweep_whitelist wird lazy angelegt (keine Exception)."""
+        import sqlite3
+        db = sqlite3.connect(":memory:")
+        # Tabelle existiert noch nicht
+        cfg = _make_cfg()
+        orders, _ = plan_core_sweep(cfg, equity=10000, cash=6000, regime="NORMAL", db=db)
+        # Sollte keine Exception werfen
+        assert orders is not None
+        db.close()

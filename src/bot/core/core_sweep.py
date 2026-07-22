@@ -9,10 +9,23 @@ die grosse Groessen sicher aufnehmen.
 Die Funktion plant nur (keine Seiteneffekte, keine Order): der signal_worker
 setzt den Plan ueber dieselbe create->APPROVED->execution-Bahn wie normale
 Signale um und erbt damit SL-Clamp, Market-Open-Guard und Ghost-Order-Pipeline.
+
+hybrid-whitelist (fix/core-sweep-auto-discovery 2026-07-22):
+Core-Sweep liest Kandidaten aus zwei Quellen zusammen:
+  1. Config-Whitelist (statisch, pinned, expires=NULL)
+  2. DB-Tabelle core_sweep_whitelist (dynamisch, discovery-geschrieben,
+     expires_at TTL 24h)
+
+Discovery-Worker schreibt FRESH-Signale (conviction HIGH/MEDIUM, score >= 35,
+rsi < 75) automatisch in die DB-Whitelist — Core-Sweep findet so Instrumente,
+die nicht in der statischen Whitelist stehen, aber gerade ein starkes Signal
+liefern.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -31,6 +44,62 @@ def is_enabled(cfg: dict) -> bool:
     return bool(_cfg_block(cfg).get("enabled", False))
 
 
+def _ensure_core_sweep_whitelist_table(db: Any) -> None:
+    """Lazy migration: core_sweep_whitelist-Tabelle anlegen (idempotent)."""
+    try:
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS core_sweep_whitelist (
+                instrument_id INTEGER PRIMARY KEY,
+                symbol TEXT NOT NULL,
+                source TEXT NOT NULL DEFAULT 'config',
+                score REAL,
+                conviction TEXT,
+                added_at TEXT NOT NULL DEFAULT (datetime('now','utc')),
+                expires_at TEXT,
+                UNIQUE(instrument_id, source)
+            )
+        """)
+    except Exception:
+        pass  # table already exists or similar
+
+
+def _load_db_whitelist(db: Any) -> dict[str, int]:
+    """Lade dynamische Core-Sweep-Whitelist aus DB.
+
+    Filtert abgelaufene Einträge (expires_at < now) und gibt
+    {symbol: instrument_id} fuer noch gueltige Einzurueck.
+    """
+    _ensure_core_sweep_whitelist_table(db)
+    try:
+        rows = db.fetchall("""
+            SELECT symbol, instrument_id
+            FROM core_sweep_whitelist
+            WHERE source = 'discovery'
+              AND (expires_at IS NULL OR expires_at > datetime('now','utc'))
+        """)
+        return {row["symbol"]: int(row["instrument_id"]) for row in rows}
+    except Exception:
+        return {}
+
+
+def _prune_expired_db_whitelist(db: Any) -> int:
+    """Loesche abgelaufene Eintraege aus core_sweep_whitelist.
+
+    Gibt Anzahl der geloeschten Eintraege zurueck.
+    """
+    _ensure_core_sweep_whitelist_table(db)
+    try:
+        cur = db.execute("""
+            DELETE FROM core_sweep_whitelist
+            WHERE source = 'discovery'
+              AND expires_at IS NOT NULL
+              AND expires_at <= datetime('now','utc')
+        """)
+        return cur.rowcount if hasattr(cur, "rowcount") else 0
+    except Exception:
+        return 0
+
+
 def plan_core_sweep(
     cfg: dict,
     equity: float,
@@ -39,6 +108,7 @@ def plan_core_sweep(
     held_instrument_ids: set[int] | None = None,
     atr_by_id: dict[int, float] | None = None,
     rsi_by_id: dict[int, float] | None = None,
+    db: Any | None = None,
 ) -> tuple[list[SweepOrder], list[str]]:
     """Plane Core-Sweep-Orders fuer ueberschuessiges Cash.
 
@@ -52,6 +122,11 @@ def plan_core_sweep(
     die noch nicht gehalten werden (kein Core-Pyramiding — Diversifikation),
     optional RSI-gefiltert (nicht in einen extended Titel kaufen). Sortiert
     nach ATR aufsteigend: die stabilsten Anker (SPY) zuerst.
+
+    Hybrid-Whitelist (fix/core-sweep-auto-discovery 2026-07-22):
+    Kombiniert config.yaml-Whitelist mit DB-Tabelle core_sweep_whitelist
+    (Discovery-geschrieben, FRESH-Signale). Config-Werte haben Vorrang
+    (kein Duplikat bei gleicher instrument_id).
     """
     cs = _cfg_block(cfg)
     reasons: list[str] = []
@@ -73,7 +148,21 @@ def plan_core_sweep(
     max_position_pct = float(cs.get("max_position_pct", 6.0))
     max_sweeps = int(cs.get("max_sweeps_per_run", 4))
     rsi_overbought = float(cs.get("rsi_overbought", 75.0))
-    whitelist: dict = cs.get("whitelist", {}) or {}
+    config_whitelist: dict = cs.get("whitelist", {}) or {}
+
+    # ── Hybrid-Whitelist: Config + DB zusammenfuegen ─────────────────────────
+    whitelist: dict[str, int] = dict(config_whitelist)  # copy
+    if db is not None:
+        # Prune expired entries (silent)
+        _pruned = _prune_expired_db_whitelist(db)
+        if _pruned:
+            reasons.append(f"Core-Sweep: {_pruned} abgelaufene DB-Einträge entfernt")
+
+        # Load DB whitelist
+        db_whitelist = _load_db_whitelist(db)
+        for sym, iid in db_whitelist.items():
+            if sym not in whitelist:  # config hat Vorrang
+                whitelist[sym] = iid
 
     reserve_target = equity * reserve_target_pct / 100.0
     reserve_floor = equity * reserve_floor_pct / 100.0

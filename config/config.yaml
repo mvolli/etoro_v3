@@ -51,7 +51,8 @@ trading:
   # Ghost-Order-Pipeline). Whitelist per instrument_id GEPINNT — das Symbol
   # 'DIA' loest z.B. auf einen Krypto-Token auf, nicht den Dow-ETF.
   core_sweep:
-    enabled: false            # Rollout: 2-3 Tage Dry-Log, dann true (wie stale_exit)
+    enabled: true             # SCHARF 2026-07-22: signal-agnostische Discovery (Option B)
+    auto_discovery: true       # Discovery-Worker schreibt FRESH-Signale in Core-Sweep-Whitelist
     reserve_target_pct: 15.0  # Cash-Ziel — Ueberschuss darueber wird abgesweept
     reserve_floor_pct: 10.0   # Harter Boden: nie darunter sweepen (= cash_emergency)
     per_position_pct: 4.0     # Zielgroesse je Core-Position (% Equity)

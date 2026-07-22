@@ -427,7 +427,61 @@ def _promote_to_watchlist(
         logger.warning("[%s] watchlist promotion failed for %s: %s", WORKER_NAME, symbol, exc)
 
 
+def _cs_auto_discovery(
+    db: Any,
+    symbol: str,
+    instrument_id: int,
+    cand: dict,
+) -> None:
+    """fix/core-sweep-auto-discovery (2026-07-22): starke FRESH-Signale
+    automatisch in die Core-Sweep-Whitelist aufnehmen.
+
+    Kriterien: conviction HIGH/MEDIUM, score >= 35, RSI < 75.
+    Eintrag wird mit 24h-TTL in core_sweep_whitelist geschrieben —
+    Core-Sweep liest diese DB-Tabelle neben der Config-Whitelist.
+
+    Graceful degradation: Exception → log warning, kein Abort.
+    """
+    try:
+        _ensure_core_sweep_whitelist_table(db)
+
+        # Filter: nur starke Signale
+        conviction = cand.get("conviction", "")
+        if conviction not in ("HIGH", "MEDIUM"):
+            return
+        score = cand.get("score", 0.0)
+        if score < 35.0:
+            return
+        rsi = cand.get("rsi")
+        if rsi is not None and rsi >= 75.0:
+            return
+
+        # Upsert: INSERT OR REPLACE (idempotent, aktualisiert score/conviction)
+        expires_at = (
+            datetime.now(timezone.utc) + timedelta(hours=24)
+        ).strftime("%Y-%m-%d %H:%M:%S")
+        db.execute("""
+            INSERT OR REPLACE INTO core_sweep_whitelist
+                (instrument_id, symbol, source, score, conviction, added_at, expires_at)
+            VALUES (?, ?, 'discovery', ?, ?, datetime('now','utc'), ?)
+        """, (instrument_id, symbol, score, conviction, expires_at))
+
+        logger.info(
+            "[%s] Core-Sweep-Whitelist: %s (ID %d) score=%.1f conviction=%s expires=%s",
+            WORKER_NAME, symbol, instrument_id, score, conviction, expires_at,
+        )
+    except Exception as exc:
+        logger.warning(
+            "[%s] Core-Sweep-Whitelist-Update fehlgeschlagen fuer %s: %s",
+            WORKER_NAME, symbol, exc,
+        )
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+# fix/core-sweep-auto-discovery (2026-07-22): shared DB-table helper
+from bot.core.core_sweep import _ensure_core_sweep_whitelist_table as _ensure_core_sweep_whitelist_table
+
 
 def _load_config() -> dict:
     """Load config/config.yaml relative to the project root."""
@@ -1184,6 +1238,13 @@ def main() -> int:
                     "[%s] Stored signal — %s (score=%.1f conviction=%s instrument_id=%d)",
                     WORKER_NAME, symbol, cand["score"], cand["conviction"], instrument_id,
                 )
+
+                # fix/core-sweep-auto-discovery (2026-07-22): starke FRESH-Signale
+                # automatisch in die Core-Sweep-Whitelist aufnehmen — so findet
+                # Core-Sweep auch Instrumente ausserhalb der statischen Config,
+                # die gerade ein starkes Signal liefern (signal-agnostische
+                # Discovery, Option B aus dem Design-Review).
+                _cs_auto_discovery(db, symbol, instrument_id, cand)
 
                 # fix/watchlist-promotion-all-regions: a discovery signal is
                 # a one-shot with a 6h TTL — promote the candidate into the

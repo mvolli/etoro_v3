@@ -1311,5 +1311,18 @@
     "outcome_checked": false,
     "outcome_grade": null,
     "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-07-22T17:36:35",
+    "ts_executed": "2026-07-22T17:41:34",
+    "symbol": "6674.T",
+    "recommendation": "TIGHTEN",
+    "close_pct": 25.0,
+    "reason": "PnL +3.3% aber Δ -3.1% (Peak abgegeben), Signal-Typ hat avg_pnl -0.89%.",
+    "pnl_at_execution": 3.2589752527012905,
+    "price_at_execution": 5925.0,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
   }
 ]

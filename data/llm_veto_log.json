@@ -273,6 +273,42 @@
    "decision": "REDUCE",
    "reason": "RSI < 30 (stark oversold), Risiko einer weiteren Abwärtsspirale.",
    "signal_price": 12.300000190734863
+  },
+  {
+   "ts": "2026-07-22T13:19:22.255331+00:00",
+   "trade_id": 492,
+   "symbol": "MSONB.ST",
+   "yf_symbol": "MSON-B.ST",
+   "decision": "REDUCE",
+   "reason": "RSI sehr tief (29), hohes Volatilitaetsrisiko trotz MACD-Signal.",
+   "signal_price": 12.300000190734863
+  },
+  {
+   "ts": "2026-07-22T13:19:22.255331+00:00",
+   "trade_id": 494,
+   "symbol": "ENEA.ST",
+   "yf_symbol": "ENEA.ST",
+   "decision": "VETO",
+   "reason": "RSI extrem oversold (17) ohne MACD-Wende-Komponente im Signal-String, Messer-Risiko.",
+   "signal_price": 57.29999923706055
+  },
+  {
+   "ts": "2026-07-22T13:34:22.524554+00:00",
+   "trade_id": 492,
+   "symbol": "MSONB.ST",
+   "yf_symbol": "MSON-B.ST",
+   "decision": "REDUCE",
+   "reason": "RSI < 30 (stark oversold), hohes Reversal-Risiko bei WR 25%.",
+   "signal_price": 12.300000190734863
+  },
+  {
+   "ts": "2026-07-22T13:49:22.634623+00:00",
+   "trade_id": 492,
+   "symbol": "MSONB.ST",
+   "yf_symbol": "MSON-B.ST",
+   "decision": "VETO",
+   "reason": "Sehr kleiner Positionswert ($52), aber RSI extrem oversold (<30) bei hoher Volatilitaet.",
+   "signal_price": 12.300000190734863
   }
  ]
 }
