@@ -1087,18 +1087,68 @@ def main() -> int:
                     max_deviation_pct=max_dev_pct,
                 )
                 if not ok:
-                    unverified.append(f"{symbol} (ID {instrument_id}): {reason}")
-                    logger.error(
-                        "[%s] VERIFIKATION FEHLGESCHLAGEN — %s (ID %d): %s",
-                        WORKER_NAME, symbol, instrument_id, reason,
-                    )
-                    log_repo.write(
-                        "ERROR", WORKER_NAME,
-                        f"Kandidat verworfen: {symbol} (ID {instrument_id})",
-                        {"reason": reason, "yf_price": cand.get("price"),
-                         "etoro_price": live_price},
-                    )
-                    continue
+                    # ── AUTO-FIX: yfinance-symbol-collision fallback ────────────
+                    # Bei Preis-Mismatch (z.B. ERIC: 4 instrument_ids teilen
+                    # yfinance_symbol='ERIC-B.ST', aber Signal-Preis passt nur
+                    # zu ID 2231/2963, nicht zu ID 6421 'ERIC' ADR): suche nach
+                    # anderen instrument_ids mit demselben yfinance_symbol und
+                    # versuche verify_candidate probehalber.
+                    yf_symbol = None
+                    try:
+                        row = db.fetchone(
+                            "SELECT yfinance_symbol FROM instruments WHERE instrument_id = ?",
+                            (instrument_id,),
+                        )
+                        if row and row["yfinance_symbol"]:
+                            yf_symbol = row["yfinance_symbol"]
+                    except Exception:
+                        pass
+
+                    if yf_symbol:
+                        alt_ids = db.fetchall(
+                            "SELECT instrument_id FROM instruments "
+                            "WHERE yfinance_symbol = ? AND instrument_id != ? "
+                            "ORDER BY instrument_id",
+                            (yf_symbol, instrument_id),
+                        )
+                        for alt_row in alt_ids:
+                            alt_id = int(alt_row["instrument_id"])
+                            try:
+                                alt_live_price = verify_client.get_current_price(alt_id)
+                                alt_ok, alt_reason = verify_candidate(
+                                    expected_symbol=symbol,
+                                    meta=metadata_by_id.get(alt_id),
+                                    reference_price=cand.get("price"),
+                                    live_price=alt_live_price,
+                                    max_deviation_pct=max_dev_pct,
+                                )
+                                if alt_ok:
+                                    logger.info(
+                                        "[%s] AUTO-FIX: %s ID %d → ID %d (Preis-Mismatch "
+                                        "yfinance-collision, alt_id bestanden) — %s",
+                                        WORKER_NAME, symbol, instrument_id, alt_id, alt_reason,
+                                    )
+                                    instrument_id = alt_id
+                                    live_price = alt_live_price
+                                    ok = True
+                                    reason = alt_reason
+                                    break
+                            except Exception:
+                                continue
+
+                    if not ok:
+                        unverified.append(f"{symbol} (ID {instrument_id}): {reason}")
+                        logger.error(
+                            "[%s] VERIFIKATION FEHLGESCHLAGEN — %s (ID %d): %s",
+                            WORKER_NAME, symbol, instrument_id, reason,
+                        )
+                        log_repo.write(
+                            "ERROR", WORKER_NAME,
+                            f"Kandidat verworfen: {symbol} (ID {instrument_id})",
+                            {"reason": reason, "yf_price": cand.get("price"),
+                             "etoro_price": live_price},
+                        )
+                        continue
 
                 logger.info("[%s] Verifiziert: %s — %s", WORKER_NAME, symbol, reason)
 

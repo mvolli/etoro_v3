@@ -1233,5 +1233,83 @@
     "outcome_checked": false,
     "outcome_grade": null,
     "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-07-22T12:36:05",
+    "ts_executed": "2026-07-22T12:36:14",
+    "symbol": "6674.T",
+    "recommendation": "TIGHTEN",
+    "close_pct": 25.0,
+    "reason": "PnL > 0% und Δ = -3.1% (starker Peak-Rückgang). Signal MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING hat historisch schlechte Performance (-0.54% avg_pnl).",
+    "pnl_at_execution": 3.2589752527012905,
+    "price_at_execution": 5925.0,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-07-22T12:36:05",
+    "ts_executed": "2026-07-22T12:36:14",
+    "symbol": "W7L.L",
+    "recommendation": "EXIT",
+    "close_pct": 100.0,
+    "reason": "PnL < -2% (-2.8%) und RSI 26 (extrem oversold, aber kein Erholungszeichen bei MACD↓). Signal MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING hat avg_pnl -0.54%.",
+    "pnl_at_execution": -2.777777777777779,
+    "price_at_execution": 175.0,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-07-22T12:36:05",
+    "ts_executed": "2026-07-22T12:36:14",
+    "symbol": "MEL.MC",
+    "recommendation": "EXIT",
+    "close_pct": 100.0,
+    "reason": "PnL < -1% (-1.4%) und SMA50=↓ sowie MACD↓. Doppeltes Trendsignal gegen Position. Signal-Typ hat avg_pnl -0.54%.",
+    "pnl_at_execution": 0.19193857965451588,
+    "price_at_execution": 10.44,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-07-22T12:36:05",
+    "ts_executed": "2026-07-22T12:36:14",
+    "symbol": "MEL.MC",
+    "recommendation": "EXIT",
+    "close_pct": 100.0,
+    "reason": "Duplikat-Eintrag. PnL < -1% (-1.4%), SMA50=↓, MACD↓. Exit-Regel erfüllt.",
+    "pnl_at_execution": 0.19193857965451588,
+    "price_at_execution": 10.44,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-07-22T12:36:05",
+    "ts_executed": "2026-07-22T12:36:14",
+    "symbol": "1929.HK",
+    "recommendation": "TIGHTEN",
+    "close_pct": 20.0,
+    "reason": "PnL > 0% (+6.4%) und Δ = -1.1% (Peak-Rückgang). Signal MACD_TURN_BELOW_SMA20,TREND_PULLBACK hat avg_pnl -0.89%. Momentum bricht leicht ab.",
+    "pnl_at_execution": 6.384814495254543,
+    "price_at_execution": 12.33,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-07-22T12:36:05",
+    "ts_executed": "2026-07-22T12:36:14",
+    "symbol": "ALFA.L",
+    "recommendation": "TIGHTEN",
+    "close_pct": 20.0,
+    "reason": "PnL > 0% (+2.6%) und Δ = -0.1% (fast Peak). Signal TREND_PULLBACK,GOLDEN_CROSS hat avg_pnl -1.17% bei 16 Trades. Leichter Gewinnabwurf.",
+    "pnl_at_execution": 2.7707808564231495,
+    "price_at_execution": 163.2,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
   }
 ]

@@ -264,6 +264,15 @@
    "decision": "REDUCE",
    "reason": "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20 hat WR 0% (n=6). Trotz MACD-Komponente ist die historische Performance sehr schlecht (-18$).",
    "signal_price": 10.380000114440918
+  },
+  {
+   "ts": "2026-07-22T12:49:45.689133+00:00",
+   "trade_id": 492,
+   "symbol": "MSONB.ST",
+   "yf_symbol": "MSON-B.ST",
+   "decision": "REDUCE",
+   "reason": "RSI < 30 (stark oversold), Risiko einer weiteren Abwärtsspirale.",
+   "signal_price": 12.300000190734863
   }
  ]
 }
