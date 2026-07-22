@@ -246,6 +246,24 @@
    "decision": "REDUCE",
    "reason": "Kombination TREND_PULLBACK,GOLDEN_CROSS hat WR von 21.4% (n=14). RSI ~49 ist nicht klar oversold, daher fehlt die MACD-Komponente zur Risikostreuung. Im Zweifel verkleinern.",
    "signal_price": 87.86000061035156
+  },
+  {
+   "ts": "2026-07-22T12:04:16.053114+00:00",
+   "trade_id": 489,
+   "symbol": "HUMBLE.ST",
+   "yf_symbol": "HUMBLE.ST",
+   "decision": "REDUCE",
+   "reason": "Duplikat von 487 (HUMBLE.ST), Vermeidung von Cluster-Risiko",
+   "signal_price": 5.989999771118164
+  },
+  {
+   "ts": "2026-07-22T12:19:17.362613+00:00",
+   "trade_id": 491,
+   "symbol": "MEL.MC",
+   "yf_symbol": "MEL.MC",
+   "decision": "REDUCE",
+   "reason": "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20 hat WR 0% (n=6). Trotz MACD-Komponente ist die historische Performance sehr schlecht (-18$).",
+   "signal_price": 10.380000114440918
   }
  ]
 }

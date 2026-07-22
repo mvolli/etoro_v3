@@ -1197,6 +1197,90 @@ def main() -> None:
                     },
                 )
     
+        # ── 5b. Core-Sweep: entkoppelt vom illiquiden Small-Cap-
+        # Signalfluss. Plant IMMER (Dry-Log); setzt nur bei core_sweep.enabled=true
+        # um — ueber dieselbe create->APPROVED->execution-Bahn wie normale Signale
+        # (erbt SL-Clamp, Market-Open-Guard, Ghost-Order-Pipeline). Fail-open:
+        # ein Fehler hier darf den regulaeren Signallauf nie kippen.
+        try:
+            from bot.core.core_sweep import plan_core_sweep, is_enabled as _cs_enabled
+            _held_ids = set()
+            for _p in open_positions_raw:
+                try:
+                    _held_ids.add(int(_p.get("instrument_id")))
+                except (TypeError, ValueError):
+                    pass
+            _wl = (cfg.get("trading", {}).get("core_sweep", {}) or {}).get("whitelist", {}) or {}
+            _wl_ids = []
+            for _v in _wl.values():
+                try:
+                    _wl_ids.append(int(_v))
+                except (TypeError, ValueError):
+                    pass
+            _atr_by_id, _rsi_by_id = {}, {}
+            if _wl_ids:
+                _ph = ",".join("?" for _ in _wl_ids)
+                for _r in (signal_repo.db.fetchall(
+                        f"SELECT instrument_id, atr_pct FROM instruments "
+                        f"WHERE instrument_id IN ({_ph})", tuple(_wl_ids)) or []):
+                    if _r["atr_pct"] is not None:
+                        _atr_by_id[int(_r["instrument_id"])] = float(_r["atr_pct"])
+                for _r in (signal_repo.db.fetchall(
+                        f"SELECT instrument_id, MAX(generated_at) AS g, rsi FROM signals "
+                        f"WHERE instrument_id IN ({_ph}) AND rsi IS NOT NULL "
+                        f"GROUP BY instrument_id", tuple(_wl_ids)) or []):
+                    if _r["rsi"] is not None:
+                        _rsi_by_id[int(_r["instrument_id"])] = float(_r["rsi"])
+            _sweep_orders, _sweep_reasons = plan_core_sweep(
+                cfg, equity=equity, cash=cash_estimate, regime=regime,
+                held_instrument_ids=_held_ids, atr_by_id=_atr_by_id, rsi_by_id=_rsi_by_id,
+            )
+            if _sweep_reasons:
+                logger.info("SignalWorker: %s", _sweep_reasons[0])
+            _cs_live = _cs_enabled(cfg)
+            for _o in _sweep_orders:
+                if not _cs_live:
+                    logger.info(
+                        "SignalWorker: [DRY] Core-Sweep wuerde $%.2f in %s (id=%s) deployen",
+                        _o.amount_usd, _o.symbol, _o.instrument_id)
+                    log_repo.write("INFO", "signal_worker",
+                                   f"[DRY] Core-Sweep: ${_o.amount_usd:.2f} {_o.symbol}")
+                    continue
+                from bot.core.risk import adaptive_sl_pct as _cs_adaptive
+                _cs_sl = _cs_adaptive(
+                    float(cfg.get("sl", {}).get("default_pct", 3.0)),
+                    _atr_by_id.get(_o.instrument_id),
+                    multiple=float(cfg.get("sl", {}).get("atr_multiple", 1.5)),
+                    max_pct=float(cfg.get("sl", {}).get("max_pct", 6.0)),
+                )
+                _cs_tid = trade_repo.create(
+                    instrument_id=_o.instrument_id, symbol=_o.symbol, direction="BUY",
+                    amount_usd=_o.amount_usd, stop_loss_pct=_cs_sl,
+                    signal_id=None, signal_price=None,
+                )
+                from datetime import datetime as _csdt, timezone as _cstz
+                trade_repo.update_status(
+                    _cs_tid, "APPROVED",
+                    approved_at=_csdt.now(_cstz.utc).strftime("%Y-%m-%d %H:%M:%S"))
+                approved_count += 1
+                cash_estimate -= _o.amount_usd
+                position_count += 1
+                _held_ids.add(_o.instrument_id)
+                approved_trades_info.append({
+                    "symbol": _o.symbol, "amount_usd": _o.amount_usd,
+                    "signal_type": "CORE_SWEEP", "conviction": "CORE",
+                    "score": 0.0, "signal_price": None,
+                })
+                logger.info(
+                    "SignalWorker: CORE-SWEEP APPROVED #%d — %s $%.2f (SL %.2f%%)",
+                    _cs_tid, _o.symbol, _o.amount_usd, _cs_sl)
+                log_repo.write(
+                    "INFO", "signal_worker",
+                    f"Core-Sweep APPROVED: {_o.symbol} BUY ${_o.amount_usd:.2f}",
+                    {"trade_id": _cs_tid, "instrument_id": _o.instrument_id})
+        except Exception as _cs_exc:
+            logger.warning("SignalWorker: Core-Sweep-Pass uebersprungen: %s", _cs_exc)
+
         try:
             from bot.core.heartbeat import record_duration as _rd
             _rd(state_repo, "signal_worker", _time_dur.monotonic() - _t_run_start)

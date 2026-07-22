@@ -18,7 +18,10 @@ db:
   busy_timeout_ms: 5000       # SQLite busy_timeout in milliseconds
 
 trading:
-  max_positions: 21           # Maximum total open positions across all instruments
+  max_positions: 40           # feat/core-sweep (2026-07-22): war 21 — deckelte das
+                              # Deployment mechanisch (21 x Ø$180 = ~41% Equity, Rest lag als
+                              # Cash brach). Echte Grenzen sind jetzt cash_target/exposure-Gate
+                              # (75%)/per-Instrument (10%); dieser Zaehler ist nur Runaway-Nagel.
   max_fragments_per_instrument: 3  # Maximum partial fills / DCA entries per ticker
   min_buy_usd: 50.0           # Minimum order size in USD
   max_trades_per_day: 0       # 0 = deaktiviert (2026-07-14, User-Entscheid). Runaway-Schutz
@@ -37,6 +40,39 @@ trading:
                               # Cash-Ueberschuss (Gates: NORMAL-Regime + Makro-Scalar 1.0 +
                               # kein News-Flag; hart geclampt 1.5). SCHARF seit 2026-07-15
                               # zusammen mit stale_exit (User-Entscheid, engmaschige Beobachtung).
+
+  # ── feat/core-sweep (2026-07-22): liquides Cash-Deployment ──────────────────
+  # Ueberschuessiges Cash (ueber reserve_target_pct) wird in einen kuratierten
+  # Korb hochliquider Large-Caps/ETFs gesweept — ENTKOPPELT vom illiquiden
+  # Small-Cap-Signalfluss (dessen Spread/Slippage-Gates das Deployment
+  # ausbremsen). Grosse, diversifizierte, stop-losste Positionen in Titeln,
+  # die grosse Groessen SICHER aufnehmen. Nutzt dieselbe create->APPROVED->
+  # execution-Bahn wie normale Signale (erbt SL-Clamp, Market-Open-Guard,
+  # Ghost-Order-Pipeline). Whitelist per instrument_id GEPINNT — das Symbol
+  # 'DIA' loest z.B. auf einen Krypto-Token auf, nicht den Dow-ETF.
+  core_sweep:
+    enabled: false            # Rollout: 2-3 Tage Dry-Log, dann true (wie stale_exit)
+    reserve_target_pct: 15.0  # Cash-Ziel — Ueberschuss darueber wird abgesweept
+    reserve_floor_pct: 10.0   # Harter Boden: nie darunter sweepen (= cash_emergency)
+    per_position_pct: 4.0     # Zielgroesse je Core-Position (% Equity)
+    max_position_pct: 6.0     # Harter Deckel je Core-Titel (% Equity)
+    max_sweeps_per_run: 4     # "Zuegig" (User-Entscheid): bis N Core-Trades/Lauf
+    max_days: 60              # Laengerer Stale-Horizont als Small-Caps (dort 20)
+    rsi_overbought: 75.0      # Kein Sweep in einen Titel mit RSI darueber (nicht extended kaufen)
+    regimes: ["NORMAL", "CAUTION"]  # Regime-Gate: pausiert in DEFENSIVE/CRITICAL
+    whitelist:                # symbol -> instrument_id (validiert: tradable+aktiv, ATR vorhanden)
+      SPY:  3000              # Index-Anker, ATR 1.1% (niedrigste Vola)
+      AAPL: 1001
+      MSFT: 1004
+      AMZN: 1005
+      NVDA: 1137
+      META: 1003
+      JPM:  1023
+      V:    1046
+      KO:   1024
+      PG:   1029
+      JNJ:  1022
+      WMT:  1035
 
 risk:
   daily_loss_limit_pct: 5.0   # Auto-kill-switch: intraday equity drop from day start (%; 0 = disabled)
