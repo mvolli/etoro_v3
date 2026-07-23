@@ -160,7 +160,7 @@ def _is_llm_ghost_blocked(symbol: str, blacklist: dict) -> bool:
 
 
 
-def _signal_age_factor(generated_at_iso: str, ttl_minutes: int = 60) -> float:
+def _signal_age_factor(generated_at_iso: str, ttl_minutes: int = 1440) -> float:
     """Prio 5b: Altersstrafe 0% bei <=30min, -20% am TTL-Ende (linear).
     Aeltere Signale spiegeln veraltete Marktdaten — werden nachrangig sortiert."""
     try:
@@ -725,7 +725,7 @@ def main() -> None:
                 float(t[0].get("score", 0))
                 * get_score_boost(t[1])
                 * _get_signal_score_multiplier(t[0].get("signal_type", ""), _llm_signal_weights)
-                * _signal_age_factor(t[0].get("generated_at", ""), ttl_minutes=60)
+                * _signal_age_factor(t[0].get("generated_at", ""), ttl_minutes=1440)
             ),
             reverse=True,
         )
