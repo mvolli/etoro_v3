@@ -1,34 +1,28 @@
 {
-  "updated_at": "2026-07-24T12:00:00+00:00",
-  "auto_expires_at": "2026-08-06T21:21:25.801577+00:00",
+  "updated_at": "2026-07-24T20:30:35.207632+00:00",
+  "auto_expires_at": "2026-08-07T20:30:35.207639+00:00",
   "adjustments": {
+    "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "Extrem hohe Verlustrate (-159 USD avg) bei 37 Trades; Falling-Knife-Charakter trotz MACD-Filter."
+    },
+    "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": {
+      "score_multiplier": 0.6,
+      "skip": false,
+      "reason": "Success Rate von 46% und avg PnL von -2.29% deuten auf schlechte Qualität hin, obwohl MACD-Wende vorliegt."
+    },
     "TREND_PULLBACK,GOLDEN_CROSS": {
       "score_multiplier": 0.5,
       "skip": false,
-      "reason": "Hohe Rejection-Rate und negative PnL-Durchschnitte; Signal muss gedämpft werden."
-    },
-    "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD": {
-      "score_multiplier": 0.6,
-      "skip": false,
-      "reason": "Falling-Knife-Charakter bei sehr tiefem RSI ohne MACD-Wende; WR 8%."
-    },
-    "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20": {
-      "score_multiplier": 1.0,
-      "skip": false,
-      "reason": "Bestes aktuelles Signal: 40% WR (4/10 priced) — priorisieren"
-    },
-    "TREND_PULLBACK": {
-      "score_multiplier": 0.5,
-      "skip": false,
-      "reason": "Isoliert fast immer fehlschlagend (15% WR mit Combo); nur in Kombination mit MACD-Wende profitabel"
+      "reason": "Hohe Rejection-Rate und avg PnL von -1.31% bei 20 Trades; Signal ist im aktuellen CAUTION-Regime ineffizient."
     }
   },
   "strategy_notes": [
-    "MEDIUM Conviction mit MACD-Wende schlägt HIGH Conviction im aktuellen CAUTION-Regime.",
-    "VERY_HIGH Conviction Signale ohne MACD-Wende sind statistisch fast immer Verlustgeschäfte."
+    "RSI<25 ist ein Krisenzeichen, kein Kaufsignal (WR 9%).",
+    "Gewinner brauchen Zeit (Median 143h); junge Positionen nicht vorzeitig schließen."
   ],
   "conviction_issues": [
-    "VERY_HIGH Conviction bei BB_EXTREME_RSI_OVERSOLD hat 80% Verlustrate (36/37 Trades)",
-    "HIGH Conviction bei TREND_PULLBACK,GOLDEN_CROSS zeigt negative PnL-Durchschnitte"
+    "VERY_HIGH Conviction Trades verlieren durchschnittlich, wenn sie nur auf RSI-Extremen basieren ohne MACD-Wende."
   ]
 }
