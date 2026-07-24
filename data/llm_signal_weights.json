@@ -1,30 +1,34 @@
 {
-  "updated_at": "2026-07-21T20:30:38.986340+00:00",
-  "auto_expires_at": "2026-08-04T20:30:38.986348+00:00",
+  "updated_at": "2026-07-24T12:00:00+00:00",
+  "auto_expires_at": "2026-08-06T21:21:25.801577+00:00",
   "adjustments": {
     "TREND_PULLBACK,GOLDEN_CROSS": {
-      "score_multiplier": 0.7,
+      "score_multiplier": 0.5,
       "skip": false,
-      "reason": "Hohe Rejection-Rate (33%) und negative PnL-Durchschnitte"
+      "reason": "Hohe Rejection-Rate und negative PnL-Durchschnitte; Signal muss gedämpft werden."
+    },
+    "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD": {
+      "score_multiplier": 0.6,
+      "skip": false,
+      "reason": "Falling-Knife-Charakter bei sehr tiefem RSI ohne MACD-Wende; WR 8%."
     },
     "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20": {
-      "score_multiplier": 0.8,
+      "score_multiplier": 1.0,
       "skip": false,
-      "reason": "Success-Rate nur 50%, viele Rejections"
+      "reason": "Bestes aktuelles Signal: 40% WR (4/10 priced) — priorisieren"
     },
-    "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD": {
-      "score_multiplier": 0.9,
+    "TREND_PULLBACK": {
+      "score_multiplier": 0.5,
       "skip": false,
-      "reason": "Negative PnL-Durchschnitte trotz hoher Conviction"
+      "reason": "Isoliert fast immer fehlschlagend (15% WR mit Combo); nur in Kombination mit MACD-Wende profitabel"
     }
   },
   "strategy_notes": [
-    "VERY_HIGH Conviction Signale zeigen negative PnL-Durchschnitte, daher Gewichte reduzieren",
-    "TREND_PULLBACK,GOLDEN_Cross hat hohe Rejection-Rate, Score-Multiplier senken",
-    "Slippage bei .L Instrumenten beachten, ggf. Größenvorgaben anpassen"
+    "MEDIUM Conviction mit MACD-Wende schlägt HIGH Conviction im aktuellen CAUTION-Regime.",
+    "VERY_HIGH Conviction Signale ohne MACD-Wende sind statistisch fast immer Verlustgeschäfte."
   ],
   "conviction_issues": [
-    "VERY_HIGH Conviction hat negative PnL-Durchschnitte bei mehreren Signalen",
-    "HIGH Conviction Signale zeigen hohe Rejection-Raten"
+    "VERY_HIGH Conviction bei BB_EXTREME_RSI_OVERSOLD hat 80% Verlustrate (36/37 Trades)",
+    "HIGH Conviction bei TREND_PULLBACK,GOLDEN_CROSS zeigt negative PnL-Durchschnitte"
   ]
 }

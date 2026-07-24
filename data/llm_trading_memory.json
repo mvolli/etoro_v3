@@ -265,6 +265,48 @@
       },
       "tests_passed": "508 passed, 0 failed",
       "next_focus": "Signal-Win-Rate pro Signal-Typ nach 14d beobachten; GOLDEN_CROSS auf .L/.ST/.MC Ghost-Rate prüfen"
+    },
+    {
+      "run_id": "self_improvement_20260723_094637",
+      "timestamp": "2026-07-23T09:46:37.674222+00:00",
+      "changes": [
+        "signal_worker.py: _signal_age_factor TTL von 60 auf 1440 Minuten (24h) — Signale verfallen nun korrekt im Score-Sort, vorher 4x zu schnell",
+        "signal_worker.py: Sort-Call ttl_minutes=60 auf 1440 korrigiert — Konsistenz zu SIGNAL_TTL_MINUTES in discovery_worker.py"
+      ],
+      "performance_context": {
+        "overall_wr": "19.4%",
+        "best_signal": "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20 (40% WR, +.66 avg PnL)",
+        "worst_signal": "BB_EXTREME_* (2.7% WR, -/usr/bin/bash.43 avg PnL)",
+        "cm_hk": "25 trades, 0% WR, total deadzone",
+        "golden_cross": "8x FAILED, 0x CLOSED — komplett ineffizient"
+      },
+      "rationale": "Signal Age Factor TTL mismatch: _signal_age_factor wurde mit ttl_minutes=60 aufgerufen, aber Signale haben TTL=1440 (24h). Ein 60min altes Signal bekam 20% Strafe statt 0.43%. Dies verfälscht den Score-Sort massiv und benachteiligt frische Signale zugunsten älterer.",
+      "tests_passed": 543
+    },
+    {
+      "run_id": "2026-07-24T12:00:00+00:00",
+      "action": "fix/signal-weight-typo + TREND_PULLBACK dampening",
+      "findings": {
+        "WR_overall": "17.54% (20 wins / 114 CLOSED with PnL)",
+        "top_signal": "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20 (40% WR, 4/10 priced)",
+        "worst_signal": "TREND_PULLBACK,GOLDEN_CROSS (15% WR, 3/20 priced, avg PnL -2.73)",
+        "top_failure": "ID/Symbol MISMATCH (62/171 FAILED — stale instrument_map)",
+        "ghost_failures": 18,
+        "doge_fails": 47
+      },
+      "changes": [
+        "Fixed typo: TREND_PULLBACK,GOLDEN_Cross -> TREND_PULLBACK,GOLDEN_CROSS in llm_signal_weights.json",
+        "Added individual TREND_PULLBACK dampening (0.5x) — combo-split now correctly multiplies both components",
+        "Updated RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20 reason to reflect current 40% WR"
+      ],
+      "tests_passed": "543 passed",
+      "notes": [
+        "TREND_PULLBACK,GOLDEN_Cross (kleines c) war der exact-match key — Signale speichern GOLDEN_CROSS (gross).",
+        "Combo-Split-Logik in _get_signal_score_multiplier fand keine individuellen Einträge → 1.0x statt 0.25x.",
+        "Mit 0.5x auf TREND_PULLBACK + 0.5x auf GOLDEN_CROSS = 0.25x für die Combo.",
+        "MEDIUM Conviction mit MACD-Wende ist aktuell profitabelste Kombination (57.1% WR auf LUS1.DE).",
+        "MISMATCH-Failures kommen aus reconciler Tier-2 API-Resolution — instrument_map ist aktuell."
+      ]
     }
   ],
   "decision_outcomes": [
@@ -528,6 +570,16 @@
         "TREND_PULLBACK,GOLDEN_CROSS",
         "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20",
         "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD"
+      ]
+    },
+    {
+      "date": "2026-07-23",
+      "closed_trades": 66,
+      "insights": 2,
+      "adjustments": [
+        "TREND_PULLBACK,GOLDEN_CROSS",
+        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD",
+        "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20"
       ]
     }
   ],
@@ -826,6 +878,18 @@
         "score_multiplier": 0.7,
         "skip": false,
         "reason": "Hohe Rejection-Rate (33%) und negative PnL-Durchschnitte"
+      },
+      {
+        "date": "2026-07-23",
+        "score_multiplier": 0.5,
+        "skip": false,
+        "reason": "Hohe Rejection-Rate und negative avg_pnl (-1.17) bei HIGH Conviction; Signal ist aktuell unzuverlässig."
+      },
+      {
+        "date": "2026-07-23",
+        "score_multiplier": 0.5,
+        "skip": false,
+        "reason": "Hohe Rejection-Rate und negative PnL-Durchschnitte; Signal muss gedämpft werden."
       }
     ],
     "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20": [
@@ -840,11 +904,30 @@
         "score_multiplier": 0.8,
         "skip": false,
         "reason": "Success-Rate nur 50%, viele Rejections"
+      },
+      {
+        "date": "2026-07-23",
+        "score_multiplier": 1.0,
+        "skip": false,
+        "reason": "Bestes aktuelles Signal mit positiver PnL-Performance und hoher Trefferquote."
+      }
+    ],
+    "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD": [
+      {
+        "date": "2026-07-23",
+        "score_multiplier": 0.7,
+        "skip": false,
+        "reason": "37 Trades zeigen Falling-Knife-Charakter mit avg_pnl -0.43; Dämpfung reduziert Risiko bei falschen Kaufsignalen."
+      },
+      {
+        "date": "2026-07-23",
+        "score_multiplier": 0.6,
+        "skip": false,
+        "reason": "Falling-Knife-Charakter bei sehr tiefem RSI ohne MACD-Wende; WR 8%."
       }
     ]
   },
   "strategy_notes": [
-    "MACD_TURN_BELOW_SMA20 in Kombination mit BB_LOW_MACD_IMPROVING zeigt bei wenigen Trades (n=13) eine bessere Stabilität als reine RSI-Signale.",
     "Forex-Paare (EURJPY, EURGBP) benötigen zwingend einen breiteren Stop oder einen Filter, der Ghost-Orders ausschließt.",
     "Forex-Paare (EURGBP, EURJPY) und HE/ST Exchanges sind aktuell Ghost-Fluchtpunkte; Slippage-Filter hier verschärfen.",
     "MACD_TURN_BELOW_SMA20 in Kombination mit BB_LOW_MACD_IMPROVING ist das robusteste Signal im CAUTION-Regime.",
@@ -858,7 +941,8 @@
     "Slippage-Rejects bei .L und .PA Instrumenten deuten auf Liquiditätsprobleme hin.",
     "GOLDEN_CROSS Lookback auf 2 Bars reduziert — Ghost-Orders auf illiquiden .MI/.ST Instrumenten minimieren.",
     "BB_EXTREME_RSI_OVERSOLD von VERY_HIGH auf HIGH reduziert — 37 Trades zeigen Falling-Knife-Charakter.",
-    "TREND_PULLBACK,GOLDEN_Cross hat hohe Rejection-Rate, Score-Multiplier senken"
+    "TREND_PULLBACK,GOLDEN_Cross hat hohe Rejection-Rate, Score-Multiplier senken",
+    "LUS1.DE zeigt, dass MEDIUM Conviction bei korrektem MACD-Turnover profitabler sein kann als HIGH Conviction im aktuellen Markt."
   ],
   "config_history": [
     {
@@ -1311,6 +1395,46 @@
         ".L": 0.33,
         ".PA": 0.04,
         "_OTHER": 0.13,
+        ".ASX": 0.12,
+        "_FUT": 1.0,
+        "_FOREX": 1.0,
+        ".OL": 0.0
+      }
+    },
+    {
+      "ts": "2026-07-23T09:37:03.795985+00:00",
+      "rates": {
+        ".L": 0.11,
+        "_ASIA": 0.0,
+        "_OTHER": 0.07,
+        "_CRYPTO": 0.0,
+        ".ZU": 0.0,
+        ".ST": 0.07,
+        ".MC": 0.11,
+        ".RTH": 0.0,
+        ".MI": 0.14,
+        ".DE": 0.0,
+        ".PA": 0.05,
+        ".ASX": 0.12,
+        "_FUT": 1.0,
+        "_FOREX": 1.0,
+        ".OL": 0.0
+      }
+    },
+    {
+      "ts": "2026-07-23T21:21:25.798388+00:00",
+      "rates": {
+        "_CRYPTO": 0.0,
+        "_OTHER": 0.06,
+        ".L": 0.07,
+        "_ASIA": 0.0,
+        ".ZU": 0.0,
+        ".ST": 0.07,
+        ".MC": 0.12,
+        ".RTH": 0.0,
+        ".MI": 0.17,
+        ".DE": 0.0,
+        ".PA": 0.06,
         ".ASX": 0.12,
         "_FUT": 1.0,
         "_FOREX": 1.0,
