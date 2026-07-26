@@ -233,7 +233,65 @@ def compute_indicators(df: pd.DataFrame) -> dict:
     except Exception:
         pass
 
+    # Falling-Knife-Metriken (feat/falling-knife-gate 2026-07-26): der Fall
+    # selbst wurde nie gemessen — nur kategorisch per Signaltyp abgewehrt
+    # (MACD-Pflicht). Diese Kennzahlen quantifizieren ihn:
+    #   consecutive_down_days — rote Tagesschlusskurse in Folge
+    #   roc_5d_pct            — 5-Tages-Rate-of-Change in %
+    try:
+        closes = df["Close"].dropna()
+        if len(closes) >= 6:
+            down = 0
+            for i in range(len(closes) - 1, 0, -1):
+                if float(closes.iloc[i]) < float(closes.iloc[i - 1]):
+                    down += 1
+                else:
+                    break
+            indicators["consecutive_down_days"] = down
+            indicators["roc_5d_pct"] = (
+                float(closes.iloc[-1]) / float(closes.iloc[-6]) - 1.0
+            ) * 100.0
+    except Exception:
+        pass
+
     return indicators
+
+
+# ─── Falling-Knife-Gate (feat/falling-knife-gate 2026-07-26) ─────────────────
+# Quantitative Messer-Erkennung: blockt die Dip-Buy-Regeln (1, 2, 3, 5), wenn
+# der Fall selbst zu steil ist — unabhaengig davon, wie "guenstig" RSI/BB
+# aussehen. TREND_PULLBACK/GOLDEN_CROSS brauchen strukturell einen Aufwaerts-
+# trend und sind nicht betroffen. Scorecard-Basis: "Tiefer RSI ist KEIN
+# Kaufargument, sondern ein Krisenzeichen (RSI<25: WR 9%)".
+
+KNIFE_GATE_ENABLED = True
+KNIFE_MAX_CONSECUTIVE_DOWN = 4    # >= 4 rote Tage in Folge = Messer
+KNIFE_MAX_ROC_5D_PCT = -12.0      # <= -12% in 5 Tagen = Messer
+KNIFE_MAX_ATR_BELOW_SMA20 = 2.5   # Preis >= 2.5 ATR unter SMA20 = Messer
+
+
+def is_falling_knife(indicators: dict) -> tuple[bool, str]:
+    """Prueft die Knife-Metriken. Gibt (is_knife, reason) zurueck.
+
+    Fehlende Metriken zaehlen nicht als Messer (fail-open pro Kriterium) —
+    das Gate soll steile Faelle blocken, nicht Datenluecken bestrafen.
+    """
+    if not KNIFE_GATE_ENABLED:
+        return False, ""
+    down = indicators.get("consecutive_down_days")
+    if down is not None and down >= KNIFE_MAX_CONSECUTIVE_DOWN:
+        return True, f"{down} rote Tage in Folge"
+    roc = indicators.get("roc_5d_pct")
+    if roc is not None and roc <= KNIFE_MAX_ROC_5D_PCT:
+        return True, f"ROC 5d {roc:.1f}%"
+    atr = indicators.get("atr")
+    sma20 = indicators.get("sma20")
+    price = indicators.get("price")
+    if atr and sma20 and price and atr > 0 and price < sma20:
+        dist_atr = (sma20 - price) / atr
+        if dist_atr >= KNIFE_MAX_ATR_BELOW_SMA20:
+            return True, f"{dist_atr:.1f} ATR unter SMA20"
+    return False, ""
 
 
 # ─── Signal Generation (Trading Bible V4 Rules) ───────────────────────────────
@@ -266,17 +324,22 @@ def generate_signal(symbol: str, indicators: dict) -> SignalResult:
 
     # ── BUY Rules ───────────────────────────────────────────────────────────
 
+    # Falling-Knife-Gate: bei steilem Fall sind die Dip-Buy-Regeln (1, 2, 3, 5)
+    # gesperrt — Rule 4 (MACD_TURN) bleibt erlaubt, weil die MACD-Wende genau
+    # die Bestaetigung ist, auf die das System wartet (WR 32% vs. 8%).
+    knife, _knife_reason = is_falling_knife(indicators)
+
     # Rule 1: BB Lower + RSI extreme — nur im Aufwärtstrend (price > sma50)
     # + Volume nicht in Distribution (vol_ratio < 1.5 = kein Ausverkaufs-Volumen)
     vol_ratio = indicators.get("vol_ratio", 1.0)
-    if bb_pct is not None and rsi is not None and sma50 is not None:
+    if bb_pct is not None and rsi is not None and sma50 is not None and not knife:
         if (bb_pct < 0.1 and rsi < RSI_OVERSOLD
                 and price > sma50           # Aufwärtstrend-Filter
                 and vol_ratio < 1.5):       # kein Distributions-Volumen
             signals.append(("BB_LOWER_RSI_OVERSOLD", CONVICTION_VERY_HIGH, 35.0))
 
     # Rule 2: BB extreme + RSI extreme — nur im Aufwärtstrend
-    if bb_pct is not None and rsi is not None and sma50 is not None:
+    if bb_pct is not None and rsi is not None and sma50 is not None and not knife:
         if (bb_pct < BB_LOWER_EXTREME and rsi < RSI_OVERSOLD
                 and price > sma50           # Aufwärtstrend-Filter
                 and vol_ratio < 1.5):       # kein Distributions-Volumen
@@ -285,8 +348,13 @@ def generate_signal(symbol: str, indicators: dict) -> SignalResult:
     # Rule 3: RSI extreme oversold — Conviction hängt vom Trend ab.
     # Tief im Downtrend (price < sma50 * 0.90) = MEDIUM (Vorsicht: weitere Verluste möglich)
     # Nahe oder über SMA50 = HIGH (kurzfristige Übertreibung, Erholung wahrscheinlicher)
-    if rsi is not None and rsi < RSI_EXTREME_OVERSOLD:
-        if sma50 is not None and price < sma50 * 0.90:
+    # feat/falling-knife-gate: Distributions-Volumen (vol_ratio >= 1.5) drueckt
+    # jetzt auch hier auf MEDIUM — Rule 3 hatte als einzige Dip-Regel weder
+    # Trend- noch Volumenfilter.
+    if rsi is not None and rsi < RSI_EXTREME_OVERSOLD and not knife:
+        deep_downtrend = sma50 is not None and price < sma50 * 0.90
+        distribution = vol_ratio >= 1.5
+        if deep_downtrend or distribution:
             signals.append(("RSI_EXTREME_OVERSOLD", CONVICTION_MEDIUM, 15.0))
         else:
             signals.append(("RSI_EXTREME_OVERSOLD", CONVICTION_HIGH, 25.0))
@@ -298,7 +366,7 @@ def generate_signal(symbol: str, indicators: dict) -> SignalResult:
                 signals.append(("MACD_TURN_BELOW_SMA20", CONVICTION_MEDIUM, 15.0))
 
     # Rule 5: BB low + MACD improving
-    if bb_pct is not None and macd_hist is not None and macd_hist_prev is not None:
+    if bb_pct is not None and macd_hist is not None and macd_hist_prev is not None and not knife:
         if bb_pct < 0.1 and macd_hist > macd_hist_prev:
             signals.append(("BB_LOW_MACD_IMPROVING", CONVICTION_HIGH, 20.0))
 

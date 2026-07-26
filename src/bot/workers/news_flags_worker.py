@@ -45,6 +45,15 @@ NEWS_MAX_AGE_H = 36         # aeltere Headlines ignorieren
 EARNINGS_AVOID_DAYS = 2     # Earnings binnen N Tagen → AVOID
 LLM_TIMEOUT_S = 60.0
 
+# feat/analyst-targets (2026-07-26): Analysten-Kursziele als drittes
+# regelbasiertes Kriterium. Preis DEUTLICH ueber dem Konsens-Kursziel =
+# kein Aufwaertspotenzial laut Street → daempfen. Asymmetrisch wie alles
+# hier: nur AVOID/CAUTION, nie Boost. Keine Abdeckung (EU/Asia-Micro-Caps
+# haben oft keine) → kein Flag.
+ANALYST_SYMBOL_CAP = 12
+ANALYST_CAUTION_ABOVE_PCT = 5.0    # Preis > Kursziel +5%  → CAUTION
+ANALYST_AVOID_ABOVE_PCT = 25.0     # Preis > Kursziel +25% → AVOID
+
 VALID_FLAGS = {"AVOID", "CAUTION"}
 
 
@@ -153,6 +162,47 @@ def _fetch_earnings_flags(symbols: list[dict]) -> dict[str, dict]:
     return flags
 
 
+def _evaluate_analyst_target(current: float | None, mean_target: float | None) -> dict | None:
+    """Pure Bewertungslogik: Preis vs. Konsens-Kursziel → Flag-Dict oder None."""
+    if not current or not mean_target or current <= 0 or mean_target <= 0:
+        return None
+    above_pct = (current / mean_target - 1.0) * 100.0
+    if above_pct > ANALYST_AVOID_ABOVE_PCT:
+        return {
+            "flag": "AVOID", "severity": "HIGH",
+            "reason": f"Preis {above_pct:.0f}% ueber Analysten-Kursziel ({mean_target:.2f})",
+            "source": "analyst_target",
+        }
+    if above_pct > ANALYST_CAUTION_ABOVE_PCT:
+        return {
+            "flag": "CAUTION", "severity": "MEDIUM",
+            "reason": f"Preis {above_pct:.0f}% ueber Analysten-Kursziel ({mean_target:.2f})",
+            "source": "analyst_target",
+        }
+    return None
+
+
+def _fetch_analyst_flags(symbols: list[dict]) -> dict[str, dict]:
+    """Regelbasiert: Preis deutlich ueber Konsens-Kursziel → CAUTION/AVOID.
+
+    yfinance analyst_price_targets liefert {'current', 'mean', ...} in einem
+    Call — kein separater Preis-Fetch noetig. Fail-open pro Symbol.
+    """
+    import yfinance as yf
+    flags: dict[str, dict] = {}
+    for entry in symbols[:ANALYST_SYMBOL_CAP]:
+        try:
+            targets = yf.Ticker(entry["yf"]).analyst_price_targets or {}
+            flag = _evaluate_analyst_target(
+                targets.get("current"), targets.get("mean")
+            )
+            if flag:
+                flags[entry["symbol"]] = flag
+        except Exception:
+            pass
+    return flags
+
+
 def _parse_llm_flags(result: dict | None) -> dict[str, dict]:
     """Validiert die LLM-Antwort hart: nur AVOID/CAUTION, nur bekannte Felder.
     Alles andere wird verworfen (Halluzinations-Schutz)."""
@@ -225,6 +275,11 @@ def main() -> int:
         # 1. Regelbasierte Earnings-Flags (kein LLM)
         flags = _fetch_earnings_flags(symbols)
 
+        # 1b. Regelbasierte Analysten-Kursziel-Flags (feat/analyst-targets).
+        # Earnings-Flag gewinnt bei Konflikt (setdefault).
+        for sym, entry in _fetch_analyst_flags(symbols).items():
+            flags.setdefault(sym, entry)
+
         # 2. Headlines → LLM-Bewertung (nur wenn es Headlines gibt)
         news = _fetch_news(symbols)
         if news:
@@ -265,7 +320,11 @@ Antworte NUR mit JSON:
         elapsed = time.monotonic() - t0
         try:
             from bot.core.heartbeat import record_duration as _rd
-            _rd(StateRepo(db), WORKER_NAME, elapsed)
+            # fix/duration-closed-db (2026-07-26): db wurde oben geschlossen —
+            # der Record lief seit je ins Leere (still geschlucktes Except).
+            _db2 = DB(db_path=PROJECT_ROOT / "data" / "trading.db")
+            _rd(StateRepo(_db2), WORKER_NAME, elapsed)
+            _db2.close()
         except Exception:
             pass
         summary = (f"{WORKER_NAME}: {len(symbols)} Symbole, "
