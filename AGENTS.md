@@ -191,6 +191,44 @@ im Sort — 23h-alte Signale konkurrieren nie gleichwertig mit frischen.
 
 ---
 
+## Signalqualitaet & Liquidity-Tiering (seit 2026-07-26)
+
+### Liquidity-Tiering (`src/bot/core/liquidity.py`)
+
+- `instruments` hat jetzt `adv_usd` (20d-Dollar-Volumen, data_worker schreibt
+  im 5-min-Takt) und `market_cap` (USD-Naeherung, `scripts/backfill_liquidity.py`).
+- Kandidaten-Ranking im signal_worker: 5. Sort-Term `liquidity_factor` [0.6..1.1]
+  (min-Regel aus Market-Cap- und ADV-Tier, unbekannt = 1.0 neutral, fail-open).
+  Config-Schalter: `trading.liquidity_tiering`.
+- data_worker speichert KEINE BUY-Signale mehr unter `MIN_ADV_USD` (500k).
+- FX-Naeherungen fuer Nicht-USD-Boersen zentral in `liquidity.currency_factor()`
+  (nur fuers Tier-Bucketing — NIE fuer Bewertungen/PnL benutzen).
+
+### Falling-Knife-Gate (`signals.py`)
+
+`is_falling_knife()`: >=4 rote Tage ODER ROC5d <= -12% ODER >=2.5 ATR unter
+SMA20 → Dip-Buy-Regeln (1,2,3,5) gesperrt; Rule 4 (MACD-Wende) bleibt erlaubt.
+Metriken `consecutive_down_days`/`roc_5d_pct` kommen aus `compute_indicators()`.
+
+### Lernschleife
+
+- Combo-Conviction = SCHWAECHSTE Komponente (nicht mehr beste).
+- LLM-Weights: Combo-Keys wirken auf Obermengen-Combos, `skip` zerlegt Combos.
+- Kelly (`sizing.py`) poolt bei duennem Exact-Match auf Komponenten-Ebene.
+- Core-Sweep-Trades tragen synthetisches Signal `CORE_SWEEP` (CONSUMED) —
+  sichtbar fuer Scorecard/Kelly.
+- news_flags_worker flaggt zusaetzlich Analysten-Kursziele (Preis >5% ueber
+  Konsens → CAUTION, >25% → AVOID, Quelle `analyst_target`).
+
+### Tote Tabelle: `ohlcv_daily`
+
+Wird seit Pausierung des Legacy-Jobs `scripts/discovery_cron.py` (2026-07-03)
+von NIEMANDEM mehr geschrieben oder gelesen (Stand 2026-07-26, max date
+2026-07-01). Alle Live-Grader holen frische Daten direkt via yfinance.
+NICHT als aktuelle Datenquelle verwenden.
+
+---
+
 ## Child DOX Index
 
 Keine Children — dieses Repo ist eine Einheit.
