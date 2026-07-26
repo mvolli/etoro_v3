@@ -754,15 +754,40 @@ def main() -> None:
         # crypto/commodities/indices when raw scores are close, without
         # changing the underlying exposure caps (ASSET_CLASS_LIMITS in
         # risk.py still applies at the gate stage further down).
+        #
+        # feat/liquidity-tiering (2026-07-26): fuenfter Term im Sort-Key —
+        # Market-Cap/ADV-Tier-Faktor [0.6..1.1] aus instruments. High-Runner
+        # gewinnen die knappen Slots, Micro-Caps werden nachrangig sortiert
+        # (nicht geblockt). Unbekannt = 1.0 neutral, fail-open.
+        _liquidity_map: dict[int, float] = {}
+        if bool(cfg.get("trading", {}).get("liquidity_tiering", True)):
+            try:
+                from bot.core.liquidity import load_liquidity_map
+                _liquidity_map = load_liquidity_map(
+                    db, [s["instrument_id"] for s, _ in eligible]
+                )
+            except Exception:
+                _liquidity_map = {}
         eligible.sort(
             key=lambda t: (
                 float(t[0].get("score", 0))
                 * get_score_boost(t[1])
                 * _get_signal_score_multiplier(t[0].get("signal_type", ""), _llm_signal_weights)
                 * _signal_age_factor(t[0].get("generated_at", ""), ttl_minutes=1440)
+                * _liquidity_map.get(t[0]["instrument_id"], 1.0)
             ),
             reverse=True,
         )
+        _dampened = {
+            sym: f for (s, sym) in eligible
+            if (f := _liquidity_map.get(s["instrument_id"], 1.0)) < 1.0
+        }
+        if _dampened:
+            logger.info(
+                "SignalWorker: Liquidity-Tiering daempft %d Kandidat(en): %s",
+                len(_dampened),
+                ", ".join(f"{sym}={f:.2f}" for sym, f in list(_dampened.items())[:8]),
+            )
     
         # Deduplicate: keep only the highest-score signal per instrument_id
         seen_instruments = set()

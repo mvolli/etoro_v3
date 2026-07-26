@@ -90,6 +90,7 @@ DEFAULT_WATCHLIST: list[str] = [
 # aliases on top. Successful fallback resolutions from _fallback_single_fetch
 # are cached here for the rest of the session.
 from bot.core.ohlcv_cache import YFINANCE_TICKER_MAP as _YF_TICKER_MAP
+from bot.core import liquidity as _liq
 
 SYMBOL_ALIAS_MAP: dict[str, str] = {
     **_YF_TICKER_MAP,
@@ -831,6 +832,25 @@ def run(project_root: Path | None = None) -> dict:
             # id and have a usable price, independent of signal direction.
             if instrument_id is not None and result.atr and result.price:
                 _update_instrument_atr(db, instrument_id, result.atr / result.price * 100.0)
+
+            # feat/liquidity-tiering (2026-07-26): 20d-Dollar-Volumen aus dem
+            # ohnehin vorhandenen DataFrame persistieren (Ranking-Grundlage)
+            # und BUY-Signale unterhalb MIN_ADV_USD gar nicht erst speichern —
+            # der data_worker-Pfad hatte als einziger Produzent KEINEN
+            # Liquiditaetsfilter (Discovery filtert seit je bei 500k).
+            _adv_usd = _liq.compute_adv_usd(df, original_sym, result.price)
+            if instrument_id is not None and _adv_usd is not None:
+                _liq.update_adv(db, instrument_id, _adv_usd)
+            if (
+                result.direction == "BUY"
+                and _adv_usd is not None
+                and _adv_usd < _liq.MIN_ADV_USD
+            ):
+                logger.debug(
+                    "[%s] %s: adv_usd=%.0f < %.0f — BUY-Signal nicht gespeichert (illiquid)",
+                    WORKER_NAME, original_sym, _adv_usd, _liq.MIN_ADV_USD,
+                )
+                continue
 
             if result.direction == "HOLD" or result.score < MIN_SIGNAL_SCORE:
                 logger.debug(

@@ -1006,11 +1006,12 @@ def main() -> int:
                         )
                         continue
 
-                    # GBX-Korrektur: yfinance gibt .L-Preise in Pence (GBX), nicht GBP.
-                    # avg_vol * GBX_price = GBX-Wert, nicht USD. Faktor: 0.01 (GBX->GBP)
-                    # * ~1.27 (GBP->USD) = 0.0127. Fuer alle anderen Symbole: 1.0.
-                    _currency_factor = 0.0127 if symbol.upper().endswith(".L") else 1.0
-                    vol_usd = avg_vol * _price * _currency_factor
+                    # FX-Naeherung (feat/liquidity-tiering): vorher nur GBX-
+                    # Korrektur fuer .L — JPY/HKD/SEK-Volumina wurden als "USD"
+                    # gelesen und um Faktor 7-150 ueberschaetzt. Jetzt zentrale
+                    # Suffix-Map in bot.core.liquidity.
+                    from bot.core.liquidity import currency_factor as _cf
+                    vol_usd = avg_vol * _price * _cf(symbol)
                     if vol_usd < MIN_VOLUME_USD:
                         logger.debug(
                             "[%s] %s: vol_usd=%.0f < %.0f — skipped (illiquid)",
@@ -1038,6 +1039,7 @@ def main() -> int:
                     "price":      result.price,
                     "atr":        result.atr,
                     "signal_types": result.signal_types,
+                    "adv_usd":    vol_usd,
                 })
                 logger.info(
                     "[%s] CANDIDATE %s score=%.1f conviction=%s",
@@ -1246,6 +1248,16 @@ def main() -> int:
                     "[%s] Stored signal — %s (score=%.1f conviction=%s instrument_id=%d)",
                     WORKER_NAME, symbol, cand["score"], cand["conviction"], instrument_id,
                 )
+
+                # feat/liquidity-tiering: ADV beim Store persistieren, damit
+                # das Ranking im signal_worker den Tier-Faktor sofort kennt
+                # (nicht erst nach dem naechsten data_worker-Zyklus).
+                if cand.get("adv_usd"):
+                    try:
+                        from bot.core.liquidity import update_adv as _upd_adv
+                        _upd_adv(db, instrument_id, cand["adv_usd"])
+                    except Exception:
+                        pass
 
                 # fix/core-sweep-auto-discovery (2026-07-22): starke FRESH-Signale
                 # automatisch in die Core-Sweep-Whitelist aufnehmen — so findet
