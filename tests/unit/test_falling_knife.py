@@ -77,7 +77,9 @@ def test_compute_indicators_no_down_streak():
 def _oversold_indicators(**overrides):
     """Indikator-Set, das ohne Messer Rule 3 (RSI_EXTREME_OVERSOLD HIGH) feuert."""
     base = {
-        "rsi": 22.0, "macd_hist": -0.5, "macd_hist_prev": -0.6,
+        # macd_hist FALLEND (-0.5 < prev -0.4) → Rule 4 feuert NICHT mit,
+        # sonst wuerde die Combo-Conviction (min-Regel) Rule 3 ueberdecken.
+        "rsi": 22.0, "macd_hist": -0.5, "macd_hist_prev": -0.4,
         "bb_pct": 0.5, "price": 100.0, "sma20": 101.0, "sma50": 99.0,
         "atr": 2.0, "vol_ratio": 1.0,
     }

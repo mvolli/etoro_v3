@@ -183,13 +183,20 @@ def _collect_trade_performance(db_path: Path) -> dict:
     con.row_factory = sqlite3.Row
     cur = con.cursor()
 
-    # Abgeschlossene Trades mit PnL-Daten
+    # Abgeschlossene Trades mit PnL-Daten.
+    # feat/trade-postmortem (2026-07-26): + Haltedauer und Peak-PnL (MFE via
+    # position_state) — trennt "Entry war falsch" (nie im Plus) von "Exit war
+    # falsch" (Peak deutlich positiv, Ende negativ). position_state wird nach
+    # Close irgendwann aufgeraeumt → LEFT JOIN, peak dann NULL (ok).
     cur.execute("""
         SELECT t.symbol, t.status, t.pnl_usd, t.pnl_pct,
                t.entry_price, t.exit_price, t.created_at, t.closed_at,
+               ROUND(julianday(t.closed_at) - julianday(t.created_at), 1) AS hold_days,
+               ps.peak_pnl_pct,
                s.signal_type, s.conviction
         FROM trades t
         LEFT JOIN signals s ON t.signal_id = s.id
+        LEFT JOIN position_state ps ON ps.position_id = t.api_position_id
         WHERE t.status = 'CLOSED' AND t.closed_at IS NOT NULL
           AND t.entry_price IS NOT NULL
         ORDER BY t.closed_at DESC
@@ -514,13 +521,19 @@ Gib JSON mit genau diesen Feldern zurück:
     except Exception:
         _qmd_block = ""
 
-    # Kuerzlich abgeschlossene Trades (mit PnL)
+    # Kuerzlich abgeschlossene Trades (mit PnL).
+    # feat/trade-postmortem: hold (Tage) + peak (MFE %) pro Trade — damit
+    # kann die Analyse Entry-Fehler (peak nie > 0) von Exit-Fehlern
+    # (peak deutlich positiv, Ende negativ) unterscheiden.
     recent_closed = ""
     if trade_perf and trade_perf.get("closed"):
         measured = [t for t in trade_perf["closed"] if t.get("pnl_pct") is not None][:15]
         recent_closed = json.dumps([
             {"sym": t["symbol"], "sig": (t.get("signal_type") or "")[:40],
-             "conv": t.get("conviction"), "pnl": round(t["pnl_pct"], 2)}
+             "conv": t.get("conviction"), "pnl": round(t["pnl_pct"], 2),
+             "hold_d": t.get("hold_days"),
+             "peak": (round(t["peak_pnl_pct"], 2)
+                      if t.get("peak_pnl_pct") is not None else None)}
             for t in measured
         ], ensure_ascii=False)
 
@@ -571,8 +584,13 @@ Ergaenze das JSON AUCH um:
 ## Signal-Performance mit PnL-Daten
 {perf_summary}
 
-## Kuerzlich abgeschlossene Trades (sym, signal, conviction, pnl%)
+## Kuerzlich abgeschlossene Trades (sym, signal, conviction, pnl%, hold_d=Haltetage, peak=Maximal-PnL%)
 {recent_closed or 'Keine PnL-Daten verfuegbar'}
+
+POST-MORTEM-REGEL: peak deutlich positiv (>2%) aber pnl negativ = EXIT-Problem
+(Gewinn nicht gesichert — trailing/profit-taking pruefen). peak nie ueber 0 =
+ENTRY-Problem (Signaltyp war falsch — score_multiplier senken oder skippen).
+hold_d < 1 bei Verlust = Slippage/Timing-Problem, nicht Signal-Problem.
 
 ## Bisherige LLM-Erkenntnisse (Langzeitgedaechtnis)
 {prev_insights or 'Erster Run — kein Vorwissen'}

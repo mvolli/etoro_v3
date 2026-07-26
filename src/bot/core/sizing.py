@@ -30,22 +30,37 @@ def kelly_size_factor(signal_type: str, db, min_trades: int = 10) -> float:
     -------
     float
         Multiplier in [0.3, 1.5]. 1.0 = neutral (no change to sizing).
+
+    fix/kelly-components (2026-07-26): vorher Exact-Match auf den vollen
+    Combo-String — bei ~30 moeglichen Combos erreichten nur 2 je min_trades,
+    Kelly war fuer fast alle Signale dauerhaft neutral. Jetzt: reicht der
+    Exact-Match nicht, wird auf Komponenten-Ebene gepoolt (alle Closed
+    Trades, deren Combo mindestens eine Komponente teilt) — verzehnfacht
+    die Stichprobe bei gleicher Aussage-Richtung.
     """
     try:
         rows = db.fetchall(
             """
-            SELECT t.pnl_pct
+            SELECT s.signal_type AS st, t.pnl_pct
             FROM trades t
             JOIN signals s ON s.id = t.signal_id
-            WHERE s.signal_type = ?
-              AND t.status = 'CLOSED'
+            WHERE t.status = 'CLOSED'
               AND t.pnl_pct IS NOT NULL
               AND t.created_at > datetime('now', '-90 days')
             """,
-            (signal_type,),
         )
     except Exception:
         return 1.0
+
+    exact = [r for r in rows if r["st"] == signal_type]
+    if len(exact) >= min_trades:
+        rows = exact
+    else:
+        parts = {p.strip() for p in signal_type.split(",") if p.strip()}
+        rows = [
+            r for r in rows
+            if parts & {p.strip() for p in (r["st"] or "").split(",") if p.strip()}
+        ]
 
     if len(rows) < min_trades:
         return 1.0

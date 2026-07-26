@@ -1313,10 +1313,28 @@ def main() -> None:
                     multiple=float(cfg.get("sl", {}).get("atr_multiple", 1.5)),
                     max_pct=float(cfg.get("sl", {}).get("max_pct", 6.0)),
                 )
+                # feat/core-sweep-signal-tag (2026-07-26): synthetisches
+                # CONSUMED-Signal 'CORE_SWEEP' statt signal_id=None — vorher
+                # waren Core-Sweep-Trades fuer Scorecard, Kelly und jede
+                # trades-JOIN-signals-Analyse unsichtbar (Cash-Deployment-
+                # Pfad hatte keine Lernschleife).
+                _cs_sig_id = None
+                try:
+                    _cs_sig_id = signal_repo.create(
+                        instrument_id=_o.instrument_id,
+                        signal_type="CORE_SWEEP",
+                        conviction="MEDIUM",
+                        score=0.0,
+                        rsi=_rsi_by_id.get(_o.instrument_id),
+                        ttl_minutes=5,
+                    )
+                    signal_repo.update_signal_status(_cs_sig_id, "CONSUMED")
+                except Exception:
+                    _cs_sig_id = None
                 _cs_tid = trade_repo.create(
                     instrument_id=_o.instrument_id, symbol=_o.symbol, direction="BUY",
                     amount_usd=_o.amount_usd, stop_loss_pct=_cs_sl,
-                    signal_id=None, signal_price=None,
+                    signal_id=_cs_sig_id, signal_price=None,
                 )
                 from datetime import datetime as _csdt, timezone as _cstz
                 trade_repo.update_status(

@@ -436,17 +436,24 @@ def generate_signal(symbol: str, indicators: dict) -> SignalResult:
             atr=indicators.get("atr"),
         )
 
-    # Best conviction wins, score is cumulative (capped at 100)
+    # fix/combo-conviction-min (2026-07-26): Combos erben jetzt die
+    # SCHWAECHSTE Komponenten-Conviction (vorher: die beste). Eine einzige
+    # VERY_HIGH-Komponente machte die ganze Combo VERY_HIGH und damit zur
+    # groessten Position (sizing 7%) — waehrend genau diese Combos laut
+    # Scorecard 80-90% Verlustrate hatten (BB_LOWER+BB_EXTREME+RSI_EXTREME:
+    # n=37, WR 2.7%). Einzelsignale sind unveraendert (min = max = eigene).
+    # Score bleibt kumulativ (capped at 100) — die Combo gewinnt weiterhin
+    # das Ranking, sie bekommt nur nicht mehr automatisch die Maximal-Size.
     conviction_order = {CONVICTION_VERY_HIGH: 0, CONVICTION_HIGH: 1,
                         CONVICTION_MEDIUM: 2, CONVICTION_LOW: 3}
-    best_conviction = min(signals, key=lambda s: conviction_order[s[1]])[1]
+    combo_conviction = max(signals, key=lambda s: conviction_order[s[1]])[1]
     total_score = min(sum(s[2] for s in signals), 100.0)
     signal_types = [s[0] for s in signals]
 
     return SignalResult(
         symbol=symbol,
         direction=SIGNAL_BUY,
-        conviction=best_conviction,
+        conviction=combo_conviction,
         score=total_score,
         signal_types=signal_types,
         rsi=rsi,
