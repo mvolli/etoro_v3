@@ -1017,8 +1017,16 @@ def main() -> int:
                             WORKER_NAME, symbol, vol_usd, MIN_VOLUME_USD,
                         )
                         continue
-                except Exception:
-                    pass  # Berechnung fehlgeschlagen — Symbol trotzdem zulassen
+                except Exception as _liq_exc:
+                    # fix/fail-closed-liquidity (2026-07-26): vorher fail-open —
+                    # scheiterte die Volumenberechnung, wurde das Symbol OHNE
+                    # Liquiditaetspruefung zugelassen (genau die illiquiden
+                    # Micro-Caps, deren Daten haeufig kaputt sind). Jetzt: skip.
+                    logger.debug(
+                        "[%s] %s: Liquiditaetscheck fehlgeschlagen (%s) — skipped",
+                        WORKER_NAME, symbol, _liq_exc,
+                    )
+                    continue
     
                 buy_candidates.append({
                     "symbol":     symbol,

@@ -107,25 +107,59 @@ def _get_signal_score_multiplier(signal_type: str, weights: dict) -> float:
         # daempfen/skippen, NIE verstaerken. Hart geclampt (45fc9e1
         # versuchte 1.5x auf Basis von 6 Trades).
         return min(1.0, float(adj.get("score_multiplier", 1.0)))
-    # Combo-Signal: Einzelkomponenten pruefen
+    # Combo-Signal: Einzelkomponenten + Teilmengen-Combos pruefen
     if "," in signal_type:
-        parts = [p.strip() for p in signal_type.split(",") if p.strip()]
+        sig_parts = _split_signal_type(signal_type)
+        sig_set = set(sig_parts)
         product = 1.0
-        for part in parts:
+        for part in sig_parts:
             part_adj = weights.get("adjustments", {}).get(part)
             if part_adj is not None:
                 product *= min(1.0, float(part_adj.get("score_multiplier", 1.0)))
-        return product
+        # fix/combo-subset-propagation (2026-07-26): Combo-Keys wie
+        # 'BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD'=0.4 griffen
+        # bisher NICHT auf Obermengen-Combos (Dreier-Combo mit denselben
+        # Komponenten lief mit 1.0 trotz 2.7% WR im Scorecard). Jetzt:
+        # jeder Weights-Key, dessen Komponenten Teilmenge der Signal-
+        # Komponenten sind, wirkt; die staerkste Daempfung gewinnt (min).
+        result = product
+        for key, key_adj in weights.get("adjustments", {}).items():
+            if "," not in key or key_adj is None:
+                continue
+            if set(_split_signal_type(key)) <= sig_set:
+                result = min(result, min(1.0, float(key_adj.get("score_multiplier", 1.0))))
+        return result
     return 1.0
 
 
+def _split_signal_type(signal_type: str) -> list[str]:
+    """Zerlegt einen (Combo-)Signal-Typ-String in seine Komponenten."""
+    return [p.strip() for p in signal_type.split(",") if p.strip()]
+
+
 def _is_signal_type_skipped(signal_type: str, weights: dict) -> tuple[bool, str]:
-    """Prueft ob Signal-Typ durch LLM gesperrt wurde. Gibt (skip, reason) zurueck."""
+    """Prueft ob Signal-Typ durch LLM gesperrt wurde. Gibt (skip, reason) zurueck.
+
+    fix/skip-combo-decomposition (2026-07-26): bisher nur Exact-Match —
+    ein skip auf eine Komponente (z.B. 'TREND_PULLBACK') blockte still
+    KEINE Combo, die sie enthielt. Jetzt symmetrisch zum Multiplier:
+    Komponenten + Teilmengen-Combo-Keys werden mitgeprueft.
+    """
     if not weights:
         return False, ""
-    adj = weights.get("adjustments", {}).get(signal_type)
+    adjustments = weights.get("adjustments", {})
+    adj = adjustments.get(signal_type)
     if adj and adj.get("skip"):
         return True, adj.get("reason", "LLM: Signal-Typ deaktiviert")
+    if "," in signal_type:
+        sig_set = set(_split_signal_type(signal_type))
+        for key, key_adj in adjustments.items():
+            if not key_adj or not key_adj.get("skip"):
+                continue
+            if set(_split_signal_type(key)) <= sig_set:
+                return True, key_adj.get(
+                    "reason", f"LLM: Komponente {key} deaktiviert"
+                )
     return False, ""
 
 

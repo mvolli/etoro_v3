@@ -421,6 +421,83 @@ def test_score_multiplier_never_boosts():
     assert _get_signal_score_multiplier("PART2", w) == 0.5
 
 
+# ── Combo-Subset-Propagation (fix/combo-subset-propagation 2026-07-26) ───────
+
+def test_combo_key_dampens_superset_combo():
+    """Ein Combo-Key (2er) muss auf Obermengen-Combos (3er) durchgreifen —
+    der Live-Fall: BB_LOWER+BB_EXTREME=0.4 griff nicht auf die Dreier-Combo
+    mit 2.7% Winrate, die lief mit 1.0 weiter."""
+    from bot.workers.signal_worker import _get_signal_score_multiplier
+    w = {"adjustments": {
+        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD": {"score_multiplier": 0.4},
+    }}
+    triple = "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD"
+    assert _get_signal_score_multiplier(triple, w) == 0.4
+    # Reihenfolge der Komponenten darf keine Rolle spielen
+    shuffled = "RSI_EXTREME_OVERSOLD,BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD"
+    assert _get_signal_score_multiplier(shuffled, w) == 0.4
+    # Nicht-Teilmenge greift NICHT
+    other = "TREND_PULLBACK,GOLDEN_CROSS"
+    assert _get_signal_score_multiplier(other, w) == 1.0
+
+
+def test_combo_subset_takes_strongest_dampening():
+    """Bei mehreren greifenden Keys gewinnt die staerkste Daempfung (min),
+    auch gegenueber dem Komponenten-Produkt."""
+    from bot.workers.signal_worker import _get_signal_score_multiplier
+    w = {"adjustments": {
+        "PART1": {"score_multiplier": 0.9},
+        "PART1,PART2": {"score_multiplier": 0.3},
+    }}
+    # Produkt der Singles waere 0.9, Subset-Combo-Key 0.3 → 0.3 gewinnt
+    assert _get_signal_score_multiplier("PART1,PART2,PART3", w) == 0.3
+    # Combo-Key darf trotzdem nie boosten
+    w2 = {"adjustments": {"PART1,PART2": {"score_multiplier": 1.8}}}
+    assert _get_signal_score_multiplier("PART1,PART2,PART3", w2) == 1.0
+
+
+def test_exact_match_still_has_priority():
+    from bot.workers.signal_worker import _get_signal_score_multiplier
+    w = {"adjustments": {
+        "PART1,PART2": {"score_multiplier": 0.7},
+        "PART1": {"score_multiplier": 0.2},
+    }}
+    # Exact-Match auf den vollen Combo-String gewinnt vor Zerlegung
+    assert _get_signal_score_multiplier("PART1,PART2", w) == 0.7
+
+
+# ── Skip-Combo-Zerlegung (fix/skip-combo-decomposition 2026-07-26) ───────────
+
+def test_skip_on_component_blocks_combo():
+    """skip:true auf eine Komponente muss jede Combo blocken, die sie
+    enthaelt — vorher Exact-Match-only, Skips liefen ins Leere."""
+    from bot.workers.signal_worker import _is_signal_type_skipped
+    w = {"adjustments": {"TREND_PULLBACK": {"skip": True, "reason": "WR 8%"}}}
+    skip, reason = _is_signal_type_skipped("TREND_PULLBACK,GOLDEN_CROSS", w)
+    assert skip is True
+    assert "WR 8%" in reason
+    # Nicht enthaltene Komponente blockt nicht
+    skip2, _ = _is_signal_type_skipped("GOLDEN_CROSS,MACD_TURN_BELOW_SMA20", w)
+    assert skip2 is False
+
+
+def test_skip_combo_key_blocks_superset():
+    from bot.workers.signal_worker import _is_signal_type_skipped
+    w = {"adjustments": {"PART1,PART2": {"skip": True}}}
+    skip, _ = _is_signal_type_skipped("PART2,PART1,PART3", w)
+    assert skip is True
+    # 2er-Combo mit nur einer der Komponenten: kein Block
+    skip2, _ = _is_signal_type_skipped("PART1,PART3", w)
+    assert skip2 is False
+
+
+def test_skip_without_flag_never_blocks():
+    from bot.workers.signal_worker import _is_signal_type_skipped
+    w = {"adjustments": {"PART1": {"score_multiplier": 0.4}}}
+    assert _is_signal_type_skipped("PART1,PART2", w) == (False, "")
+    assert _is_signal_type_skipped("PART1", w) == (False, "")
+
+
 # ── Experiment-Lock (fix/experiment-lock 2026-07-20) ─────────────────────────
 
 def test_experiment_param_locked_for_review(monkeypatch, tmp_path):
