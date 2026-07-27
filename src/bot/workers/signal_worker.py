@@ -648,6 +648,12 @@ def main() -> None:
         skipped_diversity: list[str] = []
         eligible: list[tuple[dict, str]] = []  # (signal, symbol) — open market, not blacklisted
     
+        # APPROVED-Check: Instrumente mit bereits APPROVED-Trade vorab laden
+        _approved_ids: set[int] = set()
+        try:
+            _approved_ids = trade_repo.get_approved_instrument_ids()
+        except Exception:
+            _approved_ids = set()  # fail-open wenn Methode fehlt
         for signal in buy_signals:
             instrument_id = signal["instrument_id"]
             signal_id = signal.get("id")
@@ -658,6 +664,17 @@ def main() -> None:
                 logger.info(
                     "SignalWorker: %s BLACKLISTED (%d consecutive ghost failures) — skipping",
                     instrument_id, ghost_count,
+                )
+                signal_repo.update_signal_status(signal_id, "REJECTED")
+
+            # APPROVED-Check: kein neues Signal fuer Instrument mit
+            # bereits APPROVED-Trade (fix/duplicate-instrument-approval 2026-07-27)
+            # Vorher: execution_worker markierte Duplikate als REJECTED,
+            # aber signal_worker generierte sie trotzdem — 83/176 REJECTED.
+            if instrument_id in _approved_ids:
+                logger.info(
+                    "SignalWorker: instrument_id %d hat bereits APPROVED-Trade — SKIP",
+                    instrument_id,
                 )
                 signal_repo.update_signal_status(signal_id, "REJECTED")
                 continue

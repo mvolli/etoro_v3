@@ -194,6 +194,22 @@ def plan_core_sweep(
         if rsi is not None and rsi > rsi_overbought:
             reasons.append(f"{sym}: RSI {rsi:.0f} > {rsi_overbought:.0f} — nicht extended kaufen")
             continue
+        # Broker-Minimum-Check (fix/core-sweep-min-exposure 2026-07-27):
+        # Orders unter minPositionExposure werden von eToro mit 720 abgelehnt.
+        if db is not None:
+            try:
+                _min_row = db.fetchone(
+                    "SELECT min_position_amount FROM instruments WHERE instrument_id = ?",
+                    (iid,),
+                )
+                if _min_row and _min_row["min_position_amount"]:
+                    _broker_min = float(_min_row["min_position_amount"])
+                    _per_pos = equity * per_position_pct / 100.0
+                    if _per_pos < _broker_min:
+                        reasons.append(f"{sym}: ${_per_pos:.2f} < Broker-Min ${_broker_min:.0f} — SKIP")
+                        continue
+            except Exception:
+                pass  # Spalte fehlt -> fail-open
         candidates.append((sym, iid, atr_by_id.get(iid)))
 
     if not candidates:

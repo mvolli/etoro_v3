@@ -244,6 +244,13 @@ class TradeRepo:
         )
         return _rows_to_dicts(rows)
 
+    def get_approved_instrument_ids(self) -> set[int]:
+        """Return instrument_ids with status APPROVED (pending execution)."""
+        rows = self.db.fetchall(
+            "SELECT instrument_id FROM trades WHERE status = 'APPROVED'"
+        )
+        return {r["instrument_id"] for r in rows}
+
     # ── Ghost Order Blacklist ──────────────────────────────────────────────────
 
     GHOST_BLACKLIST_THRESHOLD = 3   # first blacklist after N consecutive ghost failures
