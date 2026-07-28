@@ -740,3 +740,205 @@
 - Slippage-Rejects bei .L Instrumenten (HAYD.L, THRU.L, SALT.L) deuten auf Liquiditätsengpässe hin
 
 **LLM-Fazit:** CAUTION-Regime: Portfolio bei 9149 USD. Ghost-Raten bei .L und Forex steigen. Signale wie GOLDEN_CROSS und TREND_PULLBACK verlieren häufig an Rejection. VERY_HIGH Conviction Trades zeigen negative Durchschnitts-PnL. SL bei 3% beibehalten, aber Signal-Gewichte anpassen.
+
+## 2026-07-22 20:32 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_FUT`: 100% (2/2) ← GEBLOCKT
+- `_FOREX`: 100% (3/3) ← GEBLOCKT
+- `.L`: 26% (5/19) ← GEBLOCKT
+- `.MI`: 14% (1/7)
+- `.ASX`: 12% (1/8)
+- `.MC`: 11% (1/9)
+- `_OTHER`: 7% (2/27)
+- `.ST`: 7% (1/14)
+- `.PA`: 5% (1/20)
+- `_CRYPTO`: 0% (0/2)
+- `.ZU`: 0% (0/4)
+- `.RTH`: 0% (0/2)
+- `_ASIA`: 0% (0/18)
+- `.DE`: 0% (0/18)
+- `.OL`: 0% (0/3) ← GEBLOCKT
+
+*LLM nicht verfügbar — nur algorithmische Analyse.*
+
+## 2026-07-23 09:37 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_FUT`: 100% (2/2) ← GEBLOCKT
+- `_FOREX`: 100% (3/3) ← GEBLOCKT
+- `.MI`: 14% (1/7)
+- `.ASX`: 12% (1/8)
+- `.L`: 11% (5/44) ← GEBLOCKT
+- `.MC`: 11% (1/9)
+- `_OTHER`: 7% (2/27)
+- `.ST`: 7% (1/14)
+- `.PA`: 5% (1/20)
+- `_ASIA`: 0% (0/19)
+- `_CRYPTO`: 0% (0/2)
+- `.ZU`: 0% (0/4)
+- `.RTH`: 0% (0/2)
+- `.DE`: 0% (0/18)
+- `.OL`: 0% (0/3) ← GEBLOCKT
+
+**Symbol-Blacklist:** EURGBP, LiveCattle.FUT
+
+**Schwache Signaltypen:** TREND_PULLBACK,GOLDEN_CROSS
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_Cross verliert konsistent (avg_pnl -1.17, WR 18.75%) trotz HIGH Conviction
+- VERY_HIGH Conviction Trades zeigen negative PnL-Verteilung (z.B. -0.43 avg_pnl bei 37 Trades)
+- LUS1.DE generiert signifikante Gewinne (+17.78%) mit MEDIUM Conviction, was die Conviction-Leiter infrage stellt
+
+**LLM-Fazit:** CAUTION-Regime aktiv: Ghost-Raten bei _FOREX und _FUT stabil bei 100%, aber strukturell blockiert. Das Signal TREND_PULLBACK,GOLDEN_Cross enttäuscht mit einer Verlustrate von 81% und negativen PnLs. VERY_HIGH Conviction Trades verlieren im Durchschnitt, während MEDIUM Conviction auf LUS1.DE stark performt. SL-Breaches bei NVDA/META deuten auf manuelle Eingriffe hin.
+
+## 2026-07-23 20:31 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_FUT`: 100% (2/2) ← GEBLOCKT
+- `_FOREX`: 100% (3/3) ← GEBLOCKT
+- `.MI`: 17% (1/6)
+- `.MC`: 12% (1/8)
+- `.ASX`: 12% (1/8)
+- `.L`: 7% (3/43) ← GEBLOCKT
+- `.ST`: 7% (1/14)
+- `_OTHER`: 6% (2/31)
+- `.PA`: 6% (1/18)
+- `_CRYPTO`: 0% (0/8)
+- `_ASIA`: 0% (0/19)
+- `.ZU`: 0% (0/4)
+- `.RTH`: 0% (0/2)
+- `.DE`: 0% (0/18)
+- `.OL`: 0% (0/3) ← GEBLOCKT
+
+*LLM nicht verfügbar — nur algorithmische Analyse.*
+
+## 2026-07-23 21:21 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_FUT`: 100% (2/2) ← GEBLOCKT
+- `_FOREX`: 100% (3/3) ← GEBLOCKT
+- `.MI`: 17% (1/6)
+- `.MC`: 12% (1/8)
+- `.ASX`: 12% (1/8)
+- `.L`: 7% (3/43) ← GEBLOCKT
+- `.ST`: 7% (1/14)
+- `_OTHER`: 6% (2/31)
+- `.PA`: 6% (1/18)
+- `_CRYPTO`: 0% (0/8)
+- `_ASIA`: 0% (0/19)
+- `.ZU`: 0% (0/4)
+- `.RTH`: 0% (0/2)
+- `.DE`: 0% (0/18)
+- `.OL`: 0% (0/3) ← GEBLOCKT
+
+**Symbol-Blacklist:** EURGBP, LiveCattle.FUT
+
+**Schwache Signaltypen:** TREND_PULLBACK,GOLDEN_CROSS
+
+**Anomalien:**
+- VERY_HIGH Conviction Signale (BB_EXTREME_RSI_OVERSOLD) zeigen negative PnL-Durchschnitte trotz hoher Rejection-Rate
+- MEDIUM Conviction (RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20) ist profitabler als HIGH Conviction Varianten
+- SL-Breaches bei NVDA/META deuten auf manuelle Interven oder verzögerte Execution hin
+
+**LLM-Fazit:** CAUTION-Regime: Portfolio bei ~9024 USD. Ghost-Raten bei Forex/Futures stabil bei 100%, aber handelbar. Signale mit GOLDEN_CROSS und TREND_PULLBACK verlieren massiv; MEDIUM Conviction mit MACD-Wende ist aktuell die profitabelste Strategie. VERY_HIGH Conviction ohne MACD-Wende ist ein 'Falling Knife'.
+
+## 2026-07-24 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `.MI`: 14% (1/7)
+- `.MC`: 12% (1/8)
+- `.ASX`: 12% (1/8)
+- `.ST`: 8% (1/13)
+- `.L`: 7% (3/46) ← GEBLOCKT
+- `_OTHER`: 6% (2/32)
+- `.PA`: 5% (1/19)
+- `.DE`: 0% (0/18)
+- `_CRYPTO`: 0% (0/37)
+- `_ASIA`: 0% (0/8)
+- `.ZU`: 0% (0/4)
+- `.RTH`: 0% (0/2)
+
+**Schwache Signaltypen:** TREND_PULLBACK,GOLDEN_CROSS
+
+**Anomalien:**
+- VERY_HIGH Conviction Signale (BB_EXTREME_RSI_OVERSOLD) zeigen extrem hohe Verlustraten (-159 USD avg) und fallen oft ins Messer.
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING hat trotz 'IMPROVING' im Namen eine sehr niedrige Success Rate von 46% und hohe negative PnL.
+
+**LLM-Fazit:** CAUTION-Regime: Ghost-Raten sind aktuell niedrig, da strukturelle Bloecke stabil sind. Die Signal-Performance leidet unter 'Falling Knife'-Effekten bei sehr extremen RSI-Werten ohne MACD-Wende. Besonders das Signal 'TREND_PULLBACK,GOLDEN_CROSS' und 'MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING' zeigen schlechte Ergebnisse. Wir dämpfen die Gewichtung dieser Signale, um Kapital zu schonen.
+
+## 2026-07-25 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `.MC`: 12% (1/8)
+- `.ASX`: 12% (1/8)
+- `.ST`: 8% (1/12)
+- `.L`: 7% (3/45) ← GEBLOCKT
+- `_OTHER`: 6% (2/31)
+- `.PA`: 0% (0/16)
+- `.MI`: 0% (0/5)
+- `.DE`: 0% (0/16)
+- `_CRYPTO`: 0% (0/37)
+- `_ASIA`: 0% (0/8)
+- `.ZU`: 0% (0/4)
+- `.RTH`: 0% (0/2)
+
+**Schwache Signaltypen:** TREND_PULLBACK,GOLDEN_CROSS
+
+**Anomalien:**
+- VERY_HIGH Conviction Signale zeigen negative PnL-Verteilung (z.B. BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD mit 90% Losses)
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING hat hohe Rejection-Rate (4/9) und negativen PnL
+- Fehlende SL-Haltung bei NVDA und META (Schluss bei -3.07% bzw -3.14% statt 3.0% Limit)
+
+**LLM-Fazit:** CAUTION-Regime: Portfolio bei 8992 USD. Ghost-Raten sind stabil, keine strukturellen Exchange-Blöcke nötig. Signale mit GOLDEN_CROSS und reine Oversold-Signale ohne MACD-Wende verlieren deutlich. VERY_HIGH Conviction Trades sind aktuell unzuverlässig. SL-Haltung bei Tech-Aktien (NVDA/META) muss überwacht werden.
+
+## 2026-07-26 20:31 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `.ASX`: 12% (1/8)
+- `.L`: 7% (3/45) ← GEBLOCKT
+- `_OTHER`: 6% (2/31)
+- `.PA`: 0% (0/12)
+- `.MI`: 0% (0/5)
+- `.DE`: 0% (0/13)
+- `_CRYPTO`: 0% (0/37)
+- `_ASIA`: 0% (0/8)
+- `.ZU`: 0% (0/2)
+- `.ST`: 0% (0/10)
+- `.MC`: 0% (0/7)
+- `.RTH`: 0% (0/2)
+
+**Schwache Signaltypen:** TREND_PULLBACK,GOLDEN_CROSS
+
+**Anomalien:**
+- VERY_HIGH Conviction Signale verlieren durchschnittlich (avg_pnl < 0)
+- Post-Mortem: Viele Trades mit hohem Peak-PnL enden negativ (Exit-Problem)
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING hat hohe Ghost-Rate (4/9) und negativen PnL
+
+**LLM-Fazit:** Regime CAUTION: Ghost-Raten stabil, aber Signale wie GOLDEN_CROSS und MACD-Kombos verlieren aktuell. Exit-Management ist kritisch, da viele Trades mit Gewinn im Peak enden, aber negativ schließen. VERY_HIGH Conviction Trades zeigen schlechte Performance.
+
+## 2026-07-27 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `.L`: 4% (2/51) ← GEBLOCKT
+- `_OTHER`: 4% (2/51)
+- `.SW`: 0% (0/20)
+- `.AX`: 0% (0/16)
+- `.PA`: 0% (0/14)
+- `.MI`: 0% (0/4)
+- `.DE`: 0% (0/12)
+- `_CRYPTO`: 0% (0/37)
+- `_ASIA`: 0% (0/8)
+- `.ZU`: 0% (0/2)
+- `.ST`: 0% (0/9)
+- `.MC`: 0% (0/7)
+- `.RTH`: 0% (0/2)
+
+**Schwache Signaltypen:** CORE_SWEEP
+
+**Anomalien:**
+- HIGH Conviction Signale (TREND_PULLBACK, MACD_TURN) zeigen negative avg_pnl bei hohen Verlustraten
+- Post-Mortem: FHZN.ZU und 1797.HK zeigen Exit-Probleme (hoher Peak, negativer PnL)
+- Slippage-Rejects bei .L und .DE Instrumenten (HAYD.L, Z29.DE) deuten auf Liquiditaetsprobleme hin
+
+**LLM-Fazit:** Regime CAUTION: Portfolio bei 9027 USD. Ghost-Raten sind aktuell niedrig, aber die Signal-Qualitaet leidet. HIGH Conviction Trades verlieren durchschnittlich, besonders bei Trend-Pullbacks. Exit-Management bei FHZN.ZU und 1797.HK war schlecht (Peak nicht gesichert). Slippage bei .L/.DE Instrumenten bleibt ein Faktor.

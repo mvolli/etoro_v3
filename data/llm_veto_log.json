@@ -200,7 +200,9 @@
    "yf_symbol": "NELLY.ST",
    "decision": "VETO",
    "reason": "WR 21.4% bei n=14; RSI ~49 (nicht oversold) ohne MACD-Wende-Komponente; hohes SL-Risiko.",
-   "signal_price": 35.119998931884766
+   "signal_price": 35.119998931884766,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 2.96
   },
   {
    "ts": "2026-07-21T13:35:01.438910+00:00",
@@ -290,7 +292,9 @@
    "yf_symbol": "ENEA.ST",
    "decision": "VETO",
    "reason": "RSI extrem oversold (17) ohne MACD-Wende-Komponente im Signal-String, Messer-Risiko.",
-   "signal_price": 57.29999923706055
+   "signal_price": 57.29999923706055,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -2.44
   },
   {
    "ts": "2026-07-22T13:34:22.524554+00:00",
@@ -308,7 +312,1100 @@
    "yf_symbol": "MSON-B.ST",
    "decision": "VETO",
    "reason": "Sehr kleiner Positionswert ($52), aber RSI extrem oversold (<30) bei hoher Volatilitaet.",
-   "signal_price": 12.300000190734863
+   "signal_price": 12.300000190734863,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -4.88
+  },
+  {
+   "ts": "2026-07-24T07:19:38.481127+00:00",
+   "trade_id": 580,
+   "symbol": "ODET.PA",
+   "yf_symbol": "ODET.PA",
+   "decision": "VETO",
+   "reason": "WR 20% bei MACD-Kombo, SPY/QQQ fallen stark, Messer-Fang Risiko zu hoch.",
+   "signal_price": 1398.0,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.72
+  },
+  {
+   "ts": "2026-07-24T07:19:38.481127+00:00",
+   "trade_id": 581,
+   "symbol": "PST.MI",
+   "yf_symbol": "PST.MI",
+   "decision": "REDUCE",
+   "reason": "RSI 45 noch nicht oversold, Signal schwächer als 580, Marktfeindlich.",
+   "signal_price": 27.549999237060547
+  },
+  {
+   "ts": "2026-07-27T15:04:08.685907+00:00",
+   "trade_id": 588,
+   "symbol": "NVDA",
+   "yf_symbol": "NVDA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie + NEWS-FLAG CAUTION (Chips sinken) + RSI neutral (48) ohne MACD-Wende. Risiko zu hoch.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T15:34:14.789619+00:00",
+   "trade_id": 594,
+   "symbol": "ZM=F",
+   "yf_symbol": "ZM=F",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie, QQQ stark im Minus (-2%), Risiko zu hoch.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T15:34:14.789619+00:00",
+   "trade_id": 595,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, konservative Reduzierung bei schwachem Tech-Sektor.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T15:49:16.554830+00:00",
+   "trade_id": 595,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne 30d-Historie bei schwachem QQQ (-2.09%); konservativ handeln.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T15:49:16.554830+00:00",
+   "trade_id": 596,
+   "symbol": "ZM=F",
+   "yf_symbol": "ZM=F",
+   "decision": "VETO",
+   "reason": "ZM=F ist illiquide/OTC; CORE_SWEEP ohne Historie in volatiler Tech-Umgebung zu riskant.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T15:49:16.554830+00:00",
+   "trade_id": 597,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Duplikat von 595 (GIVN.SW); Gesamtexposure wird reduziert, um Risiko zu streuen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T16:04:10.324684+00:00",
+   "trade_id": 595,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne 30d-Historie, konservativ pruefen; QQQ faellt stark (-1.74%), Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T16:19:12.191950+00:00",
+   "trade_id": 598,
+   "symbol": "ZM=F",
+   "yf_symbol": "ZM=F",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie in schwachem QQQ-Umfeld; Risiko zu hoch.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T16:19:12.191950+00:00",
+   "trade_id": 599,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Konservative Reduktion bei fehlender 30d-Historie und MEDIUM-Score.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T16:19:12.191950+00:00",
+   "trade_id": 600,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "REDUCE",
+   "reason": "Konservative Reduktion bei fehlender 30d-Historie und MEDIUM-Score.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T16:34:17.505593+00:00",
+   "trade_id": 599,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie und kein MACD-Signal bei QQQ-Verfall; konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T16:34:17.505593+00:00",
+   "trade_id": 600,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie; Asymmetrie nutzt Reduktion bei Unsicherheit.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T16:34:17.505593+00:00",
+   "trade_id": 601,
+   "symbol": "ZM=F",
+   "yf_symbol": "ZM=F",
+   "decision": "REDUCE",
+   "reason": "Höheres Volumen ($362) bei unbekannter Performance; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T16:34:17.505593+00:00",
+   "trade_id": 602,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Doppeltes Signal GIVN.SW; Reduktion statt Veto wegen fehlendem konkreten News-Flag.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T16:34:17.505593+00:00",
+   "trade_id": 603,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "REDUCE",
+   "reason": "Doppeltes Signal CAR.AX; Reduktion statt Veto wegen fehlendem konkreten News-Flag.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T16:49:15.225199+00:00",
+   "trade_id": 599,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "VETO",
+   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T16:49:15.225199+00:00",
+   "trade_id": 600,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "VETO",
+   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T16:49:15.225199+00:00",
+   "trade_id": 605,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T16:49:15.225199+00:00",
+   "trade_id": 606,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "REDUCE",
+   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T17:04:15.577946+00:00",
+   "trade_id": 605,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie in volatiler QQQ-Umgebung; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T17:04:15.577946+00:00",
+   "trade_id": 606,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "REDUCE",
+   "reason": "Keine 30d-Historie bei CORE_SWEEP; konservativ handeln.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T17:04:15.577946+00:00",
+   "trade_id": 607,
+   "symbol": "ZM=F",
+   "yf_symbol": "ZM=F",
+   "decision": "REDUCE",
+   "reason": "Hoher Betrag ($362) bei unsicherem Signal; Exposure begrenzen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T17:04:15.577946+00:00",
+   "trade_id": 608,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Doppeltes Signal GIVN.SW; Gesamtrisiko im Auge behalten.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T17:04:15.577946+00:00",
+   "trade_id": 609,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "REDUCE",
+   "reason": "Keine 30d-Historie bei CORE_SWEEP; konservativ handeln.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T17:19:16.572612+00:00",
+   "trade_id": 605,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie in volatiler Tech-Umgebung (QQQ -2.13%); Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T17:19:16.572612+00:00",
+   "trade_id": 606,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "VETO",
+   "reason": "Keine 30d-Historie bei CORE_SWEEP; QQQ-Trend negativ, konservativ handeln.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T17:19:16.572612+00:00",
+   "trade_id": 610,
+   "symbol": "ZM=F",
+   "yf_symbol": "ZM=F",
+   "decision": "REDUCE",
+   "reason": "Hoher Betrag ($361) bei unbekannter Signal-Historie; VIX normal, aber Tech schwach.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T17:19:16.572612+00:00",
+   "trade_id": 611,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Doppeltes Signal GIVN.SW; Gesamtexposure kontrollieren bei fehlender 30d-Validierung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T17:19:16.572612+00:00",
+   "trade_id": 612,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "REDUCE",
+   "reason": "Doppeltes Signal CAR.AX; Reduktion zur Diversifikation im unsicheren Markt.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T17:34:17.172694+00:00",
+   "trade_id": 611,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie und QQQ stark negativ (-1.92%). Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T17:34:17.172694+00:00",
+   "trade_id": 612,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "REDUCE",
+   "reason": "Keine 30d-Historie bei CORE_SWEEP. Im feindlichen Markt konservativ handeln.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T17:34:17.172694+00:00",
+   "trade_id": 613,
+   "symbol": "ZM=F",
+   "yf_symbol": "ZM=F",
+   "decision": "REDUCE",
+   "reason": "Hoher Positionswert ($361) bei unbekannter Signal-Historie. Exposure begrenzen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T17:34:17.172694+00:00",
+   "trade_id": 614,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Doppeltes Signal auf GIVN.SW. Gesamtexposure kontrollieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T17:34:17.172694+00:00",
+   "trade_id": 615,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "REDUCE",
+   "reason": "Doppeltes Signal auf CAR.AX. Gesamtexposure kontrollieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T17:49:18.775842+00:00",
+   "trade_id": 611,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "VETO",
+   "reason": "Keine 30d-Historie, RSI unbekannt, konservativ.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T17:49:18.775842+00:00",
+   "trade_id": 612,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "VETO",
+   "reason": "Keine 30d-Historie, RSI unbekannt, konservativ.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T17:49:18.775842+00:00",
+   "trade_id": 617,
+   "symbol": "ZM=F",
+   "yf_symbol": "ZM=F",
+   "decision": "VETO",
+   "reason": "Keine 30d-Historie, RSI unbekannt, konservativ.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T17:49:18.775842+00:00",
+   "trade_id": 618,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "VETO",
+   "reason": "Keine 30d-Historie, RSI unbekannt, konservativ.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T17:49:18.775842+00:00",
+   "trade_id": 619,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "VETO",
+   "reason": "Keine 30d-Historie, RSI unbekannt, konservativ.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T18:04:19.122187+00:00",
+   "trade_id": 620,
+   "symbol": "ZM=F",
+   "yf_symbol": "ZM=F",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie in volatiler QQQ-Umgebung (-1.74%); Risiko zu hoch.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T18:04:19.122187+00:00",
+   "trade_id": 621,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Keine 30d-Historie für CORE_SWEEP; Reduzierung zur Risikokontrolle.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T18:04:19.122187+00:00",
+   "trade_id": 622,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "REDUCE",
+   "reason": "Keine 30d-Historie für CORE_SWEEP; Reduzierung zur Risikokontrolle.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T18:04:19.122187+00:00",
+   "trade_id": 623,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "Keine 30d-Historie für CORE_SWEEP; Reduzierung zur Risikokontrolle.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T18:19:21.806770+00:00",
+   "trade_id": 621,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne 30d-Historie; VIX normal, aber QQQ stark negativ. RSI unbekannt, daher konservativ.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T18:19:21.806770+00:00",
+   "trade_id": 622,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "REDUCE",
+   "reason": "Keine Historie, asymmetrisches Risiko. Im Zweifel verkleinern statt volles Risiko.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T18:19:21.806770+00:00",
+   "trade_id": 623,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "Keine Historie, asymmetrisches Risiko. Im Zweifel verkleinern statt volles Risiko.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T18:19:21.806770+00:00",
+   "trade_id": 624,
+   "symbol": "ZM=F",
+   "yf_symbol": "ZM=F",
+   "decision": "REDUCE",
+   "reason": "Höheres Volumen ($361) bei unbekanntem RSI und keiner Historie. Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T18:19:21.806770+00:00",
+   "trade_id": 625,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "GIVN.SW bereits in 621 geprüft. Doppeltes Exposure bei fehlender Historie reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T18:19:21.806770+00:00",
+   "trade_id": 626,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "REDUCE",
+   "reason": "CAR.AX bereits in 622 geprüft. Doppeltes Exposure bei fehlender Historie reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T18:19:21.806770+00:00",
+   "trade_id": 627,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "CDI.PA bereits in 623 geprüft. Doppeltes Exposure bei fehlender Historie reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T18:34:26.402149+00:00",
+   "trade_id": 621,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie in volatiler QQQ-Umgebung; konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T18:34:26.402149+00:00",
+   "trade_id": 622,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "VETO",
+   "reason": "Keine 30d-Historie, Markt unsicher; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T18:34:26.402149+00:00",
+   "trade_id": 623,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "VETO",
+   "reason": "Neues Signal ohne Backtest-Validierung bei QQQ-Schwäche.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T18:34:26.402149+00:00",
+   "trade_id": 628,
+   "symbol": "ZM=F",
+   "yf_symbol": "ZM=F",
+   "decision": "REDUCE",
+   "reason": "Hoher Betrag ($362) bei unbekannter Signal-Qualität; Exposure begrenzen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T18:34:26.402149+00:00",
+   "trade_id": 629,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Doppeltes Signal GIVN.SW, aber keine Historie; Konsolidierung des Risikos.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T18:34:26.402149+00:00",
+   "trade_id": 630,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Unbekanntes Instrument (MNKS.L) mit CORE_SWEEP; Vorsicht bei fehlender Historie.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T18:34:26.402149+00:00",
+   "trade_id": 631,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "REDUCE",
+   "reason": "CAR.AX bereits in Liste 622 geprüft, hier höheres Volumen; Reduktion zur Diversifikation.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T18:49:27.521803+00:00",
+   "trade_id": 629,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.79%), konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T18:49:27.521803+00:00",
+   "trade_id": 630,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.79%), konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T18:49:27.521803+00:00",
+   "trade_id": 631,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.79%), konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T18:49:27.521803+00:00",
+   "trade_id": 632,
+   "symbol": "ZM=F",
+   "yf_symbol": "ZM=F",
+   "decision": "REDUCE",
+   "reason": "Höheres Volumen ($362) bei unsicherem Signal (keine Historie), Risiko begrenzen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T18:49:27.521803+00:00",
+   "trade_id": 633,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.79%), konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T18:49:27.521803+00:00",
+   "trade_id": 634,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.79%), konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T18:49:27.521803+00:00",
+   "trade_id": 635,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.79%), konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:04:38.291299+00:00",
+   "trade_id": 629,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie, konservativ bei QQQ-Dip.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:04:38.291299+00:00",
+   "trade_id": 630,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "VETO",
+   "reason": "Keine 30d-Historie, Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:04:38.291299+00:00",
+   "trade_id": 631,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "VETO",
+   "reason": "Keine 30d-Historie, konservativ handeln.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:04:38.291299+00:00",
+   "trade_id": 636,
+   "symbol": "ZM=F",
+   "yf_symbol": "ZM=F",
+   "decision": "REDUCE",
+   "reason": "Hoher Betrag ($362), CORE_SWEEP ohne Historie.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:04:38.291299+00:00",
+   "trade_id": 637,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Hoher Betrag, keine Historie, asymmetrisches Risiko.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:04:38.291299+00:00",
+   "trade_id": 638,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Hoher Betrag, keine Historie.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:04:38.291299+00:00",
+   "trade_id": 639,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "REDUCE",
+   "reason": "Hoher Betrag, keine Historie.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:19:35.015926+00:00",
+   "trade_id": 637,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Bestätigung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:19:35.015926+00:00",
+   "trade_id": 638,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Keine 30d-Historie für Signal; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:19:35.015926+00:00",
+   "trade_id": 639,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "REDUCE",
+   "reason": "Signal CORE_SWEEP mit Score 0; Unsicherheit bei fehlender Historie.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:19:35.015926+00:00",
+   "trade_id": 640,
+   "symbol": "ZM=F",
+   "yf_symbol": "ZM=F",
+   "decision": "REDUCE",
+   "reason": "Höheres Volumen ($361) bei Score 0; Reduktion zur Risikokontrolle.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:19:35.015926+00:00",
+   "trade_id": 641,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Duplikat von 637 mit höherem Volumen; konsistente Reduktion.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:19:35.015926+00:00",
+   "trade_id": 642,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Duplikat von 638 mit höherem Volumen; konsistente Reduktion.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:19:35.015926+00:00",
+   "trade_id": 643,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "REDUCE",
+   "reason": "Duplikat von 639 mit höherem Volumen; konsistente Reduktion.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:34:27.364355+00:00",
+   "trade_id": 637,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie, konservativ wegen QQQ-Drag.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:34:27.364355+00:00",
+   "trade_id": 638,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie, konservativ wegen QQQ-Drag.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:34:27.364355+00:00",
+   "trade_id": 639,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie, konservativ wegen QQQ-Drag.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:34:27.364355+00:00",
+   "trade_id": 644,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Höheres Volumen ($361), CORE_SWEEP ohne Historie, Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:34:27.364355+00:00",
+   "trade_id": 645,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Höheres Volumen ($361), CORE_SWEEP ohne Historie, Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:34:27.364355+00:00",
+   "trade_id": 646,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "REDUCE",
+   "reason": "Höheres Volumen ($361), CORE_SWEEP ohne Historie, Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:34:27.364355+00:00",
+   "trade_id": 647,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "Höheres Volumen ($361), CORE_SWEEP ohne Historie, Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:49:27.983758+00:00",
+   "trade_id": 644,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:49:27.983758+00:00",
+   "trade_id": 645,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:49:27.983758+00:00",
+   "trade_id": 646,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:49:27.983758+00:00",
+   "trade_id": 647,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:49:27.983758+00:00",
+   "trade_id": 648,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Kernposition verkleinert, Restgröße reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:49:27.983758+00:00",
+   "trade_id": 649,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Kernposition verkleinert, Restgröße reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:49:27.983758+00:00",
+   "trade_id": 650,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "REDUCE",
+   "reason": "Kernposition verkleinert, Restgröße reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T19:49:27.983758+00:00",
+   "trade_id": 651,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "Kernposition verkleinert, Restgröße reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T20:04:28.429409+00:00",
+   "trade_id": 644,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T20:04:28.429409+00:00",
+   "trade_id": 645,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T20:04:28.429409+00:00",
+   "trade_id": 646,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T20:04:28.429409+00:00",
+   "trade_id": 647,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T20:04:28.429409+00:00",
+   "trade_id": 652,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Kernposition CORE_SWEEP ohne Historie; Risiko begrenzen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T20:04:28.429409+00:00",
+   "trade_id": 653,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Kernposition CORE_SWEEP ohne Historie; Risiko begrenzen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T20:04:28.429409+00:00",
+   "trade_id": 654,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "REDUCE",
+   "reason": "Kernposition CORE_SWEEP ohne Historie; Risiko begrenzen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T20:04:28.429409+00:00",
+   "trade_id": 655,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "Kernposition CORE_SWEEP ohne Historie; Risiko begrenzen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T21:19:31.610418+00:00",
+   "trade_id": 652,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.42%), Risiko zu hoch.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T21:19:31.610418+00:00",
+   "trade_id": 653,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Keine 30d-Historie, konservative Reduktion bei unsicherem Marktumfeld.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T21:19:31.610418+00:00",
+   "trade_id": 654,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "REDUCE",
+   "reason": "Keine 30d-Historie, asymmetrisches Risiko favorisiert Reduktion.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T21:19:31.610418+00:00",
+   "trade_id": 655,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "Keine 30d-Historie, konservative Reduktion bei unsicherem Marktumfeld.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T21:34:32.185506+00:00",
+   "trade_id": 653,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne 30d-Historie; QQQ stark negativ (-1.42%), Risiko zu hoch.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T21:34:32.185506+00:00",
+   "trade_id": 654,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne 30d-Historie; QQQ stark negativ (-1.42%), Risiko zu hoch.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T21:34:32.185506+00:00",
+   "trade_id": 655,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne 30d-Historie; QQQ stark negativ (-1.42%), Risiko zu hoch.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T23:49:40.856615+00:00",
+   "trade_id": 656,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.42%), Risiko zu hoch.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T23:49:40.856615+00:00",
+   "trade_id": 657,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.42%), Risiko zu hoch.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T23:49:40.856615+00:00",
+   "trade_id": 658,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.42%), Risiko zu hoch.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-27T23:49:40.856615+00:00",
+   "trade_id": 659,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.42%), Risiko zu hoch.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T00:34:54.159144+00:00",
+   "trade_id": 660,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "VETO",
+   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ pruefen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T00:34:54.159144+00:00",
+   "trade_id": 661,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "VETO",
+   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ pruefen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T00:34:54.159144+00:00",
+   "trade_id": 663,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "VETO",
+   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ pruefen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T00:34:54.159144+00:00",
+   "trade_id": 668,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "VETO",
+   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ pruefen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T00:34:54.159144+00:00",
+   "trade_id": 669,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "VETO",
+   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ pruefen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T00:34:54.159144+00:00",
+   "trade_id": 670,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "VETO",
+   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ pruefen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T00:34:54.159144+00:00",
+   "trade_id": 671,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "VETO",
+   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ pruefen.",
+   "signal_price": null
   }
  ]
 }

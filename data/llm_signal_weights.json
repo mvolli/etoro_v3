@@ -1,28 +1,29 @@
 {
-  "updated_at": "2026-07-24T20:30:35.207632+00:00",
-  "auto_expires_at": "2026-08-07T20:30:35.207639+00:00",
+  "updated_at": "2026-07-27T20:30:34.748543+00:00",
+  "auto_expires_at": "2026-08-10T20:30:34.748562+00:00",
   "adjustments": {
-    "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD": {
-      "score_multiplier": 0.5,
-      "skip": false,
-      "reason": "Extrem hohe Verlustrate (-159 USD avg) bei 37 Trades; Falling-Knife-Charakter trotz MACD-Filter."
-    },
-    "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": {
+    "TREND_PULLBACK,GOLDEN_CROSS": {
       "score_multiplier": 0.6,
       "skip": false,
-      "reason": "Success Rate von 46% und avg PnL von -2.29% deuten auf schlechte Qualität hin, obwohl MACD-Wende vorliegt."
+      "reason": "avg_pnl -1.28 bei 85% Verlustrate (21/21 CLOSED). Signal ist im aktuellen Markt zu träge."
     },
-    "TREND_PULLBACK,GOLDEN_CROSS": {
+    "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": {
       "score_multiplier": 0.5,
       "skip": false,
-      "reason": "Hohe Rejection-Rate und avg PnL von -1.31% bei 20 Trades; Signal ist im aktuellen CAUTION-Regime ineffizient."
+      "reason": "avg_pnl -2.29 bei 88% Verlustrate (8/9 CLOSED). Falscher Entry-Timing im Rauschen."
+    },
+    "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD": {
+      "score_multiplier": 0.7,
+      "skip": false,
+      "reason": "avg_pnl +0.01 bei 90% Verlustrate (9/10 CLOSED). Fast alle fallen durch den SL, nur 1 Gewinner. Risk/Reward schlecht."
     }
   },
   "strategy_notes": [
-    "RSI<25 ist ein Krisenzeichen, kein Kaufsignal (WR 9%).",
-    "Gewinner brauchen Zeit (Median 143h); junge Positionen nicht vorzeitig schließen."
+    "RSI<25 ist Krisenzeichen: Signale nur mit MACD-Wende (WR 32%) nutzen, ohne MACD (WR 9%) daempfen.",
+    "Gewinner brauchen Zeit: Median-Haltedauer 143h. Positionen nicht vorzeitig bei <10% Peak schließen."
   ],
   "conviction_issues": [
-    "VERY_HIGH Conviction Trades verlieren durchschnittlich, wenn sie nur auf RSI-Extremen basieren ohne MACD-Wende."
+    "HIGH Conviction hat durchschnittlich negative PnL (-1.28 bis -2.29 USD) bei hohen Verlustraten.",
+    "VERY_HIGH Conviction ist gemischt: Einige starke Gewinner (BB+MACD Combo), aber auch viele kleine Verluste."
   ]
 }

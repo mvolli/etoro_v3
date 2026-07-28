@@ -533,12 +533,33 @@ class EToroClient:
         """Loosely normalize a ticker for identity comparison.
 
         Strips common quote-currency suffixes (BTC-USD ↔ BTC) and
-        upper-cases, so e.g. a local 'DOT-USD' and a live API 'DOT'
-        response are recognised as the same underlying instrument.
+        exchange suffixes (.ASX ↔ .AX) and upper-cases, so e.g. a local
+        'CAR.AX' and a live API 'CAR.ASX' response are recognised as the
+        same underlying instrument.
+
+        Exchange suffixes are stripped BEFORE quote-currency suffixes so
+        that compound forms like ``CAR.ASX-USD`` normalise to ``CAR``.
         """
         if not sym:
             return ""
         s = sym.upper().strip()
+        # Strip exchange suffixes that appear before quote-currency suffixes
+        # (e.g. CAR.ASX-USD → CAR.ASX → CAR)
+        for ex_sfx in (".ASX", ".AX"):
+            for qc_sfx in ("-USD", "/USD", "USD"):
+                target = ex_sfx + qc_sfx
+                if s.endswith(target) and len(s) > len(target):
+                    s = s[: -len(qc_sfx)]
+                    break
+            else:
+                continue
+            break
+        # Strip remaining exchange suffixes at end of string
+        for suffix in (".ASX", ".AX"):
+            if s.endswith(suffix) and len(s) > len(suffix):
+                s = s[: -len(suffix)]
+                break
+        # Strip quote-currency suffixes
         for suffix in ("-USD", "/USD", "USD"):
             if s.endswith(suffix) and len(s) > len(suffix):
                 s = s[: -len(suffix)]
@@ -588,6 +609,23 @@ class EToroClient:
         live_norm = self._normalize_symbol_for_comparison(str(live_symbol))
 
         if expected_norm != live_norm:
+            # Symbol mismatch — try price consistency as fallback.
+            # This catches exchange-suffix aliases (.ASX vs .AX) and
+            # similar cosmetic differences where the real instrument
+            # is the same. Mirrors instrument_verification.py logic.
+            live_price = self.get_current_price(instrument_id)
+            reference_price = self._get_reference_price(expected_symbol)
+            if reference_price and live_price:
+                best_dev = self._best_price_deviation(
+                    reference_price, live_price
+                )
+                if best_dev <= 25.0:  # same tolerance as instrument_verification
+                    return True, (
+                        f"Symbol-Normalizer: '{expected_symbol}' vs "
+                        f"'{live_symbol}' — aber Preis OK "
+                        f"(Abweichung {best_dev:.1f}%, Schwell 25%) — "
+                        f"gleiche Basis, unterschiedliche Suffixe"
+                    )
             return False, (
                 f"ID/Symbol MISMATCH: instrument_id={instrument_id} "
                 f"resolves to '{live_symbol}' on eToro, but local data "
@@ -1378,6 +1416,47 @@ class EToroClient:
                 "get_candles(%s, %s) fehlgeschlagen: %s", instrument_id, interval, exc
             )
             return []
+
+    # ------------------------------------------------------------------
+    # Price-fallback helpers for verify_instrument_identity()
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _best_price_deviation(
+        reference_price: float, live_price: float
+    ) -> float:
+        """Return the smallest absolute percentage deviation between
+        *reference_price* and *live_price*, trying scale factors (1.0,
+        100.0, 0.01) for GBp/GBP tolerance.
+        """
+        if not reference_price or reference_price <= 0 or not live_price or live_price <= 0:
+            return float("inf")
+        best_dev = float("inf")
+        for scale in (1.0, 100.0, 0.01):
+            scaled_live = live_price * scale
+            dev_pct = abs(scaled_live - reference_price) / reference_price * 100.0
+            if dev_pct < best_dev:
+                best_dev = dev_pct
+        return best_dev
+
+    def _get_reference_price(self, symbol: str) -> float | None:
+        """Best-effort reference price for *symbol* via yfinance.
+
+        Used only as a fallback in verify_instrument_identity() when the
+        live symbol differs from the expected one. Returns None if
+        unavailable (caller treats this as "no fallback available").
+        """
+        try:
+            import yfinance as yf
+            ticker = yf.Ticker(symbol)
+            info = ticker.info
+            if isinstance(info, dict):
+                price = info.get("regularMarketPrice") or info.get("previousClose")
+                if isinstance(price, (int, float)) and price > 0:
+                    return float(price)
+        except Exception as exc:
+            logger.debug("_get_reference_price(%s) fehlgeschlagen: %s", symbol, exc)
+        return None
 
     # ------------------------------------------------------------------
     # Context manager support

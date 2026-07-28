@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-07-21T20:30:38.983403+00:00",
-  "auto_expires_at": "2026-07-28T20:30:38.983412+00:00",
+  "updated_at": "2026-07-27T20:30:34.743877+00:00",
+  "auto_expires_at": "2026-08-03T20:30:34.743891+00:00",
   "exchanges": [
     ".L",
     ".OL",
@@ -8,86 +8,73 @@
     "_FUT"
   ],
   "caution_exchanges": [],
-  "symbols": [
-    "ALFA.L",
-    "COA.L",
-    "EURGBP",
-    "HAYD.L",
-    "LiveCattle.FUT",
-    "OXB.L",
-    "TBCG.L"
-  ],
+  "symbols": [],
   "stats": {
-    ".RTH": {
-      "total": 2,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    "_ASIA": {
-      "total": 18,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    ".ST": {
-      "total": 7,
-      "ghost": 1,
-      "rate": 0.14
-    },
-    ".MC": {
-      "total": 8,
-      "ghost": 1,
-      "rate": 0.12
-    },
-    ".MI": {
-      "total": 7,
-      "ghost": 1,
-      "rate": 0.14
-    },
-    ".DE": {
+    ".SW": {
       "total": 20,
       "ghost": 0,
       "rate": 0.0
     },
-    ".ZU": {
-      "total": 3,
+    ".L": {
+      "total": 51,
+      "ghost": 2,
+      "rate": 0.04
+    },
+    ".AX": {
+      "total": 16,
       "ghost": 0,
       "rate": 0.0
     },
-    ".L": {
-      "total": 15,
-      "ghost": 5,
-      "rate": 0.33
-    },
     ".PA": {
-      "total": 23,
-      "ghost": 1,
-      "rate": 0.04
+      "total": 14,
+      "ghost": 0,
+      "rate": 0.0
     },
     "_OTHER": {
-      "total": 15,
+      "total": 51,
       "ghost": 2,
-      "rate": 0.13
+      "rate": 0.04
     },
-    ".ASX": {
+    ".MI": {
+      "total": 4,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    ".DE": {
+      "total": 12,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    "_CRYPTO": {
+      "total": 37,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    "_ASIA": {
       "total": 8,
-      "ghost": 1,
-      "rate": 0.12
+      "ghost": 0,
+      "rate": 0.0
     },
-    "_FUT": {
+    ".ZU": {
       "total": 2,
-      "ghost": 2,
-      "rate": 1.0
+      "ghost": 0,
+      "rate": 0.0
     },
-    "_FOREX": {
-      "total": 3,
-      "ghost": 3,
-      "rate": 1.0
+    ".ST": {
+      "total": 9,
+      "ghost": 0,
+      "rate": 0.0
     },
-    ".OL": {
-      "total": 3,
+    ".MC": {
+      "total": 7,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    ".RTH": {
+      "total": 2,
       "ghost": 0,
       "rate": 0.0
     }
   },
-  "reason": "CAUTION-Regime: Portfolio bei 9149 USD. Ghost-Raten bei .L und Forex steigen. Signale wie GOLDEN_CROSS und TREND_PULLBACK verlieren häufig an Rejection. VERY_HIGH Conviction Trades zeigen negative Durchschnitts-PnL. SL bei 3% beibehalten, aber Signal-Gewichte anpassen."
+  "reason": "Regime CAUTION: Portfolio bei 9027 USD. Ghost-Raten sind aktuell niedrig, aber die Signal-Qualitaet leidet. HIGH Conviction Trades verlieren durchschnittlich, besonders bei Trend-Pullbacks. Exit-Management bei FHZN.ZU und 1797.HK war schlecht (Peak nicht gesichert). Slippage bei .L/.DE Instrumenten bleibt ein Faktor."
 }
