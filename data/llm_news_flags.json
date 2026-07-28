@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-07-28T00:15:45.849929+00:00",
-  "auto_expires_at": "2026-07-28T12:15:45.849929+00:00",
-  "symbols_scanned": 27,
-  "headlines_seen": 49,
+  "generated_at": "2026-07-28T11:15:36.340044+00:00",
+  "auto_expires_at": "2026-07-28T23:15:36.340044+00:00",
+  "symbols_scanned": 36,
+  "headlines_seen": 41,
   "flags": {
     "AAPL": {
       "flag": "AVOID",
@@ -22,16 +22,22 @@
       "reason": "Earnings am 2026-07-28",
       "source": "earnings_calendar"
     },
-    "KO": {
+    "DNR.MI": {
       "flag": "AVOID",
       "severity": "HIGH",
-      "reason": "Earnings am 2026-07-28",
+      "reason": "Earnings am 2026-07-30",
       "source": "earnings_calendar"
+    },
+    "CDI.PA": {
+      "flag": "CAUTION",
+      "severity": "MEDIUM",
+      "reason": "Kursrueckgang trotz Wachstum, verfehlte Schwaerze",
+      "source": "news_llm"
     },
     "JNJ": {
       "flag": "CAUTION",
       "severity": "MEDIUM",
-      "reason": "Hohe Kosten durch 5,5 Mrd. $ Vergleich bei Talc-Klagen",
+      "reason": "Hohe Vergleichszahl fuer Ovarialkrebs-Klagen",
       "source": "news_llm"
     }
   }

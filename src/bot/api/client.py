@@ -609,23 +609,14 @@ class EToroClient:
         live_norm = self._normalize_symbol_for_comparison(str(live_symbol))
 
         if expected_norm != live_norm:
-            # Symbol mismatch — try price consistency as fallback.
-            # This catches exchange-suffix aliases (.ASX vs .AX) and
-            # similar cosmetic differences where the real instrument
-            # is the same. Mirrors instrument_verification.py logic.
-            live_price = self.get_current_price(instrument_id)
-            reference_price = self._get_reference_price(expected_symbol)
-            if reference_price and live_price:
-                best_dev = self._best_price_deviation(
-                    reference_price, live_price
-                )
-                if best_dev <= 25.0:  # same tolerance as instrument_verification
-                    return True, (
-                        f"Symbol-Normalizer: '{expected_symbol}' vs "
-                        f"'{live_symbol}' — aber Preis OK "
-                        f"(Abweichung {best_dev:.1f}%, Schwell 25%) — "
-                        f"gleiche Basis, unterschiedliche Suffixe"
-                    )
+            # No price-based fallback here on purpose: cosmetic aliases
+            # (e.g. .ASX vs .AX) are already resolved by
+            # _normalize_symbol_for_comparison() above, so reaching this
+            # point means the base tickers genuinely differ. A price-
+            # similarity fallback would silently re-open exactly the
+            # DOT-USD Futures-vs-Spot-ID incident this gate exists to
+            # catch — futures/spot prices for the same underlying are
+            # routinely close enough to pass any such tolerance.
             return False, (
                 f"ID/Symbol MISMATCH: instrument_id={instrument_id} "
                 f"resolves to '{live_symbol}' on eToro, but local data "
@@ -1416,47 +1407,6 @@ class EToroClient:
                 "get_candles(%s, %s) fehlgeschlagen: %s", instrument_id, interval, exc
             )
             return []
-
-    # ------------------------------------------------------------------
-    # Price-fallback helpers for verify_instrument_identity()
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _best_price_deviation(
-        reference_price: float, live_price: float
-    ) -> float:
-        """Return the smallest absolute percentage deviation between
-        *reference_price* and *live_price*, trying scale factors (1.0,
-        100.0, 0.01) for GBp/GBP tolerance.
-        """
-        if not reference_price or reference_price <= 0 or not live_price or live_price <= 0:
-            return float("inf")
-        best_dev = float("inf")
-        for scale in (1.0, 100.0, 0.01):
-            scaled_live = live_price * scale
-            dev_pct = abs(scaled_live - reference_price) / reference_price * 100.0
-            if dev_pct < best_dev:
-                best_dev = dev_pct
-        return best_dev
-
-    def _get_reference_price(self, symbol: str) -> float | None:
-        """Best-effort reference price for *symbol* via yfinance.
-
-        Used only as a fallback in verify_instrument_identity() when the
-        live symbol differs from the expected one. Returns None if
-        unavailable (caller treats this as "no fallback available").
-        """
-        try:
-            import yfinance as yf
-            ticker = yf.Ticker(symbol)
-            info = ticker.info
-            if isinstance(info, dict):
-                price = info.get("regularMarketPrice") or info.get("previousClose")
-                if isinstance(price, (int, float)) and price > 0:
-                    return float(price)
-        except Exception as exc:
-            logger.debug("_get_reference_price(%s) fehlgeschlagen: %s", symbol, exc)
-        return None
 
     # ------------------------------------------------------------------
     # Context manager support

@@ -1,237 +1,6 @@
 {
  "entries": [
   {
-   "ts": "2026-07-14T07:34:15.065657+00:00",
-   "trade_id": 418,
-   "symbol": "BOKU.L",
-   "yf_symbol": "BOKU.L",
-   "decision": "REDUCE",
-   "reason": "QQQ stark negativ (-1.9%), RSI noch nicht extrem tief, Risiko-Management empfohlen.",
-   "signal_price": 100.0
-  },
-  {
-   "ts": "2026-07-15T12:34:35.020061+00:00",
-   "trade_id": 422,
-   "symbol": "SALT.L",
-   "yf_symbol": "SALT.L",
-   "decision": "REDUCE",
-   "reason": "RSI < 20 extrem oversold, Risiko eines falschen Breakouts hoch.",
-   "signal_price": 22.0
-  },
-  {
-   "ts": "2026-07-15T12:49:36.765620+00:00",
-   "trade_id": 422,
-   "symbol": "SALT.L",
-   "yf_symbol": "SALT.L",
-   "decision": "REDUCE",
-   "reason": "RSI extrem oversold, Liquidity-Risiko bei Penny-Stock",
-   "signal_price": 22.0
-  },
-  {
-   "ts": "2026-07-15T13:04:38.588860+00:00",
-   "trade_id": 422,
-   "symbol": "SALT.L",
-   "yf_symbol": "SALT.L",
-   "decision": "VETO",
-   "reason": "RSI extrem oversold (<20), Risiko eines 'falling knife' trotz Signal.",
-   "signal_price": 22.0,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -6.82
-  },
-  {
-   "ts": "2026-07-15T13:04:38.588860+00:00",
-   "trade_id": 425,
-   "symbol": "LUS1.DE",
-   "yf_symbol": "LUS1.DE",
-   "decision": "REDUCE",
-   "reason": "RSI sehr niedrig (21.7), vorsichtige Positionierung empfohlen.",
-   "signal_price": 14.949999809265137
-  },
-  {
-   "ts": "2026-07-15T13:04:38.588860+00:00",
-   "trade_id": 426,
-   "symbol": "CNS.L",
-   "yf_symbol": "CNS.L",
-   "decision": "REDUCE",
-   "reason": "RSI sehr niedrig (22.5), vorsichtige Positionierung empfohlen.",
-   "signal_price": 9.015000343322754
-  },
-  {
-   "ts": "2026-07-15T13:19:37.823688+00:00",
-   "trade_id": 424,
-   "symbol": "AOM.L",
-   "yf_symbol": "AOM.L",
-   "decision": "REDUCE",
-   "reason": "RSI extrem oversold (17.6), Risiko eines falschen Bounces hoch.",
-   "signal_price": 197.0
-  },
-  {
-   "ts": "2026-07-15T13:34:38.164062+00:00",
-   "trade_id": 424,
-   "symbol": "AOM.L",
-   "yf_symbol": "AOM.L",
-   "decision": "REDUCE",
-   "reason": "RSI 17.7 extrem oversold, hohes Reversal-Risiko, Position verkleinern.",
-   "signal_price": 197.0
-  },
-  {
-   "ts": "2026-07-15T13:49:39.085189+00:00",
-   "trade_id": 424,
-   "symbol": "AOM.L",
-   "yf_symbol": "AOM.L",
-   "decision": "REDUCE",
-   "reason": "RSI extrem oversold (<18), hohes Rebound-Risiko, aber Volatilitaet hoch.",
-   "signal_price": 197.0
-  },
-  {
-   "ts": "2026-07-15T14:34:41.603996+00:00",
-   "trade_id": 431,
-   "symbol": "NATGAS",
-   "yf_symbol": "NG=F",
-   "decision": "REDUCE",
-   "reason": "NATGAS volatil, Score niedriger als bei AOM.L, Risikoreduktion empfohlen",
-   "signal_price": 2.8980000019073486
-  },
-  {
-   "ts": "2026-07-15T14:49:44.320405+00:00",
-   "trade_id": 431,
-   "symbol": "NATGAS",
-   "yf_symbol": "NG=F",
-   "decision": "REDUCE",
-   "reason": "NATGAS ist volatil; RSI bei 37.8 deutet auf noch bestehende Abwärtsdynamik hin, daher Positionsgrösse halbieren.",
-   "signal_price": 2.8980000019073486
-  },
-  {
-   "ts": "2026-07-15T15:04:45.024398+00:00",
-   "trade_id": 431,
-   "symbol": "NATGAS",
-   "yf_symbol": "NG=F",
-   "decision": "REDUCE",
-   "reason": "Niedriges Score (35) und RSI noch nicht extrem oversold; Risiko im aktuellen Kontext minimieren.",
-   "signal_price": 2.8980000019073486
-  },
-  {
-   "ts": "2026-07-16T07:19:28.078165+00:00",
-   "trade_id": 437,
-   "symbol": "TEK.L",
-   "yf_symbol": "TEK.L",
-   "decision": "REDUCE",
-   "reason": "RSI von 7.05 ist extrem oversold; Risiko eines technischen Fehlsignals oder weiteren Nachverkaufens.",
-   "signal_price": 4.150000095367432
-  },
-  {
-   "ts": "2026-07-16T14:49:48.328358+00:00",
-   "trade_id": 451,
-   "symbol": "LUS1.DE",
-   "yf_symbol": "LUS1.DE",
-   "decision": "REDUCE",
-   "reason": "RSI ~17.6 ist extrem oversold, aber bereits bestehende Short-Position (-0.6%) erfordert Risikokontrolle.",
-   "signal_price": 15.550000190734863
-  },
-  {
-   "ts": "2026-07-20T15:19:43.385676+00:00",
-   "trade_id": 469,
-   "symbol": "HAYD.L",
-   "yf_symbol": "HAYD.L",
-   "decision": "REDUCE",
-   "reason": "Signal RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20 hat historisch WR 0.0% (n=6). Reduktion zur Risikostreuung.",
-   "signal_price": 0.25999999046325684
-  },
-  {
-   "ts": "2026-07-20T15:34:48.989566+00:00",
-   "trade_id": 470,
-   "symbol": "FHZN.ZU",
-   "yf_symbol": "FHZN.SW",
-   "decision": "VETO",
-   "reason": "MACD-Kombo WR 0.0% bei n=3; RSI ~37 noch nicht im tiefen Oversold, Risiko zu hoch.",
-   "signal_price": 233.0,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -0.26
-  },
-  {
-   "ts": "2026-07-21T08:34:53.500490+00:00",
-   "trade_id": 473,
-   "symbol": "Z29.DE",
-   "yf_symbol": "Z29.DE",
-   "decision": "REDUCE",
-   "reason": "RSI < 50 ohne klare MACD-Wende, WR 7.8% (Messer-Szenario).",
-   "signal_price": 40.599998474121094
-  },
-  {
-   "ts": "2026-07-21T09:34:45.591916+00:00",
-   "trade_id": 474,
-   "symbol": "Z29.DE",
-   "yf_symbol": "Z29.DE",
-   "decision": "REDUCE",
-   "reason": "WR 21.4% bei n=14; RSI ~48 ist nicht klar oversold, Risiko eines 'fallenden Messers' hoch.",
-   "signal_price": 40.599998474121094
-  },
-  {
-   "ts": "2026-07-21T10:34:49.858746+00:00",
-   "trade_id": 475,
-   "symbol": "Z29.DE",
-   "yf_symbol": "Z29.DE",
-   "decision": "REDUCE",
-   "reason": "RSI ~48.5 deutet auf kein klares Oversold hin; Kombos ohne MACD-Wende haben WR 7.8%.",
-   "signal_price": 40.599998474121094
-  },
-  {
-   "ts": "2026-07-21T11:04:51.936966+00:00",
-   "trade_id": 478,
-   "symbol": "MEL.MC",
-   "yf_symbol": "MEL.MC",
-   "decision": "REDUCE",
-   "reason": "RSI ~28 ist stark oversold (Messergefahr). Bei WR 25% und hoher Volatilität im unteren BB-Test: Position halbieren, um SL-Risiko zu minimieren.",
-   "signal_price": 10.579999923706055
-  },
-  {
-   "ts": "2026-07-21T12:49:57.411601+00:00",
-   "trade_id": 479,
-   "symbol": "NELLY.ST",
-   "yf_symbol": "NELLY.ST",
-   "decision": "REDUCE",
-   "reason": "Kombination TREND_PULLBACK,GOLDEN_CROSS hat WR von 21.4% (n=14). RSI ~49 ist nicht klar oversold, daher kein MACD-Wende-Signal vorhanden. Risiko wird durch Reduzierung halbiert.",
-   "signal_price": 35.119998931884766
-  },
-  {
-   "ts": "2026-07-21T13:35:01.438910+00:00",
-   "trade_id": 479,
-   "symbol": "NELLY.ST",
-   "yf_symbol": "NELLY.ST",
-   "decision": "VETO",
-   "reason": "WR 21.4% bei n=14; RSI ~49 (nicht oversold) ohne MACD-Wende-Komponente; hohes SL-Risiko.",
-   "signal_price": 35.119998931884766,
-   "outcome": "MISSED_UPSIDE",
-   "outcome_delta_pct": 2.96
-  },
-  {
-   "ts": "2026-07-21T13:35:01.438910+00:00",
-   "trade_id": 480,
-   "symbol": "NEI_14796",
-   "yf_symbol": "NEE",
-   "decision": "REDUCE",
-   "reason": "Selbes Signal mit schlechter WR; RSI ~50 neutral, kein klarer Momentum-Shift; Reduktion zur Risikostreuung.",
-   "signal_price": 88.0
-  },
-  {
-   "ts": "2026-07-21T14:05:01.226787+00:00",
-   "trade_id": 481,
-   "symbol": "NEI_14796",
-   "yf_symbol": "NEE",
-   "decision": "REDUCE",
-   "reason": "WR 21.4% unter 25%-Schwelle; RSI ~49 nicht klar oversold, Risiko-Reduktion empfohlen.",
-   "signal_price": 87.8499984741211
-  },
-  {
-   "ts": "2026-07-21T15:34:31.080356+00:00",
-   "trade_id": 482,
-   "symbol": "NEI_14796",
-   "yf_symbol": "NEE",
-   "decision": "REDUCE",
-   "reason": "WR 21.4% bei Kombi ohne MACD-Wende; RSI ~50 nicht klar oversold, Risiko mindern",
-   "signal_price": 87.87000274658203
-  },
-  {
    "ts": "2026-07-21T16:34:10.280988+00:00",
    "trade_id": 483,
    "symbol": "NEE.RTH",
@@ -1405,6 +1174,1536 @@
    "yf_symbol": "CDI.PA",
    "decision": "VETO",
    "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ pruefen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T00:49:47.629888+00:00",
+   "trade_id": 672,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie in volatiler QQQ-Umgebung; Risiko zu hoch.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T00:49:47.629888+00:00",
+   "trade_id": 673,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "VETO",
+   "reason": "Keine 30d-Historie für Signal; VIX normal, aber kein klarer Trend.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T00:49:47.629888+00:00",
+   "trade_id": 674,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "VETO",
+   "reason": "Keine 30d-Historie für Signal; konservativ wegen unbekannter Volatilität.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T00:49:47.629888+00:00",
+   "trade_id": 675,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "VETO",
+   "reason": "Keine 30d-Historie für Signal; Veto-Strategie bei neuen Signals beibehalten.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T01:04:48.743854+00:00",
+   "trade_id": 676,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.42%), Risiko zu hoch.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T01:04:48.743854+00:00",
+   "trade_id": 677,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.42%), Risiko zu hoch.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T01:04:48.743854+00:00",
+   "trade_id": 678,
+   "symbol": "CAR.AX",
+   "yf_symbol": "CAR.AX",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.42%), Risiko zu hoch.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T01:04:48.743854+00:00",
+   "trade_id": 679,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.42%), Risiko zu hoch.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T01:49:53.541028+00:00",
+   "trade_id": 680,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, konservativ handeln.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T01:49:53.541028+00:00",
+   "trade_id": 681,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, konservativ handeln.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T01:49:53.541028+00:00",
+   "trade_id": 683,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, konservativ handeln.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T01:49:53.541028+00:00",
+   "trade_id": 688,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, konservativ handeln.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T01:49:53.541028+00:00",
+   "trade_id": 689,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, konservativ handeln.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T01:49:53.541028+00:00",
+   "trade_id": 690,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, konservativ handeln.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T02:04:54.495131+00:00",
+   "trade_id": 680,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T02:04:54.495131+00:00",
+   "trade_id": 681,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T02:04:54.495131+00:00",
+   "trade_id": 683,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T02:04:54.495131+00:00",
+   "trade_id": 691,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Kumuliertes Risiko bei GIVN.SW; Score 0 erfordert Vorsicht.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T02:04:54.495131+00:00",
+   "trade_id": 692,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Kumuliertes Risiko bei MNKS.L; Score 0 erfordert Vorsicht.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T02:04:54.495131+00:00",
+   "trade_id": 693,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "Kumuliertes Risiko bei CDI.PA; Score 0 erfordert Vorsicht.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T02:19:55.273997+00:00",
+   "trade_id": 680,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T02:19:55.273997+00:00",
+   "trade_id": 681,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T02:19:55.273997+00:00",
+   "trade_id": 683,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T02:19:55.273997+00:00",
+   "trade_id": 694,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Höheres Volumen ($361) bei unsicherem Signal; Risiko begrenzen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T02:19:55.273997+00:00",
+   "trade_id": 695,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Höheres Volumen ($361) bei unsicherem Signal; Risiko begrenzen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T02:19:55.273997+00:00",
+   "trade_id": 696,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "Höheres Volumen ($361) bei unsicherem Signal; Risiko begrenzen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T02:34:56.277168+00:00",
+   "trade_id": 697,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Grössere Position ($360) bei unbekanntem RSI und neuer Signal-Historie (CORE_SWEEP).",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T02:34:56.277168+00:00",
+   "trade_id": 698,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Grössere Position ($360) bei unbekanntem RSI und neuer Signal-Historie (CORE_SWEEP).",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T02:34:56.277168+00:00",
+   "trade_id": 699,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "Grössere Position ($360) bei unbekanntem RSI und neuer Signal-Historie (CORE_SWEEP).",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T02:49:57.318853+00:00",
+   "trade_id": 700,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Doppelte Groesse ($360) bei neuem Signal CORE_SWEEP ohne Historie -> Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T02:49:57.318853+00:00",
+   "trade_id": 701,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Doppelte Groesse ($360) bei neuem Signal CORE_SWEEP ohne Historie -> Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T02:49:57.318853+00:00",
+   "trade_id": 702,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "Doppelte Groesse ($360) bei neuem Signal CORE_SWEEP ohne Historie -> Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T03:04:58.190876+00:00",
+   "trade_id": 703,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Doppeltes Signal GIVN.SW, Risiko streuen",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T03:04:58.190876+00:00",
+   "trade_id": 704,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Doppeltes Signal MNKS.L, Risiko streuen",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T03:04:58.190876+00:00",
+   "trade_id": 705,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "Doppeltes Signal CDI.PA, Risiko streuen",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T03:19:59.468341+00:00",
+   "trade_id": 694,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T03:19:59.468341+00:00",
+   "trade_id": 695,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T03:19:59.468341+00:00",
+   "trade_id": 696,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T03:19:59.468341+00:00",
+   "trade_id": 706,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Hoher Betrag ($361) bei unsicherem Signal (Score 0); Halbeingangsrisiko.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T03:19:59.468341+00:00",
+   "trade_id": 707,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Hoher Betrag ($361) bei unsicherem Signal (Score 0); Halbeingangsrisiko.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T03:19:59.468341+00:00",
+   "trade_id": 708,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "Hoher Betrag ($361) bei unsicherem Signal (Score 0); Halbeingangsrisiko.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T03:35:01.657782+00:00",
+   "trade_id": 694,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie, konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T03:35:01.657782+00:00",
+   "trade_id": 695,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie, konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T03:35:01.657782+00:00",
+   "trade_id": 696,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie, konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T03:35:01.657782+00:00",
+   "trade_id": 710,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T03:35:01.657782+00:00",
+   "trade_id": 711,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T03:35:01.657782+00:00",
+   "trade_id": 712,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T03:50:03.025598+00:00",
+   "trade_id": 710,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T03:50:03.025598+00:00",
+   "trade_id": 711,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T03:50:03.025598+00:00",
+   "trade_id": 712,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T03:50:03.025598+00:00",
+   "trade_id": 714,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Höheres Volumen bei unbekanntem CORE_SWEEP, Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T03:50:03.025598+00:00",
+   "trade_id": 715,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Höheres Volumen bei unbekanntem CORE_SWEEP, Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T03:50:03.025598+00:00",
+   "trade_id": 716,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "Höheres Volumen bei unbekanntem CORE_SWEEP, Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T04:05:03.942631+00:00",
+   "trade_id": 710,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie, konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T04:05:03.942631+00:00",
+   "trade_id": 711,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie, konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T04:05:03.942631+00:00",
+   "trade_id": 712,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie, konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T04:05:03.942631+00:00",
+   "trade_id": 717,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Hoher Betrag ($361), CORE_SWEEP ohne Historie, Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T04:05:03.942631+00:00",
+   "trade_id": 718,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Hoher Betrag ($361), CORE_SWEEP ohne Historie, Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T04:05:03.942631+00:00",
+   "trade_id": 719,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "Hoher Betrag ($361), CORE_SWEEP ohne Historie, Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T04:20:04.971309+00:00",
+   "trade_id": 717,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T04:20:04.971309+00:00",
+   "trade_id": 718,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T04:20:04.971309+00:00",
+   "trade_id": 719,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T04:20:04.971309+00:00",
+   "trade_id": 720,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Kombination aus CORE_SWEEP (Score 0) und hohem Volumen ($361); Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T04:20:04.971309+00:00",
+   "trade_id": 721,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Kombination aus CORE_SWEEP (Score 0) und hohem Volumen ($361); Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T04:20:04.971309+00:00",
+   "trade_id": 722,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "Kombination aus CORE_SWEEP (Score 0) und hohem Volumen ($361); Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T04:34:05.874604+00:00",
+   "trade_id": 717,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T04:34:05.874604+00:00",
+   "trade_id": 718,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T04:34:05.874604+00:00",
+   "trade_id": 719,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T04:34:05.874604+00:00",
+   "trade_id": 723,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "Hoher Betrag ($361) bei unsicherem Signal (Score 0); Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T04:34:05.874604+00:00",
+   "trade_id": 724,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Hoher Betrag ($361) bei unsicherem Signal (Score 0); Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T04:34:05.874604+00:00",
+   "trade_id": 725,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Hoher Betrag ($361) bei unsicherem Signal (Score 0); Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T04:49:06.894406+00:00",
+   "trade_id": 723,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Validierung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T04:49:06.894406+00:00",
+   "trade_id": 724,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Validierung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T04:49:06.894406+00:00",
+   "trade_id": 725,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Validierung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T04:49:06.894406+00:00",
+   "trade_id": 726,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "Kernposition verkleinert, Restbetrag folgt gleicher Logik.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T04:49:06.894406+00:00",
+   "trade_id": 727,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Kernposition verkleinert, Restbetrag folgt gleicher Logik.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T04:49:06.894406+00:00",
+   "trade_id": 728,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Kernposition verkleinert, Restbetrag folgt gleicher Logik.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T05:04:08.082273+00:00",
+   "trade_id": 723,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Bestätigung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T05:04:08.082273+00:00",
+   "trade_id": 724,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Bestätigung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T05:04:08.082273+00:00",
+   "trade_id": 725,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Bestätigung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T05:04:08.082273+00:00",
+   "trade_id": 729,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "Kernposition CORE_SWEEP, Risiko durch fehlende 30d-Historie begrenzen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T05:04:08.082273+00:00",
+   "trade_id": 730,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Kernposition CORE_SWEEP, Risiko durch fehlende 30d-Historie begrenzen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T05:04:08.082273+00:00",
+   "trade_id": 731,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Kernposition CORE_SWEEP, Risiko durch fehlende 30d-Historie begrenzen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T05:19:08.858453+00:00",
+   "trade_id": 732,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "Doppeltes UBER-Signal, Risikoakkumulation.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T05:19:08.858453+00:00",
+   "trade_id": 733,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Doppeltes GIVN.SW-Signal, Risikoakkumulation.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T05:19:08.858453+00:00",
+   "trade_id": 734,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Doppeltes MNKS.L-Signal, Risikoakkumulation.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T05:34:10.404476+00:00",
+   "trade_id": 729,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Validierung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T05:34:10.404476+00:00",
+   "trade_id": 730,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Validierung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T05:34:10.404476+00:00",
+   "trade_id": 731,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Validierung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T05:34:10.404476+00:00",
+   "trade_id": 735,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "Kumuliertes Risiko bei UBER (ID 729+735); CORE_SWEEP ohne Historie.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T05:34:10.404476+00:00",
+   "trade_id": 736,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Kumuliertes Risiko bei GIVN.SW (ID 730+736); CORE_SWEEP ohne Historie.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T05:34:10.404476+00:00",
+   "trade_id": 737,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Kumuliertes Risiko bei MNKS.L (ID 731+737); CORE_SWEEP ohne Historie.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T05:49:11.187116+00:00",
+   "trade_id": 729,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Bestätigung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T05:49:11.187116+00:00",
+   "trade_id": 730,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Bestätigung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T05:49:11.187116+00:00",
+   "trade_id": 731,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Bestätigung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T05:49:11.187116+00:00",
+   "trade_id": 738,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "Kernposition UBER; CORE_SWEEP ohne Historie und Score 0; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T05:49:11.187116+00:00",
+   "trade_id": 739,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Kernposition GIVN.SW; CORE_SWEEP ohne Historie und Score 0; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T05:49:11.187116+00:00",
+   "trade_id": 740,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Kernposition MNKS.L; CORE_SWEEP ohne Historie und Score 0; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T06:04:12.570099+00:00",
+   "trade_id": 738,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Bestätigung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T06:04:12.570099+00:00",
+   "trade_id": 739,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Bestätigung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T06:04:12.570099+00:00",
+   "trade_id": 740,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Bestätigung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T06:04:12.570099+00:00",
+   "trade_id": 741,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "Kombination aus CORE_SWEEP (Score 0) und höherem Volumen ($361); Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T06:04:12.570099+00:00",
+   "trade_id": 742,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Kombination aus CORE_SWEEP (Score 0) und höherem Volumen ($361); Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T06:04:12.570099+00:00",
+   "trade_id": 743,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Kombination aus CORE_SWEEP (Score 0) und höherem Volumen ($361); Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T06:19:12.816844+00:00",
+   "trade_id": 738,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Bestätigung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T06:19:12.816844+00:00",
+   "trade_id": 739,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Bestätigung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T06:19:12.816844+00:00",
+   "trade_id": 740,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Bestätigung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T06:19:12.816844+00:00",
+   "trade_id": 744,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "Kernposition CORE_SWEEP ohne Historie; Risiko durch fehlenden MACD-Signal-Check minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T06:19:12.816844+00:00",
+   "trade_id": 745,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Kernposition CORE_SWEEP ohne Historie; Risiko durch fehlenden MACD-Signal-Check minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T06:19:12.816844+00:00",
+   "trade_id": 746,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Kernposition CORE_SWEEP ohne Historie; Risiko durch fehlenden MACD-Signal-Check minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T06:34:14.050577+00:00",
+   "trade_id": 744,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne 30d-Historie; konservativ wegen fehlender MACD-Validierung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T06:34:14.050577+00:00",
+   "trade_id": 745,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne 30d-Historie; konservativ wegen fehlender MACD-Validierung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T06:34:14.050577+00:00",
+   "trade_id": 746,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne 30d-Historie; konservativ wegen fehlender MACD-Validierung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T06:34:14.050577+00:00",
+   "trade_id": 747,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "Höheres Volumen ($361) bei unbekannter Historie; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T06:34:14.050577+00:00",
+   "trade_id": 748,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Höheres Volumen ($361) bei unbekannter Historie; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T06:34:14.050577+00:00",
+   "trade_id": 749,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Höheres Volumen ($361) bei unbekannter Historie; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T06:49:16.343191+00:00",
+   "trade_id": 744,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T06:49:16.343191+00:00",
+   "trade_id": 745,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T06:49:16.343191+00:00",
+   "trade_id": 746,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T06:49:16.343191+00:00",
+   "trade_id": 750,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "Kernposition CORE_SWEEP, Score 0; Risiko durch fehlende Historie begrenzen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T06:49:16.343191+00:00",
+   "trade_id": 751,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Kernposition CORE_SWEEP, Score 0; Risiko durch fehlende Historie begrenzen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T06:49:16.343191+00:00",
+   "trade_id": 752,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Kernposition CORE_SWEEP, Score 0; Risiko durch fehlende Historie begrenzen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T06:49:16.343191+00:00",
+   "trade_id": 753,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "Kernposition CORE_SWEEP, Score 0; Risiko durch fehlende Historie begrenzen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T07:04:18.091341+00:00",
+   "trade_id": 754,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "Höheres Volumen ($361) bei neuem Signal CORE_SWEEP ohne Historie -> Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T07:04:18.091341+00:00",
+   "trade_id": 755,
+   "symbol": "GIVN.SW",
+   "yf_symbol": "GIVN.SW",
+   "decision": "REDUCE",
+   "reason": "Höheres Volumen ($361) bei neuem Signal CORE_SWEEP ohne Historie -> Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T07:04:18.091341+00:00",
+   "trade_id": 756,
+   "symbol": "MNKS.L",
+   "yf_symbol": "MNKS.L",
+   "decision": "REDUCE",
+   "reason": "Höheres Volumen ($361) bei neuem Signal CORE_SWEEP ohne Historie -> Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T07:04:18.091341+00:00",
+   "trade_id": 757,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "Höheres Volumen ($361) bei neuem Signal CORE_SWEEP ohne Historie -> Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T07:19:15.896222+00:00",
+   "trade_id": 750,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ wegen fehlender Bestaetigung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T07:19:15.896222+00:00",
+   "trade_id": 758,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ wegen fehlender Bestaetigung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T07:19:15.896222+00:00",
+   "trade_id": 759,
+   "symbol": "VTS.AX",
+   "yf_symbol": "VTS.AX",
+   "decision": "REDUCE",
+   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ wegen fehlender Bestaetigung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T07:34:17.393451+00:00",
+   "trade_id": 750,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne 30d-Historie; konservativ wegen fehlender MACD-Validierung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T07:34:17.393451+00:00",
+   "trade_id": 759,
+   "symbol": "VTS.AX",
+   "yf_symbol": "VTS.AX",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne 30d-Historie; konservativ wegen fehlender MACD-Validierung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T07:34:17.393451+00:00",
+   "trade_id": 760,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne 30d-Historie; konservativ wegen fehlender MACD-Validierung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T07:34:17.393451+00:00",
+   "trade_id": 761,
+   "symbol": "VTS.AX",
+   "yf_symbol": "VTS.AX",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne 30d-Historie; konservativ wegen fehlender MACD-Validierung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T07:49:18.790707+00:00",
+   "trade_id": 759,
+   "symbol": "VTS.AX",
+   "yf_symbol": "VTS.AX",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T07:49:18.790707+00:00",
+   "trade_id": 760,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T07:49:18.790707+00:00",
+   "trade_id": 762,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T07:49:18.790707+00:00",
+   "trade_id": 763,
+   "symbol": "CDI.PA",
+   "yf_symbol": "CDI.PA",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T07:49:18.790707+00:00",
+   "trade_id": 764,
+   "symbol": "VTS.AX",
+   "yf_symbol": "VTS.AX",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T08:04:20.185774+00:00",
+   "trade_id": 760,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Validierung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T08:04:20.185774+00:00",
+   "trade_id": 764,
+   "symbol": "VTS.AX",
+   "yf_symbol": "VTS.AX",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; Risiko bei fehlender MACD-Komponente.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T08:04:20.185774+00:00",
+   "trade_id": 765,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "Kombination aus CORE_SWEEP (Score 0) und hohem Volumen ($361); Unsicherheit bei RSI.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T08:04:20.185774+00:00",
+   "trade_id": 766,
+   "symbol": "VTS.AX",
+   "yf_symbol": "VTS.AX",
+   "decision": "REDUCE",
+   "reason": "Kombination aus CORE_SWEEP (Score 0) und hohem Volumen ($361); Unsicherheit bei RSI.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T08:04:20.185774+00:00",
+   "trade_id": 767,
+   "symbol": "PNI.AX",
+   "yf_symbol": "PNI.AX",
+   "decision": "REDUCE",
+   "reason": "Kombination aus CORE_SWEEP (Score 0) und hohem Volumen ($361); Unsicherheit bei RSI.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T08:19:21.531682+00:00",
+   "trade_id": 764,
+   "symbol": "VTS.AX",
+   "yf_symbol": "VTS.AX",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T08:19:21.531682+00:00",
+   "trade_id": 765,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T08:19:21.531682+00:00",
+   "trade_id": 767,
+   "symbol": "PNI.AX",
+   "yf_symbol": "PNI.AX",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T08:19:21.531682+00:00",
+   "trade_id": 768,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T08:19:21.531682+00:00",
+   "trade_id": 769,
+   "symbol": "VTS.AX",
+   "yf_symbol": "VTS.AX",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T08:19:21.531682+00:00",
+   "trade_id": 770,
+   "symbol": "PNI.AX",
+   "yf_symbol": "PNI.AX",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T08:34:22.906866+00:00",
+   "trade_id": 765,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Bestätigung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T08:34:22.906866+00:00",
+   "trade_id": 767,
+   "symbol": "PNI.AX",
+   "yf_symbol": "PNI.AX",
+   "decision": "VETO",
+   "reason": "Keine 30d-Historie für Signal; Risiko minimieren bei Score 0.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T08:34:22.906866+00:00",
+   "trade_id": 769,
+   "symbol": "VTS.AX",
+   "yf_symbol": "VTS.AX",
+   "decision": "REDUCE",
+   "reason": "Höheres Volumen ($181) bei unbekannter Signal-Qualität; Halbe Position.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T08:34:22.906866+00:00",
+   "trade_id": 771,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "Uber bereits im Portfolio; CORE_SWEEP ohne MACD-Wende ist riskant.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T08:34:22.906866+00:00",
+   "trade_id": 772,
+   "symbol": "VTS.AX",
+   "yf_symbol": "VTS.AX",
+   "decision": "REDUCE",
+   "reason": "VTS.AX doppelt; Score 0 erfordert Vorsicht.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T08:34:22.906866+00:00",
+   "trade_id": 773,
+   "symbol": "PNI.AX",
+   "yf_symbol": "PNI.AX",
+   "decision": "REDUCE",
+   "reason": "PNI.AX doppelt; keine Historie für CORE_SWEEP.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T08:49:23.810336+00:00",
+   "trade_id": 769,
+   "symbol": "VTS.AX",
+   "yf_symbol": "VTS.AX",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne 30d-Historie, konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T08:49:23.810336+00:00",
+   "trade_id": 773,
+   "symbol": "PNI.AX",
+   "yf_symbol": "PNI.AX",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne 30d-Historie, konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T08:49:23.810336+00:00",
+   "trade_id": 775,
+   "symbol": "VTS.AX",
+   "yf_symbol": "VTS.AX",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne 30d-Historie, konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T08:49:23.810336+00:00",
+   "trade_id": 776,
+   "symbol": "PNI.AX",
+   "yf_symbol": "PNI.AX",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne 30d-Historie, konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T09:19:24.017392+00:00",
+   "trade_id": 771,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Validierung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T09:19:24.017392+00:00",
+   "trade_id": 773,
+   "symbol": "PNI.AX",
+   "yf_symbol": "PNI.AX",
+   "decision": "VETO",
+   "reason": "Keine 30d-Historie für CORE_SWEEP; Risiko bei Score 0 minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T09:19:24.017392+00:00",
+   "trade_id": 775,
+   "symbol": "VTS.AX",
+   "yf_symbol": "VTS.AX",
+   "decision": "REDUCE",
+   "reason": "Keine 30d-Historie für CORE_SWEEP; konservativ wegen fehlender MACD-Validierung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T09:34:23.907787+00:00",
+   "trade_id": 771,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne 30d-Historie, konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T09:34:23.907787+00:00",
+   "trade_id": 775,
+   "symbol": "VTS.AX",
+   "yf_symbol": "VTS.AX",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne 30d-Historie, konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T10:34:28.643945+00:00",
+   "trade_id": 777,
+   "symbol": "DNR.MI",
+   "yf_symbol": "DNR.MI",
+   "decision": "VETO",
+   "reason": "Signal MACD_TURN_BELOW_SMA20 hat historisch schlechte WR (11.1%). Veto-Verluste waren gut, aber hier ist das Risiko eines fallenden Messers zu hoch bei Score 35.",
+   "signal_price": 5.989999771118164
+  },
+  {
+   "ts": "2026-07-28T10:34:28.643945+00:00",
+   "trade_id": 778,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat keine Historie. Konservativ reduzieren, da kein historischer Vorteil bekannt.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T10:34:28.643945+00:00",
+   "trade_id": 779,
+   "symbol": "DNR.MI",
+   "yf_symbol": "DNR.MI",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat keine Historie. Konservativ reduzieren, da kein historischer Vorteil bekannt.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T10:49:28.570483+00:00",
+   "trade_id": 778,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne 30d-Historie, konservativ pruefen; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T11:04:29.788774+00:00",
+   "trade_id": 778,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne 30d-Historie, Score 0 (MEDIUM). Bei Unsicherheit und asymmetrischen Rechten Position verkleinern statt voll approve.",
    "signal_price": null
   }
  ]
