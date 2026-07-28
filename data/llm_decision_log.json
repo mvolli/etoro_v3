@@ -11,5 +11,73 @@
     "outcome": null,
     "outcome_grade": null,
     "outcome_date": null
+  },
+  {
+    "date": "2026-07-28",
+    "timestamp": "2026-07-28T20:31:14.748535+00:00",
+    "type": "signal_weight",
+    "key": "CORE_SWEEP",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.2,
+      "skip": false,
+      "reason": "Extrem hohe Reject-Rate (169/194) und 0.05% Success Rate im CAUTION-Regime. Signal ist zu aggressiv für aktuelle Marktbedingungen."
+    },
+    "reason": "Extrem hohe Reject-Rate (169/194) und 0.05% Success Rate im CAUTION-Regime. Sign",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-28",
+    "timestamp": "2026-07-28T20:31:14.748535+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.6,
+      "skip": false,
+      "reason": "Negative avg_pnl (-1.65) und hohe Verlustzahl (23 losses). Golden Cross funktioniert im aktuellen Seitwärts-/CAUTION-Regime schlecht."
+    },
+    "reason": "Negative avg_pnl (-1.65) und hohe Verlustzahl (23 losses). Golden Cross funktion",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-28",
+    "timestamp": "2026-07-28T20:31:14.748535+00:00",
+    "type": "signal_weight",
+    "key": "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.7,
+      "skip": false,
+      "reason": "Negative avg_pnl (-1.42) bei HIGH Conviction. Signal ist zu spät oder zu schwach im aktuellen Rauschen."
+    },
+    "reason": "Negative avg_pnl (-1.42) bei HIGH Conviction. Signal ist zu spät oder zu schwach",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-07-28",
+    "timestamp": "2026-07-28T20:31:14.748535+00:00",
+    "type": "signal_weight",
+    "key": "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.8,
+      "skip": false,
+      "reason": "Falling-Knife-Risiko (WR 9% bei RSI<25). Nur mit MACD-Wende bestätigen lassen."
+    },
+    "reason": "Falling-Knife-Risiko (WR 9% bei RSI<25). Nur mit MACD-Wende bestätigen lassen.",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
   }
 ]
