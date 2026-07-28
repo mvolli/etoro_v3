@@ -298,6 +298,10 @@ def execute_sell_exits(
                 pnl_pct=action.pnl_pct,
                 amount_usd=action.amount_usd,
                 close_pct=action.close_pct,
+                client=client, db=db,
+                instrument_id=action.instrument_id,
+                units=units_to_deduct,
+                source="sell_exit",
             )
             time.sleep(0.5)
         except Exception as exc:

@@ -32,13 +32,15 @@ try:
 except Exception:
     _DE = None
 
-def _discord(fn_name: str, **kwargs) -> None:
-    """Best-effort Discord post. Never raises."""
+def _discord(fn_name: str, **kwargs):
+    """Best-effort Discord post. Never raises. Returns Embed-Resultat
+    (Message-ID/True) oder None (feat/pnl-nachreport)."""
     try:
         if _DE and hasattr(_DE, fn_name):
-            getattr(_DE, fn_name)(**kwargs)
+            return getattr(_DE, fn_name)(**kwargs)
     except Exception:
         pass
+    return None
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -332,7 +334,7 @@ def main() -> None:
                                 ))
                             except Exception:
                                 pass
-                            _discord(
+                            _close_ok = _discord(
                                 "post_position_closed_embed",
                                 symbol=symbol,
                                 amount_usd=float(pos.get("amount", 0)),
@@ -342,6 +344,18 @@ def main() -> None:
                                 pnl_usd=pnl_usd_est,
                                 pnl_pct=pnl_pct,
                                 reason=sl_action.reason,
+                            )
+                            from bot.core.event_log import record_posted_event
+                            record_posted_event(
+                                db, _DE, symbol=symbol, event_type="CLOSE",
+                                source="risk_sl", post_result=_close_ok,
+                                position_id=str(position_id),
+                                instrument_id=int(pos.get("instrumentID") or 0) or None,
+                                price=close_price or None,
+                                amount_usd=float(pos.get("amount", 0)),
+                                pnl_usd=pnl_usd_est, pnl_pct=pnl_pct,
+                                pnl_source="derived", reason=sl_action.reason,
+                                chart_posted=True, reported_final=False,
                             )
                         except Exception as _emb_exc:
                             logger.debug("Discord close embed failed: %s", _emb_exc)
@@ -381,7 +395,7 @@ def main() -> None:
                                 ))
                             except Exception:
                                 pass
-                            _discord(
+                            _close_ok = _discord(
                                 "post_position_closed_embed",
                                 symbol=symbol,
                                 amount_usd=float(pos.get("amount", 0)),
@@ -391,6 +405,19 @@ def main() -> None:
                                 pnl_usd=pnl_usd_est,
                                 pnl_pct=pnl_pct,
                                 reason=f"{sl_action.reason} (⚠️ PnL geschätzt — Reconciler finalisiert)",
+                            )
+                            from bot.core.event_log import record_posted_event
+                            record_posted_event(
+                                db, _DE, symbol=symbol, event_type="CLOSE",
+                                source="risk_sl", post_result=_close_ok,
+                                position_id=str(position_id),
+                                instrument_id=int(pos.get("instrumentID") or 0) or None,
+                                price=close_price or None,
+                                amount_usd=float(pos.get("amount", 0)),
+                                pnl_usd=pnl_usd_est, pnl_pct=pnl_pct,
+                                pnl_source="derived",
+                                reason=f"{sl_action.reason} (unverifiziert)",
+                                chart_posted=True, reported_final=False,
                             )
                         except Exception as _emb_exc:
                             logger.debug("Discord provisional close embed failed: %s", _emb_exc)
@@ -654,7 +681,7 @@ def main() -> None:
     
             violations = check_concentration_violations(raw_positions, equity, instrument_map)
             if violations:
-                conc_stats = close_concentration_excess(client, violations)
+                conc_stats = close_concentration_excess(client, violations, db=db)
                 conc_closed += conc_stats["closed"]
                 conc_warned += conc_stats["warned"]
                 if conc_stats["closed"] > 0:

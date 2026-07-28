@@ -10,6 +10,7 @@ Repositories:
   SignalRepo     — create / read fresh / expire for the `signals` table
   PortfolioRepo  — upsert / query for `portfolio_snapshot`
   StateRepo      — key-value wrapper around `system_state`
+  TradeEventRepo — event ledger `trade_events` (open/partial/close + Discord-IDs)
   LogRepo        — structured writes / reads for `system_log`
 """
 from __future__ import annotations
@@ -59,6 +60,7 @@ _TRADE_UPDATE_FIELDS = frozenset(
         "closed_at",
         "requeue_count",   # fix/failed-trade-requeue: one-shot retry marker
         "verification_status",  # fix/sl-close-embed: PENDING | VERIFIED | FAILED
+        "verify_attempts",  # feat/pnl-nachreport: Anzahl 9d-History-Versuche
     }
 )
 
@@ -69,6 +71,7 @@ class TradeRepo:
         self.db = db
         self._ensure_requeue_column()
         self._ensure_verification_status_column()
+        self._ensure_verify_attempts_column()
 
     def _ensure_requeue_column(self) -> None:
         """Idempotent migration: trades.requeue_count (fix/failed-trade-requeue)."""
@@ -90,6 +93,21 @@ class TradeRepo:
         try:
             self.db.execute(
                 "ALTER TABLE trades ADD COLUMN verification_status TEXT NOT NULL DEFAULT 'VERIFIED'"
+            )
+        except Exception:
+            pass  # column already exists (or trades table absent in bare tests)
+
+    def _ensure_verify_attempts_column(self) -> None:
+        """Idempotent migration: trades.verify_attempts (feat/pnl-nachreport).
+
+        Zählt, wie oft der Reconciler (Step 9d) erfolglos versucht hat, den
+        finalen PnL eines PENDING-Close aus der eToro-Trade-History zu holen.
+        Vorher wurde ein Close ohne History-Match sofort VERIFIED markiert
+        und der PnL blieb für immer NULL / wurde als $0.00 gepostet.
+        """
+        try:
+            self.db.execute(
+                "ALTER TABLE trades ADD COLUMN verify_attempts INTEGER NOT NULL DEFAULT 0"
             )
         except Exception:
             pass  # column already exists (or trades table absent in bare tests)
@@ -619,6 +637,245 @@ class StateRepo:
 
     def get_drawdown_pct(self) -> float:
         return self.get_float("DRAWDOWN_PCT", 0.0)
+
+
+# ── TradeEventRepo ────────────────────────────────────────────────────────────
+
+_EVENT_TYPES = frozenset({"OPEN", "PARTIAL_CLOSE", "CLOSE"})
+
+
+class TradeEventRepo:
+    """Repository für die `trade_events`-Tabelle (feat/pnl-nachreport).
+
+    Ein Datensatz pro Trade-Event (Open / Partial Close / Full Close) inkl.
+    Discord-Koordinaten (channel_id + message_id), damit Embeds nachträglich
+    editiert werden können, sobald der finale PnL aus der eToro-History kommt.
+
+    pnl_usd/pnl_pct = NULL bedeutet UNBEKANNT — niemals 0.0 als Platzhalter
+    schreiben (das erzeugte früher die "$+0.00 Gewinn"-Embeds).
+
+    Alle Methoden sind fail-open: Event-Logging ist Komfort und darf nie
+    einen Live-Close-Pfad brechen (gleiche Philosophie wie slippage_rejects).
+    """
+
+    def __init__(self, db: DB) -> None:
+        self.db = db
+        self._ensure_table()
+
+    def _ensure_table(self) -> None:
+        try:
+            self.db.execute("""
+                CREATE TABLE IF NOT EXISTS trade_events (
+                    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+                    trade_id           INTEGER,
+                    position_id        TEXT,
+                    order_id           TEXT,
+                    instrument_id      INTEGER,
+                    symbol             TEXT NOT NULL,
+                    event_type         TEXT NOT NULL,
+                    source             TEXT NOT NULL,
+                    event_at           TEXT NOT NULL,
+                    close_pct          REAL,
+                    units              REAL,
+                    price              REAL,
+                    amount_usd         REAL,
+                    pnl_usd            REAL,
+                    pnl_pct            REAL,
+                    pnl_source         TEXT,
+                    reason             TEXT,
+                    discord_channel_id TEXT,
+                    discord_message_id TEXT,
+                    chart_posted       INTEGER NOT NULL DEFAULT 0,
+                    reported_final     INTEGER NOT NULL DEFAULT 0,
+                    pnl_filled_at      TEXT,
+                    created_at         TEXT NOT NULL DEFAULT (datetime('now'))
+                )
+            """)
+            self.db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_tev_pos ON trade_events(position_id)"
+            )
+            self.db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_tev_at ON trade_events(event_at)"
+            )
+        except Exception:
+            pass  # bare test DBs / gleichzeitige Migration — fail-open
+
+    # ── write ──────────────────────────────────────────────────────────────────
+
+    def record(
+        self,
+        symbol: str,
+        event_type: str,
+        source: str,
+        trade_id: int | None = None,
+        position_id: str | None = None,
+        order_id: str | None = None,
+        instrument_id: int | None = None,
+        event_at: str | None = None,
+        close_pct: float | None = None,
+        units: float | None = None,
+        price: float | None = None,
+        amount_usd: float | None = None,
+        pnl_usd: float | None = None,
+        pnl_pct: float | None = None,
+        pnl_source: str | None = None,
+        reason: str | None = None,
+        chart_posted: bool = False,
+        reported_final: bool = False,
+    ) -> int | None:
+        """Persist ein Trade-Event. Returns event id oder None (fail-open)."""
+        try:
+            if event_type not in _EVENT_TYPES:
+                return None
+            cur = self.db.execute(
+                """
+                INSERT INTO trade_events
+                    (trade_id, position_id, order_id, instrument_id, symbol,
+                     event_type, source, event_at, close_pct, units, price,
+                     amount_usd, pnl_usd, pnl_pct, pnl_source, reason,
+                     chart_posted, reported_final)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    trade_id,
+                    str(position_id) if position_id else None,
+                    str(order_id) if order_id else None,
+                    instrument_id,
+                    symbol,
+                    event_type,
+                    source,
+                    event_at or _utcnow(),
+                    close_pct,
+                    units,
+                    price,
+                    amount_usd,
+                    pnl_usd,
+                    pnl_pct,
+                    pnl_source,
+                    reason,
+                    1 if chart_posted else 0,
+                    1 if reported_final else 0,
+                ),
+            )
+            return cur.lastrowid
+        except Exception:
+            return None
+
+    def set_discord_message(
+        self, event_id: int, channel_id: str, message_id: str
+    ) -> None:
+        """Discord-Koordinaten nachtragen (für spätere Embed-Edits)."""
+        try:
+            self.db.execute(
+                "UPDATE trade_events SET discord_channel_id = ?, discord_message_id = ? WHERE id = ?",
+                (str(channel_id), str(message_id), event_id),
+            )
+        except Exception:
+            pass
+
+    def fill_pnl(
+        self,
+        event_id: int,
+        pnl_usd: float | None,
+        pnl_pct: float | None,
+        price: float | None = None,
+        source: str = "api_history",
+        reported_final: bool = True,
+    ) -> None:
+        """Finalen PnL aus der API-History nachtragen; stempelt pnl_filled_at."""
+        try:
+            self.db.execute(
+                """
+                UPDATE trade_events
+                   SET pnl_usd = ?, pnl_pct = ?,
+                       price = COALESCE(?, price),
+                       pnl_source = ?, reported_final = ?,
+                       pnl_filled_at = ?
+                 WHERE id = ?
+                """,
+                (
+                    pnl_usd,
+                    pnl_pct,
+                    price,
+                    source,
+                    1 if reported_final else 0,
+                    _utcnow(),
+                    event_id,
+                ),
+            )
+        except Exception:
+            pass
+
+    # ── read ───────────────────────────────────────────────────────────────────
+
+    def get_by_position(self, position_id: str) -> list[dict]:
+        """Alle Events einer Position, chronologisch."""
+        try:
+            rows = self.db.fetchall(
+                "SELECT * FROM trade_events WHERE position_id = ? ORDER BY event_at",
+                (str(position_id),),
+            )
+            return _rows_to_dicts(rows)
+        except Exception:
+            return []
+
+    def get_unresolved_closes(self, max_age_days: int = 14) -> list[dict]:
+        """(Partial-)Closes ohne bestätigten PnL im Retro-Fill-Fenster.
+
+        reported_final=0 heißt: das gepostete Embed zeigt noch abgeleitete
+        oder fehlende Zahlen — Step 9e versucht, sie aus der History zu
+        bestätigen und das Original-Embed zu editieren.
+        """
+        try:
+            rows = self.db.fetchall(
+                """
+                SELECT * FROM trade_events
+                 WHERE event_type IN ('PARTIAL_CLOSE', 'CLOSE')
+                   AND reported_final = 0
+                   AND event_at > datetime('now', ?)
+                 ORDER BY event_at
+                """,
+                (f"-{int(max_age_days)} days",),
+            )
+            return _rows_to_dicts(rows)
+        except Exception:
+            return []
+
+    def get_events_between(self, from_iso: str, to_iso: str) -> list[dict]:
+        """Events im Zeitfenster [from, to) — Basis für den Tagesreport."""
+        try:
+            rows = self.db.fetchall(
+                "SELECT * FROM trade_events WHERE event_at >= ? AND event_at < ? ORDER BY event_at",
+                (from_iso, to_iso),
+            )
+            return _rows_to_dicts(rows)
+        except Exception:
+            return []
+
+    def get_filled_between(self, from_iso: str, to_iso: str) -> list[dict]:
+        """Events, deren PnL im Zeitfenster nachgetragen wurde (Nachreports)."""
+        try:
+            rows = self.db.fetchall(
+                "SELECT * FROM trade_events WHERE pnl_filled_at >= ? AND pnl_filled_at < ? ORDER BY pnl_filled_at",
+                (from_iso, to_iso),
+            )
+            return _rows_to_dicts(rows)
+        except Exception:
+            return []
+
+    def has_event(
+        self, position_id: str, event_type: str, source: str | None = None
+    ) -> bool:
+        """Once-Gate: existiert bereits ein Event dieses Typs für die Position?"""
+        try:
+            sql = "SELECT 1 FROM trade_events WHERE position_id = ? AND event_type = ?"
+            params: list[Any] = [str(position_id), event_type]
+            if source is not None:
+                sql += " AND source = ?"
+                params.append(source)
+            return self.db.fetchone(sql + " LIMIT 1", params) is not None
+        except Exception:
+            return False
 
 
 # ── LogRepo ───────────────────────────────────────────────────────────────────

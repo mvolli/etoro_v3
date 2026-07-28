@@ -51,13 +51,15 @@ try:
 except Exception:
     _DE = None
 
-def _discord(fn_name: str, **kwargs) -> None:
-    """Best-effort Discord post. Never raises."""
+def _discord(fn_name: str, **kwargs):
+    """Best-effort Discord post. Never raises. Returns Embed-Resultat
+    (Message-ID/True) oder None (feat/pnl-nachreport)."""
     try:
         if _DE and hasattr(_DE, fn_name):
-            getattr(_DE, fn_name)(**kwargs)
+            return getattr(_DE, fn_name)(**kwargs)
     except Exception:
         pass
+    return None
 
 # ── constants ─────────────────────────────────────────────────────────────────
 WORKER_NAME = "reconciler"
@@ -894,15 +896,32 @@ def main() -> int:
                 # 2026-07-14: $0.00 vs real +$41.23). Jetzt: Embed nur bei
                 # bekanntem PnL; sonst uebernimmt 9d (PENDING) die Meldung.
                 if pnl_pct is not None:
-                    _discord(
+                    _close_ok = _discord(
                         "post_position_closed_embed",
                         symbol=trade.get("symbol", "?"),
                         amount_usd=float(trade.get("amount_usd", 0)),
                         position_id=str(pos_id or ""),
-                        pnl_usd=pnl_usd or 0.0,
-                        pnl_pct=pnl_pct or 0.0,
+                        pnl_usd=pnl_usd,
+                        pnl_pct=pnl_pct,
                         reason="Position via Reconciler geschlossen (nicht mehr in API)",
                     )
+                    try:
+                        from bot.core.event_log import record_posted_event
+                        record_posted_event(
+                            db, _DE, symbol=trade.get("symbol", "?"),
+                            event_type="CLOSE", source="reconciler_9a",
+                            post_result=_close_ok,
+                            trade_id=trade_id, position_id=str(pos_id or "") or None,
+                            order_id=str(trade.get("order_id") or "") or None,
+                            instrument_id=trade.get("instrument_id"),
+                            amount_usd=float(trade.get("amount_usd", 0)),
+                            pnl_usd=pnl_usd, pnl_pct=pnl_pct,
+                            pnl_source="derived",
+                            reason="Reconciler-Close (Snapshot-PnL)",
+                            reported_final=False,
+                        )
+                    except Exception:
+                        pass
                 else:
                     logger.info(
                         f"[{WORKER_NAME}] Trade {trade_id}: PnL noch unbekannt — "
@@ -1109,137 +1128,260 @@ def main() -> int:
         except Exception as exc:
             logger.warning(f"[{WORKER_NAME}] WARNING: Late-Fill-Recovery fehlgeschlagen: {exc}")
 
-        # ── 9d. Finalize unverified closes (fix/sl-close-embed) ────────────────
-        # Trades marked CLOSED with verification_status='PENDING' by risk_worker
-        # when eToro API was too slow to confirm within the polling window.
-        # Reconciler fetches final trade data from eToro history and updates DB.
+        # ── 9d. Finalize unverified closes (feat/pnl-nachreport Umbau) ─────────
+        # Trades mit verification_status='PENDING'. Neu (2026-07-28):
+        #   - History wird EINMAL pro Lauf geholt und indiziert (vorher
+        #     2 Seiten PRO pending Trade)
+        #   - Match schreibt jetzt auch entry_price (openRate) — wurde nie
+        #     befuellt (45 CLOSED-Trades ohne Entry)
+        #   - Match editiert das Original-Embed (Message-ID in trade_events)
+        #     statt ein zweites zu posten
+        #   - KEIN Match markiert NICHT mehr VERIFIED (Alt-Bug: PnL blieb
+        #     fuer immer NULL und wurde als "$+0.00 Gewinn" gepostet).
+        #     Stattdessen: verify_attempts++, bleibt PENDING, Retry bis
+        #     VERIFY_EXPIRY_DAYS, danach UNRESOLVED.
+        from bot.core.pnl_backfill import (
+            fetch_history_index, match_close, match_partial, pnl_from_row,
+        )
+        from bot.db.repo import TradeEventRepo
+        from bot.core.event_log import record_posted_event
+        from datetime import datetime as _rdt, timedelta as _rtd
+
+        VERIFY_EXPIRY_DAYS = 7
+        event_repo = TradeEventRepo(db)
         pending_verifications = trade_repo.get_pending_verification()
         finalized_count = 0
+        history_index = None
+
+        def _ensure_history_index(anchor_dates: list[str]):
+            """History-Index lazy holen; min_date 2 Tage vor aeltestem Anker."""
+            nonlocal history_index
+            if history_index is not None:
+                return history_index
+            min_date = None
+            dates = [d[:10] for d in anchor_dates if d]
+            if dates:
+                try:
+                    min_date = (
+                        _rdt.fromisoformat(min(dates)) - _rtd(days=2)
+                    ).date().isoformat()
+                except Exception:
+                    min_date = None
+            history_index = fetch_history_index(client, min_date)
+            return history_index
+
+        if pending_verifications:
+            try:
+                _ensure_history_index(
+                    [t.get("closed_at") or "" for t in pending_verifications]
+                )
+            except Exception as exc:
+                logger.warning(f"[{WORKER_NAME}] WARNING: History-Fetch fehlgeschlagen: {exc}")
+
         for trade in pending_verifications:
             t_id = trade["id"]
             symbol = trade.get("symbol", "?")
             pos_id = trade.get("api_position_id")
             try:
-                # Fetch trade history to find the exact close data.
-                # Use default 90-day window (no min_date override) and paginate
-                # to handle many recent closes. Page size capped at 100 by the API.
-                history_trades = client.get_trade_history(page_size=100)
-                # Fetch page 2 as well — avoids missing matches when many trades closed
-                page2 = client.get_trade_history(page=2, page_size=100)
-                if page2:
-                    history_trades = history_trades + page2
-                
-                # Find matching trade by positionId or orderId
-                matched = None
-                if pos_id:
-                    try:
-                        _pos_id_int = int(pos_id)
-                    except (ValueError, TypeError):
-                        _pos_id_int = None
-                    for ht in history_trades:
-                        if _pos_id_int and ht.get("positionId") == _pos_id_int:
-                            matched = ht
-                            break
-                
-                if not matched and trade.get("order_id"):
-                    for ht in history_trades:
-                        if ht.get("orderId") == int(trade["order_id"]):
-                            matched = ht
-                            break
-                
+                matched = (
+                    match_close(history_index, pos_id, trade.get("order_id"))
+                    if history_index else None
+                )
+
                 if matched:
-                    # We have the exact API data — use it!
-                    final_pnl_usd = float(matched.get("netProfit", 0) or 0)
-                    final_close_price = float(matched.get("closeRate", 0) or 0)
-                    investment = float(matched.get("investment", 0) or 0)
-                    final_pnl_pct = (final_pnl_usd / investment * 100) if investment > 0 else 0
-                    
+                    nums = pnl_from_row(matched)
                     trade_repo.update_status(
                         t_id, "CLOSED",
-                        exit_price=final_close_price or None,
-                        pnl_usd=final_pnl_usd,
-                        pnl_pct=final_pnl_pct,
+                        entry_price=nums["entry"] or trade.get("entry_price"),
+                        exit_price=nums["exit"] or None,
+                        pnl_usd=nums["pnl_usd"],
+                        pnl_pct=nums["pnl_pct"],
                         verification_status="VERIFIED",
                     )
                     finalized_count += 1
-                    
-                    # Send finalization embed to Discord (+ Trade-Story-Chart)
-                    try:
-                        from bot.core.candle_chart import trade_story_png
-                        import sys as _sys
-                        from pathlib import Path as _P
-                        _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
-                        import discord_embeds as _DE_st
-                        _DE_st.attach_chart(trade_story_png(
-                            client, trade.get("instrument_id"), symbol,
-                            entry=float(matched.get("openRate", 0) or trade.get("entry_price") or 0) or None,
-                            exit_price=final_close_price,
-                            opened_at=trade.get("confirmed_at") or trade.get("created_at"),
-                        ))
-                    except Exception:
-                        pass
-                    _discord(
-                        "post_position_closed_embed",
-                        symbol=symbol,
-                        amount_usd=investment or float(trade.get("amount_usd", 0)),
-                        position_id=str(pos_id or ""),
-                        entry_price=float(matched.get("openRate", 0) or trade.get("entry_price", 0) or 0),
-                        close_price=final_close_price,
-                        pnl_usd=final_pnl_usd,
-                        pnl_pct=final_pnl_pct,
-                        reason=infer_close_reason(matched, t_id),
-                    )
-                    
-                    msg = f"Trade {t_id} ({symbol}) finalized from API: PnL=${final_pnl_usd:.2f} ({final_pnl_pct:+.2f}%)"
-                    logger.info(f"[{WORKER_NAME}] {msg}")
-                    log_repo.write("INFO", WORKER_NAME, msg, {"trade_id": t_id})
-                    
-                else:
-                    # No history match yet — position may still be settling.
-                    # Check if position is gone from live API as fallback
-                    if not pos_id or pos_id not in live_position_ids:
-                        # Position confirmed gone but no history yet — mark VERIFIED with estimate
-                        trade_repo.update_status(
-                            t_id, "CLOSED",
-                            verification_status="VERIFIED",
+                    reason = infer_close_reason(matched, t_id)
+                    amount = nums["investment"] or float(trade.get("amount_usd", 0))
+
+                    # Original-Embed editieren, wenn Message-ID bekannt
+                    close_ev = None
+                    if pos_id:
+                        for e in event_repo.get_by_position(str(pos_id)):
+                            if e["event_type"] == "CLOSE":
+                                close_ev = e
+                    if (close_ev and close_ev.get("discord_message_id")
+                            and _DE and hasattr(_DE, "_edit_embed")):
+                        embed = _DE._build_position_closed_embed(
+                            symbol=symbol, amount_usd=amount,
+                            position_id=str(pos_id or ""),
+                            entry_price=nums["entry"] or 0.0,
+                            close_price=nums["exit"] or 0.0,
+                            pnl_usd=nums["pnl_usd"], pnl_pct=nums["pnl_pct"],
+                            reason=reason,
+                            keep_chart_image=bool(close_ev.get("chart_posted")),
                         )
-                        finalized_count += 1
-                        # fix/duplicate-close-embed: 9a postet ohne PnL kein
-                        # Embed mehr — dieser Fallback ist dann die einzige
-                        # Nutzer-Meldung. Ehrlich labeln statt $0.00 anzuzeigen.
+                        _DE._edit_embed(close_ev["discord_channel_id"],
+                                        close_ev["discord_message_id"], embed)
+                        event_repo.fill_pnl(close_ev["id"], nums["pnl_usd"],
+                                            nums["pnl_pct"], price=nums["exit"])
+                    else:
+                        # Kein editierbares Original → (Nach-)Post mit Chart
                         try:
                             from bot.core.candle_chart import trade_story_png
-                            import sys as _sys
-                            from pathlib import Path as _P
-                            _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
-                            import discord_embeds as _DE_st
-                            _DE_st.attach_chart(trade_story_png(
-                                client, trade.get("instrument_id"), symbol,
-                                entry=float(trade.get("entry_price") or 0) or None,
-                                exit_price=float(trade.get("exit_price") or 0) or None,
-                                opened_at=trade.get("confirmed_at") or trade.get("created_at"),
-                            ))
+                            if _DE and hasattr(_DE, "attach_chart"):
+                                _DE.attach_chart(trade_story_png(
+                                    client, trade.get("instrument_id"), symbol,
+                                    entry=nums["entry"] or trade.get("entry_price"),
+                                    exit_price=nums["exit"],
+                                    opened_at=trade.get("confirmed_at") or trade.get("created_at"),
+                                ))
                         except Exception:
                             pass
+                        _prefix = "📋 P/L nachgereicht: " if close_ev else ""
+                        _post_ok = _discord(
+                            "post_position_closed_embed",
+                            symbol=symbol, amount_usd=amount,
+                            position_id=str(pos_id or ""),
+                            entry_price=nums["entry"] or 0.0,
+                            close_price=nums["exit"] or 0.0,
+                            pnl_usd=nums["pnl_usd"], pnl_pct=nums["pnl_pct"],
+                            reason=f"{_prefix}{reason}",
+                        )
+                        if close_ev:
+                            event_repo.fill_pnl(close_ev["id"], nums["pnl_usd"],
+                                                nums["pnl_pct"], price=nums["exit"])
+                        else:
+                            record_posted_event(
+                                db, _DE, symbol=symbol, event_type="CLOSE",
+                                source="reconciler_9d", post_result=_post_ok,
+                                trade_id=t_id, position_id=str(pos_id or "") or None,
+                                order_id=str(trade.get("order_id") or "") or None,
+                                instrument_id=trade.get("instrument_id"),
+                                price=nums["exit"], amount_usd=amount,
+                                pnl_usd=nums["pnl_usd"], pnl_pct=nums["pnl_pct"],
+                                pnl_source="api_history", reason=reason,
+                                chart_posted=True, reported_final=True,
+                            )
+
+                    # Partial-Closes derselben Position aus der History
+                    # rekonstruieren (eine Row pro Teilverkauf), falls sie
+                    # nie persistiert wurden.
+                    try:
+                        _pos_int = int(pos_id) if pos_id else None
+                        rows = (history_index.by_position.get(_pos_int, [])
+                                if (_pos_int and history_index) else [])
+                        # Gate VOR der Schleife — sonst blockiert der erste
+                        # Insert alle weiteren Partial-Rows derselben Position
+                        _had_partials = (event_repo.has_event(str(pos_id), "PARTIAL_CLOSE")
+                                         if pos_id else True)
+                        for row in ([] if _had_partials else rows[:-1]):  # letzte Row = Full Close
+                            row_ts = str(row.get("closeTimestamp") or "")[:19].replace("T", " ")
+                            p = pnl_from_row(row)
+                            event_repo.record(
+                                symbol=symbol, event_type="PARTIAL_CLOSE",
+                                source="history_backfill", trade_id=t_id,
+                                position_id=str(pos_id),
+                                instrument_id=trade.get("instrument_id"),
+                                event_at=row_ts or None,
+                                units=p["units"], price=p["exit"],
+                                amount_usd=p["investment"],
+                                pnl_usd=p["pnl_usd"], pnl_pct=p["pnl_pct"],
+                                pnl_source="api_history",
+                                reason="aus API-History rekonstruiert",
+                                reported_final=True,
+                            )
+                    except Exception:
+                        pass
+
+                    msg = (f"Trade {t_id} ({symbol}) finalized from API: "
+                           f"PnL=${(nums['pnl_usd'] or 0):.2f}"
+                           + (f" ({nums['pnl_pct']:+.2f}%)" if nums["pnl_pct"] is not None else ""))
+                    logger.info(f"[{WORKER_NAME}] {msg}")
+                    log_repo.write("INFO", WORKER_NAME, msg, {"trade_id": t_id})
+
+                else:
+                    # Kein History-Match
+                    if pos_id and pos_id in live_position_ids:
+                        # Position lebt noch — naechster Zyklus
+                        msg = f"Trade {t_id} ({symbol}): position {pos_id} still in API — waiting another cycle"
+                        logger.info(f"[{WORKER_NAME}] {msg}")
+                        log_repo.write("INFO", WORKER_NAME, msg, {"trade_id": t_id})
+                        continue
+
+                    attempts = int(trade.get("verify_attempts") or 0) + 1
+                    age_days = None
+                    try:
+                        _closed = str(trade.get("closed_at") or "")[:19].replace(" ", "T")
+                        age_days = (
+                            datetime.now(timezone.utc)
+                            - datetime.fromisoformat(_closed).replace(tzinfo=timezone.utc)
+                        ).total_seconds() / 86400.0
+                    except Exception:
+                        pass
+
+                    if age_days is not None and age_days > VERIFY_EXPIRY_DAYS:
+                        # Aufgeben — ehrlich als UNRESOLVED ausweisen
+                        trade_repo.update_status(
+                            t_id, "CLOSED",
+                            verification_status="UNRESOLVED",
+                            verify_attempts=attempts,
+                        )
                         _discord(
                             "post_position_closed_embed",
                             symbol=symbol,
                             amount_usd=float(trade.get("amount_usd", 0) or 0),
                             position_id=str(pos_id or ""),
-                            pnl_usd=float(trade.get("pnl_usd") or 0.0),
-                            pnl_pct=float(trade.get("pnl_pct") or 0.0),
-                            reason="⚠️ Finalisiert ohne API-History — PnL unbestätigt (Schätzung)",
+                            pnl_usd=None, pnl_pct=None,
+                            reason=(f"P/L nicht ermittelbar — {attempts} Versuche, "
+                                    f"kein History-Match (Retention?)"),
                         )
-                        msg = f"Trade {t_id} ({symbol}) marked VERIFIED (position gone, no API history yet — using estimate)"
-                        logger.info(f"[{WORKER_NAME}] {msg}")
-                        log_repo.write("INFO", WORKER_NAME, msg, {"trade_id": t_id})
+                        msg = (f"Trade {t_id} ({symbol}) UNRESOLVED nach "
+                               f"{attempts} Versuchen / {age_days:.1f}d")
+                        logger.warning(f"[{WORKER_NAME}] {msg}")
+                        log_repo.write("WARNING", WORKER_NAME, msg, {"trade_id": t_id})
                     else:
-                        # Position STILL exists — wait another cycle
-                        msg = f"Trade {t_id} ({symbol}): position {pos_id} still in API — waiting another cycle"
+                        # Bleibt PENDING — Retry im naechsten Zyklus.
+                        trade_repo.update_status(
+                            t_id, "CLOSED", verify_attempts=attempts,
+                        )
+                        # Erste erfolglose Runde: neutrales Embed als zeitnahe
+                        # Meldung (grau, "P/L folgt"), sofern noch keines
+                        # existiert — wird spaeter editiert.
+                        if attempts == 1 and pos_id and not event_repo.has_event(str(pos_id), "CLOSE"):
+                            try:
+                                from bot.core.candle_chart import trade_story_png
+                                if _DE and hasattr(_DE, "attach_chart"):
+                                    _DE.attach_chart(trade_story_png(
+                                        client, trade.get("instrument_id"), symbol,
+                                        entry=trade.get("entry_price"),
+                                        exit_price=trade.get("exit_price"),
+                                        opened_at=trade.get("confirmed_at") or trade.get("created_at"),
+                                    ))
+                            except Exception:
+                                pass
+                            _post_ok = _discord(
+                                "post_position_closed_embed",
+                                symbol=symbol,
+                                amount_usd=float(trade.get("amount_usd", 0) or 0),
+                                position_id=str(pos_id),
+                                pnl_usd=None, pnl_pct=None,
+                                reason="Extern geschlossen — P/L folgt (API-History)",
+                            )
+                            record_posted_event(
+                                db, _DE, symbol=symbol, event_type="CLOSE",
+                                source="reconciler_9d", post_result=_post_ok,
+                                trade_id=t_id, position_id=str(pos_id),
+                                order_id=str(trade.get("order_id") or "") or None,
+                                instrument_id=trade.get("instrument_id"),
+                                amount_usd=float(trade.get("amount_usd", 0) or 0),
+                                pnl_usd=None, pnl_pct=None,
+                                reason="Extern geschlossen — P/L folgt",
+                                chart_posted=True, reported_final=False,
+                            )
+                        msg = (f"Trade {t_id} ({symbol}): kein History-Match "
+                               f"(Versuch {attempts}) — bleibt PENDING")
                         logger.info(f"[{WORKER_NAME}] {msg}")
                         log_repo.write("INFO", WORKER_NAME, msg, {"trade_id": t_id})
-                        continue
-                
+
             except Exception as exc:
                 msg = f"Failed to finalize trade {t_id} ({symbol}): {exc}"
                 logger.warning(f"[{WORKER_NAME}] WARNING: {msg}")
@@ -1247,6 +1389,95 @@ def main() -> int:
 
         if finalized_count > 0:
             logger.info(f"[{WORKER_NAME}] Finalized {finalized_count} pending verifications")
+
+        # ── 9e. Retro-Fill offener Close-Events (feat/pnl-nachreport) ──────────
+        # trade_events mit reported_final=0: Partial-Closes (trailing/sell_exit/
+        # LLM) und Closes mit nur abgeleitetem PnL. Sobald die History-Row da
+        # ist: exaktes netProfit nachtragen und das Original-Embed EDITIEREN
+        # (bzw. Follow-up posten, wenn keine Message-ID existiert).
+        try:
+            unresolved_events = event_repo.get_unresolved_closes(14)
+        except Exception:
+            unresolved_events = []
+        retro_filled = 0
+        if unresolved_events:
+            try:
+                _ensure_history_index([e.get("event_at") or "" for e in unresolved_events])
+            except Exception as exc:
+                logger.warning(f"[{WORKER_NAME}] WARNING: History-Fetch (9e) fehlgeschlagen: {exc}")
+            for ev in (unresolved_events if history_index else []):
+                try:
+                    ev_pos = ev.get("position_id")
+                    if not ev_pos:
+                        continue
+                    if ev["event_type"] == "PARTIAL_CLOSE":
+                        row = match_partial(history_index, ev_pos,
+                                            ev.get("event_at"), ev.get("units"))
+                    else:
+                        # Full Close: letzte History-Row — aber nur wenn die
+                        # Position wirklich weg ist (sonst waere die letzte
+                        # Row ein Partial derselben, noch offenen Position).
+                        if str(ev_pos) in live_position_ids:
+                            continue
+                        row = match_close(history_index, ev_pos)
+                    if not row:
+                        continue
+                    nums = pnl_from_row(row)
+                    if nums["pnl_usd"] is None:
+                        continue
+                    event_repo.fill_pnl(ev["id"], nums["pnl_usd"],
+                                        nums["pnl_pct"], price=nums["exit"])
+                    retro_filled += 1
+
+                    # trades-Zeile bei Full-Close mitkorrigieren (History ist
+                    # Ground Truth; risk_worker schrieb nur Schaetzwerte)
+                    if ev["event_type"] == "CLOSE" and ev.get("trade_id"):
+                        try:
+                            trade_repo.update_status(
+                                int(ev["trade_id"]), "CLOSED",
+                                entry_price=nums["entry"],
+                                exit_price=nums["exit"],
+                                pnl_usd=nums["pnl_usd"], pnl_pct=nums["pnl_pct"],
+                                verification_status="VERIFIED",
+                            )
+                        except Exception:
+                            pass
+
+                    amount = (nums["investment"]
+                              or float(ev.get("amount_usd") or 0))
+                    _reason = ((ev.get("reason") or "").strip()
+                               + " · P/L bestätigt (API)").strip(" ·")
+                    if (ev.get("discord_message_id") and _DE
+                            and hasattr(_DE, "_edit_embed")):
+                        embed = _DE._build_position_closed_embed(
+                            symbol=ev["symbol"], amount_usd=amount,
+                            position_id=str(ev_pos),
+                            entry_price=nums["entry"] or 0.0,
+                            close_price=nums["exit"] or 0.0,
+                            pnl_usd=nums["pnl_usd"], pnl_pct=nums["pnl_pct"],
+                            reason=_reason,
+                            close_pct=float(ev.get("close_pct") or 100.0),
+                            keep_chart_image=bool(ev.get("chart_posted")),
+                        )
+                        _DE._edit_embed(ev["discord_channel_id"],
+                                        ev["discord_message_id"], embed)
+                    else:
+                        _discord(
+                            "post_position_closed_embed",
+                            symbol=ev["symbol"], amount_usd=amount,
+                            position_id=str(ev_pos),
+                            entry_price=nums["entry"] or 0.0,
+                            close_price=nums["exit"] or 0.0,
+                            pnl_usd=nums["pnl_usd"], pnl_pct=nums["pnl_pct"],
+                            reason=f"📋 P/L nachgereicht: {_reason}",
+                            close_pct=float(ev.get("close_pct") or 100.0),
+                        )
+                except Exception as exc:
+                    logger.debug(f"[{WORKER_NAME}] 9e Retro-Fill Event {ev.get('id')}: {exc}")
+        if retro_filled > 0:
+            msg = f"9e: {retro_filled} Close-Event(s) mit API-PnL bestätigt (Embeds aktualisiert)"
+            logger.info(f"[{WORKER_NAME}] {msg}")
+            log_repo.write("INFO", WORKER_NAME, msg)
 
         # ── 10. Update system_state ────────────────────────────────────────────────
         now_str       = _utcnow()

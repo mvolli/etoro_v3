@@ -109,6 +109,36 @@ TABLES: list[tuple[str, str]] = [
         """,
     ),
     (
+        "trade_events",
+        """
+        CREATE TABLE IF NOT EXISTS trade_events (
+            id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+            trade_id           INTEGER,
+            position_id        TEXT,
+            order_id           TEXT,
+            instrument_id      INTEGER,
+            symbol             TEXT NOT NULL,
+            event_type         TEXT NOT NULL,
+            source             TEXT NOT NULL,
+            event_at           TEXT NOT NULL,
+            close_pct          REAL,
+            units              REAL,
+            price              REAL,
+            amount_usd         REAL,
+            pnl_usd            REAL,
+            pnl_pct            REAL,
+            pnl_source         TEXT,
+            reason             TEXT,
+            discord_channel_id TEXT,
+            discord_message_id TEXT,
+            chart_posted       INTEGER NOT NULL DEFAULT 0,
+            reported_final     INTEGER NOT NULL DEFAULT 0,
+            pnl_filled_at      TEXT,
+            created_at         TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+        """,
+    ),
+    (
         "system_log",
         """
         CREATE TABLE IF NOT EXISTS system_log (
@@ -131,6 +161,8 @@ INDEXES: list[str] = [
     "CREATE INDEX IF NOT EXISTS idx_portfolio_instrument ON portfolio_snapshot(instrument_id)",
     "CREATE INDEX IF NOT EXISTS idx_syslog_ts          ON system_log(ts)",
     "CREATE INDEX IF NOT EXISTS idx_syslog_level       ON system_log(level, ts)",
+    "CREATE INDEX IF NOT EXISTS idx_tev_pos            ON trade_events(position_id)",
+    "CREATE INDEX IF NOT EXISTS idx_tev_at             ON trade_events(event_at)",
 ]
 
 INITIAL_STATE: list[tuple[str, str]] = [

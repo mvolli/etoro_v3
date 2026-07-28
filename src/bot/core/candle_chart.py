@@ -14,6 +14,100 @@ _DOWN = "#E74C3C"
 _BG = "#2B2D31"      # Discord-Embed-Hintergrund
 _FG = "#DBDEE1"
 
+# feat/trade-event-marker (2026-07-28): Ein-/Ausstiegs-PUNKTE auf der
+# Zeitachse statt nur horizontaler Level-Linien. Marker-Map portiert aus
+# research/etoro-repos/trading/src/utils/trade_chart.py (dort Telegram).
+# (marker, farbe, groesse) — EXIT-Rot bewusst != Bearish-Candle-Rot.
+_MARKERS = {
+    "ENTRY":         ("v", "#29B6F6", 90),
+    "PARTIAL_CLOSE": ("D", "#FFAB00", 55),
+    "EXIT":          ("^", "#FF1744", 90),
+}
+
+
+def _parse_ts(value) -> "object | None":
+    """Tolerant: ISO-String ('...T...Z' oder 'YYYY-MM-DD HH:MM:SS') -> aware dt."""
+    try:
+        from datetime import datetime, timezone
+        s = str(value).strip().replace("Z", "+00:00")
+        if " " in s and "T" not in s:
+            s = s.replace(" ", "T")
+        dt = datetime.fromisoformat(s)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except Exception:
+        return None
+
+
+def _stagger_y(items: list[dict], price_range: float,
+               min_gap_pct: float = 0.07) -> None:
+    """Label-y-Positionen entzerren (in-place, Feld 'y_text')."""
+    if not items:
+        return
+    min_gap = price_range * min_gap_pct
+    for item in sorted(items, key=lambda x: x["price"]):
+        y = item["price"]
+        for other in items:
+            y_prev = other.get("y_text")
+            if y_prev is not None and other is not item and abs(y - y_prev) < min_gap:
+                y = y_prev + min_gap
+        item["y_text"] = y
+
+
+def _event_index(ev_ts, candle_times: list, n: int) -> int:
+    """Event-Zeitstempel -> naechster Candle-Index (geclampt auf [0, n-1])."""
+    if ev_ts is None:
+        return n - 1
+    best_i, best_d = 0, None
+    for i, ct in enumerate(candle_times):
+        if ct is None:
+            continue
+        d = abs((ev_ts - ct).total_seconds())
+        if best_d is None or d < best_d:
+            best_i, best_d = i, d
+    return max(0, min(best_i, n - 1))
+
+
+def _draw_events(ax, events: list[dict], candle_times: list, n: int,
+                 price_lo: float, price_hi: float,
+                 with_labels: bool = True) -> None:
+    """Trade-Events als Marker (+ optionale Labels rechts) einzeichnen."""
+    price_range = (price_hi - price_lo) or (price_hi * 0.05) or 0.01
+    items = []
+    for ev in events or []:
+        ev_type = str(ev.get("type", ""))
+        if ev_type not in _MARKERS:
+            continue
+        try:
+            price = float(ev.get("price"))
+        except (TypeError, ValueError):
+            continue
+        marker, color, msize = _MARKERS[ev_type]
+        idx = _event_index(_parse_ts(ev.get("ts")), candle_times, n)
+        ax.scatter(idx, price, marker=marker, color=color, s=msize, zorder=5)
+        items.append({
+            "idx": idx, "price": price, "color": color,
+            "label": str(ev.get("label") or ev_type.title()),
+        })
+    if not with_labels or not items:
+        return
+    _stagger_y(items, price_range)
+    x_text = n + max(2, n * 0.03)
+    for item in items:
+        ax.annotate(
+            item["label"],
+            xy=(item["idx"], item["price"]),
+            xytext=(x_text, item["y_text"]),
+            xycoords="data", textcoords="data",
+            color=item["color"], fontsize=7, va="center", ha="left", zorder=6,
+            bbox=dict(boxstyle="round,pad=0.25", facecolor=_BG,
+                      alpha=0.85, edgecolor=item["color"], lw=0.5),
+            arrowprops=dict(arrowstyle="-", color=item["color"], lw=0.7),
+        )
+    # Platz fuer die Label-Spalte rechts
+    ax.set_xlim(left=-1, right=n + max(12, n * 0.30))
+
 
 def render_candles_png(
     candles: list[dict],
@@ -22,8 +116,15 @@ def render_candles_png(
     sl: float | None = None,
     tp: float | None = None,
     exit_level: float | None = None,
+    events: list[dict] | None = None,
 ) -> bytes | None:
-    """eToro-Candles (fromDate/open/high/low/close) -> PNG-Bytes."""
+    """eToro-Candles (fromDate/open/high/low/close) -> PNG-Bytes.
+
+    events: optionale Trade-Events als Zeitachsen-Marker, je
+    {"ts": iso-str, "type": "ENTRY"|"PARTIAL_CLOSE"|"EXIT",
+     "price": float, "label": str} — ts wird auf den naechsten Candle
+    gemappt (geclampt, wenn ausserhalb des Fensters).
+    """
     try:
         if not candles or len(candles) < 5:
             return None
@@ -63,6 +164,11 @@ def render_candles_png(
                             xytext=(2, 3), textcoords="offset points",
                             color=color, fontsize=8)
 
+        if events:
+            candle_times = [_parse_ts(c.get("fromDate")) for c in candles]
+            _draw_events(ax, events, candle_times, n,
+                         min(x for x in l if x) if any(l) else 0.0, max(h))
+
         # Sparse Zeit-Labels aus fromDate (UTC, MM-DD HH:MM)
         ticks = list(range(0, n, max(1, n // 6)))
         labels = []
@@ -97,6 +203,59 @@ def pick_story_interval(days_held: float | None) -> tuple[str, int, str]:
     return "OneDay", 90, "1D"
 
 
+_INTERVAL_HOURS = {"OneHour": 1.0, "FourHours": 4.0, "OneDay": 24.0}
+
+
+def trade_story_png_v2(
+    client,
+    instrument_id,
+    symbol: str,
+    events: list[dict],
+    opened_at=None,
+    closed_at=None,
+    sl: float | None = None,
+    tp: float | None = None,
+) -> bytes | None:
+    """Trade-Story-Chart mit Event-MARKERN (feat/trade-event-marker).
+
+    events: [{"ts", "type": ENTRY|PARTIAL_CLOSE|EXIT, "price", "label"}].
+    Intervall nach Haltedauer (pick_story_interval); reicht das Fenster
+    nicht bis zum Entry zurueck, wird der Bar-Count aufgestockt (max 1000,
+    eToro-API-Limit). Best effort, wirft nie.
+    """
+    try:
+        if client is None or instrument_id is None:
+            return None
+        from datetime import datetime, timezone
+
+        def _dt(v):
+            return _parse_ts(v)
+
+        opened_dt = _dt(opened_at) if opened_at else None
+        closed_dt = _dt(closed_at) if closed_at else None
+        now = datetime.now(timezone.utc)
+        end = closed_dt or now
+        days = ((end - opened_dt).total_seconds() / 86400.0) if opened_dt else None
+
+        interval, count, label = pick_story_interval(days)
+        # Fenster muss den Entry abdecken: Abstand von JETZT (Candles enden
+        # heute), nicht nur die Haltedauer — plus etwas Vorlauf.
+        if opened_dt:
+            hours_back = (now - opened_dt).total_seconds() / 3600.0
+            need = int(hours_back / _INTERVAL_HOURS[interval] * 1.15) + 8
+            count = max(count, min(need, 1000))
+        candles = client.get_candles(int(instrument_id), interval, count)
+        return render_candles_png(
+            candles,
+            f"{symbol} — {label} Trade-Story",
+            sl=sl, tp=tp,
+            events=events,
+        )
+    except Exception as exc:
+        logger.debug("trade_story_png_v2 fehlgeschlagen: %s", exc)
+        return None
+
+
 def trade_story_png(
     client,
     instrument_id,
@@ -107,31 +266,92 @@ def trade_story_png(
 ) -> bytes | None:
     """Trade-Story-Chart fuer Close-Embeds (feat/trade-story-charts).
 
-    Intervall richtet sich nach der Haltedauer (openDateTime, Broker-
-    Wahrheit); Entry/Exit als Level-Linien. Best effort, wirft nie.
+    Duenner Wrapper um trade_story_png_v2: baut aus Entry/Exit eine
+    2-Event-Liste (Entry am opened_at, Exit jetzt). Best effort, wirft nie.
     """
     try:
-        if client is None or instrument_id is None:
-            return None
-        days = None
-        if opened_at:
-            from datetime import datetime, timezone
-
-            s = str(opened_at).replace("Z", "+00:00")
-            dt = datetime.fromisoformat(s)
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            days = (datetime.now(timezone.utc) - dt).total_seconds() / 86400.0
-        interval, count, label = pick_story_interval(days)
-        candles = client.get_candles(int(instrument_id), interval, count)
-        return render_candles_png(
-            candles,
-            f"{symbol} — {label} Trade-Story",
-            entry=float(entry) if entry else None,
-            exit_level=float(exit_price) if exit_price else None,
-        )
+        events: list[dict] = []
+        if entry:
+            events.append({"ts": str(opened_at) if opened_at else None,
+                           "type": "ENTRY", "price": float(entry),
+                           "label": f"Entry {float(entry):g}"})
+        if exit_price:
+            events.append({"ts": None, "type": "EXIT",
+                           "price": float(exit_price),
+                           "label": f"Exit {float(exit_price):g}"})
+        return trade_story_png_v2(client, instrument_id, symbol,
+                                  events, opened_at=opened_at)
     except Exception as exc:
         logger.debug("trade_story_png fehlgeschlagen: %s", exc)
+        return None
+
+
+def daily_grid_png(stories: list[dict], bars: int = 60) -> bytes | None:
+    """Grid der Tages-Trade-Stories fuer den Daily Report (max 4 Panels).
+
+    stories: [{"title": str, "up": bool, "candles": [eToro-Candles],
+               "events": [Event-Dicts]}]. Marker ohne Label-Spalte
+    (Panels sind klein); Titel-Farbe nach PnL-Vorzeichen.
+    """
+    try:
+        stories = [
+            s for s in (stories or [])
+            if s.get("candles") and len(s["candles"]) >= 5
+        ][:4]
+        if not stories:
+            return None
+        import io as _io
+
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        n_panels = len(stories)
+        cols = 2 if n_panels > 1 else 1
+        rows = (n_panels + cols - 1) // cols
+        fig, axes = plt.subplots(rows, cols,
+                                 figsize=(5.4 * cols, 3.2 * rows), dpi=110)
+        try:
+            axes_flat = list(axes.flat)
+        except AttributeError:
+            axes_flat = [axes]
+        fig.patch.set_facecolor(_BG)
+
+        for ax, story in zip(axes_flat, stories):
+            candles = story["candles"][-bars:]
+            o = [float(c.get("open") or 0) for c in candles]
+            h = [float(c.get("high") or 0) for c in candles]
+            l = [float(c.get("low") or 0) for c in candles]
+            cl = [float(c.get("close") or 0) for c in candles]
+            n = len(candles)
+            ax.set_facecolor(_BG)
+            for i in range(n):
+                color = _UP if cl[i] >= o[i] else _DOWN
+                ax.vlines(i, l[i], h[i], color=color, linewidth=0.7)
+                ax.bar(i, abs(cl[i] - o[i]) or (h[i] - l[i]) * 0.001,
+                       bottom=min(o[i], cl[i]), width=0.65, color=color,
+                       edgecolor=color, linewidth=0.4)
+            candle_times = [_parse_ts(c.get("fromDate")) for c in candles]
+            _draw_events(ax, story.get("events"), candle_times, n,
+                         min(x for x in l if x) if any(l) else 0.0,
+                         max(h) if h else 0.0, with_labels=False)
+            ax.set_title(str(story.get("title", "")),
+                         color=(_UP if story.get("up", True) else _DOWN),
+                         fontsize=9, fontweight="bold")
+            ax.tick_params(colors=_FG, labelsize=6)
+            ax.yaxis.tick_right()
+            ax.set_xticks([])
+            for sp in ax.spines.values():
+                sp.set_color("#4A4D53")
+        for ax in axes_flat[n_panels:]:
+            ax.set_visible(False)
+        fig.tight_layout()
+        buf = _io.BytesIO()
+        fig.savefig(buf, format="png", facecolor=_BG, bbox_inches="tight")
+        plt.close(fig)
+        return buf.getvalue()
+    except Exception:
+        logger.debug("daily_grid_png failed", exc_info=True)
         return None
 
 

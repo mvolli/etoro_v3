@@ -57,3 +57,9 @@
 
 # LLM Review Worker — taeglich 20:00 UTC (nach EU-Close)
 0 20 * * *     cd /home/mvolli/.hermes/workspace/etoro_v3 && bash /home/mvolli/.hermes/scripts/v3_llm_review_worker.sh >> logs/llm_review.log 2>&1
+
+# Daily Report Worker — taeglich 23:15 lokal (nach US-Close 22:00; der
+# Reconciler hatte ~1h zum Finalisieren der Tages-P/Ls). Postet den
+# Tagesreport (Opens/Partials/Closes + Chart-Grid) → #reports.
+# Hermes-Job 0ca988478b2d (feat/daily-report 2026-07-28).
+15 23 * * *    bash /home/mvolli/.hermes/scripts/v3_daily_report.sh >> logs/daily_report.log 2>&1

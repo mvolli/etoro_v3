@@ -788,29 +788,113 @@ def _get_discord_embeds() -> Any:
 
 
 def _post_closed_embed(symbol: str, position_id: str, reason: str,
-                       pnl_pct: float = 0.0, amount_usd: float = 0.0,
-                       close_pct: float = 100.0) -> None:
+                       pnl_pct: float | None = None, amount_usd: float = 0.0,
+                       close_pct: float = 100.0, *,
+                       client: Any = None, db: Any = None,
+                       instrument_id: int | None = None,
+                       units: float | None = None,
+                       source: str = 'trailing_partial') -> None:
     """Best-effort Discord embed for a (partial) close. Never raises.
 
     fix/embed-real-amounts (KTA.DE 2026-07-06): amount_usd war hartkodiert 0 —
-    jedes Close-Embed zeigte '$0.00 Betrag / $+0.00 Gewinn' und erweckte den
-    Eindruck, die Position existiere nicht. Jetzt: tatsächlich geschlossener
-    Anteil (amount × close_pct) + daraus abgeleiteter realisierter Gewinn.
+    jedes Close-Embed zeigte '$0.00 Betrag' und erweckte den Eindruck, die
+    Position existiere nicht. Jetzt: tatsächlich geschlossener Anteil.
+
+    feat/pnl-nachreport (2026-07-28): der abgeleitete Dollar-PnL
+    (amount × close_pct × pnl_pct) war nach frueheren Partials bis 4x falsch
+    (trades.amount_usd wird nie dekrementiert, gemessen COA.L 485.83 vs.
+    116.60 live). Das Embed postet daher pnl_usd=None ("P/L folgt") + die
+    verlaessliche Live-Prozentzahl; Reconciler Step 9e traegt das echte
+    netProfit aus der API-History nach und EDITIERT dieses Embed (deshalb
+    wird die Message-ID in trade_events gespeichert).
+
+    feat/trade-event-marker: mit client+instrument_id bekommt das Embed
+    einen Trade-Story-Chart mit Entry/Exit-Markern.
     """
     try:
         closed_amount = float(amount_usd) * float(close_pct) / 100.0
-        pnl_usd = closed_amount * float(pnl_pct) / 100.0
         de = _get_discord_embeds()
-        if de is not None and hasattr(de, 'post_position_closed_embed'):
-            de.post_position_closed_embed(
-                symbol=symbol,
-                amount_usd=closed_amount,
-                position_id=position_id,
-                pnl_usd=pnl_usd,
-                pnl_pct=pnl_pct,
-                reason=reason,
-                close_pct=close_pct,
-            )
+        if de is None or not hasattr(de, 'post_position_closed_embed'):
+            return
+
+        # Entry-Kontext aus der trades-Tabelle (fuer Chart + Event-Record)
+        trade_id = None
+        entry_price = None
+        opened_at = None
+        if db is not None:
+            try:
+                row = db.fetchone(
+                    "SELECT id, entry_price, confirmed_at, created_at "
+                    "FROM trades WHERE api_position_id = ? "
+                    "ORDER BY id DESC LIMIT 1",
+                    (str(position_id),),
+                )
+                if row:
+                    trade_id = row["id"]
+                    entry_price = row["entry_price"]
+                    opened_at = row["confirmed_at"] or row["created_at"]
+            except Exception:
+                pass
+
+        # Chart mit Ein-/Ausstiegs-Markern (best effort)
+        chart_ok = False
+        if client is not None and instrument_id and hasattr(de, 'attach_chart'):
+            try:
+                from bot.core.candle_chart import trade_story_png_v2
+                events = []
+                if entry_price:
+                    events.append({"ts": opened_at, "type": "ENTRY",
+                                   "price": float(entry_price),
+                                   "label": f"Entry {float(entry_price):g}"})
+                # Exit-Preis-Schaetzung fuer den Marker: Entry × (1 + pnl%) —
+                # der exakte closeRate kommt spaeter per History-Nachtrag.
+                exit_est = None
+                if entry_price and pnl_pct is not None:
+                    exit_est = float(entry_price) * (1.0 + float(pnl_pct) / 100.0)
+                if exit_est:
+                    ev_type = ("PARTIAL_CLOSE"
+                               if (close_pct and close_pct < 99.5) else "EXIT")
+                    label = (f"-{close_pct:.0f}% @{exit_est:g}"
+                             if ev_type == "PARTIAL_CLOSE"
+                             else f"Exit {exit_est:g} ({pnl_pct:+.1f}%)")
+                    events.append({"ts": None, "type": ev_type,
+                                   "price": exit_est, "label": label})
+                png = trade_story_png_v2(client, instrument_id, symbol,
+                                         events, opened_at=opened_at)
+                if png:
+                    de.attach_chart(png)
+                    chart_ok = True
+            except Exception:
+                pass
+
+        post_ok = de.post_position_closed_embed(
+            symbol=symbol,
+            amount_usd=closed_amount,
+            position_id=position_id,
+            pnl_usd=None,          # Dollar-Ableitung unzuverlaessig → Nachreport
+            pnl_pct=pnl_pct,
+            reason=reason,
+            close_pct=close_pct,
+        )
+
+        if db is not None:
+            try:
+                from bot.core.event_log import record_posted_event
+                record_posted_event(
+                    db, de, symbol=symbol,
+                    event_type=("PARTIAL_CLOSE"
+                                if (close_pct and close_pct < 99.5) else "CLOSE"),
+                    source=source, post_result=post_ok,
+                    trade_id=trade_id, position_id=str(position_id),
+                    instrument_id=instrument_id,
+                    close_pct=float(close_pct) if close_pct else None,
+                    units=units, amount_usd=closed_amount,
+                    pnl_usd=None, pnl_pct=pnl_pct, pnl_source='derived',
+                    reason=reason, chart_posted=chart_ok,
+                    reported_final=False,
+                )
+            except Exception:
+                pass
     except Exception:
         pass
 
@@ -1050,6 +1134,11 @@ def execute_trailing_actions(
                             _embed_reason,
                             pnl_pct=action.pnl_pct,
                             amount_usd=action.amount_usd,   # Full Close
+                            client=client, db=db,
+                            instrument_id=action.instrument_id,
+                            source=('trailing_stale'
+                                    if action.action == 'STALE_EXIT'
+                                    else 'trailing_be'),
                         )
                     else:
                         logger.warning('[trailing] %s unverified: %s', action.action, detail)
@@ -1151,6 +1240,11 @@ def execute_trailing_actions(
                         pnl_pct=action.pnl_pct,
                         amount_usd=action.amount_usd,
                         close_pct=action.close_pct,
+                        client=client, db=db,
+                        instrument_id=action.instrument_id,
+                        units=units_to_deduct,
+                        source=('momentum_fade' if is_fade
+                                else 'trailing_partial'),
                     )
                 else:
                     stats['errors'].append(

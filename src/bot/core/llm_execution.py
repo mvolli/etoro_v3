@@ -33,13 +33,28 @@ RECS_PATH = PROJECT_ROOT / "data" / "llm_position_recommendations.json"
 OUTCOMES_PATH = PROJECT_ROOT / "data" / "llm_position_review_outcomes.json"
 
 
-def _discord(fn_name: str, **kwargs) -> None:
+def _get_de():
+    """discord_embeds-Modul laden (bot.-Namespace). None wenn nicht ladbar.
+
+    feat/pnl-nachreport: attach_chart/post/get_last_post muessen an
+    DERSELBEN Modulinstanz laufen (One-Shot-Slots) — daher ein Loader
+    statt verstreuter from-Imports.
+    """
     try:
-        from bot.discord_embeds import post_alert_embed
-        if fn_name == "post_alert_embed":
-            post_alert_embed(**kwargs)
+        from bot import discord_embeds as _de
+        return _de
+    except Exception:
+        return None
+
+
+def _discord(fn_name: str, **kwargs):
+    try:
+        de = _get_de()
+        if de is not None and hasattr(de, fn_name):
+            return getattr(de, fn_name)(**kwargs)
     except Exception:
         pass
+    return None
 
 
 def _append_outcome_entry(
@@ -216,7 +231,7 @@ def execute_llm_recommendations(
                         _discord("post_alert_embed",
                                  title="LLM TIGHTEN (indirekt): %s" % symbol,
                                  description="**Grund:** %s\nmomentum_faded gesetzt." % reason,
-                                 severity="INFO")
+                                 severity="INFO", channel="trades")
                     except Exception as exc:
                         stats["errors"].append("TIGHTEN %s: %s" % (symbol, exc))
                 else:
@@ -230,6 +245,20 @@ def execute_llm_recommendations(
 
             if not dry_run:
                 try:
+                    # feat/pnl-nachreport: Snapshot VOR dem Close — liefert
+                    # pnl_pct/Preise fuer Embed + Chart (Portfolio wurde vom
+                    # Reconciler unmittelbar zuvor synchronisiert).
+                    _snap = None
+                    try:
+                        _snap = db.fetchone(
+                            "SELECT amount_usd, open_price, current_price, "
+                            "unrealized_pnl_pct FROM portfolio_snapshot "
+                            "WHERE api_position_id = ?",
+                            (str(position_id),),
+                        )
+                    except Exception:
+                        pass
+
                     # Fuer Teilverkauf: ECHTE units aus dem Live-Portfolio.
                     # fix/tighten-full-close (2026-07-14, HLAG.DE Trade #385):
                     # der alte Pfad hatte einen Operator-Praezedenz-Bug
@@ -278,12 +307,90 @@ def execute_llm_recommendations(
                                    {"symbol": symbol, "position_id": position_id,
                                     "close_pct": rec_close_pct, "reason": reason,
                                     "age_min": round(age_min, 1)})
-                    _icon = "KI EXIT" if recommendation == "EXIT" else "KI TIGHTEN"
-                    desc = "**Grund:** %s\n**%.0f%% der Position** geschlossen." % (reason, rec_close_pct)
-                    _discord("post_alert_embed",
-                             title="%s: %s" % (_icon, symbol),
-                             description=desc,
-                             severity="WARNING" if recommendation == "EXIT" else "INFO")
+                    # feat/pnl-nachreport (2026-07-28): vorher ging ein blosses
+                    # post_alert_embed nach #etoro-trading (falscher Channel,
+                    # kein PnL, kein Chart). Jetzt: richtiges Close-Embed mit
+                    # Trade-Story-Chart nach #trades + trade_events-Record;
+                    # der Reconciler traegt das echte netProfit spaeter nach
+                    # und editiert dieses Embed.
+                    try:
+                        _entry = float(_snap["open_price"]) if _snap and _snap["open_price"] else None
+                        _cur = float(_snap["current_price"]) if _snap and _snap["current_price"] else None
+                        _live_pct = (float(_snap["unrealized_pnl_pct"])
+                                     if _snap and _snap["unrealized_pnl_pct"] is not None else None)
+                        _amt = float(_snap["amount_usd"]) if _snap and _snap["amount_usd"] else 0.0
+                        _closed_slice = _amt * rec_close_pct / 100.0
+
+                        _trow = None
+                        try:
+                            _trow = db.fetchone(
+                                "SELECT id, confirmed_at, created_at FROM trades "
+                                "WHERE api_position_id = ? ORDER BY id DESC LIMIT 1",
+                                (str(position_id),),
+                            )
+                        except Exception:
+                            pass
+                        _opened_at = (_trow["confirmed_at"] or _trow["created_at"]) if _trow else None
+
+                        de = _get_de()
+                        _chart_ok = False
+                        if de is not None and hasattr(de, "attach_chart"):
+                            try:
+                                from bot.core.candle_chart import trade_story_png_v2
+                                _events = []
+                                if _entry:
+                                    _events.append({"ts": _opened_at, "type": "ENTRY",
+                                                    "price": _entry,
+                                                    "label": "Entry %g" % _entry})
+                                if _cur:
+                                    _ev_type = ("PARTIAL_CLOSE" if rec_close_pct < 99.5
+                                                else "EXIT")
+                                    _lbl = ("-%.0f%% @%g" % (rec_close_pct, _cur)
+                                            if _ev_type == "PARTIAL_CLOSE"
+                                            else "Exit %g" % _cur)
+                                    _events.append({"ts": None, "type": _ev_type,
+                                                    "price": _cur, "label": _lbl})
+                                _png = trade_story_png_v2(client, int(instr_id), symbol,
+                                                          _events, opened_at=_opened_at)
+                                if _png:
+                                    de.attach_chart(_png)
+                                    _chart_ok = True
+                            except Exception:
+                                pass
+
+                        _reason_txt = "KI %s: %s" % (recommendation, reason)
+                        _post_ok = _discord(
+                            "post_position_closed_embed",
+                            symbol=symbol,
+                            amount_usd=_closed_slice,
+                            position_id=str(position_id),
+                            entry_price=_entry or 0.0,
+                            close_price=_cur or 0.0,
+                            pnl_usd=None,           # echtes netProfit folgt per Nachreport
+                            pnl_pct=_live_pct,
+                            reason=_reason_txt,
+                            close_pct=rec_close_pct,
+                        )
+                        from bot.core.event_log import record_posted_event
+                        record_posted_event(
+                            db, de, symbol=symbol,
+                            event_type=("PARTIAL_CLOSE" if rec_close_pct < 99.5
+                                        else "CLOSE"),
+                            source=("llm_exit" if recommendation == "EXIT"
+                                    else "llm_tighten"),
+                            post_result=_post_ok,
+                            trade_id=(_trow["id"] if _trow else None),
+                            position_id=str(position_id),
+                            instrument_id=int(instr_id),
+                            close_pct=rec_close_pct,
+                            units=units_to_deduct,
+                            price=_cur, amount_usd=_closed_slice,
+                            pnl_usd=None, pnl_pct=_live_pct,
+                            pnl_source="derived", reason=_reason_txt,
+                            chart_posted=_chart_ok, reported_final=False,
+                        )
+                    except Exception as _emb_exc:
+                        logger.debug("[llm_execution] Close-Embed fehlgeschlagen: %s", _emb_exc)
                     logger.info("[llm_execution] %s %.0f%% %s abgeschlossen", recommendation, rec_close_pct, symbol)
 
                 except Exception as exc:

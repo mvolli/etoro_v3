@@ -59,8 +59,9 @@ def insert_system_log(level: str, category: str, message: str, details: str = ""
         pass
 
 # ─── Channels ────────────────────────────────────────────────────────────────
-DISCORD_MAIN_CHANNEL  = "1513971015108263957"   # #etoro-trading
-DISCORD_TRADE_CHANNEL = "1514786489110630600"   # #etoro-trades
+DISCORD_MAIN_CHANNEL    = "1513971015108263957"   # #etoro-trading
+DISCORD_TRADE_CHANNEL   = "1514786489110630600"   # #trades
+DISCORD_REPORTS_CHANNEL = "1513401408643141642"   # #reports (Tagesreport)
 
 # ─── Embed-Farben ─────────────────────────────────────────────────────────────
 COLOR_GREEN   = 0x2ECC71
@@ -118,19 +119,64 @@ def attach_chart(png_bytes: bytes | None) -> None:
     _PENDING_CHART["png"] = png_bytes
 
 
-def _post_embed(embed: dict, channel_id: str, dry_run: bool = False) -> bool:
-    """Sende ein Discord Embed. Gibt True bei Erfolg zurück."""
+# feat/pnl-nachreport: Koordinaten des zuletzt erfolgreich geposteten Embeds.
+# ACHTUNG Dual-Instanz: trailing_stop.py laedt dieses Modul per importlib als
+# EIGENE Instanz — attach_chart()/post_*()/get_last_post() muessen immer am
+# selben Modul-Objekt aufgerufen werden, sonst liest man den Slot der falschen
+# Instanz.
+_LAST_POST: dict = {"message_id": None, "channel_id": None}
+
+
+def get_last_post() -> dict:
+    """{'message_id', 'channel_id'} des letzten erfolgreichen _post_embed()."""
+    return dict(_LAST_POST)
+
+
+def _request_discord(method: str, path: str, payload: bytes,
+                     content_type: str) -> tuple[int, str]:
+    """Ein Discord-API-Request mit einmaligem 429-Retry. Returns (status, body)."""
+    token = _read_token()
+    if not token:
+        return 0, "kein DISCORD_BOT_TOKEN"
+    for attempt in (1, 2):
+        conn = http.client.HTTPSConnection("discord.com", timeout=15)
+        conn.request(method, path, body=payload, headers={
+            "Authorization":  f"Bot {token}",
+            "Content-Type":   content_type,
+            "Content-Length": str(len(payload)),
+        })
+        resp = conn.getresponse()
+        body = resp.read().decode("utf-8", errors="replace")
+        conn.close()
+        if resp.status == 429 and attempt == 1:
+            try:
+                wait = float(json.loads(body).get("retry_after", 1.0))
+            except Exception:
+                wait = 1.0
+            import time as _time
+            _time.sleep(min(wait, 5.0))
+            continue
+        return resp.status, body
+    return 0, "unreachable"  # pragma: no cover
+
+
+def _post_embed(embed: dict, channel_id: str, dry_run: bool = False) -> "str | bool":
+    """Sende ein Discord Embed.
+
+    Rueckgabe truthy bei Erfolg — konkret die Message-ID (String) fuer
+    spaetere Edits via _edit_embed(); alte `if ok:`-Call-Sites bleiben
+    unveraendert gueltig. False bei Fehler, True im Dry-Run.
+    """
     embed = _clip_embed_limits(embed)
     png = _PENDING_CHART.get("png")
     _PENDING_CHART["png"] = None  # immer konsumieren — nie ans falsche Embed
+    # Slot VOR dem Versuch leeren — sonst erbt ein fehlgeschlagener Post die
+    # Message-ID des vorherigen und das Event-Log verlinkt das falsche Embed.
+    _LAST_POST["message_id"] = None
+    _LAST_POST["channel_id"] = None
     if dry_run:
         logger.info(f"[discord_embeds DRY-RUN] '{embed.get('title', '?')}' → channel {channel_id}")
         return True
-
-    token = _read_token()
-    if not token:
-        logger.error("discord_embeds: kein DISCORD_BOT_TOKEN")
-        return False
 
     try:
         if png:
@@ -155,29 +201,59 @@ def _post_embed(embed: dict, channel_id: str, dry_run: bool = False) -> bool:
         else:
             payload = json.dumps({"embeds": [embed]}).encode("utf-8")
             content_type = "application/json"
-        conn = http.client.HTTPSConnection("discord.com", timeout=15)
-        conn.request(
-            "POST",
-            f"/api/v10/channels/{channel_id}/messages",
-            body=payload,
-            headers={
-                "Authorization":  f"Bot {token}",
-                "Content-Type":   content_type,
-                "Content-Length": str(len(payload)),
-            },
-        )
-        resp = conn.getresponse()
-        body = resp.read().decode("utf-8", errors="replace")
-        conn.close()
 
-        if resp.status in (200, 201):
+        status, body = _request_discord(
+            "POST", f"/api/v10/channels/{channel_id}/messages",
+            payload, content_type,
+        )
+
+        if status in (200, 201):
             logger.info(f"[discord_embeds] Embed gepostet: '{embed.get('title','?')}' → {channel_id}")
-            return True
+            msg_id = None
+            try:
+                msg_id = json.loads(body).get("id")
+            except Exception:
+                pass
+            _LAST_POST["message_id"] = msg_id
+            _LAST_POST["channel_id"] = channel_id
+            return msg_id or True
         else:
-            logger.error(f"[discord_embeds] Discord API {resp.status}: {body[:200]}")
+            logger.error(f"[discord_embeds] Discord API {status}: {body[:200]}")
             return False
     except Exception as exc:
         logger.error(f"[discord_embeds] Post-Fehler: {exc}")
+        return False
+
+
+def _edit_embed(channel_id: str, message_id: str, embed: dict,
+                dry_run: bool = False) -> bool:
+    """Editiere ein bereits gepostetes Embed (PATCH).
+
+    feat/pnl-nachreport: wird vom Reconciler genutzt, um Close-Embeds mit dem
+    finalen PnL aus der eToro-History zu aktualisieren. Bewusst KEIN
+    'attachments'-Key im Payload — Discord behaelt dann den vorhandenen
+    Chart-Anhang; das Embed muss dafuer seine image-Referenz
+    (attachment://chart.png) weitertragen.
+    """
+    if not channel_id or not message_id:
+        return False
+    embed = _clip_embed_limits(embed)
+    if dry_run:
+        logger.info(f"[discord_embeds DRY-RUN] EDIT '{embed.get('title', '?')}' → {channel_id}/{message_id}")
+        return True
+    try:
+        payload = json.dumps({"embeds": [embed]}).encode("utf-8")
+        status, body = _request_discord(
+            "PATCH", f"/api/v10/channels/{channel_id}/messages/{message_id}",
+            payload, "application/json",
+        )
+        if status == 200:
+            logger.info(f"[discord_embeds] Embed editiert: '{embed.get('title','?')}' → {channel_id}/{message_id}")
+            return True
+        logger.error(f"[discord_embeds] Edit-Fehler {status}: {body[:200]}")
+        return False
+    except Exception as exc:
+        logger.error(f"[discord_embeds] Edit-Fehler: {exc}")
         return False
 
 
@@ -1960,39 +2036,50 @@ def post_watchdog_alert_embed(
 # P14 — POSITION CLOSED (SL-Trigger, Konzentrations-Bereinigung, manuell)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def post_position_closed_embed(
+def _build_position_closed_embed(
     symbol: str,
     amount_usd: float,
     position_id: str = "",
     entry_price: float = 0.0,
     close_price: float = 0.0,
-    pnl_usd: float = 0.0,
-    pnl_pct: float = 0.0,
+    pnl_usd: "float | None" = None,
+    pnl_pct: "float | None" = None,
     reason: str = "",
     close_pct: float = 100.0,
-    dry_run: bool = False,
-) -> bool:
-    """Position CLOSED / TEILVERKAUF Embed → #etoro-trades.
+    keep_chart_image: bool = False,
+) -> dict:
+    """Baut das CLOSED/TEILVERKAUF-Embed-Dict (fuer Post UND Edit).
 
-    Wird gepostet wenn eine Position geschlossen wird:
-    - SL-Trigger (Rule 1: -3% Hard Close, -4% Emergency)
-    - Konzentrationslimit-Verletzung (Rule 2)
-    - Reconciler-Close (Position nicht mehr in API)
-    - Manuelle Schließung
+    feat/pnl-nachreport (2026-07-28): pnl_usd/pnl_pct sind jetzt Optional.
+    None = PnL (noch) unbekannt → neutrales Grau + "P/L folgt (Nachreport)".
+    Vorher defaulteten beide auf 0.0 und ein Close ohne API-Daten wurde als
+    teal "$+0.00 Gewinn" gepostet. Ausserdem: pnl_pct==0.0 wird jetzt
+    angezeigt (vorher Truthiness-Check → glatte Closes verloren die Prozente).
+
+    keep_chart_image=True traegt die attachment-Referenz des Original-Posts
+    weiter — noetig beim Edit, damit Discord den Chart-Anhang behaelt.
     """
-    if pnl_usd >= 0:
-        color = COLOR_TEAL
-        emoji = "💰"
-        result = f"Gewinn: **${pnl_usd:+.2f}**"
+    if pnl_usd is None:
+        color = COLOR_GREY
+        emoji = "⏳"
+        result = "P/L folgt (Nachreport)"
+        pnl_value = "`folgt (Nachreport)`"
     else:
-        color = COLOR_RED
-        emoji = "🔴"
-        result = f"Verlust: **${pnl_usd:+.2f}**"
+        if pnl_usd >= 0:
+            color = COLOR_TEAL
+            emoji = "💰"
+            result = f"Gewinn: **${pnl_usd:+.2f}**"
+        else:
+            color = COLOR_RED
+            emoji = "🔴"
+            result = f"Verlust: **${pnl_usd:+.2f}**"
+        pnl_value = (f"`${pnl_usd:+.2f}` ({pnl_pct:+.1f}%)"
+                     if pnl_pct is not None else f"`${pnl_usd:+.2f}`")
 
     fields = [
         {"name": ("💵 Teil-Betrag" if (close_pct and close_pct < 99.5) else "💵 Betrag"),
          "value": f"`${amount_usd:,.2f}`" + (f" ({close_pct:.0f}%)" if (close_pct and close_pct < 99.5) else ""), "inline": True},
-        {"name": "📊 PnL",      "value": f"`${pnl_usd:+.2f}` ({pnl_pct:+.1f}%)" if pnl_pct else f"`${pnl_usd:+.2f}`", "inline": True},
+        {"name": "📊 PnL",      "value": pnl_value, "inline": True},
         {"name": "📋 Grund",    "value": f"`{reason[:80]}`" if reason else "`–`", "inline": False},
     ]
     if entry_price:
@@ -2022,12 +2109,117 @@ def post_position_closed_embed(
         "footer":      {"text": _foot},
         "timestamp":   _ts(),
     }
+    if keep_chart_image:
+        embed["image"] = {"url": "attachment://chart.png"}
+    return embed
 
+
+def post_position_closed_embed(
+    symbol: str,
+    amount_usd: float,
+    position_id: str = "",
+    entry_price: float = 0.0,
+    close_price: float = 0.0,
+    pnl_usd: "float | None" = None,
+    pnl_pct: "float | None" = None,
+    reason: str = "",
+    close_pct: float = 100.0,
+    dry_run: bool = False,
+) -> "str | bool":
+    """Position CLOSED / TEILVERKAUF Embed → #trades.
+
+    Wird gepostet wenn eine Position geschlossen wird:
+    - SL-Trigger (Rule 1: -3% Hard Close, -4% Emergency)
+    - Konzentrationslimit-Verletzung (Rule 2)
+    - Reconciler-Close (Position nicht mehr in API)
+    - LLM EXIT/TIGHTEN Teilverkauf
+    - Manuelle Schließung
+
+    pnl_usd=None ⇒ neutrales "P/L folgt (Nachreport)"-Embed; der Reconciler
+    editiert es spaeter mit den finalen Zahlen (siehe _edit_embed).
+    Rueckgabe: Message-ID (String) bei Erfolg, sonst False (True im Dry-Run).
+    """
+    embed = _build_position_closed_embed(
+        symbol=symbol, amount_usd=amount_usd, position_id=position_id,
+        entry_price=entry_price, close_price=close_price,
+        pnl_usd=pnl_usd, pnl_pct=pnl_pct, reason=reason, close_pct=close_pct,
+    )
     ok = _post_embed(embed, DISCORD_TRADE_CHANNEL, dry_run)
     if ok:
-        level = "INFO" if pnl_usd >= 0 else "WARN"
+        _pnl_txt = f"PnL=${pnl_usd:+.2f}" if pnl_usd is not None else "PnL=folgt"
+        level = "INFO" if (pnl_usd is None or pnl_usd >= 0) else "WARN"
         insert_system_log(level, "discord_embeds",
-                          f"P14 Position Closed: {symbol} ${amount_usd:.2f} PnL=${pnl_usd:+.2f}")
+                          f"P14 Position Closed: {symbol} ${amount_usd:.2f} {_pnl_txt}")
+    return ok
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# P14b — DAILY REPORT (feat/daily-report → #reports)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def post_daily_report_embed(
+    report_date: str,
+    realized_pnl_usd: "float | None",
+    wins: int,
+    losses: int,
+    unconfirmed: int,
+    open_count: int,
+    open_exposure_usd: float,
+    unrealized_pnl_usd: float,
+    sections: "list[tuple[str, list[str]]]",
+    dry_run: bool = False,
+) -> "str | bool":
+    """Tagesreport-Embed → #reports.
+
+    sections: Liste (Feld-Name, Zeilen) — z.B. ("🟢 Eröffnungen (2)", [...]).
+    Zeilen werden zu 1024-Zeichen-Chunks gebündelt (Discord-Feld-Limit);
+    laeuft ein Abschnitt ueber, entstehen Folgefelder mit "…"-Suffix im Namen.
+    Chart (daily_grid_png) vorher via attach_chart() anhaengen — optional.
+    """
+    if realized_pnl_usd is None:
+        color = COLOR_GREY
+        realized_txt = "–"
+    else:
+        color = COLOR_TEAL if realized_pnl_usd >= 0 else COLOR_RED
+        realized_txt = f"**${realized_pnl_usd:+.2f}**"
+
+    total = wins + losses
+    win_txt = f"{wins}/{total} ({wins / total * 100:.0f}%)" if total else "–"
+    desc = (f"Realisiert: {realized_txt} · Win-Rate: {win_txt}"
+            + (f" · {unconfirmed} ohne bestätigtes P/L" if unconfirmed else "")
+            + f"\nOffen: {open_count} Positionen · Exposure `${open_exposure_usd:,.0f}`"
+              f" · unrealisiert `${unrealized_pnl_usd:+,.2f}`")
+
+    fields = []
+    for name, lines in sections:
+        if not lines:
+            continue
+        chunk: list[str] = []
+        size = 0
+        part = 0
+        for line in lines:
+            if size + len(line) + 1 > 1000 and chunk:
+                fields.append({"name": name if part == 0 else f"{name} …",
+                               "value": "\n".join(chunk), "inline": False})
+                chunk, size, part = [], 0, part + 1
+            chunk.append(line)
+            size += len(line) + 1
+        if chunk:
+            fields.append({"name": name if part == 0 else f"{name} …",
+                           "value": "\n".join(chunk), "inline": False})
+
+    embed = {
+        "title":       f"📊 Tagesreport — {report_date}",
+        "description": desc,
+        "color":       color,
+        "fields":      fields,
+        "footer":      {"text": "eToro RoBoCop · Daily Report"},
+        "timestamp":   _ts(),
+    }
+    ok = _post_embed(embed, DISCORD_REPORTS_CHANNEL, dry_run)
+    if ok:
+        insert_system_log("INFO", "discord_embeds",
+                          f"P14b Daily Report gepostet: {report_date}")
     return ok
 
 

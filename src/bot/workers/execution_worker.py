@@ -67,8 +67,10 @@ def _entry_chart_png() -> bytes | None:
         return None
 
 
-def _post(fn_name: str, **kwargs) -> None:
-    """Best-effort Discord post. Never raises."""
+def _post(fn_name: str, **kwargs):
+    """Best-effort Discord post. Never raises. Returns Embed-Fn-Resultat
+    (Message-ID/True) oder None — feat/pnl-nachreport braucht das fuer
+    das trade_events-Log."""
     try:
         # feat/candle-charts: Fill-Embeds bekommen automatisch den 1H-Chart
         if fn_name == "post_trade_filled_embed" and _DE and hasattr(_DE, "attach_chart"):
@@ -76,8 +78,32 @@ def _post(fn_name: str, **kwargs) -> None:
             if _png:
                 _DE.attach_chart(_png)
         if _DE and hasattr(_DE, fn_name):
-            getattr(_DE, fn_name)(**kwargs)
+            return getattr(_DE, fn_name)(**kwargs)
     except Exception as _e:
+        pass
+    return None
+
+
+def _record_open(db, trade_id, symbol, instrument_id, position_id,
+                 order_id=None, amount_usd=None, price=None,
+                 post_result=None) -> None:
+    """OPEN-Event in trade_events persistieren (feat/pnl-nachreport).
+
+    Fail-open — Buchhaltung darf den Fill-Pfad nie brechen.
+    """
+    try:
+        from bot.core.event_log import record_posted_event
+        record_posted_event(
+            db, _DE, symbol=symbol, event_type="OPEN",
+            source="execution_worker", post_result=post_result,
+            trade_id=trade_id,
+            position_id=str(position_id) if position_id else None,
+            order_id=str(order_id) if order_id else None,
+            instrument_id=instrument_id, amount_usd=amount_usd,
+            price=(float(price) if price else None),
+            reported_final=True,  # OPEN hat keinen PnL nachzutragen
+        )
+    except Exception:
         pass
 
 
@@ -557,13 +583,16 @@ def main() -> None:
                         {"trade_id": trade_id, "symbol": symbol,
                          "order_id": _prev_order_id, "api_position_id": api_position_id},
                     )
-                    _post('post_trade_filled_embed',
+                    _fill_ok = _post('post_trade_filled_embed',
                         symbol=symbol, direction='BUY', amount_usd=amount_usd,
                         position_id=api_position_id, entry_price=0.0,
                         sl_pct=stop_loss_pct,
                         reason=f"Deferte Order {_prev_order_id} aufgeloest — Kurs folgt via Reconciler",
                         dry_run=False,
                     )
+                    _record_open(db, trade_id, symbol, instrument_id,
+                                 api_position_id, order_id=_prev_order_id,
+                                 amount_usd=amount_usd, post_result=_fill_ok)
                     continue
                 if _action == "DEFER":
                     trade_repo.update_status(
@@ -1027,11 +1056,14 @@ def main() -> None:
                                 f"Trade #{trade_id} ACTIVE: {symbol} BUY ${amount_usd:.2f} (post-flight confirmed, positionID={api_position_id})",
                                 {"trade_id": trade_id, "symbol": symbol, "instrument_id": instrument_id, "amount_usd": amount_usd, "entry_price": entry_price, "api_position_id": api_position_id, "stop_loss_pct": stop_loss_pct},
                             )
-                            _post('post_trade_filled_embed',
+                            _fill_ok = _post('post_trade_filled_embed',
                                 symbol=symbol, direction='BUY', amount_usd=amount_usd,
                                 position_id=api_position_id, entry_price=entry_price,
                                 sl_pct=stop_loss_pct, dry_run=False,
                             )
+                            _record_open(db, trade_id, symbol, instrument_id,
+                                         api_position_id, order_id=_order_ref,
+                                         amount_usd=amount_usd, post_result=_fill_ok)
                             # Strategy-tagging (scalp vs swing)
                             try:
                                 _signal_id = trade.get("signal_id")
@@ -1094,11 +1126,14 @@ def main() -> None:
                                         f"Trade #{trade_id} ACTIVE: {symbol} BUY ${amount_usd:.2f} (post-flight confirmed after {(_ghost_retry + 1) * 3}s retry, positionID={api_position_id})",
                                         {"trade_id": trade_id, "symbol": symbol, "instrument_id": instrument_id, "amount_usd": amount_usd, "entry_price": entry_price, "api_position_id": api_position_id, "stop_loss_pct": stop_loss_pct},
                                     )
-                                    _post('post_trade_filled_embed',
+                                    _fill_ok = _post('post_trade_filled_embed',
                                         symbol=symbol, direction='BUY', amount_usd=amount_usd,
                                         position_id=api_position_id, entry_price=entry_price,
                                         sl_pct=stop_loss_pct, dry_run=False,
                                     )
+                                    _record_open(db, trade_id, symbol, instrument_id,
+                                                 api_position_id, order_id=_order_ref,
+                                                 amount_usd=amount_usd, post_result=_fill_ok)
                                     ghost_confirmed = True
                                     break
                     
@@ -1351,7 +1386,7 @@ def main() -> None:
                 }
     
                 # Discord embed for filled trade
-                _post('post_trade_filled_embed',
+                _fill_ok = _post('post_trade_filled_embed',
                     symbol=symbol,
                     direction='BUY',
                     amount_usd=amount_usd,
@@ -1360,6 +1395,10 @@ def main() -> None:
                     sl_pct=stop_loss_pct,
                     dry_run=False
                 )
+                _record_open(db, trade_id, symbol, instrument_id,
+                             api_position_id, order_id=api_position_id,
+                             amount_usd=amount_usd, price=entry_price,
+                             post_result=_fill_ok)
     
                 log_repo.write(
                     "INFO",

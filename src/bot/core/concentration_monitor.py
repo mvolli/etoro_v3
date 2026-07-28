@@ -37,13 +37,14 @@ try:
 except Exception:
     _DE = None
 
-def _discord(fn_name: str, **kwargs) -> None:
-    """Best-effort Discord post. Never raises."""
+def _discord(fn_name: str, **kwargs):
+    """Best-effort Discord post. Never raises. Returns Embed-Resultat."""
     try:
         if _DE and hasattr(_DE, fn_name):
-            getattr(_DE, fn_name)(**kwargs)
+            return getattr(_DE, fn_name)(**kwargs)
     except Exception:
         pass
+    return None
 
 
 def get_symbol_from_instrument_id(instrument_id: int, instrument_map: dict) -> str:
@@ -169,6 +170,7 @@ def close_concentration_excess(
     client: Any,
     violations: list[dict],
     dry_run: bool = False,
+    db: Any = None,
 ) -> dict:
     """Close excess fragments to restore concentration limits (LIFO order).
 
@@ -176,6 +178,7 @@ def close_concentration_excess(
         client: EToroClient
         violations: From check_concentration_violations()
         dry_run: If True, only log what would be done
+        db: optional DB-Handle fuer das trade_events-Log (feat/pnl-nachreport)
 
     Returns:
         Stats dict: {closed, warned, errors}
@@ -226,25 +229,66 @@ def close_concentration_excess(
                 client.close_position(pos_id, iid)
 
                 # ── Verify the full-close actually took effect ──────────────
+                # fix/verify-close-arity (2026-07-28): verify_full_close gibt
+                # seit dem PnL-Umbau ein 3-Tupel zurueck — das alte 2-Tupel-
+                # Unpacking warf ValueError und buchte VERIFIZIERTE Closes
+                # als Fehler (except unten schluckte alles).
                 from bot.core.trailing_stop import verify_full_close
-                verified, detail = verify_full_close(client, iid, pos_id)
+                verified, detail, _pnl_data = verify_full_close(client, iid, pos_id)
                 if verified:
                     closed_amount += frag_amount
                     stats["closed"] += 1
 
-                    # Post Discord embed
+                    # Post Discord embed (feat/pnl-nachreport: unbekanntes
+                    # PnL als None statt 0.0; Chart mit Entry/Exit-Markern)
                     try:
                         upnl = frag.get("unrealizedPnL") or {}
-                        _discord(
+                        _pnl_usd = (float(upnl.get("pnL")) if isinstance(upnl, dict)
+                                    and upnl.get("pnL") is not None else None)
+                        _close_price = (float(upnl.get("closeRate", 0))
+                                        if isinstance(upnl, dict) else 0.0)
+                        _entry = float(frag.get("openRate", 0) or 0)
+                        _pnl_pct = None
+                        if _pnl_usd is not None and frag_amount > 0:
+                            _pnl_pct = _pnl_usd / frag_amount * 100.0
+                        try:
+                            from bot.core.candle_chart import trade_story_png
+                            if _DE is not None and hasattr(_DE, "attach_chart"):
+                                _png = trade_story_png(
+                                    client, iid, sym,
+                                    entry=_entry or None,
+                                    exit_price=_close_price or None,
+                                    opened_at=frag.get("openDateTime"),
+                                )
+                                if _png:
+                                    _DE.attach_chart(_png)
+                        except Exception:
+                            pass
+                        _reason = (f"Konzentrations-Bereinigung: {sym} war "
+                                   f"{v['actual_pct']:.1f}% (Limit {v['limit_pct']:.0f}%)")
+                        _post_ok = _discord(
                             "post_position_closed_embed",
                             symbol=sym,
                             amount_usd=frag_amount,
                             position_id=pos_id,
-                            entry_price=float(frag.get("openRate", 0)),
-                            close_price=float(upnl.get("closeRate", 0)),
-                            pnl_usd=float(upnl.get("pnL", 0)),
-                            reason=f"Konzentrations-Bereinigung: {sym} war {v['actual_pct']:.1f}% (Limit {v['limit_pct']:.0f}%)",
+                            entry_price=_entry,
+                            close_price=_close_price,
+                            pnl_usd=_pnl_usd,
+                            pnl_pct=_pnl_pct,
+                            reason=_reason,
                         )
+                        if db is not None:
+                            from bot.core.event_log import record_posted_event
+                            record_posted_event(
+                                db, _DE, symbol=sym, event_type="CLOSE",
+                                source="concentration", post_result=_post_ok,
+                                position_id=pos_id, instrument_id=iid or None,
+                                price=_close_price or None,
+                                amount_usd=frag_amount,
+                                pnl_usd=_pnl_usd, pnl_pct=_pnl_pct,
+                                pnl_source=("derived" if _pnl_usd is not None else None),
+                                reason=_reason, reported_final=False,
+                            )
                     except Exception:
                         pass
 

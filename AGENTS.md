@@ -2,7 +2,7 @@
 
 ## Purpose
 
-LIVE-Trading-Bot auf eToro (ECHTES GELD). 7 Worker auf Hermes-Cron
+LIVE-Trading-Bot auf eToro (ECHTES GELD). 8 Worker auf Hermes-Cron
 (5–120 min Takt), SQLite-WAL-DB, Trading Bible V5 (4-Regime, risk_scalar,
 ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weiter.
 
@@ -27,6 +27,21 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
 - DB-Migrationen idempotent (ALTER TABLE in try/except, je Spalte einzeln).
 - Worker-Wrapper liegen in `~/.hermes/scripts/v3_*.sh` — Script-Änderungen
   in `scripts/` müssen dorthin kopiert werden, sonst läuft der Cron alt.
+- Trade-Event-Ledger `trade_events` (feat/pnl-nachreport, 2026-07-28):
+  JEDER Open/Partial/Full-Close wird via `bot.core.event_log.
+  record_posted_event()` persistiert — inkl. Discord-`message_id`, damit
+  der Reconciler (9d/9e) Close-Embeds nach History-Match EDITIERT statt
+  doppelt zu posten. Unbekanntes P/L ist durchgängig `None`, NIE `0.0`
+  (Embed rendert grau „P/L folgt (Nachreport)"). Kein History-Match ⇒
+  Trade bleibt PENDING (`verify_attempts`++), nach 7 Tagen UNRESOLVED —
+  niemals VERIFIED ohne echte Zahlen.
+- Discord-Channels (hartkodiert in `src/bot/discord_embeds.py`, config.yaml
+  ist dead config): MAIN #etoro-trading, TRADE #trades, REPORTS #reports.
+  Trade-Events (Fills/Closes/Partials, auch KI-EXIT/TIGHTEN) → #trades;
+  Worker-Summaries → MAIN; Tagesreport → #reports.
+- discord_embeds hat One-Shot-Slots (`_PENDING_CHART`, `_LAST_POST`) und
+  wird von trailing_stop per importlib als EIGENE Instanz geladen —
+  attach_chart/post/get_last_post immer am selben Modul-Objekt aufrufen.
 
 ## Work Guidance
 
