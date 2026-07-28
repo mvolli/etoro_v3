@@ -377,7 +377,7 @@ def _promote_to_watchlist(
         )
         if existing is not None:
             db.execute(
-                "UPDATE watchlist SET last_score = ?, last_signal_at = datetime('now','utc') "
+                "UPDATE watchlist SET last_score = ?, last_signal_at = datetime('now') "
                 "WHERE id = ?",
                 (score, existing["id"]),
             )
@@ -391,7 +391,7 @@ def _promote_to_watchlist(
         if count < cap:
             db.execute(
                 "INSERT INTO watchlist (symbol, instrument_id, category, last_score, last_signal_at) "
-                "VALUES (?, ?, ?, ?, datetime('now','utc'))",
+                "VALUES (?, ?, ?, ?, datetime('now'))",
                 (symbol, instrument_id, category, score),
             )
             logger.info(
@@ -416,7 +416,7 @@ def _promote_to_watchlist(
         db.execute("DELETE FROM watchlist WHERE id = ?", (weakest["id"],))
         db.execute(
             "INSERT INTO watchlist (symbol, instrument_id, category, last_score, last_signal_at) "
-            "VALUES (?, ?, ?, ?, datetime('now','utc'))",
+            "VALUES (?, ?, ?, ?, datetime('now'))",
             (symbol, instrument_id, category, score),
         )
         logger.info(
@@ -463,7 +463,7 @@ def _cs_auto_discovery(
         db.execute("""
             INSERT OR REPLACE INTO core_sweep_whitelist
                 (instrument_id, symbol, source, score, conviction, added_at, expires_at)
-            VALUES (?, ?, 'discovery', ?, ?, datetime('now','utc'), ?)
+            VALUES (?, ?, 'discovery', ?, ?, datetime('now'), ?)
         """, (instrument_id, symbol, score, conviction, expires_at))
 
         logger.info(
@@ -926,7 +926,7 @@ def main() -> int:
                     if _hit is not None:
                         # schon beobachtet (egal welche Kategorie) — nur Frische markieren
                         db.execute(
-                            "UPDATE watchlist SET last_signal_at = datetime('now','utc') "
+                            "UPDATE watchlist SET last_signal_at = datetime('now') "
                             "WHERE id = ?",
                             (_hit["id"],),
                         )
@@ -935,7 +935,7 @@ def main() -> int:
                         break
                     db.execute(
                         "INSERT INTO watchlist (symbol, instrument_id, category, last_score, last_signal_at) "
-                        "VALUES (?, ?, 'movers.discovered', ?, datetime('now','utc'))",
+                        "VALUES (?, ?, 'movers.discovered', ?, datetime('now'))",
                         (_mv_sym, _mv_iid, abs(_mv_move)),
                     )
                     _mv_count += 1

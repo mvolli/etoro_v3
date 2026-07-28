@@ -230,7 +230,7 @@ def _collect_data(db_path: Path) -> dict:
                 SELECT instrument_id, rsi, bb_pct, macd_hist,
                        ROW_NUMBER() OVER (PARTITION BY instrument_id ORDER BY generated_at DESC) as rn
                 FROM signals
-                WHERE generated_at > datetime('now', '-7 days', 'utc')
+                WHERE generated_at > datetime('now', '-7 days')
             ) ls ON ls.instrument_id = ps.instrument_id AND ls.rn = 1
             ORDER BY ps.amount_usd DESC
             LIMIT 25
@@ -258,7 +258,7 @@ def _collect_data(db_path: Path) -> dict:
                        s.generated_at
                 FROM signals s
                 WHERE s.instrument_id IN ({placeholders})
-                  AND s.generated_at > datetime('now', '-36 hours', 'utc')
+                  AND s.generated_at > datetime('now', '-36 hours')
                 ORDER BY s.generated_at DESC
             """, open_ids)
             data["recent_signals"] = [dict(r) for r in cur.fetchall()]
@@ -275,7 +275,7 @@ def _collect_data(db_path: Path) -> dict:
             JOIN signals s ON s.id = t.signal_id
             WHERE t.status = 'CLOSED'
               AND t.pnl_pct IS NOT NULL
-              AND t.created_at > datetime('now', '-60 days', 'utc')
+              AND t.created_at > datetime('now', '-60 days')
             GROUP BY s.signal_type
             HAVING n >= 2
             ORDER BY n DESC

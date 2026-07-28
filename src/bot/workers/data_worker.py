@@ -159,7 +159,7 @@ def _update_instrument_atr(db: "DB", instrument_id: int, atr_pct: float) -> None
         _ATR_COLUMNS_READY = True
     try:
         db.execute(
-            "UPDATE instruments SET atr_pct = ?, atr_updated_at = datetime('now','utc') "
+            "UPDATE instruments SET atr_pct = ?, atr_updated_at = datetime('now') "
             "WHERE instrument_id = ?",
             (atr_pct, instrument_id),
         )

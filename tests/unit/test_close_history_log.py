@@ -8,7 +8,7 @@ def _mkdb(tmp_path):
     c = sqlite3.connect(p)
     c.execute("""CREATE TABLE system_log (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        ts TEXT NOT NULL DEFAULT (datetime('now','utc')),
+        ts TEXT NOT NULL DEFAULT (datetime('now')),
         level TEXT NOT NULL, worker TEXT NOT NULL, message TEXT NOT NULL, details TEXT)""")
     c.commit(); c.close()
     return p

@@ -296,7 +296,7 @@ def _ensure_position_state_table(db: Any) -> None:
             levels_taken    TEXT NOT NULL DEFAULT '',
             be_active       INTEGER NOT NULL DEFAULT 0,
             be_triggered_at TEXT,
-            updated_at      TEXT NOT NULL DEFAULT (datetime('now','utc'))
+            updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
         )
     """)
     # Migration for existing installs (idempotent). Each ALTER is isolated so
@@ -371,7 +371,7 @@ def save_profit_levels(db: Any, position_id: str, symbol: str, levels: list[dict
         levels_json = json.dumps(levels)
         db.execute("""
             INSERT INTO position_state (position_id, symbol, profit_levels_json, updated_at)
-            VALUES (?, ?, ?, datetime('now','utc'))
+            VALUES (?, ?, ?, datetime('now'))
             ON CONFLICT(position_id) DO UPDATE SET
                 symbol = excluded.symbol,
                 profit_levels_json = COALESCE(position_state.profit_levels_json, excluded.profit_levels_json),
@@ -414,7 +414,7 @@ def mark_level_taken(db: Any, position_id: str, symbol: str, threshold: float) -
         levels_csv = ",".join(f"{t:g}" for t in sorted(existing))
         db.execute("""
             INSERT INTO position_state (position_id, symbol, levels_taken, updated_at)
-            VALUES (?, ?, ?, datetime('now','utc'))
+            VALUES (?, ?, ?, datetime('now'))
             ON CONFLICT(position_id) DO UPDATE SET
                 symbol = excluded.symbol,
                 levels_taken = excluded.levels_taken,
@@ -451,7 +451,7 @@ def mark_break_even_active(db: Any, position_id: str, symbol: str) -> None:
         _ensure_position_state_table(db)
         db.execute("""
             INSERT INTO position_state (position_id, symbol, be_active, be_triggered_at, updated_at)
-            VALUES (?, ?, 1, datetime('now','utc'), datetime('now','utc'))
+            VALUES (?, ?, 1, datetime('now'), datetime('now'))
             ON CONFLICT(position_id) DO UPDATE SET
                 symbol = excluded.symbol,
                 be_active = 1,
@@ -499,7 +499,7 @@ def update_peak_pnl(db: Any, position_id: str, symbol: str, pnl_pct: float) -> N
         _ensure_position_state_table(db)
         db.execute("""
             INSERT INTO position_state (position_id, symbol, peak_pnl_pct, updated_at)
-            VALUES (?, ?, ?, datetime('now','utc'))
+            VALUES (?, ?, ?, datetime('now'))
             ON CONFLICT(position_id) DO UPDATE SET
                 symbol = excluded.symbol,
                 peak_pnl_pct = MAX(position_state.peak_pnl_pct, excluded.peak_pnl_pct),
@@ -517,7 +517,7 @@ def mark_momentum_faded(db: Any, position_id: str, symbol: str) -> None:
         _ensure_position_state_table(db)
         db.execute("""
             INSERT INTO position_state (position_id, symbol, momentum_faded, updated_at)
-            VALUES (?, ?, 1, datetime('now','utc'))
+            VALUES (?, ?, 1, datetime('now'))
             ON CONFLICT(position_id) DO UPDATE SET
                 symbol = excluded.symbol,
                 momentum_faded = 1,
@@ -541,7 +541,7 @@ def set_strategy(db: Any, position_id: str, symbol: str, strategy: str) -> None:
         _ensure_position_state_table(db)
         db.execute("""
             INSERT INTO position_state (position_id, symbol, strategy, profit_levels_json, updated_at)
-            VALUES (?, ?, ?, NULL, datetime('now','utc'))
+            VALUES (?, ?, ?, NULL, datetime('now'))
             ON CONFLICT(position_id) DO UPDATE SET
                 symbol = excluded.symbol,
                 strategy = excluded.strategy,

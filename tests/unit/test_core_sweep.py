@@ -303,7 +303,7 @@ class TestHybridWhitelistDB:
                 source TEXT NOT NULL DEFAULT 'config',
                 score REAL,
                 conviction TEXT,
-                added_at TEXT NOT NULL DEFAULT (datetime('now','utc')),
+                added_at TEXT NOT NULL DEFAULT (datetime('now')),
                 expires_at TEXT,
                 UNIQUE(instrument_id, source)
             )
@@ -313,8 +313,8 @@ class TestHybridWhitelistDB:
             INSERT INTO core_sweep_whitelist
                 (instrument_id, symbol, source, score, conviction, added_at, expires_at)
             VALUES (5000, '3659.T', 'discovery', 38.0, 'HIGH',
-                    datetime('now','utc'),
-                    datetime('now','utc', '+24 hours'))
+                    datetime('now'),
+                    datetime('now', '+24 hours'))
         """)
         # Config-Whitelist nur SPY+AAPL, aber DB hat 3659.T
         cfg = _make_cfg(whitelist={"SPY": 3000, "AAPL": 1001})
@@ -335,7 +335,7 @@ class TestHybridWhitelistDB:
                 source TEXT NOT NULL DEFAULT 'config',
                 score REAL,
                 conviction TEXT,
-                added_at TEXT NOT NULL DEFAULT (datetime('now','utc')),
+                added_at TEXT NOT NULL DEFAULT (datetime('now')),
                 expires_at TEXT,
                 UNIQUE(instrument_id, source)
             )
@@ -345,8 +345,8 @@ class TestHybridWhitelistDB:
             INSERT INTO core_sweep_whitelist
                 (instrument_id, symbol, source, score, conviction, added_at, expires_at)
             VALUES (5000, 'EXPIRED.T', 'discovery', 38.0, 'HIGH',
-                    datetime('now','utc', '-25 hours'),
-                    datetime('now','utc', '-1 hours'))
+                    datetime('now', '-25 hours'),
+                    datetime('now', '-1 hours'))
         """)
         cfg = _make_cfg(whitelist={"SPY": 3000})
         orders, _ = plan_core_sweep(cfg, equity=10000, cash=6000, regime="NORMAL", db=db)
@@ -365,7 +365,7 @@ class TestHybridWhitelistDB:
                 source TEXT NOT NULL DEFAULT 'config',
                 score REAL,
                 conviction TEXT,
-                added_at TEXT NOT NULL DEFAULT (datetime('now','utc')),
+                added_at TEXT NOT NULL DEFAULT (datetime('now')),
                 expires_at TEXT,
                 UNIQUE(instrument_id, source)
             )
@@ -375,8 +375,8 @@ class TestHybridWhitelistDB:
             INSERT INTO core_sweep_whitelist
                 (instrument_id, symbol, source, score, conviction, added_at, expires_at)
             VALUES (3000, 'SPY', 'discovery', 38.0, 'HIGH',
-                    datetime('now','utc'),
-                    datetime('now','utc', '+24 hours'))
+                    datetime('now'),
+                    datetime('now', '+24 hours'))
         """)
         cfg = _make_cfg(whitelist={"SPY": 3000})
         orders, _ = plan_core_sweep(cfg, equity=10000, cash=6000, regime="NORMAL", db=db)
@@ -420,7 +420,7 @@ class TestRejectCooldown:
         sig_cur = db.execute("INSERT INTO signals (signal_type) VALUES ('CORE_SWEEP')")
         db.execute(
             "INSERT INTO trades (instrument_id, signal_id, status, created_at) "
-            "VALUES (?, ?, ?, datetime('now','utc', ?))",
+            "VALUES (?, ?, ?, datetime('now', ?))",
             (instrument_id, sig_cur.lastrowid, status, f"-{hours_ago} hours"),
         )
 

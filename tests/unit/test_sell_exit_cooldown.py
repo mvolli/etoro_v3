@@ -34,7 +34,7 @@ def db(tmp_path):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             instrument_id INTEGER, signal_type TEXT, conviction TEXT,
             score REAL, rsi REAL, macd_hist REAL, bb_pct REAL, price REAL,
-            generated_at TEXT NOT NULL DEFAULT (datetime('now','utc')),
+            generated_at TEXT NOT NULL DEFAULT (datetime('now')),
             expires_at TEXT, status TEXT
         )
     """)
@@ -84,7 +84,7 @@ def test_cooldown_expires(db):
     mark_sell_exit(db, "3499781281", "KTA.DE")
     # Exit künstlich 25h in die Vergangenheit legen (Cooldown 24h)
     db.execute(
-        "UPDATE position_state SET sell_exit_at = datetime('now','-25 hours','utc') "
+        "UPDATE position_state SET sell_exit_at = datetime('now', '-25 hours') "
         "WHERE position_id = '3499781281'"
     )
     assert load_blocked_instruments(db, [_pos()]) == set()
@@ -126,7 +126,7 @@ def test_consumed_signal_still_blocks_duplicate(db):
 def test_old_signal_does_not_block(db):
     repo = SignalRepo(db)
     repo.create(42, "BB_UPPER_RSI_OVERBOUGHT", "HIGH", 75.0, ttl_minutes=360)
-    db.execute("UPDATE signals SET generated_at = datetime('now','-7 hours','utc')")
+    db.execute("UPDATE signals SET generated_at = datetime('now', '-7 hours')")
     assert repo.has_recent_signal(42, "BB_UPPER_RSI_OVERBOUGHT", 360) is False
 
 

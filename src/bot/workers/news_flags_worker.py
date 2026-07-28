@@ -83,7 +83,7 @@ def _gather_symbols(db) -> list[dict]:
         """SELECT DISTINCT i.symbol, i.yfinance_symbol
            FROM signals s
            JOIN instruments i ON i.instrument_id = s.instrument_id
-           WHERE s.status = 'FRESH' AND s.expires_at > datetime('now','utc')
+           WHERE s.status = 'FRESH' AND s.expires_at > datetime('now')
              AND i.yfinance_symbol IS NOT NULL AND i.yfinance_symbol != ''""",
     ):
         try:

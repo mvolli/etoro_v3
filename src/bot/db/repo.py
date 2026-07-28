@@ -113,7 +113,7 @@ class TradeRepo:
                 instrument_id INTEGER NOT NULL,
                 symbol        TEXT,
                 source        TEXT,
-                rejected_at   TEXT NOT NULL DEFAULT (datetime('now','utc'))
+                rejected_at   TEXT NOT NULL DEFAULT (datetime('now'))
             )
         """)
 
@@ -135,7 +135,7 @@ class TradeRepo:
             self._ensure_slippage_table()
             row = self.db.fetchone(
                 "SELECT COUNT(*) AS n FROM slippage_rejects "
-                "WHERE instrument_id = ? AND rejected_at > datetime('now', ?, 'utc')",
+                "WHERE instrument_id = ? AND rejected_at > datetime('now', ?)",
                 (instrument_id, f"-{self.SLIPPAGE_WINDOW_DAYS} days"),
             )
             return bool(row and row["n"] >= self.SLIPPAGE_BLACKLIST_THRESHOLD)
@@ -386,7 +386,7 @@ class SignalRepo:
                 (instrument_id, signal_type, conviction, score,
                  rsi, macd_hist, bb_pct, price, expires_at, status)
             VALUES
-                (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', ?, 'utc'), 'FRESH')
+                (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', ?), 'FRESH')
             """,
             (instrument_id, signal_type, conviction, score, rsi, macd_hist, bb_pct, price, ttl_modifier),
         )
@@ -412,7 +412,7 @@ class SignalRepo:
              WHERE instrument_id = ?
                AND signal_type = ?
                AND status = 'CONSUMED'
-               AND generated_at > datetime('now', ?, 'utc')
+               AND generated_at > datetime('now', ?)
              LIMIT 1
             """,
             (instrument_id, signal_type, f"-{int(within_minutes)} minutes"),
@@ -443,7 +443,7 @@ class SignalRepo:
              WHERE instrument_id = ?
                AND signal_type = ?
                AND status IN ('FRESH', 'REJECTED')
-               AND expires_at > datetime('now','utc')
+               AND expires_at > datetime('now')
              LIMIT 1
             """,
             (instrument_id, signal_type),
@@ -471,7 +471,7 @@ class SignalRepo:
         EXCLUDES signals with status != 'FRESH' (CONSUMED/REJECTED/EXPIRED).
         This prevents the same signal from being re-processed every cycle.
         """
-        clauses = ["expires_at > datetime('now','utc')", "status = 'FRESH'"]
+        clauses = ["expires_at > datetime('now')", "status = 'FRESH'"]
         params: list[Any] = []
 
         if instrument_id is not None:
@@ -496,7 +496,7 @@ class SignalRepo:
     def expire_old(self) -> int:
         """Mark expired signals as EXPIRED (soft delete). Returns number of rows updated."""
         cur = self.db.execute(
-            "UPDATE signals SET status = 'EXPIRED' WHERE expires_at < datetime('now','utc') AND status = 'FRESH'"
+            "UPDATE signals SET status = 'EXPIRED' WHERE expires_at < datetime('now') AND status = 'FRESH'"
         )
         return cur.rowcount
 
@@ -586,7 +586,7 @@ class StateRepo:
         self.db.execute(
             """
             INSERT INTO system_state (key, value, updated_at)
-            VALUES (?, ?, datetime('now','utc'))
+            VALUES (?, ?, datetime('now'))
             ON CONFLICT(key) DO UPDATE SET
                 value      = excluded.value,
                 updated_at = excluded.updated_at

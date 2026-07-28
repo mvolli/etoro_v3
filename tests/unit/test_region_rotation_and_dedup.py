@@ -94,7 +94,7 @@ def sig_db(tmp_path):
         CREATE TABLE signals (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             instrument_id INTEGER NOT NULL,
-            generated_at TEXT NOT NULL DEFAULT (datetime('now','utc')),
+            generated_at TEXT NOT NULL DEFAULT (datetime('now')),
             signal_type TEXT NOT NULL,
             conviction TEXT NOT NULL,
             score REAL NOT NULL,
@@ -187,6 +187,6 @@ def test_has_fresh_signal_blocks_rejected_until_ttl(sig_db):
     assert repo.has_fresh_signal(1, "RSI_EXTREME_OVERSOLD") is True
     # TTL abgelaufen -> Dedup gibt frei
     sig_db.execute(
-        "UPDATE signals SET expires_at=datetime('now','utc','-1 minute') WHERE instrument_id=1"
+        "UPDATE signals SET expires_at=datetime('now', '-1 minute') WHERE instrument_id=1"
     )
     assert repo.has_fresh_signal(1, "RSI_EXTREME_OVERSOLD") is False

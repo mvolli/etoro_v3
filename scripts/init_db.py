@@ -27,7 +27,7 @@ TABLES: list[tuple[str, str]] = [
             name            TEXT,
             sector          TEXT,
             asset_class     TEXT,
-            last_updated    TEXT NOT NULL DEFAULT (datetime('now','utc'))
+            last_updated    TEXT NOT NULL DEFAULT (datetime('now'))
         )
         """,
     ),
@@ -37,7 +37,7 @@ TABLES: list[tuple[str, str]] = [
         CREATE TABLE IF NOT EXISTS signals (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
             instrument_id   INTEGER NOT NULL REFERENCES instruments(instrument_id),
-            generated_at    TEXT NOT NULL DEFAULT (datetime('now','utc')),
+            generated_at    TEXT NOT NULL DEFAULT (datetime('now')),
             signal_type     TEXT NOT NULL,
             conviction      TEXT NOT NULL CHECK(conviction IN ('VERY_HIGH','HIGH','MEDIUM','LOW')),
             score           REAL NOT NULL,
@@ -71,7 +71,7 @@ TABLES: list[tuple[str, str]] = [
             pnl_pct             REAL,
             rejection_reason    TEXT,
             signal_id           INTEGER REFERENCES signals(id),
-            created_at          TEXT NOT NULL DEFAULT (datetime('now','utc')),
+            created_at          TEXT NOT NULL DEFAULT (datetime('now')),
             approved_at         TEXT,
             submitted_at        TEXT,
             confirmed_at        TEXT,
@@ -94,7 +94,7 @@ TABLES: list[tuple[str, str]] = [
             unrealized_pnl_pct  REAL,
             stop_loss_rate      REAL,
             is_no_stop_loss     INTEGER DEFAULT 0,
-            last_synced         TEXT NOT NULL DEFAULT (datetime('now','utc'))
+            last_synced         TEXT NOT NULL DEFAULT (datetime('now'))
         )
         """,
     ),
@@ -104,7 +104,7 @@ TABLES: list[tuple[str, str]] = [
         CREATE TABLE IF NOT EXISTS system_state (
             key         TEXT PRIMARY KEY,
             value       TEXT NOT NULL,
-            updated_at  TEXT NOT NULL DEFAULT (datetime('now','utc'))
+            updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
         )
         """,
     ),
@@ -113,7 +113,7 @@ TABLES: list[tuple[str, str]] = [
         """
         CREATE TABLE IF NOT EXISTS system_log (
             id      INTEGER PRIMARY KEY AUTOINCREMENT,
-            ts      TEXT NOT NULL DEFAULT (datetime('now','utc')),
+            ts      TEXT NOT NULL DEFAULT (datetime('now')),
             level   TEXT NOT NULL CHECK(level IN ('DEBUG','INFO','WARN','WARNING','ERROR','CRITICAL')),
             worker  TEXT NOT NULL,
             message TEXT NOT NULL,

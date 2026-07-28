@@ -54,7 +54,7 @@ def _ensure_core_sweep_whitelist_table(db: Any) -> None:
                 source TEXT NOT NULL DEFAULT 'config',
                 score REAL,
                 conviction TEXT,
-                added_at TEXT NOT NULL DEFAULT (datetime('now','utc')),
+                added_at TEXT NOT NULL DEFAULT (datetime('now')),
                 expires_at TEXT,
                 UNIQUE(instrument_id, source)
             )
@@ -75,7 +75,7 @@ def _load_db_whitelist(db: Any) -> dict[str, int]:
             SELECT symbol, instrument_id
             FROM core_sweep_whitelist
             WHERE source = 'discovery'
-              AND (expires_at IS NULL OR expires_at > datetime('now','utc'))
+              AND (expires_at IS NULL OR expires_at > datetime('now'))
         """)
         return {row["symbol"]: int(row["instrument_id"]) for row in rows}
     except Exception:
@@ -84,21 +84,19 @@ def _load_db_whitelist(db: Any) -> dict[str, int]:
 
 def _recent_core_sweep_rejects(db: Any, instrument_id: int, hours: float) -> int:
     """Anzahl REJECTED/FAILED CORE_SWEEP-Trades fuer *instrument_id* in den
-    letzten *hours* Stunden (eigene DB-Uhr, siehe Hinweis unten).
+    letzten *hours* Stunden.
 
     Deterministische Alternative zum LLM-gefuehrten Ghost-Blacklist: ein
     Titel, der wiederholt am Veto-Gate oder an der Execution scheitert,
     ohne je eine Order auszufuehren, soll nicht bei jedem 15-Minuten-Zyklus
     erneut versucht werden (siehe reject_cooldown_after in plan_core_sweep).
 
-    Zeitbasis: trades.created_at wird per DEFAULT datetime('now','utc')
-    befuellt (scripts/init_db.py). Auf diesem System ist datetime('now','utc')
-    ein bekannter SQLite-Stolperstein: 'now' liefert bereits echtes UTC, der
-    zusaetzliche 'utc'-Modifier zieht dann NOCHMAL den lokalen TZ-Offset ab
-    (aktuell -2h, CEST). Ein Vergleich gegen "echtes" UTC wuerde die
-    Altersberechnung um genau diesen Offset verfaelschen -- deshalb wird der
-    Cutoff hier bewusst mit derselben (verschobenen) Uhr berechnet wie
-    created_at selbst; der Offset kuerzt sich heraus.
+    Zeitbasis: trades.created_at wird per DEFAULT datetime('now') befuellt
+    (scripts/init_db.py), was in SQLite bereits echtes UTC liefert. Der
+    Cutoff hier verwendet dieselbe datetime('now', ?)-Form -- beide Seiten
+    sind also echtes UTC (siehe systemischer Fix des datetime('now','utc')-
+    Stolpersteins, der frueher hier wie ueberall im Code den lokalen
+    TZ-Offset ein zweites Mal abgezogen hat).
     """
     try:
         row = db.fetchone(
@@ -108,7 +106,7 @@ def _recent_core_sweep_rejects(db: Any, instrument_id: int, hours: float) -> int
             WHERE t.instrument_id = ?
               AND s.signal_type = 'CORE_SWEEP'
               AND t.status IN ('REJECTED', 'FAILED')
-              AND t.created_at >= datetime('now', 'utc', ?)
+              AND t.created_at >= datetime('now', ?)
             """,
             (instrument_id, f"-{hours} hours"),
         )
@@ -128,7 +126,7 @@ def _prune_expired_db_whitelist(db: Any) -> int:
             DELETE FROM core_sweep_whitelist
             WHERE source = 'discovery'
               AND expires_at IS NOT NULL
-              AND expires_at <= datetime('now','utc')
+              AND expires_at <= datetime('now')
         """)
         return cur.rowcount if hasattr(cur, "rowcount") else 0
     except Exception:

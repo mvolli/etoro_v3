@@ -179,7 +179,7 @@ def update_adv(db: Any, instrument_id: int, adv_usd: float) -> None:
     ensure_liquidity_columns(db)
     try:
         db.execute(
-            "UPDATE instruments SET adv_usd = ?, adv_updated_at = datetime('now','utc') "
+            "UPDATE instruments SET adv_usd = ?, adv_updated_at = datetime('now') "
             "WHERE instrument_id = ?",
             (float(adv_usd), instrument_id),
         )
@@ -192,7 +192,7 @@ def update_market_cap(db: Any, instrument_id: int, market_cap_usd: float) -> Non
     ensure_liquidity_columns(db)
     try:
         db.execute(
-            "UPDATE instruments SET market_cap = ?, market_cap_updated_at = datetime('now','utc') "
+            "UPDATE instruments SET market_cap = ?, market_cap_updated_at = datetime('now') "
             "WHERE instrument_id = ?",
             (float(market_cap_usd), instrument_id),
         )

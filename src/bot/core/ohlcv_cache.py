@@ -195,7 +195,7 @@ def _persist_resolution(conn, instrument_id: Optional[int], original: str, resol
                 resolved_symbol TEXT NOT NULL,
                 instrument_id   INTEGER,
                 curated         INTEGER NOT NULL DEFAULT 0,
-                resolved_at     TEXT NOT NULL DEFAULT (datetime('now','utc')),
+                resolved_at     TEXT NOT NULL DEFAULT (datetime('now')),
                 PRIMARY KEY (original_symbol, resolved_symbol)
             )
         """)

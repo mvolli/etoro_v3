@@ -49,7 +49,7 @@ def insert_system_log(level: str, category: str, message: str, details: str = ""
             conn.execute("PRAGMA busy_timeout=3000")
             conn.execute(
                 "INSERT INTO system_log (ts, level, worker, message, details) "
-                "VALUES (datetime('now','utc'), ?, ?, ?, ?)",
+                "VALUES (datetime('now'), ?, ?, ?, ?)",
                 (level, category, message, (details or None)),
             )
             conn.commit()

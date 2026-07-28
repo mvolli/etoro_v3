@@ -93,7 +93,7 @@ def test_blacklist_window_expires(repo):
         repo.record_slippage_reject(7, "VALT.L")
     # Rejects aus dem 7-Tage-Fenster herausaltern
     repo.db.execute(
-        "UPDATE slippage_rejects SET rejected_at = datetime('now','-8 days','utc')"
+        "UPDATE slippage_rejects SET rejected_at = datetime('now', '-8 days')"
     )
     assert repo.is_slippage_blacklisted(7) is False
 

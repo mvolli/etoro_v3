@@ -309,7 +309,7 @@ def main() -> None:
                         try:
                             db.execute(
                                 """UPDATE trades SET status='CLOSED', exit_price=?, pnl_usd=?, pnl_pct=?, 
-                                   closed_at=datetime('now','utc'), verification_status='VERIFIED'
+                                   closed_at=datetime('now'), verification_status='VERIFIED'
                                    WHERE api_position_id=? AND status IN ('ACTIVE','SUBMITTING','CONFIRMED')""",
                                 (close_price, pnl_usd_est, pnl_pct, str(position_id)),
                             )
@@ -358,7 +358,7 @@ def main() -> None:
                         try:
                             db.execute(
                                 """UPDATE trades SET status='CLOSED', exit_price=?, pnl_usd=?, pnl_pct=?, 
-                                   closed_at=datetime('now','utc'), verification_status='PENDING'
+                                   closed_at=datetime('now'), verification_status='PENDING'
                                    WHERE api_position_id=? AND status IN ('ACTIVE','SUBMITTING','CONFIRMED')""",
                                 (close_price, pnl_usd_est, pnl_pct, str(position_id)),
                             )

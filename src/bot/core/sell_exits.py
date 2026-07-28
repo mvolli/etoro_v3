@@ -62,7 +62,7 @@ def load_blocked_instruments(db: Any, positions: list[dict],
             f"SELECT position_id FROM position_state "
             f"WHERE position_id IN ({placeholders}) "
             f"  AND sell_exit_at IS NOT NULL "
-            f"  AND sell_exit_at > datetime('now', ?, 'utc')",
+            f"  AND sell_exit_at > datetime('now', ?)",
             list(pos_to_instr) + [f"-{cooldown_h:.4f} hours"],
         )
         return {pos_to_instr[r[0]] for r in rows if r[0] in pos_to_instr}
@@ -80,7 +80,7 @@ def mark_sell_exit(db: Any, position_id: str, symbol: str) -> None:
         _ensure_position_state_table(db)
         db.execute("""
             INSERT INTO position_state (position_id, symbol, sell_exit_at, updated_at)
-            VALUES (?, ?, datetime('now','utc'), datetime('now','utc'))
+            VALUES (?, ?, datetime('now'), datetime('now'))
             ON CONFLICT(position_id) DO UPDATE SET
                 symbol = excluded.symbol,
                 sell_exit_at = excluded.sell_exit_at,

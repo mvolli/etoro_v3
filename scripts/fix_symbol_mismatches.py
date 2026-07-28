@@ -240,13 +240,13 @@ def main() -> int:
                 new_sym = f"{sym}__DEAD_{iid}"
                 cur.execute(
                     "UPDATE instruments SET symbol=?, is_active=0, "
-                    "last_updated=datetime('now','utc') WHERE instrument_id=?",
+                    "last_updated=datetime('now') WHERE instrument_id=?",
                     (new_sym, iid))
                 renamed_deaths += 1
             else:
                 cur.execute(
                     "UPDATE instruments SET is_active=0, "
-                    "last_updated=datetime('now','utc') WHERE instrument_id=?",
+                    "last_updated=datetime('now') WHERE instrument_id=?",
                     (iid,))
             applied_deactivations += cur.rowcount
 
@@ -267,7 +267,7 @@ def main() -> int:
             try:
                 cur.execute(
                     "UPDATE instruments SET symbol=?, "
-                    "last_updated=datetime('now','utc') WHERE instrument_id=?",
+                    "last_updated=datetime('now') WHERE instrument_id=?",
                     (sym, iid))
                 applied_updates += 1
             except sqlite3.IntegrityError as e:

@@ -77,7 +77,7 @@ def _get_context(db_path: Path, position_id: str | None, instrument_id: int | No
                     FROM trades t JOIN signals s ON s.id = t.signal_id
                     WHERE s.signal_type = ? AND t.status = 'CLOSED'
                       AND t.pnl_pct IS NOT NULL
-                      AND t.created_at > datetime('now', '-60 days', 'utc')
+                      AND t.created_at > datetime('now', '-60 days')
                 """, (ctx["signal_type"],))
                 perf = cur.fetchone()
                 if perf and perf["n"]:
