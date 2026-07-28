@@ -1,111 +1,6 @@
 {
  "entries": [
   {
-   "ts": "2026-07-21T16:34:10.280988+00:00",
-   "trade_id": 483,
-   "symbol": "NEE.RTH",
-   "yf_symbol": "NEE",
-   "decision": "REDUCE",
-   "reason": "Kombination TREND_PULLBACK,GOLDEN_CROSS hat WR 21.4% (n=14). RSI ~50 zeigt keine klare MACD-Wende/Oversold-Bedingung, was das Risiko bei diesem spezifischen Combo erhöht.",
-   "signal_price": 87.88999938964844
-  },
-  {
-   "ts": "2026-07-21T17:34:12.946636+00:00",
-   "trade_id": 484,
-   "symbol": "NEE.RTH",
-   "yf_symbol": "NEE",
-   "decision": "REDUCE",
-   "reason": "Kombination TREND_PULLBACK,GOLDEN_CROSS hat WR von 21.4% (n=14). RSI ~49 ist nicht klar oversold, daher fehlt die MACD-Komponente zur Risikostreuung. Im Zweifel verkleinern.",
-   "signal_price": 87.86000061035156
-  },
-  {
-   "ts": "2026-07-22T12:04:16.053114+00:00",
-   "trade_id": 489,
-   "symbol": "HUMBLE.ST",
-   "yf_symbol": "HUMBLE.ST",
-   "decision": "REDUCE",
-   "reason": "Duplikat von 487 (HUMBLE.ST), Vermeidung von Cluster-Risiko",
-   "signal_price": 5.989999771118164
-  },
-  {
-   "ts": "2026-07-22T12:19:17.362613+00:00",
-   "trade_id": 491,
-   "symbol": "MEL.MC",
-   "yf_symbol": "MEL.MC",
-   "decision": "REDUCE",
-   "reason": "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20 hat WR 0% (n=6). Trotz MACD-Komponente ist die historische Performance sehr schlecht (-18$).",
-   "signal_price": 10.380000114440918
-  },
-  {
-   "ts": "2026-07-22T12:49:45.689133+00:00",
-   "trade_id": 492,
-   "symbol": "MSONB.ST",
-   "yf_symbol": "MSON-B.ST",
-   "decision": "REDUCE",
-   "reason": "RSI < 30 (stark oversold), Risiko einer weiteren Abwärtsspirale.",
-   "signal_price": 12.300000190734863
-  },
-  {
-   "ts": "2026-07-22T13:19:22.255331+00:00",
-   "trade_id": 492,
-   "symbol": "MSONB.ST",
-   "yf_symbol": "MSON-B.ST",
-   "decision": "REDUCE",
-   "reason": "RSI sehr tief (29), hohes Volatilitaetsrisiko trotz MACD-Signal.",
-   "signal_price": 12.300000190734863
-  },
-  {
-   "ts": "2026-07-22T13:19:22.255331+00:00",
-   "trade_id": 494,
-   "symbol": "ENEA.ST",
-   "yf_symbol": "ENEA.ST",
-   "decision": "VETO",
-   "reason": "RSI extrem oversold (17) ohne MACD-Wende-Komponente im Signal-String, Messer-Risiko.",
-   "signal_price": 57.29999923706055,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -2.44
-  },
-  {
-   "ts": "2026-07-22T13:34:22.524554+00:00",
-   "trade_id": 492,
-   "symbol": "MSONB.ST",
-   "yf_symbol": "MSON-B.ST",
-   "decision": "REDUCE",
-   "reason": "RSI < 30 (stark oversold), hohes Reversal-Risiko bei WR 25%.",
-   "signal_price": 12.300000190734863
-  },
-  {
-   "ts": "2026-07-22T13:49:22.634623+00:00",
-   "trade_id": 492,
-   "symbol": "MSONB.ST",
-   "yf_symbol": "MSON-B.ST",
-   "decision": "VETO",
-   "reason": "Sehr kleiner Positionswert ($52), aber RSI extrem oversold (<30) bei hoher Volatilitaet.",
-   "signal_price": 12.300000190734863,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -4.88
-  },
-  {
-   "ts": "2026-07-24T07:19:38.481127+00:00",
-   "trade_id": 580,
-   "symbol": "ODET.PA",
-   "yf_symbol": "ODET.PA",
-   "decision": "VETO",
-   "reason": "WR 20% bei MACD-Kombo, SPY/QQQ fallen stark, Messer-Fang Risiko zu hoch.",
-   "signal_price": 1398.0,
-   "outcome": "MISSED_UPSIDE",
-   "outcome_delta_pct": 0.72
-  },
-  {
-   "ts": "2026-07-24T07:19:38.481127+00:00",
-   "trade_id": 581,
-   "symbol": "PST.MI",
-   "yf_symbol": "PST.MI",
-   "decision": "REDUCE",
-   "reason": "RSI 45 noch nicht oversold, Signal schwächer als 580, Marktfeindlich.",
-   "signal_price": 27.549999237060547
-  },
-  {
    "ts": "2026-07-27T15:04:08.685907+00:00",
    "trade_id": 588,
    "symbol": "NVDA",
@@ -2704,6 +2599,105 @@
    "yf_symbol": "UBER",
    "decision": "VETO",
    "reason": "CORE_SWEEP ohne 30d-Historie, Score 0 (MEDIUM). Bei Unsicherheit und asymmetrischen Rechten Position verkleinern statt voll approve.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T12:34:37.468805+00:00",
+   "trade_id": 780,
+   "symbol": "BOL.ST",
+   "yf_symbol": "BOL.ST",
+   "decision": "REDUCE",
+   "reason": "Signal MACD_TURN_BELOW_SMA20 hat historisch schlechte WR (11.1%) bei n=9. Im Zweifel aber APPROVE, daher nur Reduktion.",
+   "signal_price": 470.29998779296875
+  },
+  {
+   "ts": "2026-07-28T12:49:36.179445+00:00",
+   "trade_id": 781,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne 30d-Historie, konservativ pruefen; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T13:04:37.527081+00:00",
+   "trade_id": 781,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne 30d-Historie, Score 0. Bei fehlender MACD-Bestätigung ist das Risiko hoch (WR 8.1%). Konservative Reduzierung statt Veto, da kein klares feindliches Umfeld.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T13:19:38.193746+00:00",
+   "trade_id": 781,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP ohne 30d-Historie, konservativ pruefen; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T14:04:44.222075+00:00",
+   "trade_id": 783,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP ohne Historie in volatilen QQQ-Umfeld (-1.75%) konservativ handeln.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T14:04:44.222075+00:00",
+   "trade_id": 784,
+   "symbol": "VTS.AX",
+   "yf_symbol": "VTS.AX",
+   "decision": "REDUCE",
+   "reason": "Keine 30d-Historie, Marktunsicherheit (VIX 19.14) erfordert Positionsverkleinerung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T14:04:44.222075+00:00",
+   "trade_id": 785,
+   "symbol": "PNI.AX",
+   "yf_symbol": "PNI.AX",
+   "decision": "REDUCE",
+   "reason": "Neues Signal ohne Backtest-Validierung bei schwachem Tech-Sektor.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T14:04:44.222075+00:00",
+   "trade_id": 786,
+   "symbol": "9626.HK",
+   "yf_symbol": "9626.HK",
+   "decision": "REDUCE",
+   "reason": "Konservative Anpassung bei fehlender Historie und genereller Marktschwäche.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T14:19:44.463034+00:00",
+   "trade_id": 784,
+   "symbol": "VTS.AX",
+   "yf_symbol": "VTS.AX",
+   "decision": "REDUCE",
+   "reason": "Keine 30d-Historie fuer CORE_SWEEP bei VTS.AX; konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T14:19:44.463034+00:00",
+   "trade_id": 785,
+   "symbol": "PNI.AX",
+   "yf_symbol": "PNI.AX",
+   "decision": "REDUCE",
+   "reason": "Keine 30d-Historie fuer CORE_SWEEP bei PNI.AX; konservativ reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-07-28T14:19:44.463034+00:00",
+   "trade_id": 786,
+   "symbol": "9626.HK",
+   "yf_symbol": "9626.HK",
+   "decision": "REDUCE",
+   "reason": "Keine 30d-Historie fuer CORE_SWEEP bei 9626.HK; konservativ reduziert.",
    "signal_price": null
   }
  ]

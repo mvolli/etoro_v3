@@ -82,6 +82,41 @@ def _load_db_whitelist(db: Any) -> dict[str, int]:
         return {}
 
 
+def _recent_core_sweep_rejects(db: Any, instrument_id: int, hours: float) -> int:
+    """Anzahl REJECTED/FAILED CORE_SWEEP-Trades fuer *instrument_id* in den
+    letzten *hours* Stunden (eigene DB-Uhr, siehe Hinweis unten).
+
+    Deterministische Alternative zum LLM-gefuehrten Ghost-Blacklist: ein
+    Titel, der wiederholt am Veto-Gate oder an der Execution scheitert,
+    ohne je eine Order auszufuehren, soll nicht bei jedem 15-Minuten-Zyklus
+    erneut versucht werden (siehe reject_cooldown_after in plan_core_sweep).
+
+    Zeitbasis: trades.created_at wird per DEFAULT datetime('now','utc')
+    befuellt (scripts/init_db.py). Auf diesem System ist datetime('now','utc')
+    ein bekannter SQLite-Stolperstein: 'now' liefert bereits echtes UTC, der
+    zusaetzliche 'utc'-Modifier zieht dann NOCHMAL den lokalen TZ-Offset ab
+    (aktuell -2h, CEST). Ein Vergleich gegen "echtes" UTC wuerde die
+    Altersberechnung um genau diesen Offset verfaelschen -- deshalb wird der
+    Cutoff hier bewusst mit derselben (verschobenen) Uhr berechnet wie
+    created_at selbst; der Offset kuerzt sich heraus.
+    """
+    try:
+        row = db.fetchone(
+            """
+            SELECT COUNT(*) AS n
+            FROM trades t JOIN signals s ON s.id = t.signal_id
+            WHERE t.instrument_id = ?
+              AND s.signal_type = 'CORE_SWEEP'
+              AND t.status IN ('REJECTED', 'FAILED')
+              AND t.created_at >= datetime('now', 'utc', ?)
+            """,
+            (instrument_id, f"-{hours} hours"),
+        )
+        return int(row["n"]) if row and row["n"] is not None else 0
+    except Exception:
+        return 0
+
+
 def _prune_expired_db_whitelist(db: Any) -> int:
     """Loesche abgelaufene Eintraege aus core_sweep_whitelist.
 
@@ -210,6 +245,24 @@ def plan_core_sweep(
                         continue
             except Exception:
                 pass  # Spalte fehlt -> fail-open
+        # Reject-Cooldown (fix/core-sweep-reject-cooldown 2026-07-28):
+        # ohne diesen Check plant der Worker jeden Zyklus (alle 15min) einen
+        # neuen Sweep fuer denselben Titel, selbst wenn Veto-Worker oder
+        # Execution ihn gerade erst zurueckgewiesen haben -- ein Titel, der
+        # nie eine einzige Aktie kauft, blieb sonst bis zum Whitelist-Expiry
+        # (bis zu 24h) "frei" und wurde stur neu versucht (UBER-Incident
+        # 2026-07-28: 19 Core-Sweep-Versuche in 8h, 0 Erfolge, jeder davon
+        # ein eigener LLM-Veto-Call).
+        cooldown_after = int(cs.get("reject_cooldown_after", 3))
+        if db is not None and cooldown_after > 0:
+            cooldown_hours = float(cs.get("reject_cooldown_hours", 3.0))
+            n_rejects = _recent_core_sweep_rejects(db, iid, cooldown_hours)
+            if n_rejects >= cooldown_after:
+                reasons.append(
+                    f"{sym}: {n_rejects} CORE_SWEEP-Rejections in "
+                    f"{cooldown_hours:.0f}h — Cooldown, SKIP"
+                )
+                continue
         candidates.append((sym, iid, atr_by_id.get(iid)))
 
     if not candidates:

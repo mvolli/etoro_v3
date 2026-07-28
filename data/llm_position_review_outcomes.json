@@ -1529,9 +1529,9 @@
     "reason": "PnL +6.1% aber Delta -3.9% (Peak abgegeben), Gewinnmitnahme sinnvoll",
     "pnl_at_execution": 5.975723622782425,
     "price_at_execution": 22.7,
-    "outcome_checked": false,
-    "outcome_grade": null,
-    "outcome_pnl_delta": null
+    "outcome_checked": true,
+    "outcome_grade": "NEUTRAL",
+    "outcome_pnl_delta": 0.47
   },
   {
     "ts_recommended": "2026-07-27T06:35:59",
@@ -1542,9 +1542,9 @@
     "reason": "PnL -0.4% aber Delta -1.7% (Peak abgegeben), frische SELL Signale, MACD negativ",
     "pnl_at_execution": -0.40907891264185814,
     "price_at_execution": 603.76,
-    "outcome_checked": false,
-    "outcome_grade": null,
-    "outcome_pnl_delta": null
+    "outcome_checked": true,
+    "outcome_grade": "AVOIDED_LOSS",
+    "outcome_pnl_delta": -0.95
   },
   {
     "ts_recommended": "2026-07-27T06:35:59",
@@ -1750,6 +1750,32 @@
     "reason": "FADED, Δ < -1.5% (-5.9%), Signal TREND_KIPP_1H,SELL.",
     "pnl_at_execution": 3.106125970664353,
     "price_at_execution": 11.95,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-07-28T12:36:06",
+    "ts_executed": "2026-07-28T12:36:33",
+    "symbol": "JNJ",
+    "recommendation": "TIGHTEN",
+    "close_pct": 25.0,
+    "reason": "PnL > +3% und BB% 0.90 (nahe oberem Band), Peak-Gewinn von +9.8% auf +6.0% geschrumpft (Δ=-3.8%).",
+    "pnl_at_execution": 5.9545276362211075,
+    "price_at_execution": 270.29,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-07-28T12:36:06",
+    "ts_executed": "2026-07-28T12:36:33",
+    "symbol": "1797.HK",
+    "recommendation": "TIGHTEN",
+    "close_pct": 30.0,
+    "reason": "FADED Label, PnL +6.4% aber Δ=-5.3% (starker Peak-Rückgang), Signal UNBEKANNT aber Momentum gebrochen.",
+    "pnl_at_execution": 6.442577030812324,
+    "price_at_execution": 22.8,
     "outcome_checked": false,
     "outcome_grade": null,
     "outcome_pnl_delta": null

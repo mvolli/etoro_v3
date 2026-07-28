@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-07-28T11:15:36.340044+00:00",
-  "auto_expires_at": "2026-07-28T23:15:36.340044+00:00",
-  "symbols_scanned": 36,
-  "headlines_seen": 41,
+  "generated_at": "2026-07-28T15:15:54.499351+00:00",
+  "auto_expires_at": "2026-07-29T03:15:54.499351+00:00",
+  "symbols_scanned": 46,
+  "headlines_seen": 36,
   "flags": {
     "AAPL": {
       "flag": "AVOID",
@@ -31,13 +31,19 @@
     "CDI.PA": {
       "flag": "CAUTION",
       "severity": "MEDIUM",
-      "reason": "Kursrueckgang trotz Wachstum, verfehlte Schwaerze",
+      "reason": "Aktienkurs fällt trotz Wachstum, da Ergebnisse die Schätzungen verfehlen",
       "source": "news_llm"
     },
     "JNJ": {
       "flag": "CAUTION",
       "severity": "MEDIUM",
-      "reason": "Hohe Vergleichszahl fuer Ovarialkrebs-Klagen",
+      "reason": "Hoher Vergleichszahlungsanspruch von 5,5 Mrd. USD zur Beilegung von Talc-Klagen",
+      "source": "news_llm"
+    },
+    "JPM": {
+      "flag": "CAUTION",
+      "severity": "MEDIUM",
+      "reason": "CEO warnt vor größeren Marktrisiken als angenommen und kauft keine Aktien",
       "source": "news_llm"
     }
   }

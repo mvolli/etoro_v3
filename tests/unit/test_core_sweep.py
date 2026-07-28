@@ -395,3 +395,115 @@ class TestHybridWhitelistDB:
         # Sollte keine Exception werfen
         assert orders is not None
         db.close()
+
+
+# ── Reject-Cooldown (fix/core-sweep-reject-cooldown 2026-07-28) ──────────────
+#
+# UBER-Incident: ein Core-Sweep-Kandidat, der nie eine Order ausfuehrt,
+# wurde vorher bei JEDEM 15-Minuten-Zyklus neu versucht (19x in 8h, 0
+# Erfolge) -- kein Cooldown existierte. Diese Tests nutzen den echten DB-
+# Wrapper (nicht raw sqlite3.Connection wie oben), weil
+# _recent_core_sweep_rejects() ueber db.fetchone(sql, params) geht.
+
+class TestRejectCooldown:
+    def _db_with_trades(self):
+        from bot.db.connection import DB
+        db = DB(db_path=":memory:")
+        db.execute("CREATE TABLE signals (id INTEGER PRIMARY KEY, signal_type TEXT)")
+        db.execute(
+            "CREATE TABLE trades (id INTEGER PRIMARY KEY, instrument_id INTEGER, "
+            "signal_id INTEGER, status TEXT, created_at TEXT)"
+        )
+        return db
+
+    def _add_core_sweep_trade(self, db, instrument_id, status, hours_ago=0.0):
+        sig_cur = db.execute("INSERT INTO signals (signal_type) VALUES ('CORE_SWEEP')")
+        db.execute(
+            "INSERT INTO trades (instrument_id, signal_id, status, created_at) "
+            "VALUES (?, ?, ?, datetime('now','utc', ?))",
+            (instrument_id, sig_cur.lastrowid, status, f"-{hours_ago} hours"),
+        )
+
+    def test_cooldown_blocks_after_threshold(self):
+        """3 REJECTED in 3h-Fenster (Default) -> Kandidat wird geskippt."""
+        db = self._db_with_trades()
+        for _ in range(3):
+            self._add_core_sweep_trade(db, 1001, "REJECTED", hours_ago=0.5)
+        cfg = _make_cfg(whitelist={"AAPL": 1001})
+        orders, reasons = plan_core_sweep(
+            cfg, equity=10000, cash=6000, regime="NORMAL", db=db)
+        assert orders == []
+        assert any("Cooldown" in r for r in reasons)
+
+    def test_below_threshold_not_blocked(self):
+        """Nur 2 Rejections (< Default-Schwelle 3) -> kein Cooldown."""
+        db = self._db_with_trades()
+        for _ in range(2):
+            self._add_core_sweep_trade(db, 1001, "REJECTED", hours_ago=0.5)
+        cfg = _make_cfg(whitelist={"AAPL": 1001})
+        orders, _ = plan_core_sweep(
+            cfg, equity=10000, cash=6000, regime="NORMAL", db=db)
+        assert len(orders) == 1
+        assert orders[0].symbol == "AAPL"
+
+    def test_old_rejections_age_out(self):
+        """Rejections ausserhalb des Cooldown-Fensters zaehlen nicht."""
+        db = self._db_with_trades()
+        for _ in range(3):
+            self._add_core_sweep_trade(db, 1001, "REJECTED", hours_ago=10.0)
+        cfg = _make_cfg(whitelist={"AAPL": 1001})
+        orders, _ = plan_core_sweep(
+            cfg, equity=10000, cash=6000, regime="NORMAL", db=db)
+        assert len(orders) == 1
+
+    def test_failed_status_also_counts(self):
+        """FAILED zaehlt genauso wie REJECTED zum Cooldown."""
+        db = self._db_with_trades()
+        self._add_core_sweep_trade(db, 1001, "FAILED", hours_ago=0.5)
+        self._add_core_sweep_trade(db, 1001, "REJECTED", hours_ago=0.5)
+        self._add_core_sweep_trade(db, 1001, "FAILED", hours_ago=0.5)
+        cfg = _make_cfg(whitelist={"AAPL": 1001})
+        orders, reasons = plan_core_sweep(
+            cfg, equity=10000, cash=6000, regime="NORMAL", db=db)
+        assert orders == []
+        assert any("Cooldown" in r for r in reasons)
+
+    def test_active_trade_does_not_count(self):
+        """ACTIVE/CLOSED Trades loesen keinen Cooldown aus."""
+        db = self._db_with_trades()
+        for _ in range(5):
+            self._add_core_sweep_trade(db, 1001, "ACTIVE", hours_ago=0.5)
+        cfg = _make_cfg(whitelist={"AAPL": 1001})
+        orders, _ = plan_core_sweep(
+            cfg, equity=10000, cash=6000, regime="NORMAL", db=db)
+        assert len(orders) == 1
+
+    def test_cooldown_disabled_via_config(self):
+        """reject_cooldown_after=0 schaltet den Check komplett ab."""
+        db = self._db_with_trades()
+        for _ in range(10):
+            self._add_core_sweep_trade(db, 1001, "REJECTED", hours_ago=0.1)
+        cfg = _make_cfg(whitelist={"AAPL": 1001})
+        cfg["trading"]["core_sweep"]["reject_cooldown_after"] = 0
+        orders, _ = plan_core_sweep(
+            cfg, equity=10000, cash=6000, regime="NORMAL", db=db)
+        assert len(orders) == 1
+
+    def test_other_instrument_unaffected(self):
+        """Cooldown ist pro instrument_id, nicht global."""
+        db = self._db_with_trades()
+        for _ in range(5):
+            self._add_core_sweep_trade(db, 1001, "REJECTED", hours_ago=0.5)
+        cfg = _make_cfg(whitelist={"AAPL": 1001, "MSFT": 1004})
+        orders, _ = plan_core_sweep(
+            cfg, equity=10000, cash=6000, regime="NORMAL", db=db)
+        symbols = {o.symbol for o in orders}
+        assert "AAPL" not in symbols
+        assert "MSFT" in symbols
+
+    def test_no_db_skips_cooldown_check(self):
+        """Ohne DB (db=None) kann der Cooldown-Check nicht laufen -> fail-open."""
+        cfg = _make_cfg(whitelist={"AAPL": 1001})
+        orders, _ = plan_core_sweep(
+            cfg, equity=10000, cash=6000, regime="NORMAL", db=None)
+        assert len(orders) == 1
