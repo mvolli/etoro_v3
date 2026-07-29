@@ -996,14 +996,14 @@ def _update_ghost_blacklist(
 
     GHOST_BLACKLIST_PATH.write_text(json.dumps(blacklist, indent=2, ensure_ascii=False))
     print(f"[llm_review] Ghost-Blacklist aktualisiert: {combined_exchanges}")
-    # Nur NEUE Exchanges loggen (nicht bei jedem Run die gleichen 5 wiederholen)
-    try:
-        _prev = json.loads(GHOST_BLACKLIST_PATH.read_text()) if GHOST_BLACKLIST_PATH.exists() else {}
-        _prev_exchanges = set(_prev.get("exchanges", []))
-    except Exception:
-        _prev_exchanges = set()
+    # Nur NEUE Exchanges loggen (nicht bei jedem Run die gleichen 5 wiederholen).
+    # fix/ghost-blacklist-decision-log (2026-07-28): der Vergleichsstand wurde
+    # hier NACH dem write_text() erneut von der Platte gelesen — also immer
+    # der frisch geschriebene Stand → kein Exchange war je "neu", das
+    # Decision-Log bekam nie ghost_blacklist-Eintraege. Jetzt: der bereits
+    # oben (vor dem Write) gelesene _prev_blocked ist der Vergleichsstand.
     for ex in combined_exchanges:
-        if ex not in _prev_exchanges:
+        if ex not in set(_prev_blocked):
             _record_decision("ghost_blacklist", ex, False, True, blacklist.get("reason", "")[:80])
     return blacklist
 
