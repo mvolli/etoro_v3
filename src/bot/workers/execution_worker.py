@@ -84,6 +84,36 @@ def _post(fn_name: str, **kwargs):
     return None
 
 
+def _canonical_symbol(db, instrument_id, fallback: str) -> str:
+    """eToro-Symbol aus der instruments-Tabelle (Source of Truth fuers Identity-Gate).
+
+    fix/identity-gate-namespace (2026-07-29, 2196.HK-Incident): das
+    Identity-Gate (client.verify_instrument_identity) bekam bisher
+    `trades.symbol` — und das traegt streckenweise das YFINANCE-Symbol
+    ('2196.HK'), waehrend eToro '02196.HK' liefert. Ergebnis: ein
+    Pre-flight-BLOCK auf einem voellig korrekten Instrument.
+
+    instruments.symbol ist dagegen nachweislich der eToro-Stand (Live-
+    Abgleich 2026-07-29: 6/6 Treffer, inkl. gepaddeter UND ungepaddeter
+    HK-Codes sowie .ASX). Deshalb hier aufloesen statt den Vergleich im
+    Gate aufzuweichen — eine echte Fehlzuordnung (DOT-USD-Futures-
+    Incident) blockt damit weiterhin unveraendert.
+
+    Fail-open auf den uebergebenen Fallback: fehlt die Zeile, entscheidet
+    das Gate wie bisher.
+    """
+    try:
+        row = db.fetchone(
+            "SELECT symbol FROM instruments WHERE instrument_id = ?",
+            (int(instrument_id),),
+        )
+        if row and row["symbol"]:
+            return str(row["symbol"])
+    except Exception:
+        pass
+    return fallback
+
+
 def _record_open(db, trade_id, symbol, instrument_id, position_id,
                  order_id=None, amount_usd=None, price=None,
                  post_result=None) -> None:
@@ -833,7 +863,7 @@ def main() -> None:
                     instrument_id=instrument_id,
                     amount_usd=amount_usd,
                     stop_loss_pct=stop_loss_pct,
-                    symbol=symbol,
+                    symbol=_canonical_symbol(db, instrument_id, symbol),
                     take_profit_pct=float(cfg.get("sl", {}).get("safety_tp_pct", 25.0)),
                     is_crypto=_is_crypto,  # fix/crypto-entry-orders: 24/7-Market-Order
                 )

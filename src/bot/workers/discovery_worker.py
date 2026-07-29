@@ -456,6 +456,23 @@ def _cs_auto_discovery(
         if rsi is not None and rsi >= 75.0:
             return
 
+        # fix/identity-gate-namespace (2026-07-29, 2196.HK-Incident): das
+        # uebergebene `symbol` stammt aus der Discovery und traegt damit das
+        # YFINANCE-Symbol ('2196.HK'). Von hier wanderte es via Core-Sweep in
+        # trades.symbol und liess das Identity-Gate gegen eToros '02196.HK'
+        # blocken. Die Whitelist speichert deshalb das kanonische eToro-Symbol
+        # aus instruments (fail-open auf das uebergebene, falls Zeile fehlt).
+        canonical = symbol
+        try:
+            _row = db.fetchone(
+                "SELECT symbol FROM instruments WHERE instrument_id = ?",
+                (int(instrument_id),),
+            )
+            if _row and _row["symbol"]:
+                canonical = str(_row["symbol"])
+        except Exception:
+            pass
+
         # Upsert: INSERT OR REPLACE (idempotent, aktualisiert score/conviction)
         expires_at = (
             datetime.now(timezone.utc) + timedelta(hours=24)
@@ -464,11 +481,11 @@ def _cs_auto_discovery(
             INSERT OR REPLACE INTO core_sweep_whitelist
                 (instrument_id, symbol, source, score, conviction, added_at, expires_at)
             VALUES (?, ?, 'discovery', ?, ?, datetime('now'), ?)
-        """, (instrument_id, symbol, score, conviction, expires_at))
+        """, (instrument_id, canonical, score, conviction, expires_at))
 
         logger.info(
             "[%s] Core-Sweep-Whitelist: %s (ID %d) score=%.1f conviction=%s expires=%s",
-            WORKER_NAME, symbol, instrument_id, score, conviction, expires_at,
+            WORKER_NAME, canonical, instrument_id, score, conviction, expires_at,
         )
     except Exception as exc:
         logger.warning(

@@ -25,6 +25,19 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
 - Einmal-Aktionen pro Position IMMER persistieren (position_state) —
   sonst feuert der 5-min-Zyklus endlos.
 - DB-Migrationen idempotent (ALTER TABLE in try/except, je Spalte einzeln).
+- **Zwei Symbol-Namespaces, nie vermischen** (fix/identity-gate-namespace,
+  2196.HK-Incident 2026-07-29): `instruments.symbol` = eToro-Namespace
+  (live verifiziert: '02196.HK', 'CAR.ASX', '836.HK'), `instruments.
+  yfinance_symbol` = Yahoo-Namespace ('2196.HK', 'CAR.AX', '0836.HK').
+  Die Padding-Konvention ist pro Instrument unterschiedlich und NICHT
+  algorithmisch ableitbar (00027.HK ↔ Yahoo 0728.HK ist eine kuratierte
+  Umbenennung, keine Null-Auffuellung). Alles Richtung eToro-API
+  (Identity-Gate, Order-Bau) MUSS `instruments.symbol` per instrument_id
+  aufloesen — siehe `execution_worker._canonical_symbol()`. Den Vergleich
+  im Gate aufzuweichen ist verboten: er faengt den DOT-USD-Futures-vs-
+  Spot-Incident. Discovery/Watchlist arbeiten im yfinance-Namespace —
+  Schreiber Richtung Trading-Pfad (z.B. `core_sweep_whitelist`) muessen
+  vorher kanonisieren.
 - Worker-Wrapper liegen in `~/.hermes/scripts/v3_*.sh` — Script-Änderungen
   in `scripts/` müssen dorthin kopiert werden, sonst läuft der Cron alt.
 - Trade-Event-Ledger `trade_events` (feat/pnl-nachreport, 2026-07-28):
