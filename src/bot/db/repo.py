@@ -262,10 +262,23 @@ class TradeRepo:
         )
         return _rows_to_dicts(rows)
 
-    def get_approved_instrument_ids(self) -> set[int]:
-        """Return instrument_ids with status APPROVED (pending execution)."""
+    def get_approved_instrument_ids(
+        self, statuses: tuple[str, ...] = ("APPROVED",)
+    ) -> set[int]:
+        """Return instrument_ids with a pending-exposure trade.
+
+        Default ("APPROVED",) = Instrumente, die auf Ausfuehrung warten.
+
+        fix/core-sweep-duplicate-approval (2026-07-29): der Core-Sweep
+        braucht zusaetzlich SUBMITTING — ein dort gestrandeter Trade
+        (siehe classify_stale_submitting) ist weder in den offenen
+        Positionen noch in APPROVED sichtbar und waere der einzige Pfad
+        zu echter Doppel-Exposure statt bloss einem Duplikat-Reject.
+        """
+        placeholders = ",".join("?" * len(statuses))
         rows = self.db.fetchall(
-            "SELECT instrument_id FROM trades WHERE status = 'APPROVED'"
+            f"SELECT instrument_id FROM trades WHERE status IN ({placeholders})",
+            tuple(statuses),
         )
         return {r["instrument_id"] for r in rows}
 

@@ -1286,6 +1286,25 @@ def main() -> None:
                     _held_ids.add(int(_p.get("instrument_id")))
                 except (TypeError, ValueError):
                     pass
+            # fix/core-sweep-duplicate-approval (2026-07-29): _held_ids kannte
+            # bisher NUR offene Positionen. Ein Instrument mit bereits
+            # APPROVED-Trade wurde deshalb jeden 15-min-Zyklus erneut
+            # eingeplant, und der execution_worker verwarf es als
+            # "Duplicate instrument_id in same execution batch" — 143 von 143
+            # Duplikat-Rejects der letzten 3 Tage stammten aus CORE_SWEEP.
+            # Der normale Signalpfad hat diesen Guard seit
+            # fix/duplicate-instrument-approval (2026-07-27) bereits.
+            # BEWUSST frisch abgefragt statt _approved_ids (Zeile ~654)
+            # wiederzuverwenden: das Set stammt von VOR der Signal-Schleife,
+            # die selbst Trades anlegt — und die Core-Sweep-Whitelist wird aus
+            # genau denselben starken FRESH-Signalen gefuellt, ein Instrument
+            # in beiden Pfaden ist also der Normalfall, nicht die Ausnahme.
+            try:
+                _held_ids |= trade_repo.get_approved_instrument_ids(
+                    ("APPROVED", "SUBMITTING")
+                )
+            except Exception:
+                pass  # fail-open: execution_worker-Guard bleibt letzte Linie
             _wl = (cfg.get("trading", {}).get("core_sweep", {}) or {}).get("whitelist", {}) or {}
             _wl_ids = []
             for _v in _wl.values():
