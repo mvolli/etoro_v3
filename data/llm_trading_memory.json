@@ -362,6 +362,60 @@
         "Duplicate instrument_id: 83/176 REJECTED — execution_worker deduppt nur pro-Batch",
         "QMD Insights: Ghost-Order-Pipeline, ATR-Adaptive SL, RSI<25 = Krisenzeichen"
       ]
+    },
+    {
+      "run_id": "self_improvement_2026-07-31",
+      "timestamp": "2026-07-31T19:05:01.087803+00:00",
+      "changes": [
+        {
+          "file": "data/llm_signal_weights.json",
+          "change": "CORE_SWEEP score_multiplier 0.5 → 0.35",
+          "reason": "16 CLOSED-Trades, 25% WR, -3.85 avg PnL, -61.68 total — 0.5-Multiplier unzureichend"
+        },
+        {
+          "file": "data/llm_signal_weights.json",
+          "change": "Neuer Eintrag: BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD = 0.3",
+          "reason": "37 Trades, 2.7% WR, -90.02 total PnL — vorher nur 0.7 via Subset-Propagation, zu schwach"
+        }
+      ],
+      "analysis": {
+        "total_closed_trades": 158,
+        "overall_wr": 20.3,
+        "best_signal": "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20 (40% WR, +94.8 total)",
+        "worst_signals": [
+          "BB 3-Combo (2.7% WR)",
+          "TREND_PULLBACK,GOLDEN_Cross (-120.82 total)",
+          "CORE_SWEEP (-61.68 total)"
+        ]
+      },
+      "tests_passed": true
+    },
+    {
+      "run_id": "self_improvement_2026-07-31",
+      "timestamp": "2026-07-31T19:05:42.704929+00:00",
+      "changes": [
+        {
+          "file": "data/llm_signal_weights.json",
+          "change": "CORE_SWEEP score_multiplier 0.5 → 0.35",
+          "reason": "16 CLOSED-Trades, 25% WR, -3.85 avg PnL, -61.68 total — 0.5-Multiplier unzureichend"
+        },
+        {
+          "file": "data/llm_signal_weights.json",
+          "change": "Neuer Eintrag: BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD = 0.3",
+          "reason": "37 Trades, 2.7% WR, -90.02 total PnL — vorher nur 0.7 via Subset-Propagation, zu schwach"
+        }
+      ],
+      "analysis": {
+        "total_closed_trades": 158,
+        "overall_wr": 20.3,
+        "best_signal": "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20 (40% WR, +94.8 total)",
+        "worst_signals": [
+          "BB 3-Combo (2.7% WR)",
+          "TREND_PULLBACK,GOLDEN_Cross (-120.82 total)",
+          "CORE_SWEEP (-61.68 total)"
+        ]
+      },
+      "tests_passed": true
     }
   ],
   "decision_outcomes": [
@@ -676,6 +730,37 @@
         "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING",
         "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD"
       ]
+    },
+    {
+      "date": "2026-07-28",
+      "closed_trades": 87,
+      "insights": 3,
+      "adjustments": [
+        "CORE_SWEEP",
+        "TREND_PULLBACK,GOLDEN_CROSS",
+        "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING",
+        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD"
+      ]
+    },
+    {
+      "date": "2026-07-29",
+      "closed_trades": 91,
+      "insights": 2,
+      "adjustments": [
+        "CORE_SWEEP",
+        "TREND_PULLBACK,GOLDEN_CROSS",
+        "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING"
+      ]
+    },
+    {
+      "date": "2026-07-30",
+      "closed_trades": 94,
+      "insights": 3,
+      "adjustments": [
+        "CORE_SWEEP",
+        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD",
+        "TREND_PULLBACK,GOLDEN_CROSS"
+      ]
     }
   ],
   "signal_insights": {
@@ -867,18 +952,6 @@
     ],
     "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": [
       {
-        "date": "2026-07-10",
-        "score_multiplier": 0.4,
-        "skip": false,
-        "reason": "Success Rate bei 0.08, hohe Rejection-Rate."
-      },
-      {
-        "date": "2026-07-13",
-        "score_multiplier": 0.4,
-        "skip": false,
-        "reason": "Niedrige Success Rate (8%) und viele Rejections"
-      },
-      {
         "date": "2026-07-16",
         "score_multiplier": 0.8,
         "skip": false,
@@ -925,6 +998,18 @@
         "score_multiplier": 0.5,
         "skip": false,
         "reason": "avg_pnl -2.29 bei 88% Verlustrate (8/9 CLOSED). Falscher Entry-Timing im Rauschen."
+      },
+      {
+        "date": "2026-07-28",
+        "score_multiplier": 0.7,
+        "skip": false,
+        "reason": "Negative avg_pnl (-1.42) bei HIGH Conviction. Signal ist zu spät oder zu schwach im aktuellen Rauschen."
+      },
+      {
+        "date": "2026-07-29",
+        "score_multiplier": 0.8,
+        "skip": false,
+        "reason": "Negative PnLs (-1.42) bei hoher Success-Rate. Signal funktioniert, aber Risk/Reward ist schlecht."
       }
     ],
     "MACD_TURN_BELOW_SMA20": [
@@ -944,24 +1029,6 @@
       }
     ],
     "TREND_PULLBACK,GOLDEN_CROSS": [
-      {
-        "date": "2026-07-17",
-        "score_multiplier": 0.7,
-        "skip": false,
-        "reason": "Hohe Reject-Rate (19/54), aber positive avg_pnl bei Closed Trades. Filter schärfen."
-      },
-      {
-        "date": "2026-07-18",
-        "score_multiplier": 0.7,
-        "skip": false,
-        "reason": "Niedrige success_rate (0.31) und negative avg_pnl (-0.39) trotz hoher Sample-Size"
-      },
-      {
-        "date": "2026-07-21",
-        "score_multiplier": 0.7,
-        "skip": false,
-        "reason": "Negative PnL-Historie (-0.91%) und hohe Rejection-Rate (19/61) deuten auf schlechte Entry-Qualität hin"
-      },
       {
         "date": "2026-07-21",
         "score_multiplier": 0.7,
@@ -1003,6 +1070,24 @@
         "score_multiplier": 0.6,
         "skip": false,
         "reason": "avg_pnl -1.28 bei 85% Verlustrate (21/21 CLOSED). Signal ist im aktuellen Markt zu träge."
+      },
+      {
+        "date": "2026-07-28",
+        "score_multiplier": 0.6,
+        "skip": false,
+        "reason": "Negative avg_pnl (-1.65) und hohe Verlustzahl (23 losses). Golden Cross funktioniert im aktuellen Seitwärts-/CAUTION-Regime schlecht."
+      },
+      {
+        "date": "2026-07-29",
+        "score_multiplier": 0.7,
+        "skip": false,
+        "reason": "Hohe Reject-Rate und negative PnLs trotz guter Success-Rate. Verluste sind größer als Gewinne."
+      },
+      {
+        "date": "2026-07-30",
+        "score_multiplier": 0.8,
+        "skip": false,
+        "reason": "Negative avg_pnl (-1.51) bei CLOSED-Trades, aber noch akzeptable Success-Rate (0.65)"
       }
     ],
     "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20": [
@@ -1049,11 +1134,42 @@
         "score_multiplier": 0.7,
         "skip": false,
         "reason": "avg_pnl +0.01 bei 90% Verlustrate (9/10 CLOSED). Fast alle fallen durch den SL, nur 1 Gewinner. Risk/Reward schlecht."
+      },
+      {
+        "date": "2026-07-28",
+        "score_multiplier": 0.8,
+        "skip": false,
+        "reason": "Falling-Knife-Risiko (WR 9% bei RSI<25). Nur mit MACD-Wende bestätigen lassen."
+      },
+      {
+        "date": "2026-07-30",
+        "score_multiplier": 0.7,
+        "skip": false,
+        "reason": "Sehr hohe Verlustrate (36/37 losses) bei VERY_HIGH Conviction, Falling-Knife-Muster"
+      }
+    ],
+    "CORE_SWEEP": [
+      {
+        "date": "2026-07-28",
+        "score_multiplier": 0.2,
+        "skip": false,
+        "reason": "Extrem hohe Reject-Rate (169/194) und 0.05% Success Rate im CAUTION-Regime. Signal ist zu aggressiv für aktuelle Marktbedingungen."
+      },
+      {
+        "date": "2026-07-29",
+        "score_multiplier": 0.5,
+        "skip": false,
+        "reason": "Extrem hohe Reject-Rate (271) und negative PnLs (-2.86 avg). Signal ist im aktuellen Markt 'Falling Knife'."
+      },
+      {
+        "date": "2026-07-30",
+        "score_multiplier": 0.5,
+        "skip": false,
+        "reason": "Extrem hohe Reject-Rate (391) und niedrige Success-Rate (0.06) bei CLOSED-Trades"
       }
     ]
   },
   "strategy_notes": [
-    "MACD_TURN_BELOW_SMA20 in Kombination mit BB_LOW_MACD_IMPROVING ist das robusteste Signal im CAUTION-Regime.",
     "GOLDEN_CROSS ist im aktuellen Marktumfeld ineffizient (100% Failed); nicht als alleiniges Entry nutzen.",
     "MACD_TURN_BELOW_SMA20 in Kombination mit BB_LOW_MACD_IMPROVING ist das stabilste Signal im CAUTION-Regime.",
     "Forex-Paare (EURGBP, EURJPY) sollten nur bei hoher Liquidität oder mit erweitertem SL gehandelt werden.",
@@ -1067,7 +1183,8 @@
     "TREND_PULLBACK,GOLDEN_Cross hat hohe Rejection-Rate, Score-Multiplier senken",
     "LUS1.DE zeigt, dass MEDIUM Conviction bei korrektem MACD-Turnover profitabler sein kann als HIGH Conviction im aktuellen Markt.",
     "RSI<25 ist ein Krisenzeichen, kein Kaufsignal (WR 9%).",
-    "Gewinner brauchen Zeit (Median 143h); junge Positionen nicht vorzeitig schließen."
+    "Gewinner brauchen Zeit (Median 143h); junge Positionen nicht vorzeitig schließen.",
+    "Exit-Problem bei W7L.L: 6.82% PnL, aber kein Peak-Tracking im Log. Trailing-Stop oder Profit-Take bei >5% prüfen."
   ],
   "config_history": [
     {
@@ -1631,6 +1748,62 @@
         "_ASIA": 0.0,
         ".ZU": 0.0,
         ".ST": 0.0,
+        ".MC": 0.0,
+        ".RTH": 0.0
+      }
+    },
+    {
+      "ts": "2026-07-28T20:31:14.746012+00:00",
+      "rates": {
+        "_OTHER": 0.03,
+        ".AX": 0.0,
+        "_ASIA": 0.0,
+        ".ST": 0.0,
+        ".MI": 0.0,
+        ".PA": 0.0,
+        ".SW": 0.0,
+        ".L": 0.01,
+        ".DE": 0.0,
+        "_CRYPTO": 0.0,
+        ".ZU": 0.0,
+        ".MC": 0.0,
+        ".RTH": 0.0
+      }
+    },
+    {
+      "ts": "2026-07-29T20:30:35.147571+00:00",
+      "rates": {
+        "_OTHER": 0.0,
+        ".L": 0.01,
+        "_ASIA": 0.0,
+        ".DE": 0.0,
+        ".MI": 0.0,
+        ".ST": 0.0,
+        ".AX": 0.0,
+        ".PA": 0.0,
+        ".SW": 0.0,
+        "_CRYPTO": 0.0,
+        ".ZU": 0.0,
+        ".MC": 0.0,
+        ".RTH": 0.0
+      }
+    },
+    {
+      "ts": "2026-07-30T20:31:11.618933+00:00",
+      "rates": {
+        "_FUT": 0.0,
+        ".L": 0.0,
+        ".ASX": 0.06,
+        "_OTHER": 0.0,
+        ".DE": 0.0,
+        ".MI": 0.0,
+        "_ASIA": 0.0,
+        ".ST": 0.0,
+        ".AX": 0.0,
+        ".PA": 0.0,
+        ".SW": 0.0,
+        "_CRYPTO": 0.0,
+        ".ZU": 0.0,
         ".MC": 0.0,
         ".RTH": 0.0
       }
