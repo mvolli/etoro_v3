@@ -28,6 +28,7 @@
     "RSI<25 ohne MACD-Wende ist Krisenzeichen (WR 9%), nicht Kaufsignal",
     "Gewinner brauchen Zeit (Median 143h), junge Positionen nicht vorzeitig schließen",
     "3-BB-Combo (RSI_EXTREME_OVERSOLD) mit 2.7% WR verliert -90 total; explizit auf 0.3 gedämpft (vorher 0.7 via Subset-Propagation der 2-BB)",
+    "3-BB-Combo (RSI_EXTREME_OVERSOLD) mit 2.7% WR verliert -90 total; explizit auf 0.3 gedämpft (vorher 0.7 via Subset-Propagation der 2-BB)",
     "3-BB-Combo (RSI_EXTREME_OVERSOLD) mit 2.7% WR verliert -90 total; explizit auf 0.3 gedämpft (vorher 0.7 via Subset-Propagation der 2-BB)"
   ],
   "conviction_issues": [

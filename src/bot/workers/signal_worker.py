@@ -211,6 +211,72 @@ def _signal_age_factor(generated_at_iso: str, ttl_minutes: int = 1440) -> float:
         return 1.0
 
 
+
+def _signal_performance_decay(
+    signal_type: str,
+    db_path: Path,
+    lookback_days: int = 14,
+    min_trades: int = 5,
+) -> float:
+    """Dampft den Score eines Signal-Typs basierend auf 14-Tage-Performance.
+
+    fix/signal-performance-decay (2026-08-03): Bisher feuern Signale
+    weiter mit vollem (LLM-)Score, obwohl sie in der Backtest-Periode
+    verlieren (z.B. CORE_SWEEP: -2.99% avg_pnl, 35% WR in 7 Tagen).
+    Diese Funktion liest die CLOSED-Trades der letzten N Tage und
+    berechnet einen multiplikativen Decay [0.3..1.0], der Signale mit
+    schlechter Performance im Ranking nach unten ruckt - ohne sie zu
+    blocken (LLM kann trotzdem skippen).
+
+    Regel:
+      - < min_trades Trades -> keine Aussage, fail-open
+      - WR >= 40% AND avg_pnl >= 0 -> keine Dampfung
+      - WR < 30% -> 0.3 (stark gedampft)
+      - WR 30-35% -> 0.5
+      - WR 35-40% -> 0.7
+      - avg_pnl < -2.0% -> extra 0.8 Multiplikator
+    """
+    try:
+        import sqlite3 as _sqlite3
+        conn = _sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        conn.row_factory = _sqlite3.Row
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT pnl_usd FROM trades "
+            "WHERE status = 'CLOSED' AND pnl_usd IS NOT NULL "
+            "AND created_at >= datetime('now', ?) "
+            "AND signal_id IN ("
+            "  SELECT id FROM signals WHERE signal_type = ?"
+            ")",
+            (f"-{lookback_days} days", signal_type),
+        )
+        rows = cur.fetchall()
+        conn.close()
+
+        n = len(rows)
+        if n < min_trades:
+            return 1.0
+
+        wins = sum(1 for r in rows if float(r["pnl_usd"]) > 0)
+        wr = wins * 100.0 / n
+        avg_pnl = sum(float(r["pnl_usd"]) for r in rows) / n
+
+        if wr >= 40 and avg_pnl >= 0:
+            return 1.0
+        if wr < 30:
+            decay = 0.3
+        elif wr < 35:
+            decay = 0.5
+        else:
+            decay = 0.7
+        if avg_pnl < -2.0:
+            decay *= 0.8
+        return max(0.3, decay)
+    except Exception:
+        return 1.0
+
+
+
 # ── Diversity Gate -- Signal-Typ-Kategorisierung (Prio 4) ──────────────────────
 # Verhindert Ueberkonzentration in einer einzigen Handelsstrategie.
 # MAX_CATEGORY_FRACTION: max 45% der offenen Positionen in einer Kategorie.
@@ -792,6 +858,9 @@ def main() -> None:
                 * _get_signal_score_multiplier(t[0].get("signal_type", ""), _llm_signal_weights)
                 * _signal_age_factor(t[0].get("generated_at", ""), ttl_minutes=1440)
                 * _liquidity_map.get(t[0]["instrument_id"], 1.0)
+                * _signal_performance_decay(
+                    t[0].get("signal_type", ""), db_path
+                )
             ),
             reverse=True,
         )

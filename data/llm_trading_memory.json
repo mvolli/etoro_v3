@@ -416,6 +416,33 @@
         ]
       },
       "tests_passed": true
+    },
+    {
+      "run_id": "self_improvement_2026-07-31",
+      "timestamp": "2026-07-31T19:06:26.084079+00:00",
+      "changes": [
+        {
+          "file": "data/llm_signal_weights.json",
+          "change": "CORE_SWEEP score_multiplier 0.5 → 0.35",
+          "reason": "16 CLOSED-Trades, 25% WR, -3.85 avg PnL, -61.68 total — 0.5-Multiplier unzureichend"
+        },
+        {
+          "file": "data/llm_signal_weights.json",
+          "change": "Neuer Eintrag: BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD = 0.3",
+          "reason": "37 Trades, 2.7% WR, -90.02 total PnL — vorher nur 0.7 via Subset-Propagation, zu schwach"
+        }
+      ],
+      "analysis": {
+        "total_closed_trades": 158,
+        "overall_wr": 20.3,
+        "best_signal": "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20 (40% WR, +94.8 total)",
+        "worst_signals": [
+          "BB 3-Combo (2.7% WR)",
+          "TREND_PULLBACK,GOLDEN_Cross (-120.82 total)",
+          "CORE_SWEEP (-61.68 total)"
+        ]
+      },
+      "tests_passed": true
     }
   ],
   "decision_outcomes": [
