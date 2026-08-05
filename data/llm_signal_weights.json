@@ -1,38 +1,41 @@
 {
-  "updated_at": "2026-07-30T20:31:11.622281+00:00",
-  "auto_expires_at": "2026-08-13T20:31:11.622299+00:00",
+  "updated_at": "2026-08-05T19:07:24.653969+00:00",
+  "auto_expires_at": "2026-08-19T19:07:24.653984+00:00",
   "adjustments": {
     "CORE_SWEEP": {
       "score_multiplier": 0.35,
       "skip": false,
-      "reason": "Avg PnL -3.85 über 16 CLOSED-Trades, 25% WR — 0.5 reicht nicht"
-    },
-    "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD": {
-      "score_multiplier": 0.7,
-      "skip": false,
-      "reason": "Sehr hohe Verlustrate (36/37 losses) bei VERY_HIGH Conviction, Falling-Knife-Muster"
+      "reason": "27 trades, 29.6% WR, -2.82 avg PnL \u2014 negative Performance rechtfertigt 0.35"
     },
     "TREND_PULLBACK,GOLDEN_CROSS": {
-      "score_multiplier": 0.8,
+      "score_multiplier": 0.6,
       "skip": false,
-      "reason": "Negative avg_pnl (-1.51) bei CLOSED-Trades, aber noch akzeptable Success-Rate (0.65)"
+      "reason": "Negative durchschnittliche PnL (-1.61%) bei CLOSED Trades. Signal f\u00e4ngt 'falling knives' oder entryt zu sp\u00e4t."
+    },
+    "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": {
+      "score_multiplier": 0.7,
+      "skip": false,
+      "reason": "Durchschnittliche PnL negativ (-1.42% HIGH, -0.83% MEDIUM). Trotz besserer Success-Rate als CORE_SWEEP noch Verlustzone."
     },
     "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD": {
       "score_multiplier": 0.3,
       "skip": false,
-      "reason": "37 Trades, 2.7% WR, -90.02 total PnL — katastrophal, stärker als 2-BB (0.7)"
+      "reason": "37 trades, 2.7% WR, -2.43 avg PnL \u2014 katastrophal, st\u00e4rker als 2-BB (0.7)"
+    },
+    "TREND_PULLBACK": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "Isoliert 96.5% Fail-Rate (43/44 FAILED), avg_pnl=-3.09. Combo-split cascade auf alle TREND_PULLBACK-Kombos."
     }
   },
   "strategy_notes": [
-    "Exit-Problem identifiziert: W7L.L (6.82% PnL) zeigt, dass Gewinnmitnahmen oft zu spät oder manuell erfolgen",
-    "RSI<25 ohne MACD-Wende ist Krisenzeichen (WR 9%), nicht Kaufsignal",
-    "Gewinner brauchen Zeit (Median 143h), junge Positionen nicht vorzeitig schließen",
-    "3-BB-Combo (RSI_EXTREME_OVERSOLD) mit 2.7% WR verliert -90 total; explizit auf 0.3 gedämpft (vorher 0.7 via Subset-Propagation der 2-BB)",
-    "3-BB-Combo (RSI_EXTREME_OVERSOLD) mit 2.7% WR verliert -90 total; explizit auf 0.3 gedämpft (vorher 0.7 via Subset-Propagation der 2-BB)",
-    "3-BB-Combo (RSI_EXTREME_OVERSOLD) mit 2.7% WR verliert -90 total; explizit auf 0.3 gedämpft (vorher 0.7 via Subset-Propagation der 2-BB)"
+    "Exit-Problem identifiziert: Viele Trades haben peak=null oder peak<0, was auf Entry-Fehler hindeutet, nicht auf Timing-Exit.",
+    "Gewinner brauchen Zeit: MSFT (+24.96%) hielt 4.8 Tage, w\u00e4hrend Verluste oft <1 Tag halten. Panik-Exits vermeiden.",
+    "BB 3-Combo (2.7% WR) fehlte Multiplikator \u2014 nach 2026-08-05 Self-Improvement: 0.3 wiederhergestellt.",
+    "TREND_PULLBACK individual auf 0.5 ged\u00e4mpft \u2014 Cascade auf alle Combos via combo-split."
   ],
   "conviction_issues": [
-    "VERY_HIGH Conviction bei BB_LOWER_RSI_OVERSOLD hat 97.3% Verlustrate (36/37 losses)",
-    "CORE_SWEEP mit MEDIUM Conviction zeigt negative avg_pnl (-1.99) bei CLOSED-Trades"
+    "VERY_HIGH Conviction Trades zeigen gemischte PnL (von -3.12% bis +22.17%), was auf inkonsistente Signal-Definition oder Marktregime-Mismatch hindeutet.",
+    "HIGH Conviction bei TREND_PULLBACK f\u00fchrt zu Verlusten, trotz theoretisch guter Logik."
   ]
 }
