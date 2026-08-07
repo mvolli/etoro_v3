@@ -267,6 +267,7 @@ def main() -> int:
             LEFT JOIN signals s ON s.id = t.signal_id
             LEFT JOIN instruments i ON i.instrument_id = t.instrument_id
             WHERE t.status = 'APPROVED'
+              AND s.signal_type != 'CORE_SWEEP'
         """)]
         if not trades:
             # Trade-freier Zyklus = kein Zeitdruck → hier laeuft der

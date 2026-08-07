@@ -227,6 +227,23 @@ def plan_core_sweep(
         if rsi is not None and rsi > rsi_overbought:
             reasons.append(f"{sym}: RSI {rsi:.0f} > {rsi_overbought:.0f} — nicht extended kaufen")
             continue
+        # Delisted-Gate (fix/core-sweep-delisted 2026-08-07):
+        # AI_2878 (instrument_id=2878) war 'delisted' auf Yahoo,
+        # aber Core-Sweep hat weiter darauf geplant → 16x FAILED
+        # "ID/Symbol MISMATCH". instruments.yahoo_status='delisted'
+        # sofort überspringen.
+        if db is not None:
+            try:
+                _del_row = db.fetchone(
+                    "SELECT yahoo_status FROM instruments WHERE instrument_id = ?",
+                    (iid,),
+                )
+                if _del_row and str(_del_row.get("yahoo_status") or "").strip().lower() == "delisted":
+                    reasons.append(f"{sym}: yahoo_status=delisted — SKIP")
+                    continue
+            except Exception:
+                pass  # fail-open
+
         # Broker-Minimum-Check (fix/core-sweep-min-exposure 2026-07-27):
         # Orders unter minPositionExposure werden von eToro mit 720 abgelehnt.
         if db is not None:
