@@ -166,7 +166,20 @@ def _action(amount_usd: float, close_pct: float = 20.0):
 
 @pytest.fixture
 def _market_open(monkeypatch):
+    """Markt offen + Discord STUMM.
+
+    KRITISCH: execute_trailing_actions postet nach einem erfolgreichen
+    (Teil-)Close ein echtes Discord-Embed in den LIVE-Channel #trades.
+    Ohne diesen Patch schickt jeder Testlauf eine erfundene Position
+    ("TINY $35.00") an den echten Server — beim Bau dieses Tests sind so
+    7 Fake-Meldungen rausgegangen. Jeder Test, der execute_trailing_actions
+    mit einem erfolgreichen Close durchlaeuft, MUSS Discord stummschalten.
+    """
     monkeypatch.setattr(ts, "_action_market_open", lambda *a, **k: True)
+    monkeypatch.setattr(ts, "_post_closed_embed", lambda *a, **k: None)
+    monkeypatch.setattr(ts, "_get_discord_embeds", lambda: None)
+    monkeypatch.setattr(ts, "_verify_partial_close",
+                        lambda *a, **k: (True, "test: verified"))
 
 
 def test_mini_teilverkauf_sendet_keine_order(_market_open):
