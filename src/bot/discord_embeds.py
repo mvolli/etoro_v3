@@ -587,7 +587,10 @@ def post_heartbeat_embed(
         # Add error breakdown if there are errors
         if cb_errors and any(v > 0 for v in cb_errors.values()):
             error_parts = [f"{k}×{v}" for k, v in sorted(cb_errors.items(), key=lambda x: -x[1]) if v > 0]
-            cb_str += f"\nErrors: {', '.join(error_parts[:4])}"
+            # fix/embeds-no-hidden-data: frueher [:4] — bei einem Ausfall
+            # mit vielen Fehlerarten fehlten genau die selteneren, die den
+            # Hinweis auf die Ursache tragen.
+            cb_str += f"\nErrors: {', '.join(error_parts)}"
     else:
         cb_str = "🔴 AKTIV" if cb_active else "✅ Inaktiv"
 
@@ -2600,7 +2603,12 @@ def post_signal_worker_embed(
         score = float(t.get("score") or 0)
         sp    = t.get("signal_price")
         price_str = f" @ ${sp:.4f}" if sp else ""
-        sig_parts = [p.strip().replace("_", " ").title() for p in sig.split(",")[:2]]
+        # fix/embeds-no-hidden-data (2026-08-12): frueher [:2]. Die
+        # Kombo-Zusammensetzung ist die aussagekraeftigste Groesse ueberhaupt
+        # — "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20" war profitabel,
+        # dieselben Regeln OHNE MACD-Bestaetigung verloren 36 von 37 Trades.
+        # Die dritte Komponente wegzulassen verbarg genau diesen Unterschied.
+        sig_parts = [p.strip().replace("_", " ").title() for p in sig.split(",")]
         sig_short = " + ".join(sig_parts)
         fields.append({
             "name":   f"\U0001f4c8 {t['symbol']}",
