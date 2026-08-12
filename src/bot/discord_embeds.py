@@ -189,6 +189,29 @@ def _split_embed(embed: dict) -> list[dict]:
     Fehler geloggt statt still verworfen — dann stimmt weiter oben etwas
     nicht, und das soll auffallen.
     """
+    # fix/embeds-no-hidden-data (2026-08-12): ZENTRALES Sicherheitsnetz.
+    # Vor dem Clippen jedes ueberlange Feld in Folgefelder aufteilen, statt
+    # es in _clip_embed_limits bei 1024 Zeichen hart abzuschneiden. Damit ist
+    # jede Aufrufstelle abgesichert — auch kuenftige, die den Packer nicht
+    # selbst benutzen. Ein Feld, dessen Wert eine einzige ueberlange Zeile
+    # ist, bleibt der dokumentierte Ausnahmefall (Datenfehler, wird geloggt).
+    _expanded: list[dict] = []
+    for _f in (embed.get("fields") or []):
+        _val = str(_f.get("value") or "")
+        if len(_val) <= MAX_FIELD_VALUE:
+            _expanded.append(_f)
+            continue
+        _parts = pack_lines_into_fields(
+            str(_f.get("name") or "​"), _val.split("\n"),
+            inline=bool(_f.get("inline")),
+        )
+        logger.info(
+            "[discord_embeds] Feld '%.40s' (%d Zeichen) auf %d Felder verteilt "
+            "statt gekuerzt", _f.get("name", "?"), len(_val), len(_parts),
+        )
+        _expanded.extend(_parts)
+    embed = {**embed, "fields": _expanded}
+
     embed = _clip_embed_limits(embed)
     fields = embed.get("fields") or []
     base_total = (len(str(embed.get("title") or ""))
@@ -642,7 +665,7 @@ def post_heartbeat_embed(
     if phase_durations:
         sorted_phases = sorted(phase_durations.items(), key=lambda x: -x[1])
         duration_lines = []
-        for name, dur in sorted_phases[:8]:
+        for name, dur in sorted_phases:
             bar_len = min(int(dur / 5), 20)  # 1 block per 5 seconds, max 20
             bar = "🟦" * bar_len if dur < 60 else ("🟧" * bar_len if dur < 120 else "🟥" * bar_len)
             duration_lines.append(f"{bar} **{name}**: {dur:.0f}s")
@@ -672,117 +695,12 @@ def post_heartbeat_embed(
 # P2 — RECONCILIATION
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def post_reconciler_embed(
-    equity: float,
-    peak_equity: float,
-    position_count: int,
-    synced_count: int,
-    orphan_count: int,
-    trades_closed: int,
-    regime: str,
-    drawdown_pct: float,
-    available_cash: float,
-    positions_summary: list[dict] | None = None,
-    dry_run: bool = False,
-) -> bool:
-    """Reconciler-Ergebnis mit Positions-Übersicht — in #etoro-trading.
-
-    Zeigt Portfolio-Statistik, Regime, Drawdown und alle offenen Positionen
-    als scannbare Tabelle.
-    """
-    positions_summary = positions_summary or []
-    cash_pct = (available_cash / equity * 100) if equity else 0
-    pnl_total = equity - 10_000
-    pnl_pct = (pnl_total / 10_000 * 100) if equity else 0
-    dd_emoji = _pnl_emoji(-drawdown_pct)
-    color = _severity_color(regime)
-
-    # Build positions table
-    pos_lines = []
-    for p in positions_summary:
-        symbol = resolve_instrument_display(p.get("symbol", "?"))
-        amount = p.get("amount_usd") or 0
-        pnl_pct_v = p.get("unrealized_pnl_pct")
-        sl = p.get("stop_loss_rate")
-        nol = p.get("is_no_stop_loss", 0)
-
-        if pnl_pct_v is not None:
-            emoji = _pnl_emoji(pnl_pct_v)
-            pnl_str = f"{pnl_pct_v:+.2f}%"
-        else:
-            emoji = "⚪"
-            pnl_str = "—"
-
-        sl_str = f"SL: {sl}" if sl else "NO SL"
-        if nol:
-            sl_str += " (no SL)"
-
-        pos_lines.append(
-            f"{emoji} **{symbol}**  "
-            f"💰 ${amount:,.0f}  "
-            f"📈 {pnl_str}  "
-            f"🛡️ {sl_str}"
-        )
-
-    if pos_lines:
-        pos_text = "\n".join(pos_lines)
-    else:
-        pos_text = "_Keine offenen Positionen_"
-
-    # Summary stats
-    summary_parts = []
-    if orphan_count > 0:
-        summary_parts.append(f"🗑️ Orphans: {orphan_count}")
-    if trades_closed > 0:
-        summary_parts.append(f"📦 Geschlossene Trades: {trades_closed}")
-    summary_parts.append(f"🔄 Synced: {synced_count}")
-    summary_text = "\n".join(summary_parts) if summary_parts else "✅ Alles synchron"
-
-    fields = [
-        {
-            "name":   "💰 Portfolio",
-            "value":  (
-                f"Equity:  **${equity:,.2f}**\n"
-                f"Peak:    **${peak_equity:,.2f}**\n"
-                f"Cash:    **${available_cash:,.2f}** ({cash_pct:.1f}%)\n"
-                f"Pos:     **{position_count}**"
-            ),
-            "inline": True,
-        },
-        {
-            "name":   "📉 Drawdown",
-            "value":  (
-                f"{dd_emoji} **{drawdown_pct:.2f}%**\n"
-                f"Regime:  `{regime}`\n"
-                f"Total PnL: {_pnl_emoji(pnl_pct)} **${pnl_total:+,.2f}** ({pnl_pct:+.2f}%)"
-            ),
-            "inline": True,
-        },
-        {
-            "name":   f"📋 Offene Positionen ({position_count})",
-            "value":  pos_text,
-            "inline": False,
-        },
-        {
-            "name":   "🔧 Sync-Status",
-            "value":  summary_text,
-            "inline": False,
-        },
-    ]
-
-    embed = {
-        "title":       "🔄 Reconciler — Portfolio Sync",
-        "description": f"Letzter Sync: {_ts()}",
-        "color":       color,
-        "fields":      fields,
-        "footer":      {"text": f"eToro RoBoCop · Reconciler · alle 5min"},
-        "timestamp":   _ts(),
-    }
-    ok = _post_embed(embed, DISCORD_MAIN_CHANNEL, dry_run)
-    if ok:
-        insert_system_log("INFO", "discord_embeds", f"Reconciler Embed gepostet equity={equity:.2f} pos={position_count}")
-    return ok
-
+# fix/embeds-dead-duplicate (2026-08-12): Hier stand eine ZWEITE, aeltere
+# Definition von post_reconciler_embed. Python nimmt die letzte — die
+# Variante weiter unten (~Z.1460) war also immer die aktive, diese hier
+# toter Code. Gefahr: eine Aenderung an der falschen Kopie sieht korrekt
+# aus und wirkt nie. Entfernt statt zusammengefuehrt, weil die untere
+# Version die gepflegte ist (Regime, Drawdown, Cash, Positions-Details).
 
 def post_reconciliation_embed(
     result: dict,
@@ -890,7 +808,7 @@ def post_sl_watchdog_embed(
             return " · ".join(parts)
         return str(a)
 
-    alert_text = "\n".join(f"• {_fmt_alert(a)}" for a in alerts[:8]) or "_Keine Alerts_"
+    alert_text = "\n".join(f"• {_fmt_alert(a)}" for a in alerts) or "_Keine Alerts_"
 
     embed = {
         "title":       f"🛑 SL-Watchdog — {closed} Position(en) geschlossen",
@@ -952,7 +870,7 @@ def post_trading_decisions_embed(
         if not decs:
             return "_Keine_"
         lines = []
-        for d in decs[:6]:
+        for d in decs:
             raw_sym = d.get("instrument", "?")
             sym    = resolve_instrument_display(raw_sym)
             conv   = d.get("conviction", "")
@@ -975,7 +893,7 @@ def post_trading_decisions_embed(
     if sells:
         fields.append({"name": f"📉 SELL/CLOSE ({len(sells)})", "value": _fmt_decisions(sells), "inline": False})
     if holds:
-        hold_syms = ", ".join(resolve_instrument_display(d.get("instrument", "?")) for d in holds[:10])
+        hold_syms = ", ".join(resolve_instrument_display(d.get("instrument", "?")) for d in holds)
         fields.append({"name": f"⏸️ HOLD ({len(holds)})", "value": f"`{hold_syms}`", "inline": False})
 
     fields.append({
@@ -1023,7 +941,7 @@ def post_consolidation_embed(
     color      = COLOR_TEAL if total_pnl >= 0 else COLOR_ORANGE
 
     lines = []
-    for c in closed[:8]:
+    for c in closed:
         sym    = resolve_instrument_display(c.get("symbol") or c.get("instrument_id") or "?")
         pct    = c.get("pnl_pct", 0)
         val    = c.get("pnl_value", 0)
@@ -1093,7 +1011,7 @@ def post_portfolio_health_dashboard(dry_run: bool = False) -> bool:
         ).fetchall()
         pos_count = len(pos_rows)
         pos_details = []
-        for pr in pos_rows[:8]:
+        for pr in pos_rows:
             sym, amt, pnl_val, pnl_p = pr[0], pr[1] or 0, pr[2] or 0, pr[3] or 0
             pos_details.append((sym, pnl_p, pnl_val))
 
@@ -1281,7 +1199,7 @@ def post_pipeline_performance_dashboard(dry_run: bool = False) -> bool:
 
     # Heartbeat Status
     hb_lines = []
-    for comp, beat, notes in hb_rows[:8]:
+    for comp, beat, notes in hb_rows:
         try:
             from datetime import datetime as _dt, timezone as _tz
             beat_dt = _dt.fromisoformat(str(beat).replace('Z', '+00:00'))
@@ -1428,7 +1346,7 @@ def post_data_worker_embed(
     # 3) New Signals Detail (if any)
     if new_signals:
         sig_lines = []
-        for s in new_signals[:8]:
+        for s in new_signals:
             sym = s.get("symbol", "?")
             direction = s.get("direction", "?").upper()
             score = s.get("score", 0)
@@ -1598,7 +1516,7 @@ def post_data_ingestion_embed(
     # Build instrument lines — compact format
     def _fmt_instruments(items, show_rsi=True):
         lines = []
-        for r in items[:12]:
+        for r in items:
             sym = resolve_instrument_display(r.get("instrument") or r.get("instrument_id") or "?")
             if show_rsi and r.get("status") == "fetched":
                 rsi = r.get("rsi")
@@ -1714,7 +1632,7 @@ def post_metrics_embed(
 
     # Per-endpoint breakdown (top 6 by count)
     ep_lines = []
-    sorted_eps = sorted(endpoint_stats.items(), key=lambda x: x[1]["count"], reverse=True)[:6]
+    sorted_eps = sorted(endpoint_stats.items(), key=lambda x: x[1]["count"], reverse=True)
     for ep, stats in sorted_eps:
         p95_ep = stats.get("p95", 0)
         e429_ep = stats.get("errors_429", 0)
@@ -2533,7 +2451,7 @@ def post_risk_worker_embed(
     ]
     if trailing_errors:
         trailing_lines.append(f"⚠️ Fehler:         **{len(trailing_errors)}**")
-        for err in trailing_errors[:3]:
+        for err in trailing_errors:
             trailing_lines.append(f"  • {str(err)[:100]}")
     fields.append({
         "name": "📈 Trailing Stop",
@@ -2596,7 +2514,7 @@ def post_discovery_embed(
         logger.debug("[discord_embeds] Discovery: keine Kandidaten — kein Embed")
         return True
 
-    top = candidates[:5]
+    top = candidates
     fields = []
     for i, c in enumerate(top):
         symbol  = c.get("symbol", "?")

@@ -243,3 +243,50 @@ def test_reconciler_zeigt_jede_position(monkeypatch):
         assert r["symbol"] in text, f"{r['symbol']} fehlt im Reconciler-Embed"
     assert "weitere" not in text
     _assert_limits(box)
+
+
+# ── Zentrales Sicherheitsnetz ─────────────────────────────────────────────────
+
+def test_ueberlanges_feld_wird_verteilt_nicht_gekuerzt():
+    """Der Kern von Commit 3: eine Aufrufstelle, die den Packer NICHT
+    benutzt und ein 5000-Zeichen-Feld baut, darf trotzdem nichts verlieren.
+
+    Vorher landete so ein Wert in _clip_embed_limits bei value[:1024] —
+    stille Kuerzung, Discord antwortet 200.
+    """
+    lines = [f"Zeile {i:04d} mit Inhalt" for i in range(250)]
+    out = de._split_embed({
+        "title": "T", "color": 1,
+        "fields": [{"name": "Roh", "value": "\n".join(lines), "inline": False}],
+    })
+    text = "\n".join(f["value"] for e in out for f in e.get("fields", []))
+    for line in lines:
+        assert line in text, f"{line} verloren"
+    for e in out:
+        for f in e.get("fields", []):
+            assert len(f["value"]) <= de.MAX_FIELD_VALUE
+
+
+def test_sicherheitsnetz_erhaelt_inline_flag():
+    out = de._split_embed({
+        "title": "T", "color": 1,
+        "fields": [{"name": "X", "value": "\n".join(["y" * 100] * 40),
+                    "inline": True}],
+    })
+    assert all(f.get("inline") for e in out for f in e.get("fields", []))
+
+
+def test_kurzes_feld_bleibt_unangetastet():
+    e = {"title": "T", "color": 1,
+         "fields": [{"name": "X", "value": "kurz", "inline": False}]}
+    out = de._split_embed(e)
+    assert len(out) == 1 and len(out[0]["fields"]) == 1
+    assert out[0]["fields"][0]["value"] == "kurz"
+
+
+def test_post_reconciler_embed_ist_nur_noch_einmal_definiert():
+    """Toter Duplikat-Code: Python nahm die letzte Definition, eine
+    Aenderung an der ersten haette nie gewirkt."""
+    import inspect
+    src = inspect.getsource(de)
+    assert src.count("\ndef post_reconciler_embed(") == 1
