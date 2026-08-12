@@ -55,6 +55,49 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
 - discord_embeds hat One-Shot-Slots (`_PENDING_CHART`, `_LAST_POST`) und
   wird von trailing_stop per importlib als EIGENE Instanz geladen —
   attach_chart/post/get_last_post immer am selben Modul-Objekt aufrufen.
+- **Tests, die `execute_trailing_actions` mit erfolgreichem Close durchlaufen,
+  MÜSSEN Discord stummschalten** (`_post_closed_embed`, `_get_discord_embeds`,
+  `_verify_partial_close` patchen). Der Pfad postet sonst in den LIVE-Channel
+  #trades — 2026-08-12 gingen so 7 erfundene „TINY"-Meldungen raus.
+- **Jeder Pfad, der Positionen schliesst, braucht Market-Guard + PENDING-Muster.**
+  eToro antwortet bei HK/ASIA langsam; `verify_full_close` läuft dort in den
+  Timeout, obwohl der Close real ist. Unverifiziert ⇒ PENDING verbuchen, NICHT
+  als Fehler (sonst Retry-Schleife: 165 s Blockade je 5-min-Lauf, belegt am
+  2026-08-12 mit 2883.HK bei geschlossener HK-Börse).
+
+## Portfolio-Grenzen (Stand 2026-08-12)
+
+Vier Ebenen, alle im `check_buy_gate`-Pfad UND im Core-Sweep:
+
+| Ebene | Grenze | Verhalten bei Überschreitung |
+|-------|--------|------------------------------|
+| Gesamt-Exposure | 75 % (`MAX_TOTAL_EXPOSURE_PCT`) | Pre-Trade-Block **+ Post-Trade-Auto-Trim** (LIFO, `risk.exposure_auto_trim`) |
+| Sektor | 20 % (`sector_limits.max_per_sector_pct`) | Block. Quelle: `instruments.sector` (yfinance) |
+| Region | Soft 35 % / Hard 50 % (`region_limits`) | Sizing-Damper, erst über Hard-Cap Block |
+| Instrument | 10 % Default (`INSTRUMENT_LIMITS`) | Block + LIFO-Trim |
+
+- **Core-Sweep ist KEIN gate-freier Pfad mehr** (fix/core-sweep-portfolio-gates):
+  `plan_core_sweep` bekommt `total_exposed`/`max_exposure_pct` (deckelt
+  `deployable` als Sizing-Input) und `correlation_gate` (injiziert). Wer dort
+  Kandidaten hinzufügt, muss beide Argumente durchreichen.
+- **`instruments.sector`** füllt `scripts/sync_instrument_sectors.py`
+  (yfinance, ~5,6 s/Symbol, 200/Run, TTL 90 d, Priorität: gehalten → Whitelist
+  → nie geprüft). `'unknown'` = kein Sektor vorhanden (Forex/Rohstoff/Index),
+  wird wie NULL behandelt (fail-open).
+- **`resolve_asset_class`**: kuratiertes `ASSET_CLASS_MAP` hat Vorrang, AUSSER
+  bei FINANCIAL/CONSUMER/HEALTHCARE/ENERGY — die liefern nur den 20 %-Default
+  und weichen dem DB-Sektor, sonst entstehen zwei Töpfe für eine Branche.
+- **Profit-Leiter**: `PROFIT_LADDER_ATR_SCALE` (config `trailing.profit_ladder.
+  atr_scale`, aktiv 0.35) skaliert `atr_mult` **und** `min_pct` aller Stufen,
+  `max_pct` NICHT. Die Leiter ist pro Position in `position_state.
+  profit_levels_json` EINGEFROREN — eine Skalen-Änderung erreicht bestehende
+  Positionen nur nach Reset (`scripts/migrate_profit_ladder_reset.py`, setzt
+  nur zurück, wo `levels_taken` leer ist).
+- **`update_status(…, 'CLOSED')` setzt `closed_at` selbst**, wenn keins
+  mitkommt — `llm_review_worker` und `config_experiment_worker` filtern
+  darauf, eine Lücke verschluckt Trades still aus der Lernschleife.
+- **`max_positions` existiert nicht mehr** (weder Gate, Konstante, Config-Key
+  noch BIBLE-Limit). Grenzen sind Exposure/Cash/Instrument/Sektor/Region.
 
 ## Work Guidance
 
@@ -130,6 +173,7 @@ Ausschliesslich die Eligibility-API für Tradability-Checks verwenden.
 |--------|-------|------|
 | `scripts/sync_instrument_catalog.py` | Importiert neue Instrumente aus eToro-Vollkatalog (`GET /market-data/instruments` ohne Parameter → ~15k Instrumente). Neue: `is_active=0, is_tradable=NULL`. Weggefallene: `is_active=0`. | Manuell (monatlich) |
 | `scripts/sync_instrument_tradability.py` | Prüft `allowOpenPosition` via Eligibility-API für alle aktiven Instrumente. TTL=30 Tage. Verarbeitet max 500 Instrumente pro Run. 100er-Batches, 3s Sleep (Rate-Limit ~20 req/min). | Wöchentlich So 03:30 UTC (`c4d9e1f2a7b3`) |
+| `scripts/sync_instrument_sectors.py` | Füllt `instruments.sector`/`industry` aus yfinance (Quelle für das Sektor-Gate). TTL=90 Tage, 200/Run (~19 min bei ~5.6s/Symbol). Priorität: gehaltene Positionen → Core-Sweep-Whitelist → nie geprüft → älteste. Eigener `worker_lock('sector_sync')`. | **Noch nicht eingeplant** — manuell bzw. Cron nachtragen |
 
 ```bash
 # Einmaliger Vollabgleich nach eToro-Katalog-Erweiterung:
