@@ -1395,10 +1395,21 @@ def main() -> None:
                         f"GROUP BY instrument_id", tuple(_wl_ids)) or []):
                     if _r["rsi"] is not None:
                         _rsi_by_id[int(_r["instrument_id"])] = float(_r["rsi"])
+            # fix/core-sweep-portfolio-gates (2026-08-12): Core-Sweep sieht ab
+            # jetzt dieselben Portfolio-Grenzen wie der regulaere Signalpfad.
+            # total_exposure ist hier bereits um die in dieser Schleife
+            # approbierten Buys hochgezaehlt (Zeile ~1295) — der Sweep plant
+            # also gegen den Stand NACH den Signal-Trades, nicht davor.
+            from bot.core.risk import MAX_TOTAL_EXPOSURE_PCT as _cs_max_exp
+            from bot.core.correlation import check_correlation_gate as _cs_corr
             _sweep_orders, _sweep_reasons = plan_core_sweep(
                 cfg, equity=equity, cash=cash_estimate, regime=regime,
                 held_instrument_ids=_held_ids, atr_by_id=_atr_by_id, rsi_by_id=_rsi_by_id,
                 db=signal_repo.db,
+                total_exposed=total_exposure,
+                max_exposure_pct=_cs_max_exp,
+                open_positions=open_positions,
+                correlation_gate=_cs_corr,
             )
             if _sweep_reasons:
                 logger.info("SignalWorker: %s", _sweep_reasons[0])
@@ -1447,6 +1458,10 @@ def main() -> None:
                     approved_at=_csdt.now(_cstz.utc).strftime("%Y-%m-%d %H:%M:%S"))
                 approved_count += 1
                 cash_estimate -= _o.amount_usd
+                # fix/core-sweep-portfolio-gates: Exposure mitfuehren wie im
+                # Signalpfad (Zeile ~1295), damit spaetere Leser im selben Lauf
+                # den Stand INKL. Sweep sehen.
+                total_exposure += _o.amount_usd
                 position_count += 1
                 _held_ids.add(_o.instrument_id)
                 approved_trades_info.append({

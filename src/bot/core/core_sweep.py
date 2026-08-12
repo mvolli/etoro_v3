@@ -10,6 +10,26 @@ Die Funktion plant nur (keine Seiteneffekte, keine Order): der signal_worker
 setzt den Plan ueber dieselbe create->APPROVED->execution-Bahn wie normale
 Signale um und erbt damit SL-Clamp, Market-Open-Guard und Ghost-Order-Pipeline.
 
+fix/core-sweep-portfolio-gates (2026-08-12): Der Satz oben galt fuer den
+EXECUTION-Pfad — nicht fuer die Risiko-Gates. Core-Sweep rief NIE
+check_buy_gate und pruefte damit ausschliesslich Cash- und Einzeltitel-
+Grenzen; keine einzige Pruefung betrachtete das Portfolio als Ganzes.
+Belegt am 2026-08-12 05:19:29: derselbe signal_worker-Lauf blockte ROVI.MC
+mit "Exposure-Gate: 79.5% > 75% Max" und eroeffnete zeitgleich 2883.HK
+($345.90) via Core-Sweep. 41 der 57 offenen Trades stammten aus diesem Pfad.
+
+Verschaerfend: amount_usd ist EINGESETZTES KAPITAL, nicht Marktwert —
+Exposure-% steigt also, wenn die Equity FAELLT. Core-Sweep sah nur Cash
+gegen den Reserve-Floor, und Cash bleibt im Drawdown konstant (geschlossene
+Positionen spuelen es zurueck). Das Ergebnis war ein Verlust-Verstaerker:
+$10.000 -> $8.668 Equity bei ~konstant $7.100 investiert = 71% -> 81.9%.
+
+Zwei Portfolio-Grenzen sind jetzt verdrahtet:
+  1. exposure_headroom deckelt `deployable` (SIZING statt Binaer-Block —
+     der Bot regelt die Groesse selbst herunter, statt stumm zu stoppen).
+  2. correlation_gate (injiziert, damit die Funktion pur/testbar bleibt)
+     filtert Kandidaten, die zu einer bestehenden Position r >= 0.80 laufen.
+
 hybrid-whitelist (fix/core-sweep-auto-discovery 2026-07-22):
 Core-Sweep liest Kandidaten aus zwei Quellen zusammen:
   1. Config-Whitelist (statisch, pinned, expires=NULL)
@@ -142,6 +162,10 @@ def plan_core_sweep(
     atr_by_id: dict[int, float] | None = None,
     rsi_by_id: dict[int, float] | None = None,
     db: Any | None = None,
+    total_exposed: float | None = None,
+    max_exposure_pct: float | None = None,
+    open_positions: list[dict] | None = None,
+    correlation_gate: Any | None = None,
 ) -> tuple[list[SweepOrder], list[str]]:
     """Plane Core-Sweep-Orders fuer ueberschuessiges Cash.
 
@@ -160,6 +184,25 @@ def plan_core_sweep(
     Kombiniert config.yaml-Whitelist mit DB-Tabelle core_sweep_whitelist
     (Discovery-geschrieben, FRESH-Signale). Config-Werte haben Vorrang
     (kein Duplikat bei gleicher instrument_id).
+
+    Portfolio-Grenzen (fix/core-sweep-portfolio-gates 2026-08-12), beide
+    optional und fail-open, damit ein Aufrufer ohne die neuen Argumente
+    exakt das alte Verhalten behaelt:
+
+    total_exposed / max_exposure_pct
+        Deckelt `deployable` zusaetzlich auf den Abstand zum Exposure-Cap.
+        BEWUSST als Sizing-Input, nicht als Binaer-Gate: liegt das Portfolio
+        knapp unter dem Cap, sweept der Bot eine KLEINERE Tranche statt gar
+        nichts — er regelt sich selbst herunter und bleibt handlungsfaehig.
+        Erst bei erschoepftem Headroom faellt die Planung auf 0 Orders.
+
+    open_positions / correlation_gate
+        `correlation_gate(symbol, open_positions) -> (allowed, reason)` wird
+        pro Kandidat aufgerufen. Injiziert statt importiert, damit diese
+        Funktion pur und ohne yfinance/DB-Mocks testbar bleibt. Fehlt der
+        Gate, verhaelt sich die Planung wie bisher (fail-open); wirft er,
+        wird der Kandidat DURCHGELASSEN — eine Korrelations-Stoerung darf
+        das Cash-Deployment nicht lahmlegen.
     """
     cs = _cfg_block(cfg)
     reasons: list[str] = []
@@ -206,9 +249,33 @@ def plan_core_sweep(
     above_floor = cash - reserve_floor
     deployable = min(excess, above_floor)
 
+    # ── Exposure-Headroom (fix/core-sweep-portfolio-gates) ───────────────────
+    # Der Abstand zum Gesamt-Exposure-Cap deckelt das deploybare Cash. Das ist
+    # dieselbe Grenze, die check_exposure_gate dem regulaeren Signalpfad
+    # auferlegt — Core-Sweep hat sie bisher schlicht nicht gesehen.
+    exposure_headroom: float | None = None
+    if total_exposed is not None and max_exposure_pct is not None and equity > 0:
+        exposure_cap_usd = equity * float(max_exposure_pct) / 100.0
+        exposure_headroom = exposure_cap_usd - float(total_exposed)
+        current_pct = float(total_exposed) / equity * 100.0
+        if exposure_headroom < deployable:
+            reasons.append(
+                f"Core-Sweep: Exposure {current_pct:.1f}% (Cap {float(max_exposure_pct):.0f}%) "
+                f"deckelt deploybar ${deployable:.0f} → ${max(exposure_headroom, 0.0):.0f}"
+            )
+        deployable = min(deployable, exposure_headroom)
+
     if target_size <= 0:
         return [], ["Core-Sweep: per_position_pct=0 — nichts zu tun"]
     if deployable < target_size:
+        if exposure_headroom is not None and exposure_headroom < target_size:
+            # Eigene Meldung: NICHT "kein Ueberschuss" — Cash ist da, aber das
+            # Portfolio ist voll. Sonst sucht der Operator den Fehler beim Cash.
+            return [], [
+                f"Core-Sweep: Exposure {float(total_exposed) / equity * 100.0:.1f}% am Cap "
+                f"{float(max_exposure_pct):.0f}% — Headroom ${max(exposure_headroom, 0.0):.0f} "
+                f"< Tranche ${target_size:.0f}, kein Sweep (Cash ${cash:.0f} bleibt liegen)"
+            ]
         return [], [
             f"Core-Sweep: kein Ueberschuss (Cash ${cash:.0f}, Ziel-Reserve "
             f"${reserve_target:.0f}, deploybar ${deployable:.0f} < Tranche ${target_size:.0f})"
@@ -278,6 +345,22 @@ def plan_core_sweep(
                     f"{cooldown_hours:.0f}h — Cooldown, SKIP"
                 )
                 continue
+
+        # Korrelations-Gate (fix/core-sweep-portfolio-gates): derselbe Schutz,
+        # den der regulaere Signalpfad ueber check_buy_gate bekommt. Bisher
+        # konnte Core-Sweep beliebig viele gleichlaufende Titel aufsatteln —
+        # genau das, wogegen Diversifikation schuetzen soll.
+        if correlation_gate is not None:
+            try:
+                _allowed, _corr_reason = correlation_gate(sym, open_positions or [])
+                if not _allowed:
+                    reasons.append(f"{sym}: {_corr_reason} — SKIP")
+                    continue
+            except Exception as exc:
+                # Fail-open: eine Korrelations-Stoerung (yfinance-Ausfall,
+                # Cache-Fehler) darf das Cash-Deployment nie blockieren.
+                reasons.append(f"{sym}: Korrelations-Check uebersprungen ({exc})")
+
         candidates.append((sym, iid, atr_by_id.get(iid)))
 
     if not candidates:
