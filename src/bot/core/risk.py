@@ -551,23 +551,58 @@ def check_sl_gate(has_stop_loss: bool) -> GateResult:
     return GateResult(True, ["SL OK: Stop-Loss gesetzt"])
 
 
+def resolve_asset_class(symbol: str, sector_by_symbol: dict[str, str] | None = None) -> str | None:
+    """Asset-Klasse eines Symbols — kuratiertes Mapping, dann DB-Sektor.
+
+    feat/sector-backfill (2026-08-12): ASSET_CLASS_MAP enthaelt ~65 US-Ticker.
+    Gemessen am realen Buch fielen dadurch 43 von 54 Symbolen = $6.433 = 74.2%
+    des Equity durch check_asset_class_gate hindurch (fail-open, "kein
+    Mapping") — das Gate hat faktisch nie etwas begrenzt.
+
+    Reihenfolge:
+      1. ASSET_CLASS_MAP  — kuratiert, hat Vorrang (haendisch gepflegte
+         Feinheiten wie US_TECH vs. CONSUMER bleiben erhalten)
+      2. sector_by_symbol — aus instruments.sector (yfinance-Taxonomie,
+         befuellt von scripts/sync_instrument_sectors.py)
+      3. None             — weiterhin fail-open
+
+    'unknown' und Leerwerte gelten wie NULL: unbekannt, nicht begrenzt. Das
+    entspricht der is_tradable-Konvention (NULL wird wie 1 behandelt).
+    """
+    s = (symbol or "").upper()
+    mapped = ASSET_CLASS_MAP.get(s)
+    if mapped:
+        return mapped
+    if sector_by_symbol:
+        raw = (sector_by_symbol.get(s) or sector_by_symbol.get(symbol or "") or "").strip()
+        if raw and raw.lower() != "unknown":
+            return f"SECTOR:{raw}"
+    return None
+
+
 def check_asset_class_gate(
     symbol: str,
     buy_amount: float,
     equity: float,
     open_positions: list[dict],  # [{symbol, amount_usd}]
+    sector_by_symbol: dict[str, str] | None = None,
 ) -> GateResult:
-    """Rule 2: Asset-class concentration limits."""
+    """Rule 2: Asset-class concentration limits.
+
+    *sector_by_symbol* (optional, feat/sector-backfill): {SYMBOL: sector} aus
+    `instruments.sector`. Ohne die Map verhaelt sich das Gate exakt wie zuvor
+    — Symbole ausserhalb ASSET_CLASS_MAP fallen fail-open durch.
+    """
     if equity <= 0:
         return GateResult(True, ["Asset-Class-Gate: skipped (equity=0)"])
-    asset_class = ASSET_CLASS_MAP.get(symbol.upper())
+    asset_class = resolve_asset_class(symbol, sector_by_symbol)
     if not asset_class:
         return GateResult(True, [f"Asset-Class OK: {symbol} (kein Mapping)"])
 
     limit_pct = ASSET_CLASS_LIMITS.get(asset_class, ASSET_CLASS_DEFAULT_LIMIT_PCT)
     current_class_total = sum(
         p["amount_usd"] for p in open_positions
-        if ASSET_CLASS_MAP.get(p.get("symbol", "").upper()) == asset_class
+        if resolve_asset_class(p.get("symbol", ""), sector_by_symbol) == asset_class
     )
     new_total = current_class_total + buy_amount
     new_pct = (new_total / equity) * 100

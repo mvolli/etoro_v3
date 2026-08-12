@@ -928,6 +928,30 @@ def main() -> None:
             {"symbol": p.get("symbol", ""), "amount_usd": float(p.get("amount_usd") or 0.0)}
             for p in open_positions_raw
         ]
+
+        # feat/sector-backfill (2026-08-12): Sektor-Map fuer das Asset-Class-Gate.
+        # ASSET_CLASS_MAP deckt ~65 US-Ticker ab; gemessen fielen 74.2% des
+        # Equity fail-open durch das Gate. instruments.sector (yfinance,
+        # befuellt von scripts/sync_instrument_sectors.py) schliesst die Luecke.
+        # BEWUSST per Default AUS: erst wenn der Backfill durch ist und die
+        # Sektor-Verteilung des Buchs gemessen wurde, ist ein 20%-Cap eine
+        # informierte Entscheidung statt eines Blindflugs.
+        _sector_map: dict[str, str] = {}
+        if bool((cfg.get("sector_limits", {}) or {}).get("enforce_db_sectors", False)):
+            try:
+                _sector_map = {
+                    str(r["symbol"]).upper(): str(r["sector"])
+                    for r in (signal_repo.db.fetchall(
+                        "SELECT symbol, sector FROM instruments "
+                        "WHERE sector IS NOT NULL AND sector != '' AND sector != 'unknown'"
+                    ) or [])
+                }
+                logger.info("SignalWorker: Sektor-Map aktiv (%d Instrumente)", len(_sector_map))
+            except Exception as _sec_exc:
+                # Fail-open: fehlt die Spalte oder kippt die Query, verhaelt
+                # sich das Gate wie vor dem Backfill.
+                logger.warning("SignalWorker: Sektor-Map nicht ladbar (%s) — Gate fail-open", _sec_exc)
+                _sector_map = {}
     
         for signal, symbol in candidates:
             instrument_id = signal["instrument_id"]
