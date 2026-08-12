@@ -753,16 +753,46 @@ def main() -> None:
                     from bot.core.concentration_monitor import (
                         plan_exposure_trim, close_exposure_excess,
                     )
+                    # fix/exposure-trim-market-hours: Positionen an
+                    # geschlossenen Boersen ueberspringen. Ohne den Guard traf
+                    # LIFO 2883.HK bei zu HK-Boerse — 165s Timeout pro Lauf,
+                    # Exposure sank nie.
+                    def _trim_market_open(_iid: int) -> bool:
+                        try:
+                            from bot.core.market_hours import is_market_open
+                            _r = db.fetchone(
+                                "SELECT symbol, yfinance_symbol, asset_class "
+                                "FROM instruments WHERE instrument_id=?", (_iid,),
+                            )
+                            if not _r:
+                                return True
+                            _cat = {"forex": "forex", "commodity": "commodities",
+                                    "index": "indices", "crypto": "crypto"}.get(
+                                (_r["asset_class"] or "").lower(), "")
+                            return is_market_open(
+                                _r["symbol"], _r["yfinance_symbol"] or "", _cat)
+                        except Exception:
+                            return True  # fail-open
+
                     _trim_plan = plan_exposure_trim(
-                        raw_positions, equity, _exp_cap, instrument_map)
+                        raw_positions, equity, _exp_cap, instrument_map,
+                        is_market_open_fn=_trim_market_open)
                     _trim_stats = close_exposure_excess(
                         client, _trim_plan, _drift, db=db)
                     closed_count += _trim_stats["closed"]
-                    if _trim_stats["closed"] > 0:
+                    _trim_done = _trim_stats["closed"] + _trim_stats["pending"]
+                    if not _trim_plan:
+                        logger.info(
+                            "RiskWorker: Exposure %.1f%% ueber Cap, aber keine "
+                            "Position mit offenem Markt — Trim vertagt",
+                            _drift["actual_pct"])
+                    if _trim_done > 0:
                         _tmsg = (
-                            f"Exposure-Auto-Trim: {_trim_stats['closed']} Position(en) "
-                            f"geschlossen, ${_trim_stats['freed_usd']:.0f} freigesetzt "
-                            f"({_drift['actual_pct']:.1f}% → Ziel ≤{_drift['limit_pct']:.0f}%)"
+                            f"Exposure-Auto-Trim: {_trim_stats['closed']} geschlossen"
+                            + (f", {_trim_stats['pending']} unverifiziert (PENDING)"
+                               if _trim_stats["pending"] else "")
+                            + f", ${_trim_stats['freed_usd']:.0f} freigesetzt "
+                              f"({_drift['actual_pct']:.1f}% → Ziel ≤{_drift['limit_pct']:.0f}%)"
                         )
                         logger.warning("RiskWorker: %s", _tmsg)
                         log_repo.write("WARN", "risk_worker", _tmsg, _trim_stats)

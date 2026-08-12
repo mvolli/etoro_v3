@@ -102,3 +102,46 @@ def test_live_lage_2026_08_12():
     # Ueberhang ~601 bei Fragmenten a ~120 → ~5 Positionen
     assert 4 <= len(plan) <= 6
     assert sum(p["amount_usd"] for p in plan) >= 601.0
+
+
+# ── Market-Hours-Guard ────────────────────────────────────────────────────────
+
+def test_geschlossene_maerkte_werden_uebersprungen():
+    """Der Live-Fehler: LIFO traf 2883.HK bei geschlossener HK-Boerse.
+
+    verify_full_close lief 165s in den Timeout, der Plan blieb gleich, und der
+    naechste 5-min-Zyklus versuchte exakt denselben Close erneut — Exposure
+    sank nie, jeder Lauf blockierte 165 Sekunden.
+    """
+    positions = [
+        _pos("hk", 2200.0, "2026-08-12", iid=2332),    # neueste, Markt ZU
+        _pos("eu", 2200.0, "2026-08-11", iid=100),     # naechste, Markt offen
+        _pos("alt", 4000.0, "2026-07-01", iid=101),
+    ]
+    plan = plan_exposure_trim(
+        positions, equity=10_000.0, max_exposure_pct=75.0,
+        is_market_open_fn=lambda iid: iid != 2332,
+    )
+    assert [p["position_id"] for p in plan] == ["eu"]
+
+
+def test_alle_maerkte_zu_ergibt_leeren_plan():
+    """Kein Trim ist besser als ein Trim, der garantiert nicht verifiziert."""
+    positions = [_pos("a", 9000.0, "2026-08-12", iid=1)]
+    plan = plan_exposure_trim(positions, 10_000.0, 75.0,
+                              is_market_open_fn=lambda _iid: False)
+    assert plan == []
+
+
+def test_ohne_guard_unveraendertes_verhalten():
+    positions = [_pos("a", 9000.0, "2026-08-12", iid=1)]
+    assert len(plan_exposure_trim(positions, 10_000.0, 75.0)) == 1
+
+
+def test_guard_faellt_open_bei_exception():
+    """Eine kaputte Marktzeit-Abfrage darf den Trim nicht lahmlegen."""
+    def broken(_iid):
+        raise RuntimeError("market_hours down")
+    positions = [_pos("a", 9000.0, "2026-08-12", iid=1)]
+    assert len(plan_exposure_trim(positions, 10_000.0, 75.0,
+                                  is_market_open_fn=broken)) == 1

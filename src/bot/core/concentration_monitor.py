@@ -213,6 +213,7 @@ def plan_exposure_trim(
     equity: float,
     max_exposure_pct: float,
     instrument_map: dict | None = None,
+    is_market_open_fn: Any | None = None,
 ) -> list[dict]:
     """Plane die Positionen, die das Gesamt-Exposure zurueck unter den Cap holen.
 
@@ -228,6 +229,11 @@ def plan_exposure_trim(
     gedeckt ist — der letzte Schnitt darf dabei leicht ueberschiessen (das
     Alternativ-Design, Teil-Closes auf den Cent, ist bei eToro deutlich
     fehleranfaelliger als der erprobte Ganz-Fragment-Pfad).
+
+    *is_market_open_fn* (optional): `(instrument_id) -> bool`. Positionen mit
+    geschlossenem Markt werden UEBERSPRUNGEN statt geplant — siehe Begruendung
+    unten. Injiziert, damit die Funktion pur und ohne DB-Mocks testbar bleibt;
+    fehlt sie oder wirft sie, wird fail-open geplant (bisheriges Verhalten).
 
     Pure function: plant nur, schliesst nichts. Gibt [] zurueck, solange das
     Buch innerhalb des Caps liegt.
@@ -255,6 +261,20 @@ def plan_exposure_trim(
         if amount <= 0:
             continue
         iid = int(pos.get("instrumentID", 0) or 0)
+        # fix/exposure-trim-market-hours (2026-08-12): Positionen mit
+        # geschlossenem Markt UEBERSPRINGEN, nicht blockieren. Der erste Lauf
+        # traf per LIFO 2883.HK — der HK-Markt war zu, die Order konnte nicht
+        # verifiziert werden ("Full-close NOT confirmed after 165s"), und der
+        # 5-min-Zyklus versuchte es endlos neu: 165s Blockade pro Lauf, ohne
+        # dass Exposure je sank. Jetzt wandert der Plan zur naechstjuengeren
+        # Position, deren Markt offen ist — der Bot bleibt handlungsfaehig,
+        # statt an einer geschlossenen Boerse festzuhaengen.
+        if is_market_open_fn is not None:
+            try:
+                if not is_market_open_fn(iid):
+                    continue
+            except Exception:
+                pass  # fail-open: im Zweifel handeln (bisheriges Verhalten)
         plan.append({
             "position_id": str(pos.get("positionID", "")),
             "instrument_id": iid,
@@ -284,7 +304,7 @@ def close_exposure_excess(
     Reporting und Nachreport nicht anders behandelt wird als jeder andere
     Close. Returns {closed, freed_usd, errors}.
     """
-    stats: dict = {"closed": 0, "freed_usd": 0.0, "errors": []}
+    stats: dict = {"closed": 0, "pending": 0, "freed_usd": 0.0, "errors": []}
     if not plan:
         return stats
 
@@ -313,13 +333,21 @@ def close_exposure_excess(
             client.close_position(pos_id, iid)
             from bot.core.trailing_stop import verify_full_close
             verified, detail, _pnl_data = verify_full_close(client, iid, pos_id)
+            # fix/exposure-trim-unverified (2026-08-12): eToro antwortet bei
+            # HK/ASIA-Maerkten langsam — verify_full_close laeuft dort oft in
+            # den Timeout, OBWOHL der Close real ist (dokumentiert im Skill
+            # etoro-v3-safe-change, "Unverifizierte Closes"). Vorher zaehlte
+            # das als harter Fehler: die Position blieb im Plan, der naechste
+            # 5-min-Lauf versuchte denselben Close erneut und blockierte
+            # wieder 165s. Jetzt wie ueberall sonst im System: als PENDING
+            # verbuchen, der Reconciler finalisiert im naechsten Zyklus.
             if not verified:
-                stats["errors"].append(f"{sym} pos={pos_id}: nicht verifiziert — {detail}")
-                print(f"  ❌ Close NICHT verifiziert: {detail}")
-                continue
-
-            stats["closed"] += 1
-            stats["freed_usd"] += amount
+                stats["pending"] += 1
+                stats["freed_usd"] += amount
+                print(f"  ⏳ Close nicht verifiziert (PENDING): {detail}")
+            else:
+                stats["closed"] += 1
+                stats["freed_usd"] += amount
 
             try:
                 upnl = frag.get("unrealizedPnL") or {}
