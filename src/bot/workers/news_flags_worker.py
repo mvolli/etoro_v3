@@ -71,11 +71,28 @@ def _load_env() -> None:
             os.environ.setdefault(key.strip(), value.strip())
 
 
+def _capped(symbols: list[dict], cap: int) -> list[dict]:
+    """Alle GEHALTENEN Positionen + Kandidaten bis zum Budget.
+
+    fix/news-coverage (2026-08-12): vorher schnitt `symbols[:CAP]` hart ab.
+    Bei 54 Live-Symbolen gegen EARNINGS_SYMBOL_CAP=12 blieben 42 offene
+    Positionen ungeprueft — und Earnings sind der teuerste blinde Fleck, den
+    dieser Bot haben kann: ein Termin ist ein Gap-Risiko, gegen das der
+    Software-Trailing-Stop (eToro hat keinen SL-Update-Endpoint) nicht
+    schuetzt. Der Cap begrenzt jetzt nur noch den KANDIDATEN-Schwanz; was
+    im Depot liegt, wird immer geprueft.
+    """
+    held = [s for s in symbols if s.get("held")]
+    rest = [s for s in symbols if not s.get("held")]
+    budget = max(int(cap), len(held))
+    return held + rest[: max(0, budget - len(held))]
+
+
 def _gather_symbols(db) -> list[dict]:
     """Offene Positionen zuerst (die schuetzen wir), dann FRESH-Kandidaten."""
     rows: list[dict] = []
     seen: set[str] = set()
-    for sql in (
+    for idx, sql in enumerate((
         """SELECT DISTINCT i.symbol, i.yfinance_symbol
            FROM portfolio_snapshot ps
            JOIN instruments i ON i.instrument_id = ps.instrument_id
@@ -85,13 +102,15 @@ def _gather_symbols(db) -> list[dict]:
            JOIN instruments i ON i.instrument_id = s.instrument_id
            WHERE s.status = 'FRESH' AND s.expires_at > datetime('now')
              AND i.yfinance_symbol IS NOT NULL AND i.yfinance_symbol != ''""",
-    ):
+    )):
         try:
             for r in db.fetchall(sql):
                 sym = r["symbol"]
                 if sym not in seen:
                     seen.add(sym)
-                    rows.append({"symbol": sym, "yf": r["yfinance_symbol"]})
+                    # idx 0 = offene Position (immer pruefen), 1 = Kandidat
+                    rows.append({"symbol": sym, "yf": r["yfinance_symbol"],
+                                 "held": idx == 0})
         except Exception as exc:
             logger.warning("[%s] Symbol-Query fehlgeschlagen: %s", WORKER_NAME, exc)
     return rows
@@ -116,7 +135,7 @@ def _fetch_news(symbols: list[dict]) -> dict[str, list[str]]:
     import yfinance as yf
     cutoff = time.time() - NEWS_MAX_AGE_H * 3600
     out: dict[str, list[str]] = {}
-    for entry in symbols[:NEWS_SYMBOL_CAP]:
+    for entry in _capped(symbols, NEWS_SYMBOL_CAP):
         try:
             items = yf.Ticker(entry["yf"]).news or []
             heads = []
@@ -137,7 +156,7 @@ def _fetch_earnings_flags(symbols: list[dict]) -> dict[str, dict]:
     flags: dict[str, dict] = {}
     today = datetime.now(timezone.utc).date()
     horizon = today + timedelta(days=EARNINGS_AVOID_DAYS)
-    for entry in symbols[:EARNINGS_SYMBOL_CAP]:
+    for entry in _capped(symbols, EARNINGS_SYMBOL_CAP):
         try:
             cal = yf.Ticker(entry["yf"]).calendar
             dates = []
@@ -190,7 +209,7 @@ def _fetch_analyst_flags(symbols: list[dict]) -> dict[str, dict]:
     """
     import yfinance as yf
     flags: dict[str, dict] = {}
-    for entry in symbols[:ANALYST_SYMBOL_CAP]:
+    for entry in _capped(symbols, ANALYST_SYMBOL_CAP):
         try:
             targets = yf.Ticker(entry["yf"]).analyst_price_targets or {}
             flag = _evaluate_analyst_target(
