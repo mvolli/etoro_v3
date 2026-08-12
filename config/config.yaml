@@ -82,6 +82,12 @@ risk:
   daily_loss_limit_pct: 5.0   # Auto-kill-switch: intraday equity drop from day start (%; 0 = disabled)
   weekly_loss_limit_pct: 8.0  # Auto-kill-switch: max drawdown from 7-day equity high (%; 0 = disabled)
   monthly_loss_limit_pct: 12.0 # Auto-kill-switch: max drawdown from 30-day equity high (%; 0 = disabled)
+  exposure_auto_trim: true    # fix/exposure-auto-trim (User-Entscheid 2026-08-12):
+                              # Gesamt-Exposure ueber MAX_TOTAL_EXPOSURE_PCT (75%)
+                              # wird vom risk_worker SELBST korrigiert (LIFO-Close
+                              # bis zurueck unter den Cap) statt nur gemeldet.
+                              # false = warn-only (altes Verhalten).
+                              # Kill-Switch hat Vorrang: aktiv = kein Trim.
 
 regime:                       # Drawdown-from-rolling-peak → 4-state regime (reduces sizing)
   # Entry thresholds — regime escalates immediately on breach.
@@ -158,6 +164,14 @@ sector_limits:
   # in risk.ASSET_CLASS_LIMITS (US_TECH 40 / BROAD_ETF 25 / CRYPTO 10 / …).
   # Wired via risk.apply_config → check_asset_class_gate.
   max_per_sector_pct: 20.0
+  # feat/sector-backfill (2026-08-12): instruments.sector (yfinance) als
+  # Fallback-Quelle fuer das Asset-Class-Gate. ASSET_CLASS_MAP deckt ~65
+  # US-Ticker ab — gemessen fielen 43 von 54 gehaltenen Symbolen = 74.2% des
+  # Equity fail-open durch das Gate.
+  # NOCH AUS: erst muss scripts/sync_instrument_sectors.py die Spalte fuellen
+  # und die Sektor-Verteilung des Buchs gemessen sein. Ein 20%-Cap auf
+  # ungemessene Daten blockt entweder nichts oder alles.
+  enforce_db_sectors: false
 
 discovery:
   movers_scan:                # feat/market-movers 2026-07-20: API-weiter Daily-Mover-Scan (Bulk-Closing + Batch-Rates)

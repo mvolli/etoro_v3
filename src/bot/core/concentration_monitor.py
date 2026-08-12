@@ -184,11 +184,8 @@ def check_total_exposure_drift(
     new buy. That makes an unmonitored cap a loss amplifier: the deeper the
     drawdown, the further past the cap the book sits.
 
-    Detection-only, like check_asset_class_violations: no auto-close. Forcing
-    sells to rebalance the whole book is a materially bigger lever than
-    trimming one over-limit instrument — it surfaces for a human decision.
-
     Returns None when within the cap, else a dict with the breach details.
+    Die Korrektur plant plan_exposure_trim(); der risk_worker fuehrt sie aus.
     """
     if equity <= 0 or max_exposure_pct <= 0:
         return None
@@ -209,6 +206,160 @@ def check_total_exposure_drift(
         "position_count": len(positions),
         "severity": "WARNING",
     }
+
+
+def plan_exposure_trim(
+    positions: list[dict],
+    equity: float,
+    max_exposure_pct: float,
+    instrument_map: dict | None = None,
+) -> list[dict]:
+    """Plane die Positionen, die das Gesamt-Exposure zurueck unter den Cap holen.
+
+    fix/exposure-auto-trim (2026-08-12, User-Entscheid): Der Bot korrigiert
+    selbst, statt eine Warnung an einen Menschen zu reichen. Ein Trading-Bot,
+    der eine erkannte Grenzverletzung nur meldet, nimmt dem Betreiber die
+    Entscheidung nicht ab — er verschiebt sie nur.
+
+    Policy: LIFO (neueste zuerst), identisch zu close_concentration_excess.
+    Begruendung: die juengste Position hat die kuerzeste Haltethese und den
+    geringsten Zeitwert; gereifte Positionen, die gerade arbeiten, bleiben
+    unangetastet. Geschlossen werden ganze Fragmente, bis der Ueberhang
+    gedeckt ist — der letzte Schnitt darf dabei leicht ueberschiessen (das
+    Alternativ-Design, Teil-Closes auf den Cent, ist bei eToro deutlich
+    fehleranfaelliger als der erprobte Ganz-Fragment-Pfad).
+
+    Pure function: plant nur, schliesst nichts. Gibt [] zurueck, solange das
+    Buch innerhalb des Caps liegt.
+    """
+    drift = check_total_exposure_drift(positions, equity, max_exposure_pct)
+    if not drift:
+        return []
+
+    instrument_map = instrument_map or {}
+    excess = drift["excess_amount"]
+
+    # LIFO: neueste zuerst (hoechstes openDateTime)
+    ordered = sorted(
+        positions,
+        key=lambda p: str(p.get("openDateTime") or ""),
+        reverse=True,
+    )
+
+    plan: list[dict] = []
+    covered = 0.0
+    for pos in ordered:
+        if covered >= excess:
+            break
+        amount = float(pos.get("amount", 0) or 0)
+        if amount <= 0:
+            continue
+        iid = int(pos.get("instrumentID", 0) or 0)
+        plan.append({
+            "position_id": str(pos.get("positionID", "")),
+            "instrument_id": iid,
+            "symbol": get_symbol_from_instrument_id(iid, instrument_map),
+            "amount_usd": amount,
+            "opened_at": pos.get("openDateTime"),
+            "position": pos,
+        })
+        covered += amount
+
+    if plan:
+        plan[-1]["overshoot_usd"] = max(0.0, covered - excess)
+    return plan
+
+
+def close_exposure_excess(
+    client: Any,
+    plan: list[dict],
+    drift: dict,
+    dry_run: bool = False,
+    db: Any = None,
+) -> dict:
+    """Fuehre den Trim-Plan aus. Folgt exakt dem erprobten Close-Pfad.
+
+    Verifikation per verify_full_close, Discord-Embed, trade_events-Ledger —
+    dieselbe Kette wie close_concentration_excess, damit ein Auto-Trim in
+    Reporting und Nachreport nicht anders behandelt wird als jeder andere
+    Close. Returns {closed, freed_usd, errors}.
+    """
+    stats: dict = {"closed": 0, "freed_usd": 0.0, "errors": []}
+    if not plan:
+        return stats
+
+    print(
+        f"[exposure] 🔴 AUTO-TRIM: {drift['actual_pct']:.1f}% > Cap "
+        f"{drift['limit_pct']:.0f}% — schliesse {len(plan)} Position(en) "
+        f"(LIFO), Ueberhang ${drift['excess_amount']:.0f}"
+    )
+
+    for item in plan:
+        sym = item["symbol"]
+        pos_id = item["position_id"]
+        iid = item["instrument_id"]
+        amount = item["amount_usd"]
+        frag = item.get("position") or {}
+
+        print(f"  → Trim {sym} pos={pos_id} ${amount:.0f} "
+              f"(eroeffnet {str(item.get('opened_at') or '?')[:10]})")
+
+        if dry_run:
+            stats["closed"] += 1
+            stats["freed_usd"] += amount
+            continue
+
+        try:
+            client.close_position(pos_id, iid)
+            from bot.core.trailing_stop import verify_full_close
+            verified, detail, _pnl_data = verify_full_close(client, iid, pos_id)
+            if not verified:
+                stats["errors"].append(f"{sym} pos={pos_id}: nicht verifiziert — {detail}")
+                print(f"  ❌ Close NICHT verifiziert: {detail}")
+                continue
+
+            stats["closed"] += 1
+            stats["freed_usd"] += amount
+
+            try:
+                upnl = frag.get("unrealizedPnL") or {}
+                _pnl_usd = (float(upnl.get("pnL")) if isinstance(upnl, dict)
+                            and upnl.get("pnL") is not None else None)
+                _close_price = (float(upnl.get("closeRate", 0))
+                                if isinstance(upnl, dict) else 0.0)
+                _entry = float(frag.get("openRate", 0) or 0)
+                _pnl_pct = (_pnl_usd / amount * 100.0
+                            if _pnl_usd is not None and amount > 0 else None)
+                _reason = (
+                    f"Exposure-Auto-Trim: Portfolio war {drift['actual_pct']:.1f}% "
+                    f"(Cap {drift['limit_pct']:.0f}%)"
+                )
+                _post_ok = _discord(
+                    "post_position_closed_embed",
+                    symbol=sym, amount_usd=amount, position_id=pos_id,
+                    entry_price=_entry, close_price=_close_price,
+                    pnl_usd=_pnl_usd, pnl_pct=_pnl_pct, reason=_reason,
+                )
+                if db is not None:
+                    from bot.core.event_log import record_posted_event
+                    record_posted_event(
+                        db, _DE, symbol=sym, event_type="CLOSE",
+                        source="exposure_trim", post_result=_post_ok,
+                        position_id=pos_id, instrument_id=iid or None,
+                        price=_close_price or None, amount_usd=amount,
+                        pnl_usd=_pnl_usd, pnl_pct=_pnl_pct,
+                        pnl_source=("derived" if _pnl_usd is not None else None),
+                        reason=_reason, reported_final=False,
+                    )
+            except Exception:
+                pass
+
+            time.sleep(0.5)  # Rate limit
+        except Exception as e:
+            stats["errors"].append(f"{sym} pos={pos_id}: {e}")
+            print(f"  ❌ Trim fehlgeschlagen: {e}")
+
+    return stats
 
 
 def close_concentration_excess(

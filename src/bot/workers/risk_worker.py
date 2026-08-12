@@ -723,8 +723,10 @@ def main() -> None:
             # nach dem Einstieg pruefte NICHTS das Gesamt-Exposure erneut.
             # Richtung beachten: amount ist eingesetztes Kapital, nicht
             # Marktwert, das Verhaeltnis steigt also bei FALLENDER Equity.
-            # Warn-only wie der Asset-Klassen-Check — erzwungenes Rebalancing
-            # des ganzen Buchs ist eine menschliche Entscheidung.
+            # AUTO-TRIM (User-Entscheid 2026-08-12): der Bot korrigiert selbst.
+            # Ein Trading-Bot, der eine erkannte Grenzverletzung nur meldet,
+            # nimmt dem Betreiber die Entscheidung nicht ab — er verschiebt sie.
+            # Abschaltbar ueber risk.exposure_auto_trim: false (dann warn-only).
             try:
                 from bot.core.concentration_monitor import check_total_exposure_drift
                 from bot.core.risk import MAX_TOTAL_EXPOSURE_PCT as _exp_cap
@@ -743,33 +745,63 @@ def main() -> None:
                 logger.warning("RiskWorker: total exposure drift — %s", _dmsg)
                 log_repo.write("WARN", "risk_worker",
                                f"Gesamt-Exposure ueber Cap: {_dmsg}", _drift)
-                # Throttle wie CONC_WARN_EMBED_AT: der Zustand haelt tagelang
-                # an, ein Embed je 5-min-Lauf waeren ~288 Posts/Tag.
-                try:
-                    from datetime import datetime as _ed_dt, timezone as _ed_tz
-                    _ed_last = state_repo.get("EXPOSURE_DRIFT_EMBED_AT") or ""
-                    _ed_due = True
-                    if _ed_last:
-                        _ed_prev = _ed_dt.fromisoformat(_ed_last)
-                        if _ed_prev.tzinfo is None:
-                            _ed_prev = _ed_prev.replace(tzinfo=_ed_tz.utc)
-                        _ed_due = (_ed_dt.now(_ed_tz.utc) - _ed_prev).total_seconds() >= 6 * 3600
-                    if _ed_due:
-                        state_repo.set("EXPOSURE_DRIFT_EMBED_AT",
-                                       _ed_dt.now(_ed_tz.utc).isoformat())
+
+                _auto_trim = bool((cfg.get("risk", {}) or {}).get("exposure_auto_trim", True))
+                # Kill-Switch hat Vorrang: aktiv = keine neuen Orders, auch
+                # keine korrigierenden. Der Trim ist eine Handelsaktion.
+                if _auto_trim and not is_kill_switch_active():
+                    from bot.core.concentration_monitor import (
+                        plan_exposure_trim, close_exposure_excess,
+                    )
+                    _trim_plan = plan_exposure_trim(
+                        raw_positions, equity, _exp_cap, instrument_map)
+                    _trim_stats = close_exposure_excess(
+                        client, _trim_plan, _drift, db=db)
+                    closed_count += _trim_stats["closed"]
+                    if _trim_stats["closed"] > 0:
+                        _tmsg = (
+                            f"Exposure-Auto-Trim: {_trim_stats['closed']} Position(en) "
+                            f"geschlossen, ${_trim_stats['freed_usd']:.0f} freigesetzt "
+                            f"({_drift['actual_pct']:.1f}% → Ziel ≤{_drift['limit_pct']:.0f}%)"
+                        )
+                        logger.warning("RiskWorker: %s", _tmsg)
+                        log_repo.write("WARN", "risk_worker", _tmsg, _trim_stats)
                         _discord(
                             "post_alert_embed",
-                            title="⚠️ Gesamt-Exposure über Cap",
-                            description=(
-                                f"{_dmsg}\n\nKein Auto-Close — Rebalancing ist eine "
-                                f"manuelle Entscheidung. Neue Buys sind bis zur "
-                                f"Unterschreitung gesperrt (Exposure-Gate + Core-Sweep-"
-                                f"Headroom); Exits und Profit-Taking laufen weiter."
-                            ),
+                            title="🔄 Exposure-Auto-Trim ausgeführt",
+                            description=f"{_dmsg}\n\n{_tmsg}\n\nPolicy: LIFO (neueste zuerst).",
                             severity="WARNING",
                         )
-                except Exception:
-                    pass
+                    for _terr in _trim_stats["errors"]:
+                        logger.error("RiskWorker: Trim-Fehler — %s", _terr)
+                        log_repo.write("ERROR", "risk_worker", f"Exposure-Trim: {_terr}")
+                else:
+                    # Nur wenn der Bot NICHT handeln darf, wird gemeldet.
+                    # Throttle: der Zustand haelt tagelang an, ungedrosselt
+                    # waeren es ~288 Embeds/Tag.
+                    try:
+                        from datetime import datetime as _ed_dt, timezone as _ed_tz
+                        _ed_last = state_repo.get("EXPOSURE_DRIFT_EMBED_AT") or ""
+                        _ed_due = True
+                        if _ed_last:
+                            _ed_prev = _ed_dt.fromisoformat(_ed_last)
+                            if _ed_prev.tzinfo is None:
+                                _ed_prev = _ed_prev.replace(tzinfo=_ed_tz.utc)
+                            _ed_due = (_ed_dt.now(_ed_tz.utc) - _ed_prev).total_seconds() >= 6 * 3600
+                        if _ed_due:
+                            state_repo.set("EXPOSURE_DRIFT_EMBED_AT",
+                                           _ed_dt.now(_ed_tz.utc).isoformat())
+                            _discord(
+                                "post_alert_embed",
+                                title="⚠️ Gesamt-Exposure über Cap (Auto-Trim aus)",
+                                description=(
+                                    f"{_dmsg}\n\nAuto-Trim ist deaktiviert bzw. der "
+                                    f"Kill-Switch aktiv — es wird nicht korrigiert."
+                                ),
+                                severity="WARNING",
+                            )
+                    except Exception:
+                        pass
         except Exception as _conc_exc:
             logger.debug("RiskWorker: Concentration check skipped: %s", _conc_exc)
     
