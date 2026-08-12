@@ -551,6 +551,16 @@ def check_sl_gate(has_stop_loss: bool) -> GateResult:
     return GateResult(True, ["SL OK: Stop-Loss gesetzt"])
 
 
+# Kuratierte Klassen, deren Limit exakt dem Sektor-Default (20%) entspricht —
+# sie tragen also KEINE Information, die der DB-Sektor nicht besser abbildet,
+# und weichen ihm deshalb. Alle anderen Klassen haben bewusst abweichende
+# Limits (US_TECH 40 / BROAD_ETF 25 / CRYPTO 10 / COMMODITY 20 / BOND 20 /
+# INTL 20) bzw. gar kein Sektor-Aequivalent und behalten Vorrang.
+_SECTOR_EQUIVALENT_CLASSES = frozenset({
+    "FINANCIAL", "CONSUMER", "HEALTHCARE", "ENERGY",
+})
+
+
 def resolve_asset_class(symbol: str, sector_by_symbol: dict[str, str] | None = None) -> str | None:
     """Asset-Klasse eines Symbols — kuratiertes Mapping, dann DB-Sektor.
 
@@ -571,12 +581,27 @@ def resolve_asset_class(symbol: str, sector_by_symbol: dict[str, str] | None = N
     """
     s = (symbol or "").upper()
     mapped = ASSET_CLASS_MAP.get(s)
+    db_sector = ""
+    if sector_by_symbol:
+        db_sector = (sector_by_symbol.get(s) or sector_by_symbol.get(symbol or "") or "").strip()
+        if db_sector.lower() == "unknown":
+            db_sector = ""
+
+    # Kuratierte Klasse weicht dem DB-Sektor, wenn sie ohnehin nur den
+    # Default-Cap liefert (_SECTOR_EQUIVALENT_CLASSES). Sonst entstuenden ZWEI
+    # Toepfe fuer denselben Wirtschaftssektor: JPM/V landen in FINANCIAL,
+    # SAVE.ST/BURE.ST in SECTOR:Financial Services — jeder mit eigenem 20%-Cap,
+    # macht effektiv 40% fuer eine Branche. Gemessen am realen Buch betraf das
+    # Healthcare (4.0% + 2.8% statt 6.8%) und Financials (0.5% + 11.8%).
+    # US_TECH/BROAD_ETF/CRYPTO/COMMODITY/BOND behalten Vorrang: deren Limits
+    # (40/25/10/20/20) sind bewusste Abweichungen vom Default, die ein
+    # yfinance-Sektor nicht abbilden kann.
+    if mapped and db_sector and mapped in _SECTOR_EQUIVALENT_CLASSES:
+        return f"SECTOR:{db_sector}"
     if mapped:
         return mapped
-    if sector_by_symbol:
-        raw = (sector_by_symbol.get(s) or sector_by_symbol.get(symbol or "") or "").strip()
-        if raw and raw.lower() != "unknown":
-            return f"SECTOR:{raw}"
+    if db_sector:
+        return f"SECTOR:{db_sector}"
     return None
 
 

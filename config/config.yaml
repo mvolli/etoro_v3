@@ -187,10 +187,15 @@ sector_limits:
   # Fallback-Quelle fuer das Asset-Class-Gate. ASSET_CLASS_MAP deckt ~65
   # US-Ticker ab — gemessen fielen 43 von 54 gehaltenen Symbolen = 74.2% des
   # Equity fail-open durch das Gate.
-  # NOCH AUS: erst muss scripts/sync_instrument_sectors.py die Spalte fuellen
-  # und die Sektor-Verteilung des Buchs gemessen sein. Ein 20%-Cap auf
-  # ungemessene Daten blockt entweder nichts oder alles.
-  enforce_db_sectors: false
+  # SCHARF seit 2026-08-12, nach Backfill und Messung. Verteilung des Buchs
+  # zum Zeitpunkt der Aktivierung (alle 59 Positionen haben einen Sektor):
+  #   Industrials 17.1% | Financial Services 16.3% | Consumer Cyclical 9.7%
+  #   Consumer Defensive 9.7% | Energy 6.8% | Basic Materials 6.8%
+  #   Healthcare 6.8% | Utilities 3.6% | Technology 3.1% | Comm. Services 1.0%
+  # Kein Sektor ueber dem 20%-Cap -> das Scharfschalten erzwingt HEUTE keinen
+  # einzigen Verkauf, verhindert aber weiteres Anwachsen der groessten Klumpen.
+  # Anteil des Buchs ohne jede Sektor-Grenze: 74.2% -> 0%.
+  enforce_db_sectors: true
 
 discovery:
   movers_scan:                # feat/market-movers 2026-07-20: API-weiter Daily-Mover-Scan (Bulk-Closing + Batch-Rates)

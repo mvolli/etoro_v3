@@ -111,3 +111,41 @@ def test_equity_null_bleibt_skip():
     res = check_asset_class_gate("OR.PA", 500.0, 0.0, [],
                                  sector_by_symbol={"OR.PA": "Utilities"})
     assert res.allowed
+
+
+# ── Topf-Zusammenfuehrung ─────────────────────────────────────────────────────
+
+def test_sektor_aequivalente_klasse_weicht_dem_db_sektor():
+    """JPM darf nicht in einem anderen Topf landen als SAVE.ST.
+
+    Sonst hat derselbe Wirtschaftssektor zwei 20%-Caps = effektiv 40%.
+    """
+    assert resolve_asset_class("JPM", {"JPM": "Financial Services"}) == "SECTOR:Financial Services"
+    assert resolve_asset_class("JNJ", {"JNJ": "Healthcare"}) == "SECTOR:Healthcare"
+    assert resolve_asset_class("XOM", {"XOM": "Energy"}) == "SECTOR:Energy"
+    assert resolve_asset_class("KO", {"KO": "Consumer Defensive"}) == "SECTOR:Consumer Defensive"
+
+
+def test_abweichende_limits_behalten_vorrang():
+    """US_TECH (40%) / BROAD_ETF (25%) / CRYPTO (10%) sind bewusste
+    Abweichungen vom Default — ein yfinance-Sektor bildet sie nicht ab."""
+    assert resolve_asset_class("NVDA", {"NVDA": "Technology"}) == "US_TECH"
+    assert resolve_asset_class("SPY", {"SPY": "Financial Services"}) == "BROAD_ETF"
+    assert resolve_asset_class("BTC", {"BTC": "Technology"}) == "CRYPTO"
+
+
+def test_ohne_db_sektor_bleibt_kuratierte_klasse():
+    assert resolve_asset_class("JPM") == "FINANCIAL"
+    assert resolve_asset_class("JPM", {}) == "FINANCIAL"
+    assert resolve_asset_class("JPM", {"JPM": "unknown"}) == "FINANCIAL"
+
+
+def test_zusammengefuehrter_topf_summiert_korrekt():
+    """Der eigentliche Zweck: JPM und SAVE.ST zaehlen auf dasselbe Limit."""
+    sectors = {"JPM": "Financial Services", "SAVE.ST": "Financial Services"}
+    res = check_asset_class_gate(
+        "JPM", 500.0, 10_000.0,
+        [{"symbol": "SAVE.ST", "amount_usd": 1900.0}],   # 19% + 5% = 24% > 20%
+        sector_by_symbol=sectors,
+    )
+    assert not res.allowed
