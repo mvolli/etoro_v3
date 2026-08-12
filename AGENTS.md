@@ -55,6 +55,20 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
 - discord_embeds hat One-Shot-Slots (`_PENDING_CHART`, `_LAST_POST`) und
   wird von trailing_stop per importlib als EIGENE Instanz geladen —
   attach_chart/post/get_last_post immer am selben Modul-Objekt aufrufen.
+- **eToro-Positions-Payload hat KEINEN `symbol`-Key** (fix/trailing-symbol-
+  resolution 2026-08-12): nur `instrumentID`. Wer aus Positionen ein Symbol
+  braucht, löst über `instruments` auf (`trailing_stop.load_symbols()`,
+  Batch). Ein `pos.get('symbol', str(pos.get('instrumentID')))` liefert
+  garantiert die ID — und `is_market_open()` leitet die Börse aus dem
+  ERSTEN Argument ab, ein korrektes `yf_symbol` im zweiten rettet nichts.
+  Folge des Fehlers: der Market-Guard war für 48 von 60 Positionen blind
+  (`is_market_open('3364','9633.HK','')` → True, obwohl HK zu), und
+  9633.HK lief 2 Tage ohne Break-Even-Schutz.
+- **BE_CLOSE/SL sind Verlustschutz — Retry NIE unterdrücken.** Für optionale
+  Korrekturen (Exposure-Trim) ist „unverifiziert ⇒ PENDING, kein Retry"
+  richtig; für den Break-Even-Boden hieße das, ihn still abzuschalten. Bei
+  Alarm-Spam die Meldung drosseln (`TRAILING_ERR_EMBED`, signaturbasiert),
+  nicht die Aktion.
 - **Keine Datenkürzung in Embeds** (fix/embeds-no-hidden-data 2026-08-12):
   Zeilen NIE per `[:N]` oder `"…+N weitere"` abschneiden — `pack_lines_into_fields()`
   legt Folgefelder an, `_split_embed()` verteilt auf bis zu 10 Embeds je
