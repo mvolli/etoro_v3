@@ -63,3 +63,20 @@
 # Tagesreport (Opens/Partials/Closes + Chart-Grid) → #reports.
 # Hermes-Job 0ca988478b2d (feat/daily-report 2026-07-28).
 15 23 * * *    bash /home/mvolli/.hermes/scripts/v3_daily_report.sh >> logs/daily_report.log 2>&1
+
+# Sector Sync — taeglich 03:50 lokal. Fuellt instruments.sector/industry aus
+# yfinance und ist damit die Datenquelle fuer das Sektor-Gate
+# (sector_limits.enforce_db_sectors, scharf seit 2026-08-12). Ohne diesen
+# Lauf bleibt der 20%-Cap fuer neu importierte Instrumente wirkungslos, weil
+# ein NULL-Sektor fail-open behandelt wird.
+#
+# Laufzeit ~19 min bei 200 Instrumenten (yfinance drosselt auf ~5.6s/Symbol);
+# Vollrotation der ~4.161 handelbaren damit ~21 Tage, komfortabel innerhalb
+# der TTL von 90 Tagen. Prioritaet: gehaltene Positionen -> Core-Sweep-
+# Whitelist -> nie geprueft -> aelteste.
+#
+# Zeitfenster bewusst gewaehlt: nach dem woechentlichen Tradability-Sync
+# (03:30, ~40s), mit ~30 min Puffer vor dem Tradability-Mini-Sync (04:40).
+# Eigener worker_lock('sector_sync') — laeuft nie parallel zu sich selbst.
+# Hermes-Job 629f07e94d80 (feat/sector-backfill 2026-08-12).
+50 3 * * *     bash /home/mvolli/.hermes/scripts/v3_sector_sync.sh >> logs/sector_sync.log 2>&1
