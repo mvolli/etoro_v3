@@ -210,6 +210,23 @@ class TradeRepo:
         if unknown:
             raise ValueError(f"update_status: unknown fields {unknown}")
 
+        # fix/closed-at-guarantee (2026-08-12): CLOSED ohne closed_at ist ein
+        # kaputter Zustand — 45 Trades aus KW29-31 stehen so in der DB. Jede
+        # Auswertung, die nach Zeit gruppiert, verliert sie stillschweigend:
+        # llm_review_worker filtert explizit "AND t.closed_at IS NOT NULL",
+        # config_experiment_worker vergleicht Fenster ueber closed_at, und
+        # get_pending_verification sortiert danach. Die Lernschleife wurde
+        # also mit einem Loch gefuettert, ohne dass es auffiel.
+        # Statt jeden Schreibpfad einzeln zu pruefen, garantiert es die
+        # zentrale Stelle: wer CLOSED setzt und keinen Zeitstempel mitgibt,
+        # bekommt "jetzt". Ein explizit uebergebener Wert gewinnt immer.
+        if new_status == "CLOSED" and "closed_at" not in extra_fields:
+            from datetime import datetime, timezone
+            extra_fields = dict(extra_fields)
+            extra_fields["closed_at"] = datetime.now(timezone.utc).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+
         # Always update the status column
         set_clauses = ["status = ?"]
         params: list[Any] = [new_status]
