@@ -86,25 +86,154 @@ def _read_token() -> Optional[str]:
     return None
 
 
+# ── Discord-Hard-Limits (API v10) ────────────────────────────────────────────
+MAX_FIELDS_PER_EMBED = 25
+MAX_FIELD_VALUE = 1024
+MAX_FIELD_NAME = 256
+MAX_DESCRIPTION = 4096
+MAX_TITLE = 256
+MAX_EMBEDS_PER_MESSAGE = 10
+# Discord zaehlt title+description+alle Feldnamen+alle Feldwerte gegen 6000.
+# Etwas Luft lassen, damit Footer/Author nicht ueber die Kante kippen.
+MAX_EMBED_TOTAL = 5800
+
+
+def _embed_char_total(embed: dict) -> int:
+    """Zeichen, die Discord gegen das 6000er-Gesamtlimit zaehlt."""
+    n = len(str(embed.get("title") or "")) + len(str(embed.get("description") or ""))
+    for f in embed.get("fields") or []:
+        n += len(str(f.get("name") or "")) + len(str(f.get("value") or ""))
+    return n
+
+
+def pack_lines_into_fields(
+    name: str,
+    lines: list[str],
+    inline: bool = False,
+    max_value: int = MAX_FIELD_VALUE,
+) -> list[dict]:
+    """Zeilen VOLLSTAENDIG auf so viele Felder verteilen, wie noetig.
+
+    fix/embeds-no-hidden-data (2026-08-12): ersetzt das Muster
+    `"\\n".join(lines)[:1024]` bzw. `… +N weitere`, das Zeilen einfach
+    verschwinden liess. Hier geht NICHTS verloren — laeuft ein Feld voll,
+    entsteht ein Folgefeld mit „…"-Suffix im Namen (Muster aus
+    post_daily_report_embed, hier verallgemeinert).
+
+    Eine einzelne Zeile, die laenger als *max_value* ist, wird als einzige
+    Ausnahme hart geschnitten — sonst gaebe es kein gueltiges Feld. Das ist
+    ein Datenfehler weiter oben (z.B. 2000-Zeichen-Fehlermeldung), kein
+    Mengenproblem, und wird geloggt.
+    """
+    if not lines:
+        return []
+    out: list[dict] = []
+    chunk: list[str] = []
+    size = 0
+    for raw in lines:
+        line = str(raw)
+        if len(line) > max_value:
+            logger.warning(
+                "[discord_embeds] Einzelzeile laenger als Feldlimit "
+                "(%d > %d) — gekuerzt: %.60s", len(line), max_value, line,
+            )
+            line = line[: max_value - 1] + "…"
+        if chunk and size + len(line) + 1 > max_value:
+            out.append({"name": name if not out else f"{name} …",
+                        "value": "\n".join(chunk), "inline": inline})
+            chunk, size = [], 0
+        chunk.append(line)
+        size += len(line) + 1
+    if chunk:
+        out.append({"name": name if not out else f"{name} …",
+                    "value": "\n".join(chunk), "inline": inline})
+    return out
+
+
 def _clip_embed_limits(embed: dict) -> dict:
-    """Discord-API-Limits zentral durchsetzen, statt in jedem Embed einzeln.
+    """Discord-API-Limits durchsetzen — Titel/Beschreibung/Feldnamen.
 
     Ohne Clipping lehnt Discord das GANZE Embed mit 400 ab (Notification
     verloren) — z.B. wenn resolve_instrument_display() lange Namen liefert
     und ein Feld über 1024 Zeichen wächst.
+
+    fix/embeds-no-hidden-data (2026-08-12): das frühere `fields[:25]` hat
+    Felder STILL weggeworfen — dieselbe Fehlerklasse wie „+21 weitere", nur
+    unsichtbar, weil Discord danach brav 200 zurückgibt. Feldanzahl und
+    Gesamtlaenge werden jetzt NICHT mehr hier gekappt, sondern von
+    _split_embed() auf Folge-Embeds verteilt.
     """
     if embed.get("title"):
-        embed["title"] = str(embed["title"])[:256]
+        embed["title"] = str(embed["title"])[:MAX_TITLE]
     if embed.get("description"):
-        embed["description"] = str(embed["description"])[:4096]
+        embed["description"] = str(embed["description"])[:MAX_DESCRIPTION]
     fields = embed.get("fields") or []
     embed["fields"] = [
         {**f,
-         "name":  str(f.get("name", ""))[:256],
-         "value": str(f.get("value", ""))[:1024]}
-        for f in fields[:25]
+         "name":  str(f.get("name", ""))[:MAX_FIELD_NAME],
+         "value": str(f.get("value", ""))[:MAX_FIELD_VALUE]}
+        for f in fields
     ]
     return embed
+
+
+def _split_embed(embed: dict) -> list[dict]:
+    """Ein Embed auf so viele Embeds verteilen, wie die Limits erfordern.
+
+    Discord erlaubt 10 Embeds je Nachricht — das ist die eigentliche
+    Reserve, statt Felder wegzuwerfen. Folge-Embeds erben die Farbe, tragen
+    aber weder Titel noch Beschreibung doppelt (nur einen „(2/3)"-Zaehler),
+    damit die Nachricht als EIN Bericht lesbar bleibt.
+
+    Reissen die Daten selbst 10 Embeds (≈250 Felder), wird der Rest als
+    Fehler geloggt statt still verworfen — dann stimmt weiter oben etwas
+    nicht, und das soll auffallen.
+    """
+    embed = _clip_embed_limits(embed)
+    fields = embed.get("fields") or []
+    base_total = (len(str(embed.get("title") or ""))
+                  + len(str(embed.get("description") or "")))
+
+    if len(fields) <= MAX_FIELDS_PER_EMBED and _embed_char_total(embed) <= MAX_EMBED_TOTAL:
+        return [embed]
+
+    pages: list[list[dict]] = []
+    cur: list[dict] = []
+    cur_len = base_total
+    for f in fields:
+        flen = len(str(f.get("name") or "")) + len(str(f.get("value") or ""))
+        if cur and (len(cur) >= MAX_FIELDS_PER_EMBED or cur_len + flen > MAX_EMBED_TOTAL):
+            pages.append(cur)
+            cur, cur_len = [], 0          # Folgeseiten ohne Titel/Description
+        cur.append(f)
+        cur_len += flen
+    if cur:
+        pages.append(cur)
+
+    dropped = 0
+    if len(pages) > MAX_EMBEDS_PER_MESSAGE:
+        dropped = sum(len(p) for p in pages[MAX_EMBEDS_PER_MESSAGE:])
+        logger.error(
+            "[discord_embeds] '%s': %d Felder passen auch in %d Embeds nicht — "
+            "%d Felder gehen verloren. Datenmenge weiter oben begrenzen!",
+            embed.get("title", "?"), len(fields), MAX_EMBEDS_PER_MESSAGE, dropped,
+        )
+        pages = pages[:MAX_EMBEDS_PER_MESSAGE]
+
+    out: list[dict] = []
+    total_pages = len(pages)
+    for idx, page in enumerate(pages):
+        if idx == 0:
+            e = {**embed, "fields": page}
+            if total_pages > 1:
+                e["title"] = f"{embed.get('title','')} (1/{total_pages})"[:MAX_TITLE]
+        else:
+            e = {"color": embed.get("color"), "fields": page,
+                 "title": f"… ({idx + 1}/{total_pages})"}
+            if idx == total_pages - 1 and embed.get("footer"):
+                e["footer"] = embed["footer"]
+        out.append(e)
+    return out
 
 
 # feat/candle-charts (2026-07-16): Ein-Schuss-Slot fuer ein Embed-Bild.
@@ -167,7 +296,12 @@ def _post_embed(embed: dict, channel_id: str, dry_run: bool = False) -> "str | b
     spaetere Edits via _edit_embed(); alte `if ok:`-Call-Sites bleiben
     unveraendert gueltig. False bei Fehler, True im Dry-Run.
     """
-    embed = _clip_embed_limits(embed)
+    # fix/embeds-no-hidden-data (2026-08-12): passt der Inhalt nicht in EIN
+    # Embed, wird er auf mehrere verteilt (Discord: 10 je Nachricht) statt
+    # Felder stillschweigend abzuschneiden. Es bleibt EINE Nachricht — also
+    # eine Message-ID fuer _LAST_POST/_edit_embed und ein Chart-Anhang.
+    embeds = _split_embed(embed)
+    embed = embeds[0]
     png = _PENDING_CHART.get("png")
     _PENDING_CHART["png"] = None  # immer konsumieren — nie ans falsche Embed
     # Slot VOR dem Versuch leeren — sonst erbt ein fehlgeschlagener Post die
@@ -175,16 +309,19 @@ def _post_embed(embed: dict, channel_id: str, dry_run: bool = False) -> "str | b
     _LAST_POST["message_id"] = None
     _LAST_POST["channel_id"] = None
     if dry_run:
-        logger.info(f"[discord_embeds DRY-RUN] '{embed.get('title', '?')}' → channel {channel_id}")
+        _extra = f" (+{len(embeds) - 1} Folge-Embed(s))" if len(embeds) > 1 else ""
+        logger.info(f"[discord_embeds DRY-RUN] '{embed.get('title', '?')}'{_extra} → channel {channel_id}")
         return True
 
     try:
         if png:
+            # Chart haengt am ERSTEN Embed — Folge-Embeds tragen nur Felder.
             embed["image"] = {"url": "attachment://chart.png"}
+            embeds[0] = embed
             import uuid as _uuid
             boundary = "----v3chart" + _uuid.uuid4().hex
             payload_json = json.dumps({
-                "embeds": [embed],
+                "embeds": embeds,
                 "attachments": [{"id": 0, "filename": "chart.png"}],
             })
             payload = b"".join([
@@ -199,7 +336,7 @@ def _post_embed(embed: dict, channel_id: str, dry_run: bool = False) -> "str | b
             ])
             content_type = f"multipart/form-data; boundary={boundary}"
         else:
-            payload = json.dumps({"embeds": [embed]}).encode("utf-8")
+            payload = json.dumps({"embeds": embeds}).encode("utf-8")
             content_type = "application/json"
 
         status, body = _request_discord(
@@ -208,7 +345,8 @@ def _post_embed(embed: dict, channel_id: str, dry_run: bool = False) -> "str | b
         )
 
         if status in (200, 201):
-            logger.info(f"[discord_embeds] Embed gepostet: '{embed.get('title','?')}' → {channel_id}")
+            _n = f" ({len(embeds)} Embeds)" if len(embeds) > 1 else ""
+            logger.info(f"[discord_embeds] Embed gepostet{_n}: '{embed.get('title','?')}' → {channel_id}")
             msg_id = None
             try:
                 msg_id = json.loads(body).get("id")
@@ -237,12 +375,17 @@ def _edit_embed(channel_id: str, message_id: str, embed: dict,
     """
     if not channel_id or not message_id:
         return False
-    embed = _clip_embed_limits(embed)
+    # fix/embeds-no-hidden-data: PATCH ersetzt ALLE Embeds der Nachricht —
+    # deshalb dieselbe Aufteilung wie beim Posten. Ohne sie wuerde ein Embed
+    # mit >25 Feldern hier einen 400er ausloesen (seit _clip_embed_limits
+    # nicht mehr still kappt), und der Nachreport bliebe stumm haengen.
+    embeds = _split_embed(embed)
+    embed = embeds[0]
     if dry_run:
         logger.info(f"[discord_embeds DRY-RUN] EDIT '{embed.get('title', '?')}' → {channel_id}/{message_id}")
         return True
     try:
-        payload = json.dumps({"embeds": [embed]}).encode("utf-8")
+        payload = json.dumps({"embeds": embeds}).encode("utf-8")
         status, body = _request_discord(
             "PATCH", f"/api/v10/channels/{channel_id}/messages/{message_id}",
             payload, "application/json",
