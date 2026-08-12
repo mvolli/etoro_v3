@@ -899,16 +899,48 @@ def main() -> None:
                         f"Trailing Stop: {len(ts_stats['errors'])} partial-close error(s)",
                         {'errors': ts_stats['errors']},
                     )
-                    _discord(
-                        'post_alert_embed',
-                        title=f"🟠 Trailing Stop: {len(ts_stats['errors'])} Fehler",
-                        description=(
-                            f"Gewinne wurden NICHT teilweise realisiert.\n"
-                            + "\n".join(f'• {e}' for e in ts_stats['errors'][:5])
-                        ),
-                        severity='WARNING',
-                        dry_run=False,
-                    )
+                    # fix/trailing-error-throttle (2026-08-12): Ein
+                    # unverifizierter Close wiederholt sich per Design jeden
+                    # 5-min-Lauf (BE_CLOSE ist Verlustschutz — der Retry MUSS
+                    # bleiben). Ungedrosselt ergab das ~288 identische Embeds
+                    # pro Tag; 9633.HK hat so seit 2026-08-10 gemeldet.
+                    # BEWUSST nur gedrosselt, nicht unterdrueckt: ein
+                    # unverifizierter Close bei OFFENER Boerse ist ein echtes
+                    # Signal. Signatur-basiert, damit ein NEUER Fehler sofort
+                    # durchkommt und nicht hinter dem alten wartet.
+                    import hashlib as _hl
+                    _sig = _hl.md5(
+                        "|".join(sorted(str(e) for e in ts_stats['errors']))
+                        .encode('utf-8')).hexdigest()[:12]
+                    _due = True
+                    try:
+                        from datetime import datetime as _te_dt, timezone as _te_tz
+                        _prev = state_repo.get('TRAILING_ERR_EMBED') or ''
+                        _psig, _, _pts = _prev.partition('@')
+                        if _psig == _sig and _pts:
+                            _pdt = _te_dt.fromisoformat(_pts)
+                            if _pdt.tzinfo is None:
+                                _pdt = _pdt.replace(tzinfo=_te_tz.utc)
+                            _due = (_te_dt.now(_te_tz.utc) - _pdt).total_seconds() >= 6 * 3600
+                        if _due:
+                            state_repo.set(
+                                'TRAILING_ERR_EMBED',
+                                f"{_sig}@{_te_dt.now(_te_tz.utc).isoformat()}")
+                    except Exception:
+                        _due = True  # fail-open: im Zweifel melden
+                    if _due:
+                        _discord(
+                            'post_alert_embed',
+                            title=f"🟠 Trailing Stop: {len(ts_stats['errors'])} Fehler",
+                            description=(
+                                "Gewinne wurden NICHT teilweise realisiert.\n"
+                                + "\n".join(f'• {e}' for e in ts_stats['errors'])
+                                + "\n\n_Wiederholt sich der Fehler, meldet der Bot "
+                                  "erst in 6 h erneut — der Retry laeuft weiter._"
+                            ),
+                            severity='WARNING',
+                            dry_run=False,
+                        )
         except Exception as _ts_exc:
             logger.error('RiskWorker: Trailing stop failed: %s', _ts_exc)
             log_repo.write('ERROR', 'risk_worker', f'Trailing stop crashed: {_ts_exc}')

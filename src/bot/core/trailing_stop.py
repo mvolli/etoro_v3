@@ -383,6 +383,44 @@ def load_atr_pct(db: Any, instrument_ids: list[int]) -> dict[int, float]:
         return {}
 
 
+def load_symbols(db: Any, instrument_ids: list[int]) -> dict[int, str]:
+    """Return {instrument_id: symbol} — eToro-Namespace aus der instruments-Tabelle.
+
+    fix/trailing-symbol-resolution (2026-08-12): Die eToro-Positions-Payload
+    enthaelt KEINEN 'symbol'-Key, nur 'instrumentID'. evaluate_trailing fiel
+    deshalb ausnahmslos auf `str(instrumentID)` zurueck — 56 von 60
+    position_state-Zeilen trugen '3364' statt '9633.HK'.
+
+    Folgen, beide still:
+      1. _action_market_open() reicht dieses Pseudo-Symbol an is_market_open()
+         weiter, das die Boerse aus dem ERSTEN Argument ableitet. Ohne
+         erkennbares Suffix greift fail_open=True -> "Markt offen". Der Guard
+         aus fix/stale-price-trailing war damit fuer JEDE Nicht-US-Position
+         wirkungslos (48 von 60), obwohl er genau dafuer gebaut wurde.
+      2. Der Stale-Exit-Vergleich `symbol in fresh_holds` traf nie, weil
+         _load_fresh_llm_holds() echte Ticker liefert — die LLM-HOLD-
+         Schonfrist war ebenfalls tot.
+
+    Entspricht der AGENTS.md-Invariante: alles Richtung eToro-API loest
+    `instruments.symbol` per instrument_id auf (vgl.
+    execution_worker._canonical_symbol).
+    """
+    ids = [i for i in instrument_ids if i]
+    if db is None or not ids:
+        return {}
+    try:
+        placeholders = ",".join("?" * len(ids))
+        rows = db.fetchall(
+            f"SELECT instrument_id, symbol FROM instruments "
+            f"WHERE instrument_id IN ({placeholders}) AND symbol IS NOT NULL",
+            ids,
+        )
+        return {int(row[0]): str(row[1]) for row in rows}
+    except Exception as exc:
+        logger.warning("[trailing] load_symbols failed: %s", exc)
+        return {}
+
+
 def load_profit_levels(db: Any, position_ids: list[str]) -> dict[str, list[dict]]:
     """Return the frozen profit-take ladder already snapshot for each position."""
     if db is None or not position_ids:
@@ -638,6 +676,9 @@ def evaluate_trailing(
         int(p.get('instrumentID') or p.get('instrumentId') or 0) for p in positions
     ]
     atr_by_instrument = load_atr_pct(db, instrument_ids)
+    # fix/trailing-symbol-resolution (2026-08-12): echte Symbole aufloesen —
+    # die eToro-Payload hat keinen 'symbol'-Key, siehe load_symbols().
+    symbol_by_instrument = load_symbols(db, instrument_ids)
 
     # Stale-Exit: frische LLM-HOLD-Empfehlungen einmal pro Lauf laden (Grace)
     fresh_holds = _load_fresh_llm_holds(STALE_LLM_HOLD_GRACE_H)
@@ -645,8 +686,13 @@ def evaluate_trailing(
     actions = []
     for pos in positions:
         pos_id = str(pos.get('positionID', ''))
-        symbol = pos.get('symbol', str(pos.get('instrumentID', '')))
         instrument_id = int(pos.get('instrumentID') or pos.get('instrumentId') or 0)
+        # Reihenfolge: Payload (falls eToro es je liefert) -> instruments-
+        # Tabelle -> ID als letzter Notnagel. Der Notnagel macht den
+        # Market-Guard blind, ist aber besser als ein leeres Symbol.
+        symbol = (pos.get('symbol')
+                  or symbol_by_instrument.get(instrument_id)
+                  or str(pos.get('instrumentID', '')))
         amount = float(pos.get('amount', 0))
         open_rate = float(pos.get('openRate', 0) or 0)
         upnl = pos.get('unrealizedPnL') or {}
