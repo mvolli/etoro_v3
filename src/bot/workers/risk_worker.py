@@ -718,6 +718,58 @@ def main() -> None:
                     ),
                     severity="WARNING",
                 )
+            # fix/exposure-drift-monitor (2026-08-12): Gesamt-Exposure gegen
+            # den Cap. check_exposure_gate ist ein reines PRE-Trade-Gate —
+            # nach dem Einstieg pruefte NICHTS das Gesamt-Exposure erneut.
+            # Richtung beachten: amount ist eingesetztes Kapital, nicht
+            # Marktwert, das Verhaeltnis steigt also bei FALLENDER Equity.
+            # Warn-only wie der Asset-Klassen-Check — erzwungenes Rebalancing
+            # des ganzen Buchs ist eine menschliche Entscheidung.
+            try:
+                from bot.core.concentration_monitor import check_total_exposure_drift
+                from bot.core.risk import MAX_TOTAL_EXPOSURE_PCT as _exp_cap
+                _drift = check_total_exposure_drift(raw_positions, equity, _exp_cap)
+            except Exception as _drift_exc:
+                _drift = None
+                logger.debug("RiskWorker: exposure drift check skipped: %s", _drift_exc)
+            if _drift:
+                _dmsg = (
+                    f"Exposure {_drift['actual_pct']:.1f}% > Cap "
+                    f"{_drift['limit_pct']:.0f}% ({_drift['breach_pct']:.1f}pp darueber) — "
+                    f"${_drift['total_amount']:.0f} investiert bei ${_drift['equity']:.0f} "
+                    f"Equity, Ueberhang ${_drift['excess_amount']:.0f} "
+                    f"({_drift['position_count']} Positionen)"
+                )
+                logger.warning("RiskWorker: total exposure drift — %s", _dmsg)
+                log_repo.write("WARN", "risk_worker",
+                               f"Gesamt-Exposure ueber Cap: {_dmsg}", _drift)
+                # Throttle wie CONC_WARN_EMBED_AT: der Zustand haelt tagelang
+                # an, ein Embed je 5-min-Lauf waeren ~288 Posts/Tag.
+                try:
+                    from datetime import datetime as _ed_dt, timezone as _ed_tz
+                    _ed_last = state_repo.get("EXPOSURE_DRIFT_EMBED_AT") or ""
+                    _ed_due = True
+                    if _ed_last:
+                        _ed_prev = _ed_dt.fromisoformat(_ed_last)
+                        if _ed_prev.tzinfo is None:
+                            _ed_prev = _ed_prev.replace(tzinfo=_ed_tz.utc)
+                        _ed_due = (_ed_dt.now(_ed_tz.utc) - _ed_prev).total_seconds() >= 6 * 3600
+                    if _ed_due:
+                        state_repo.set("EXPOSURE_DRIFT_EMBED_AT",
+                                       _ed_dt.now(_ed_tz.utc).isoformat())
+                        _discord(
+                            "post_alert_embed",
+                            title="⚠️ Gesamt-Exposure über Cap",
+                            description=(
+                                f"{_dmsg}\n\nKein Auto-Close — Rebalancing ist eine "
+                                f"manuelle Entscheidung. Neue Buys sind bis zur "
+                                f"Unterschreitung gesperrt (Exposure-Gate + Core-Sweep-"
+                                f"Headroom); Exits und Profit-Taking laufen weiter."
+                            ),
+                            severity="WARNING",
+                        )
+                except Exception:
+                    pass
         except Exception as _conc_exc:
             logger.debug("RiskWorker: Concentration check skipped: %s", _conc_exc)
     

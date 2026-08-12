@@ -166,6 +166,51 @@ def check_asset_class_violations(
     return violations
 
 
+def check_total_exposure_drift(
+    positions: list[dict],
+    equity: float,
+    max_exposure_pct: float,
+) -> dict | None:
+    """Detect TOTAL portfolio exposure drifting past the cap (post-trade).
+
+    fix/exposure-drift-monitor (2026-08-12): check_exposure_gate is a pure
+    PRE-trade gate — nothing ever re-checked total exposure after entry. Same
+    blind spot check_asset_class_violations was added for, one level up.
+
+    The drift direction is counter-intuitive and worth stating: `amount` is
+    INVESTED CAPITAL, not market value, so exposure% rises when EQUITY FALLS,
+    not when prices rise. The live case on 2026-08-12: $10.000 -> $8.668
+    equity at a ~flat $7.100 invested pushed 71% -> 81.9% without a single
+    new buy. That makes an unmonitored cap a loss amplifier: the deeper the
+    drawdown, the further past the cap the book sits.
+
+    Detection-only, like check_asset_class_violations: no auto-close. Forcing
+    sells to rebalance the whole book is a materially bigger lever than
+    trimming one over-limit instrument — it surfaces for a human decision.
+
+    Returns None when within the cap, else a dict with the breach details.
+    """
+    if equity <= 0 or max_exposure_pct <= 0:
+        return None
+
+    total = sum(float(p.get("amount", 0) or 0) for p in positions)
+    actual_pct = (total / equity) * 100.0
+    if actual_pct <= max_exposure_pct:
+        return None
+
+    cap_usd = equity * max_exposure_pct / 100.0
+    return {
+        "total_amount": total,
+        "equity": equity,
+        "actual_pct": actual_pct,
+        "limit_pct": float(max_exposure_pct),
+        "breach_pct": actual_pct - float(max_exposure_pct),
+        "excess_amount": total - cap_usd,
+        "position_count": len(positions),
+        "severity": "WARNING",
+    }
+
+
 def close_concentration_excess(
     client: Any,
     violations: list[dict],
