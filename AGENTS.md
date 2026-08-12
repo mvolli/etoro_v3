@@ -55,10 +55,18 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
 - discord_embeds hat One-Shot-Slots (`_PENDING_CHART`, `_LAST_POST`) und
   wird von trailing_stop per importlib als EIGENE Instanz geladen —
   attach_chart/post/get_last_post immer am selben Modul-Objekt aufrufen.
+- **Keine Datenkürzung in Embeds** (fix/embeds-no-hidden-data 2026-08-12):
+  Zeilen NIE per `[:N]` oder `"…+N weitere"` abschneiden — `pack_lines_into_fields()`
+  legt Folgefelder an, `_split_embed()` verteilt auf bis zu 10 Embeds je
+  Nachricht. `_clip_embed_limits` kappt nur noch Zeichenlängen, nicht die
+  Feldanzahl. Als Netz teilt `_split_embed` jedes Feld >1024 Zeichen selbst
+  auf — auch für Aufrufstellen, die den Packer nicht kennen.
 - **Tests, die `execute_trailing_actions` mit erfolgreichem Close durchlaufen,
   MÜSSEN Discord stummschalten** (`_post_closed_embed`, `_get_discord_embeds`,
   `_verify_partial_close` patchen). Der Pfad postet sonst in den LIVE-Channel
-  #trades — 2026-08-12 gingen so 7 erfundene „TINY"-Meldungen raus.
+  #trades — 2026-08-12 gingen so 7 erfundene „TINY"-Meldungen raus. Gleiches
+  gilt für Embed-Tests: gegen ein gepatchtes `_request_discord` prüfen (Payload
+  inspizieren), nie gegen das Netz.
 - **Jeder Pfad, der Positionen schliesst, braucht Market-Guard + PENDING-Muster.**
   eToro antwortet bei HK/ASIA langsam; `verify_full_close` läuft dort in den
   Timeout, obwohl der Close real ist. Unverifiziert ⇒ PENDING verbuchen, NICHT
