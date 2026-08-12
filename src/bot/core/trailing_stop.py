@@ -52,6 +52,33 @@ ATR_PROFIT_LEVELS = [
     {'atr_mult': 18.0, 'close_pct': 30, 'min_pct': 18.0, 'max_pct': 90.0},
 ]
 
+# fix/profit-ladder-reachability (2026-08-12): Skalierungsfaktor auf atr_mult
+# und min_pct ALLER Stufen. 1.0 = unveraendert (konservativer Code-Default,
+# die aktive Einstellung steht in config.yaml).
+#
+# WARUM: Die Leiter feuerte praktisch nie. Gemessen am realen Buch lag die
+# erste Stufe (ATRx6, min 6%) im Median bei +17.1% — erreicht hatten sie 2 von
+# 59 offenen Positionen (3%). Der durchschnittliche GEWINN-Trade der 220
+# geschlossenen Trades liegt bei +3.49%, der Median-Peak der offenen bei 4.2%.
+# Beendet wurden Gewinner damit ausschliesslich von Break-Even-Stop (+0.3%)
+# und Momentum-Fade — zwischen +3.5% und +17% existierte kein Mechanismus,
+# der einen Gewinner strukturiert am Leben haelt oder Teilgewinn sichert.
+# Das ist die Ursache der Asymmetrie (Ø Gewinn +3.49% vs Ø Verlust -1.74%
+# bei 23.6% Trefferquote gegen 33.3% Breakeven-Bedarf).
+#
+# max_pct wird BEWUSST nicht mitskaliert: das ist eine Sicherheits-Obergrenze,
+# sie tiefer zu ziehen wuerde High-ATR-Titel zu frueh zwangsschliessen.
+#
+# Der LLM-Review-Worker darf den Faktor in BIBLE_HARD_LIMITS-Grenzen
+# (0.2 .. 1.0) selbst nachjustieren — die Leiter kalibriert sich damit an der
+# tatsaechlichen Bewegung des Buchs, statt eine geratene Konstante zu sein.
+PROFIT_LADDER_ATR_SCALE = 1.0
+
+# fix/min-partial-close (2026-08-12): Untergrenze fuer Teilverkaeufe in USD.
+# eToro weist Orders unter minPositionExposure ab; ein 20%-Leiter-Anteil an
+# einem $9-Restfragment sind ~$2. Siehe Begruendung in execute_trailing_actions.
+MIN_PARTIAL_CLOSE_USD = 10.0
+
 
 # ── Dynamic Quick-Profit (Stufe 1) ────────────────────────────────────────────
 # Zwei Mechaniken, beide auf der LIVE-PnL jedes risk_worker-Zyklus (~5 min) —
@@ -191,7 +218,20 @@ def apply_config(cfg: dict) -> None:
     global SCALP_ENABLED, SCALP_ATR_MULT, SCALP_MIN_PCT, SCALP_MAX_PCT, SCALP_CLOSE_PCT
     global STALE_EXIT_ENABLED, STALE_MIN_DAYS, STALE_PNL_BAND_PCT
     global STALE_MIN_PEAK_PCT, STALE_LLM_HOLD_GRACE_H, STALE_MAX_DAYS
+    global PROFIT_LADDER_ATR_SCALE, MIN_PARTIAL_CLOSE_USD
     t = ((cfg or {}).get('trailing') or {})
+    try:
+        MIN_PARTIAL_CLOSE_USD = float(t.get('min_partial_close_usd', MIN_PARTIAL_CLOSE_USD))
+    except (TypeError, ValueError):
+        pass
+    pl = (t.get('profit_ladder') or {})
+    try:
+        _scale = float(pl.get('atr_scale', PROFIT_LADDER_ATR_SCALE))
+        # Harte Klemme: 0 oder negativ wuerde die Leiter auf 0% setzen und
+        # jede Position sofort teilschliessen.
+        PROFIT_LADDER_ATR_SCALE = max(0.05, min(1.0, _scale))
+    except (TypeError, ValueError):
+        pass
     se = (t.get('stale_exit') or {})
     if 'enabled' in se:
         STALE_EXIT_ENABLED = bool(se['enabled'])
@@ -255,8 +295,14 @@ def _resolve_profit_levels(atr_pct: float | None, strategy: str = 'swing') -> li
         base = list(PROFIT_TAKE_LEVELS)
     else:
         base = []
+        scale = PROFIT_LADDER_ATR_SCALE if PROFIT_LADDER_ATR_SCALE > 0 else 1.0
         for lv in ATR_PROFIT_LEVELS:
-            threshold = min(max(lv['atr_mult'] * atr_pct, lv['min_pct']), lv['max_pct'])
+            # scale wirkt auf atr_mult UND min_pct — sonst klemmt min_pct die
+            # Skalierung weg (bei ATR<2% war min_pct=6.0 die bindende Grenze).
+            threshold = min(
+                max(lv['atr_mult'] * scale * atr_pct, lv['min_pct'] * scale),
+                lv['max_pct'],
+            )
             base.append({'threshold': round(threshold, 2), 'close_pct': lv['close_pct']})
     if strategy == 'scalp' and SCALP_ENABLED:
         scalp = _scalp_rung(atr_pct)
@@ -1191,6 +1237,30 @@ def execute_trailing_actions(
                 msg = f'{action.symbol}: computed units_to_deduct <= 0 — skipped'
                 logger.warning('[trailing] %s', msg)
                 stats['errors'].append(msg)
+                continue
+
+            # fix/min-partial-close (2026-08-12): Mini-Teilverkaeufe abfangen.
+            # Rest-Fragmente von wenigen Dollar erzeugen bei 20% Leiter-Anteil
+            # Orders von ~$2 — die weist eToro unter minPositionExposure ab.
+            # Kritisch dabei: mark_level_taken() laeuft erst, wenn eToro die
+            # Order ANNIMMT. Eine abgelehnte Mini-Order wuerde das Level also
+            # nie als genommen verbuchen und im 5-min-Takt ENDLOS neu feuern
+            # (verletzt die Invariante "Einmal-Aktionen pro Position immer
+            # persistieren"). Deshalb: ueberspringen UND als genommen buchen —
+            # fuer ein $9-Restfragment ist die Stufe schlicht keine Order wert.
+            _close_value = action.amount_usd * (action.close_pct / 100.0)
+            if 0 < _close_value < MIN_PARTIAL_CLOSE_USD:
+                logger.info(
+                    '[trailing] %s: Teilverkauf $%.2f < Minimum $%.2f — '
+                    'Stufe uebersprungen und als genommen gebucht (kein Endlos-Retry)',
+                    action.symbol, _close_value, MIN_PARTIAL_CLOSE_USD,
+                )
+                if not dry_run:
+                    if is_fade:
+                        mark_momentum_faded(db, action.position_id, action.symbol)
+                    elif action.level_threshold > 0:
+                        mark_level_taken(db, action.position_id, action.symbol,
+                                         action.level_threshold)
                 continue
 
             logger.info('[trailing] %s %s%%: %s %+.1f%% — %s (units=%.6f)', action.action, action.close_pct, action.symbol, action.pnl_pct, action.reason, units_to_deduct)

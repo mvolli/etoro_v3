@@ -127,6 +127,25 @@ sizing:                       # Position size as % of portfolio equity
   low_pct: 2.0                # Conviction tier: LOW / speculative
 
 trailing:                     # Dynamic profit-taking (runs each risk_worker cycle on LIVE PnL)
+  min_partial_close_usd: 10.0 # fix/min-partial-close (2026-08-12): Teilverkaeufe
+                              # unter diesem Betrag werden uebersprungen UND als
+                              # genommen gebucht. eToro weist Mini-Orders unter
+                              # minPositionExposure ab, und mark_level_taken()
+                              # laeuft erst bei Annahme — ohne diese Grenze wuerde
+                              # ein $2-Teilverkauf im 5-min-Takt endlos retryen.
+  profit_ladder:              # fix/profit-ladder-reachability (2026-08-12)
+    atr_scale: 0.35           # Skaliert atr_mult+min_pct ALLER ATR-Profit-Stufen.
+                              # Gemessen: bei 1.0 lag die erste Stufe im Median bei
+                              # +17.1% und wurde von 2 von 59 offenen Positionen je
+                              # erreicht (3%). Der Ø GEWINN-Trade liegt bei +3.49%,
+                              # der Median-Peak bei 4.2% — die Leiter feuerte nie,
+                              # Gewinner endeten nur an BE-Stop (+0.3%) und Fade.
+                              # 0.35 ergibt 6.0% / 10.0% / 17.9% → 25 von 59 (42%)
+                              # erreichen die erste Stufe. Bewusst NICHT tiefer:
+                              # 6.0% liegt ueber dem Ø-Gewinn, schneidet den
+                              # Durchschnittsgewinner also nicht ab, und 17.9%
+                              # bleibt im beobachteten Peak-Bereich (max 22.7%).
+                              # Der LLM-Review-Worker darf 0.2..1.0 nachjustieren.
   stale_exit:                 # fix/stale-exit (2026-07-15): totes Kapital freisetzen
     enabled: true             # SCHARF seit 2026-07-15 (User-Entscheid: sofort live, engmaschige Beobachtung)
     min_days: 10              # Kalendertage seit openDateTime (~7 Handelstage)

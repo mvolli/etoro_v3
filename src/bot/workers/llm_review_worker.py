@@ -77,6 +77,11 @@ BIBLE_HARD_LIMITS: dict[str, tuple] = {
     "trailing.stale_exit.pnl_band_pct":  (0.5, 3.0,  float),
     "trailing.stale_exit.min_peak_pct":  (1.0, 5.0,  float),
     "trading.deployment_boost":          (1.0, 1.5,  float),
+    # fix/profit-ladder-reachability (2026-08-12): die Profit-Leiter darf sich
+    # an der tatsaechlichen Bewegung des Buchs kalibrieren statt eine geratene
+    # Konstante zu bleiben. Untergrenze 0.2 verhindert, dass jede Position
+    # sofort teilgeschlossen wird; 1.0 ist der historische Stand.
+    "trailing.profit_ladder.atr_scale":  (0.2, 1.0,  float),
 }
 
 STALE_OUTCOMES_PATH = PROJECT_ROOT / "data" / "stale_exit_outcomes.json"
