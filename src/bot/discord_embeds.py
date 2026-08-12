@@ -605,9 +605,15 @@ def post_heartbeat_embed(
     # damit Problem-Positionen sofort ins Auge fallen).
     if positions_summary:
         _ps = sorted(positions_summary, key=lambda x: (x.get("unrealized_pnl_pct") if x.get("unrealized_pnl_pct") is not None else 0.0))
-        _CAP = 30
+        # fix/embeds-no-hidden-data (2026-08-12): frueher _CAP = 30 mit
+        # "\u2026 +N weitere". Das war KEIN Discord-Limit, sondern eine
+        # gegriffene Zahl — bei 58 offenen Positionen blieben 28 unsichtbar,
+        # und zwar ausgerechnet die mit dem besten PnL (sortiert ist
+        # schlechteste zuerst). Ein 1024-Zeichen-Feld fasst ~55 dieser
+        # Zeilen, drei Spalten also ~165 Positionen. Der Cap hat nie etwas
+        # geschuetzt, nur Information unterschlagen.
         _entries = []
-        for _p in _ps[:_CAP]:
+        for _p in _ps:
             _sym = str(_p.get("symbol") or "?")
             _pnl = _p.get("unrealized_pnl_pct")
             _nosl = " ⚠️" if _p.get("is_no_stop_loss") else ""
@@ -622,16 +628,15 @@ def post_heartbeat_embed(
         # schlechteste zuerst -> obere linke Spalte).
         _per = -(-len(_entries) // 3) if _entries else 0   # ceil(n/3)
         _cols = [_entries[i:i + _per] for i in range(0, len(_entries), _per)] if _per else [[]]
-        for _ci, _col in enumerate(_cols[:3]):
-            _name = f"📋 Offene Positionen ({_n})" if _ci == 0 else "\u200b"
-            _cval = "\n".join(_col)
-            if _ci == len(_cols[:3]) - 1 and _n > _CAP:
-                _cval += f"\n… +{_n - _CAP} weitere"
-            fields.append({
-                "name":  _name,
-                "value": (_cval or "\u200b")[:1020],
-                "inline": True,
-            })
+        # Laeuft eine Spalte ueber 1024 Zeichen, erzeugt pack_lines_into_fields
+        # eine Fortsetzungsspalte statt zu kuerzen — es geht nichts verloren.
+        for _ci, _col in enumerate(_cols):
+            _packed = pack_lines_into_fields(
+                f"\U0001f4cb Offene Positionen ({_n})", _col, inline=True)
+            for _pi, _pf in enumerate(_packed):
+                if _ci > 0 or _pi > 0:
+                    _pf["name"] = "\u200b"   # Ueberschrift nur ueber Spalte 1
+            fields.extend(_packed)
 
     # T10.2: Pipeline Duration per Phase (if available)
     if phase_durations:
@@ -1541,22 +1546,13 @@ def post_reconciler_embed(
                 line += f" | SL: ${sl_rate:,.2f}"
             pos_lines.append(line)
 
-        # Truncate to Discord 1024-char field limit
-        value = "\n".join(pos_lines)
-        if len(value) > 1020:
-            shown = []
-            for line in pos_lines:
-                if len("\n".join(shown + [line])) > 980:
-                    remaining = len(pos_lines) - len(shown)
-                    shown.append(f"_+{remaining} weitere..._")
-                    break
-                shown.append(line)
-            value = "\n".join(shown)
-        fields.append({
-            "name": "💼 Positionen",
-            "value": value,
-            "inline": False,
-        })
+        # fix/embeds-no-hidden-data (2026-08-12): frueher wurde hier bei
+        # 1020 Zeichen abgeschnitten und der Rest zu "_+N weitere..._"
+        # zusammengefasst — bei 58 Positionen blieb rund die Haelfte
+        # unsichtbar. pack_lines_into_fields legt stattdessen so viele
+        # Folgefelder an, wie die Zeilen brauchen.
+        fields.extend(pack_lines_into_fields(
+            "\U0001f4bc Positionen", pos_lines, inline=False))
 
     embed = {
         "title":       f"🔄 Reconciler — ${equity:,.2f}",
@@ -2558,21 +2554,13 @@ def post_risk_worker_embed(
             if trailing:
                 line += f" — {trailing}"
             pos_lines.append(line)
-        value = "\n".join(pos_lines)
-        if len(value) > 1020:
-            shown = []
-            for line in pos_lines:
-                if len("\n".join(shown + [line])) > 980:
-                    remaining = len(pos_lines) - len(shown)
-                    shown.append(f"_+{remaining} weitere..._")
-                    break
-                shown.append(line)
-            value = "\n".join(shown)
-        fields.append({
-            "name": "💼 Positionen",
-            "value": value,
-            "inline": False,
-        })
+        # fix/embeds-no-hidden-data (2026-08-12): frueher wurde hier bei
+        # 1020 Zeichen abgeschnitten und der Rest zu "_+N weitere..._"
+        # zusammengefasst — bei 58 Positionen blieb rund die Haelfte
+        # unsichtbar. pack_lines_into_fields legt stattdessen so viele
+        # Folgefelder an, wie die Zeilen brauchen.
+        fields.extend(pack_lines_into_fields(
+            "\U0001f4bc Positionen", pos_lines, inline=False))
 
     embed = {
         "title":       f"🛡️ Risk Worker — {regime}" + (f" ({closed} geschlossen)" if closed > 0 else ""),

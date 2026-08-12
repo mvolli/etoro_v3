@@ -166,3 +166,80 @@ def test_post_embed_dry_run_sendet_nichts(monkeypatch):
         raise AssertionError("dry_run darf nie senden")
     monkeypatch.setattr(de, "_request_discord", boom)
     assert de._post_embed(_embed(60), "chan123", dry_run=True) is True
+
+
+# ── Die drei Stellen, an denen frueher gekuerzt wurde ─────────────────────────
+
+def _positions(n: int) -> list[dict]:
+    return [{"symbol": f"SYM{i:03d}", "unrealized_pnl_pct": (i % 40) - 20.0,
+             "is_no_stop_loss": i % 7 == 0} for i in range(n)]
+
+
+def _capture(monkeypatch):
+    import json
+    box = {}
+
+    def fake(method, path, payload, content_type):
+        box["body"] = json.loads(payload.decode("utf-8"))
+        return 200, '{"id": "1"}'
+
+    monkeypatch.setattr(de, "_request_discord", fake)
+    return box
+
+
+def _all_text(box) -> str:
+    return "\n".join(f["value"] for e in box["body"]["embeds"]
+                     for f in e.get("fields", []))
+
+
+def _assert_limits(box):
+    for e in box["body"]["embeds"]:
+        assert len(e.get("fields", [])) <= de.MAX_FIELDS_PER_EMBED
+        assert de._embed_char_total(e) <= de.MAX_EMBED_TOTAL
+    assert len(box["body"]["embeds"]) <= de.MAX_EMBEDS_PER_MESSAGE
+
+
+@pytest.mark.parametrize("n", [1, 30, 58, 250])
+def test_heartbeat_zeigt_jede_position(monkeypatch, n):
+    """Frueher _CAP = 30 — bei 58 Positionen blieben 28 unsichtbar."""
+    box = _capture(monkeypatch)
+    positions = _positions(n)
+    de.post_heartbeat_embed(
+        tick=1, equity=8667.85, cash=1413.72, position_count=n,
+        drawdown_pct=7.4, severity="CAUTION", cb_active=False,
+        elapsed_s=1.2, positions_summary=positions,
+    )
+    text = _all_text(box)
+    for p in positions:
+        assert p["symbol"] in text, f"{p['symbol']} fehlt im Heartbeat"
+    assert "weitere" not in text
+    _assert_limits(box)
+
+
+def test_heartbeat_nennt_die_echte_gesamtzahl(monkeypatch):
+    box = _capture(monkeypatch)
+    de.post_heartbeat_embed(
+        tick=1, equity=1.0, cash=1.0, position_count=58, drawdown_pct=0.0,
+        severity="NORMAL", cb_active=False, elapsed_s=1.0,
+        positions_summary=_positions(58),
+    )
+    names = [f["name"] for e in box["body"]["embeds"] for f in e.get("fields", [])]
+    assert any("(58)" in n for n in names)
+
+
+def test_reconciler_zeigt_jede_position(monkeypatch):
+    box = _capture(monkeypatch)
+    rows = [{"symbol": f"SYM{i:03d}", "amount_usd": 100.0 + i,
+             "unrealized_pnl_pct": (i % 30) - 15.0, "is_no_stop_loss": i % 5 == 0,
+             "stop_loss_rate": 1.23} for i in range(80)]
+    de.post_reconciler_embed(
+        equity=8667.85, peak_equity=10000.0, position_count=len(rows),
+        synced_count=len(rows), orphan_count=0, trades_closed=0,
+        regime="CAUTION", drawdown_pct=7.4, available_cash=1413.72,
+        positions_summary=rows,
+    )
+    text = _all_text(box)
+    for r in rows:
+        assert r["symbol"] in text, f"{r['symbol']} fehlt im Reconciler-Embed"
+    assert "weitere" not in text
+    _assert_limits(box)

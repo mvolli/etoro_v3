@@ -52,13 +52,24 @@ def test_no_field_when_empty(monkeypatch):
     assert not any("Offene Positionen" in f["name"] for f in seen["embed"]["fields"])
 
 
-def test_overflow_note(monkeypatch):
+def test_overflow_zeigt_alle_positionen(monkeypatch):
+    """fix/embeds-no-hidden-data (2026-08-12): Vertrag umgedreht.
+
+    Vorher pruefte dieser Test, DASS bei >30 Positionen ein
+    "\u2026 +N weitere"-Hinweis erscheint — der Cap war aber keine
+    Discord-Grenze, sondern eine gegriffene Zahl, und bei 58 offenen
+    Positionen blieben 28 unsichtbar. Jetzt gilt das Gegenteil: es darf
+    NICHTS verborgen bleiben.
+    """
     seen = _capture(monkeypatch)
     many = [{"symbol": f"S{i}", "unrealized_pnl_pct": float(i)} for i in range(40)]
     DE.post_heartbeat_embed(**_base(positions_summary=many))
     cols = _pos_fields(seen["embed"])
     assert "(40)" in cols[0]["name"]
-    assert any("weitere" in c["value"] for c in cols)
+    joined = " ".join(c["value"] for c in cols)
+    assert "weitere" not in joined
+    for p in many:
+        assert p["symbol"] in joined, f"{p['symbol']} fehlt"
 
 
 def test_no_stop_loss_marker(monkeypatch):
