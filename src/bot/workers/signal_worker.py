@@ -952,6 +952,21 @@ def main() -> None:
                 # sich das Gate wie vor dem Backfill.
                 logger.warning("SignalWorker: Sektor-Map nicht ladbar (%s) — Gate fail-open", _sec_exc)
                 _sector_map = {}
+
+        # feat/region-damper (2026-08-12): market_region ist bereits gepflegt,
+        # es braucht keinen Backfill. Fail-open wie die Sektor-Map.
+        _region_by_symbol: dict[str, str] = {}
+        try:
+            _region_by_symbol = {
+                str(r["symbol"]).upper(): str(r["market_region"])
+                for r in (signal_repo.db.fetchall(
+                    "SELECT symbol, market_region FROM instruments "
+                    "WHERE market_region IS NOT NULL AND market_region != ''"
+                ) or [])
+            }
+        except Exception as _reg_exc:
+            logger.warning("SignalWorker: Regionen-Map nicht ladbar (%s) — Damper aus", _reg_exc)
+            _region_by_symbol = {}
     
         for signal, symbol in candidates:
             instrument_id = signal["instrument_id"]
@@ -1220,6 +1235,40 @@ def main() -> None:
                         signal_repo.update_signal_status(signal_id, "REJECTED")
                         blocked_reasons.append(f'{symbol}: {corr_reason} → unter Min-Buy')
                         continue
+
+                # Regionen-Damper (feat/region-damper 2026-08-12): die reale
+                # Klumpenlage des Buchs ist geografisch (EU 34.8%, ASIA_CN
+                # 18.0% des Equity), gemessen hat das bisher kein Gate.
+                # Bewusst Damper statt Block: EU ist die Haupt-Signalquelle,
+                # ein harter Cap darunter wuerde sie abschalten. Ueber dem
+                # Soft-Cap schrumpft die Groesse, der Bot baut den Klumpen
+                # also handelnd ab statt stillzustehen.
+                if _region_by_symbol and equity > 0:
+                    _my_region = _region_by_symbol.get(symbol.upper())
+                    if _my_region:
+                        _region_usd = sum(
+                            p["amount_usd"] for p in open_positions
+                            if _region_by_symbol.get(p.get("symbol", "").upper()) == _my_region
+                        )
+                        from bot.core.risk import region_size_factor
+                        _rf, _rreason = region_size_factor(_region_usd / equity * 100.0)
+                        if _rf == 0.0:
+                            logger.info("SignalWorker: %s %s — geblockt", symbol, _rreason)
+                            signal_repo.update_signal_status(signal_id, "REJECTED")
+                            blocked_reasons.append(f"{symbol}: {_rreason}")
+                            continue
+                        if _rf < 1.0:
+                            _before = buy_amount
+                            buy_amount = round(buy_amount * _rf, 2)
+                            logger.info(
+                                "SignalWorker: %s Groesse $%.2f → $%.2f — %s",
+                                symbol, _before, buy_amount, _rreason,
+                            )
+                            if buy_amount < min_buy:
+                                signal_repo.update_signal_status(signal_id, "REJECTED")
+                                blocked_reasons.append(
+                                    f"{symbol}: {_rreason} → unter Min-Buy")
+                                continue
 
                 # Diversity-Gate (Prio 4): max 45% offener Positionen in einer Kategorie
                 _sig_cat = _get_signal_category(signal.get("signal_type", ""))

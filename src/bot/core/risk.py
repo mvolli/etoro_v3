@@ -250,6 +250,13 @@ def apply_config(cfg: dict) -> None:
         if "max_per_sector_pct" in sector:
             ASSET_CLASS_DEFAULT_LIMIT_PCT = float(sector["max_per_sector_pct"])
 
+        # feat/region-damper: Regionen-Konzentration aus config.
+        global REGION_SOFT_CAP_PCT, REGION_HARD_CAP_PCT, REGION_MIN_FACTOR
+        region_cfg = cfg.get("region_limits", {}) or {}
+        REGION_SOFT_CAP_PCT = float(region_cfg.get("soft_cap_pct", REGION_SOFT_CAP_PCT))
+        REGION_HARD_CAP_PCT = float(region_cfg.get("hard_cap_pct", REGION_HARD_CAP_PCT))
+        REGION_MIN_FACTOR = float(region_cfg.get("min_factor", REGION_MIN_FACTOR))
+
         # Instrument-Limits: in-place mergen (importierte Referenzen behalten)
         cfg_limits = cfg.get("instrument_limits", {}) or {}
         for sym, limit in cfg_limits.items():
@@ -640,6 +647,58 @@ def check_asset_class_gate(
     return GateResult(True, [
         f"Asset-Class OK: {asset_class} {new_pct:.1f}% / {limit_pct:.0f}%"
     ])
+
+
+# ── Regionen-Konzentration (feat/region-damper 2026-08-12) ───────────────────
+# Die reale Klumpenlage des Buchs ist GEOGRAFISCH, nicht sektoral: EU 34.8%,
+# ASIA_CN 18.0%, US 9.7%, GLOBAL 9.3% (Anteile am Equity, Stand 2026-08-12).
+# Gemessen an den Positionen (nicht am Equity) sind es sogar 44.7% EU. Kein
+# Gate hat das je gemessen.
+#
+# BEWUSST ein Damper und kein Block: EU ist der Markt, in dem der Bot die
+# meisten Signale findet (US-Werte sind liquider und liefern seltener
+# Extremwerte). Ein harter Cap unterhalb der aktuellen Quote wuerde die
+# Haupt-Signalquelle abschalten — das waere weniger Autonomie, nicht mehr.
+# Stattdessen: ueber dem Soft-Cap schrumpft die Positionsgroesse linear, der
+# Bot handelt also weiter und baut den Klumpen ueber die Zeit selbst ab.
+# Erst oberhalb des Hard-Caps wird geblockt.
+REGION_SOFT_CAP_PCT = 35.0
+REGION_HARD_CAP_PCT = 50.0
+REGION_MIN_FACTOR = 0.35
+
+
+def region_size_factor(
+    region_pct: float,
+    soft_cap_pct: float | None = None,
+    hard_cap_pct: float | None = None,
+    min_factor: float | None = None,
+) -> tuple[float, str]:
+    """Sizing-Faktor fuer eine Region nach ihrem aktuellen Equity-Anteil.
+
+    Returns (factor, reason). factor == 0.0 bedeutet: blocken.
+
+      <= soft_cap            -> 1.0            (unveraendert)
+      soft_cap .. hard_cap   -> linear 1.0 -> min_factor
+      >  hard_cap            -> 0.0            (Block)
+    """
+    soft = REGION_SOFT_CAP_PCT if soft_cap_pct is None else float(soft_cap_pct)
+    hard = REGION_HARD_CAP_PCT if hard_cap_pct is None else float(hard_cap_pct)
+    floor = REGION_MIN_FACTOR if min_factor is None else float(min_factor)
+
+    if soft <= 0 or hard <= soft:
+        return 1.0, "Regionen-Damper: inaktiv (ungueltige Caps)"
+    if region_pct <= soft:
+        return 1.0, f"Region OK: {region_pct:.1f}% / {soft:.0f}%"
+    if region_pct > hard:
+        return 0.0, (f"Regionen-Gate: {region_pct:.1f}% > Hard-Cap {hard:.0f}% "
+                     f"— kein weiterer Aufbau")
+    span = hard - soft
+    frac = (region_pct - soft) / span          # 0.0 .. 1.0
+    factor = 1.0 - frac * (1.0 - floor)
+    return round(max(floor, min(1.0, factor)), 4), (
+        f"Regionen-Damper: {region_pct:.1f}% ueber Soft-Cap {soft:.0f}% "
+        f"— Groesse x{factor:.2f}"
+    )
 
 
 def check_correlation_gate_risk(

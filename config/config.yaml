@@ -197,6 +197,21 @@ sector_limits:
   # Anteil des Buchs ohne jede Sektor-Grenze: 74.2% -> 0%.
   enforce_db_sectors: true
 
+region_limits:                # feat/region-damper (2026-08-12)
+  # Die reale Klumpenlage des Buchs ist GEOGRAFISCH, nicht sektoral. Stand der
+  # Einfuehrung (Anteil am Equity): EU 34.8% | ASIA_CN 18.0% | US 9.7% |
+  # GLOBAL 9.3% | ASIA_JP 5.2% | ASIA_AU 0.9%. Gemessen an den Positionen
+  # allein sind es 44.7% EU. Kein Gate hat das je betrachtet.
+  #
+  # BEWUSST Damper statt Block: EU ist der Markt, in dem der Bot die meisten
+  # Signale findet (US-Werte sind liquider und liefern seltener Extremwerte).
+  # Ein harter Cap unterhalb der aktuellen Quote wuerde die Haupt-Signalquelle
+  # abschalten — weniger Autonomie, nicht mehr. Ueber dem Soft-Cap schrumpft
+  # die Positionsgroesse linear; der Bot baut den Klumpen handelnd ab.
+  soft_cap_pct: 35.0          # ab hier schrumpft die Groesse
+  hard_cap_pct: 50.0          # darueber kein weiterer Aufbau in der Region
+  min_factor: 0.35            # kleinste Groesse am Hard-Cap
+
 discovery:
   movers_scan:                # feat/market-movers 2026-07-20: API-weiter Daily-Mover-Scan (Bulk-Closing + Batch-Rates)
     enabled: true
