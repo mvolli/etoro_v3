@@ -18,14 +18,15 @@ db:
   busy_timeout_ms: 5000       # SQLite busy_timeout in milliseconds
 
 trading:
-  max_positions: 40           # feat/core-sweep (2026-07-22): war 21 — deckelte das
-                              # Deployment mechanisch (21 x Ø$180 = ~41% Equity, Rest lag als
-                              # Cash brach). Echte Grenzen sind jetzt cash_target/exposure-Gate
-                              # (75%)/per-Instrument (10%); dieser Zaehler ist nur Runaway-Nagel.
+  # max_positions ENTFERNT (2026-08-12): check_max_positions_gate war seit dem
+  # V5-Umbau nicht mehr in check_buy_gate verdrahtet — der Key hat nichts
+  # bewirkt (Config sagte 40, offen waren 59) und der LLM-Review-Worker hat
+  # ihn trotzdem als Stellschraube gepflegt. Echte Grenzen: Exposure-Gate
+  # (75%), cash_target_min_pct, per-Instrument (10%), Sektor- und Regionen-Caps.
   max_fragments_per_instrument: 3  # Maximum partial fills / DCA entries per ticker
   min_buy_usd: 50.0           # Minimum order size in USD
   max_trades_per_day: 0       # 0 = deaktiviert (2026-07-14, User-Entscheid). Runaway-Schutz
-                              # uebernehmen: Exposure-Gate 75%, max_positions, cash_emergency_pct,
+                              # uebernehmen: Exposure-Gate 75%, cash_emergency_pct,
                               # daily_loss_limit (Auto-Kill-Switch) und 3 Slots/15-min-Zyklus.
   max_slippage_pct: 1.5       # Max signal→execution price deviation for stocks/ETFs (%)
   max_slippage_pct_crypto: 3.0  # Max signal→execution price deviation for crypto (%)

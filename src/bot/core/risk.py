@@ -160,7 +160,16 @@ def get_score_boost(symbol: str) -> float:
         return DEFAULT_STOCK_SCORE_BOOST
     return ASSET_CLASS_SCORE_BOOST.get(asset_class, 1.0)
 
-MAX_POSITIONS = 21
+# fix/remove-dead-max-positions (2026-08-12): MAX_POSITIONS und
+# check_max_positions_gate() sind ersatzlos entfallen. Das Gate war seit dem
+# V5-Umbau nicht mehr in check_buy_gate verdrahtet ("removed: exposure gate +
+# cash floor are the correct economic constraints — position count is
+# redundant"), aber Konstante, apply_config-Zweig, config-Key UND ein Eintrag
+# in BIBLE_HARD_LIMITS blieben stehen. Folge: der LLM-Review-Worker hat einen
+# Parameter gepflegt und optimiert, der nichts bewirkt — verbrannte
+# Entscheidungen und eine Doku, die eine Grenze verspricht, die es nicht gibt
+# (config sagte 40, offen waren 59). Wer die Zaehler-Grenze zurueckwill, muss
+# das Gate BEWUSST wieder in check_buy_gate aufnehmen.
 MIN_BUY_USD = 50.0
 CASH_TARGET_MIN_PCT = 15.0
 # fix/cash-emergency-floor: Bible-Hard-Floor unterhalb des Soft-Floors.
@@ -217,7 +226,7 @@ CRYPTO_DEFAULT_SL_PCT = 3.0
 
 def apply_config(cfg: dict) -> None:
     """Override risk constants from config.yaml. Idempotent, fail-safe."""
-    global MAX_POSITIONS, MIN_BUY_USD, CASH_TARGET_MIN_PCT
+    global MIN_BUY_USD, CASH_TARGET_MIN_PCT
     global CASH_EMERGENCY_PCT
     global SL_HARD_CLOSE_PCT, SL_EMERGENCY_PCT, SL_WARNING_PCT
     global MAX_FRAGMENTS_PER_INSTRUMENT
@@ -230,7 +239,6 @@ def apply_config(cfg: dict) -> None:
     sector = cfg.get("sector_limits", {}) or {}
 
     try:
-        MAX_POSITIONS = int(trading.get("max_positions", MAX_POSITIONS))
         MIN_BUY_USD = float(trading.get("min_buy_usd", MIN_BUY_USD))
         CASH_TARGET_MIN_PCT = float(trading.get("cash_target_min_pct", CASH_TARGET_MIN_PCT))
         CASH_EMERGENCY_PCT = float(trading.get("cash_emergency_pct", CASH_EMERGENCY_PCT))
@@ -481,15 +489,6 @@ def check_cash_gate(cash: float, equity: float) -> GateResult:
             f"(${cash:.2f} / ${equity:.2f})"
         ])
     return GateResult(True, [f"Cash OK: {cash_pct:.1f}% (${cash:.2f})"])
-
-
-def check_max_positions_gate(open_count: int) -> GateResult:
-    """Rule: Max open positions."""
-    if open_count >= MAX_POSITIONS:
-        return GateResult(False, [
-            f"Positions-Gate: {open_count}/{MAX_POSITIONS} — Limit erreicht"
-        ])
-    return GateResult(True, [f"Positions OK: {open_count}/{MAX_POSITIONS}"])
 
 
 def check_instrument_limit_gate(

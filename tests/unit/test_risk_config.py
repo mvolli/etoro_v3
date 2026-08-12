@@ -15,7 +15,6 @@ import bot.core.risk as risk
 @pytest.fixture(autouse=True)
 def _restore_constants():
     saved = {
-        "MAX_POSITIONS": risk.MAX_POSITIONS,
         "MIN_BUY_USD": risk.MIN_BUY_USD,
         "CASH_TARGET_MIN_PCT": risk.CASH_TARGET_MIN_PCT,
         "SL_HARD_CLOSE_PCT": risk.SL_HARD_CLOSE_PCT,
@@ -33,10 +32,9 @@ def _restore_constants():
 
 def test_trading_overrides():
     risk.apply_config({"trading": {
-        "max_positions": 10, "min_buy_usd": 100.0,
+        "min_buy_usd": 100.0,
         "cash_target_min_pct": 20.0, "max_fragments_per_instrument": 2,
     }})
-    assert risk.MAX_POSITIONS == 10
     assert risk.MIN_BUY_USD == 100.0
     assert risk.CASH_TARGET_MIN_PCT == 20.0
     assert risk.MAX_FRAGMENTS_PER_INSTRUMENT == 2
@@ -63,18 +61,17 @@ def test_instrument_limits_merged_in_place():
 
 
 def test_gates_use_overrides_at_runtime():
-    risk.apply_config({"trading": {"max_positions": 5, "max_fragments_per_instrument": 1}})
-    assert not risk.check_max_positions_gate(5).allowed
+    risk.apply_config({"trading": {"max_fragments_per_instrument": 1}})
     # None-Default im Gate loest zur Laufzeit auf → Config-Override greift
     assert not risk.check_pyramiding_gate("NVDA", "NORMAL", 1).allowed
 
 
 def test_empty_and_bad_config_are_safe():
-    before = risk.MAX_POSITIONS
+    before = risk.MIN_BUY_USD
     risk.apply_config({})
     risk.apply_config(None)
-    risk.apply_config({"trading": {"max_positions": "kaputt"}})
-    assert risk.MAX_POSITIONS == before
+    risk.apply_config({"trading": {"min_buy_usd": "kaputt"}})
+    assert risk.MIN_BUY_USD == before
 
 
 def test_cash_emergency_floor():
@@ -109,6 +106,5 @@ def test_real_config_yaml_roundtrip():
     cfg_path = Path(__file__).resolve().parents[2] / "config" / "config.yaml"
     cfg = yaml.safe_load(cfg_path.read_text())
     risk.apply_config(cfg)
-    assert risk.MAX_POSITIONS == int(cfg["trading"]["max_positions"])
     assert risk.SL_HARD_CLOSE_PCT == -abs(float(cfg["sl"]["default_pct"]))
     assert risk.INSTRUMENT_LIMITS["NVDA"] == float(cfg["instrument_limits"]["NVDA"])
