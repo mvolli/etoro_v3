@@ -156,6 +156,7 @@ def test_post_embed_sendet_alle_embeds(monkeypatch):
         return 200, '{"id": "999"}'
 
     monkeypatch.setattr(de, "_request_discord", fake_request)
+    monkeypatch.setattr(de, "insert_system_log", lambda *a, **k: None)
     de._post_embed(_embed(60), "chan123")
     assert len(captured["body"]["embeds"]) == 3
     assert sum(len(e["fields"]) for e in captured["body"]["embeds"]) == 60
@@ -176,6 +177,13 @@ def _positions(n: int) -> list[dict]:
 
 
 def _capture(monkeypatch):
+    """Netzwerk UND System-Log stumm schalten.
+
+    insert_system_log() haengt NICHT am gepatchten _request_discord — es
+    schreibt mit eigener Connection direkt in data/trading.db. Ohne diesen
+    Patch hinterlaesst jeder Testlauf INFO-Zeilen in der LIVE-Datenbank
+    (beobachtet 2026-08-12: 5x "P1 Heartbeat Tick#1 gepostet").
+    """
     import json
     box = {}
 
@@ -184,6 +192,7 @@ def _capture(monkeypatch):
         return 200, '{"id": "1"}'
 
     monkeypatch.setattr(de, "_request_discord", fake)
+    monkeypatch.setattr(de, "insert_system_log", lambda *a, **k: None)
     return box
 
 
