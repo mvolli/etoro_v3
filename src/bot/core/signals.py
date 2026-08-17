@@ -12,6 +12,11 @@ from datetime import datetime, timezone, timedelta
 
 import pandas as pd
 
+from bot.core.corporate_actions import (
+    is_corporate_action_artifact,
+    scan_price_gaps,
+)
+
 logger = logging.getLogger(__name__)
 
 # ─── Signal Types ─────────────────────────────────────────────────────────────
@@ -254,6 +259,11 @@ def compute_indicators(df: pd.DataFrame) -> dict:
     except Exception:
         pass
 
+    # Corporate-Action-Metriken (feat/corporate-action-guard 2026-08-17):
+    # groesster unerklaerter Kurssprung im SMA50-Fenster. Leeres Dict = kein
+    # Verdacht — die Keys tauchen nur auf, wenn wirklich ein Sprung drin ist.
+    indicators.update(scan_price_gaps(df))
+
     return indicators
 
 
@@ -420,6 +430,23 @@ def generate_signal(symbol: str, indicators: dict) -> SignalResult:
                 price=price,
                 atr=indicators.get("atr"),
             )
+
+    # ── Corporate-Action-Gate (feat/corporate-action-guard 2026-08-17) ──────
+    # Steht hier bewusst NACH den SELL-Regeln (die returnen oben schon) und
+    # VOR der BUY-Aggregation: ein Split-/Sonderdividenden-Artefakt in der
+    # Yahoo-Reihe verfaelscht RSI, MACD, BB, ATR und beide SMAs gleichzeitig,
+    # also taugt KEINE der sieben BUY-Regeln mehr — anders als beim Knife-Gate,
+    # wo Rule 4 ueberlebt. Verworfene BUYs fallen in den HOLD-Zweig darunter.
+    # SELL und alle Exit-Pfade bleiben unberuehrt: Risiko abbauen darf ein
+    # Datenverdacht nie blockieren.
+    if signals:
+        _ca_artifact, _ca_reason = is_corporate_action_artifact(indicators)
+        if _ca_artifact:
+            logger.warning(
+                "[signals] %s: BUY unterdrueckt — Corporate-Action-Verdacht (%s)",
+                symbol, _ca_reason,
+            )
+            signals = []
 
     # ── Aggregate BUY signals ───────────────────────────────────────────────
 

@@ -40,6 +40,7 @@ if str(_PROJECT_ROOT / "src") not in sys.path:
 from bot.db.connection import DB
 from bot.db.repo import SignalRepo, PortfolioRepo
 from bot.core.signals import generate_signal, compute_indicators
+from bot.core.corporate_actions import ConfirmBudget
 from bot.core.market_hours import is_market_open, get_market_status, CRYPTO_SYMBOLS, get_instrument_market_key
 from bot.api.instruments import get_instrument_map, symbol_to_id
 
@@ -773,6 +774,11 @@ def run(project_root: Path | None = None) -> dict:
     # unterscheidbar ("bester Score 15/30" = Markt gibt nichts her).
     top_candidate: dict | None = None
 
+    # feat/corporate-action-guard (2026-08-17): gedeckelter Abruf der echten
+    # Split-/Dividenden-Historie fuer die Symbole, deren Reihe einen Sprung
+    # >= CA_MIN_GAP_PCT zeigt. Ohne Sprung kostet das keinen einzigen Call.
+    _ca_budget = ConfirmBudget()
+
     _items_by_yf = {item['yf_symbol']: item for item in all_items}
     for yf_sym, df in price_data.items():
         original_sym = alias_to_original.get(yf_sym, yf_sym)
@@ -788,6 +794,14 @@ def run(project_root: Path | None = None) -> dict:
             if not indicators:
                 logger.debug("[%s] %s: no indicators computed", WORKER_NAME, original_sym)
                 continue
+
+            # Kurssprung in der Reihe? Dann gegen Yahoos Action-Historie
+            # pruefen — generate_signal blockt BUY bei Bestaetigung.
+            if _ca_budget.annotate(yf_sym, indicators):
+                logger.warning(
+                    "[%s] %s: Kapitalmassnahme bestaetigt (%s) — Reihe unbereinigt, BUY gesperrt",
+                    WORKER_NAME, original_sym, indicators["ca_confirmed"],
+                )
 
             # P5 Pulse-Scanner (feat/pulse-scanner, OSS-Report P16): Sharp
             # Moves im ohnehin gefetchten Universe sammeln — reine Info,

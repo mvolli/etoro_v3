@@ -793,6 +793,7 @@ def main() -> int:
         from bot.db.connection import DB
         from bot.db.repo import LogRepo, SignalRepo, StateRepo
         from bot.core.signals import compute_indicators, generate_signal
+        from bot.core.corporate_actions import ConfirmBudget
     
         db_cfg = cfg.get("db", {})
         db_path = PROJECT_ROOT / db_cfg.get("path", "data/trading.db")
@@ -991,6 +992,9 @@ def main() -> int:
     
         # ── 3+4+5. Compute indicators + generate signals + filter ─────────────────
         buy_candidates: list[dict] = []
+        # feat/corporate-action-guard (2026-08-17): siehe data_worker — hier
+        # laeuft der Scan ueber das Vollsortiment, der Deckel zaehlt doppelt.
+        _ca_budget = ConfirmBudget()
     
         for symbol, df in price_data.items():
             try:
@@ -998,6 +1002,12 @@ def main() -> int:
                 if not indicators:
                     logger.debug("[%s] %s: no indicators — skipped", WORKER_NAME, symbol)
                     continue
+
+                if _ca_budget.annotate(symbol, indicators):
+                    logger.warning(
+                        "[%s] %s: Kapitalmassnahme bestaetigt (%s) — Reihe unbereinigt, BUY gesperrt",
+                        WORKER_NAME, symbol, indicators["ca_confirmed"],
+                    )
     
                 result = generate_signal(symbol, indicators)
     

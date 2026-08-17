@@ -81,6 +81,26 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   #trades — 2026-08-12 gingen so 7 erfundene „TINY"-Meldungen raus. Gleiches
   gilt für Embed-Tests: gegen ein gepatchtes `_request_discord` prüfen (Payload
   inspizieren), nie gegen das Netz.
+- **Corporate-Action-Guard** (feat/corporate-action-guard 2026-08-17,
+  `src/bot/core/corporate_actions.py`): Yahoo bereinigt Splits/Dividenden
+  RUECKWIRKEND, aber mit Verzoegerung. Im Lag-Fenster steht ein Niveausprung
+  in der `auto_adjust=True`-Reihe, der RSI/MACD/BB/ATR/SMA20/50 GLEICHZEITIG
+  verfaelscht — deshalb sperrt das Gate ALLE sieben BUY-Regeln (anders als
+  das Knife-Gate, wo Rule 4 ueberlebt) und sitzt als EINE Stelle vor der
+  BUY-Aggregation in `generate_signal`. SELL und alle Exit-Pfade bleiben
+  frei: Risiko abbauen darf ein Datenverdacht nie blockieren.
+  Selbstheilend — sobald Yahoo anpasst, ist der Sprung weg, kein State.
+  **Die Heuristik allein reicht nicht:** bei JMAT.L wirkten am 2026-08-17
+  Zusammenlegung (0.75) und Sonderdividende (476,5 p) gemeinsam, das Ergebnis
+  (-21,9 %, Ratio 0.7806) verfehlt 3:4 um 4,1 % und die Extremschwelle um
+  13 pp. Deshalb Pfad C: `ConfirmBudget.annotate()` holt in data_worker und
+  discovery_worker die echte Action-Historie — nur fuer Symbole MIT Sprung
+  (sonst null Netz-Calls) und gedeckelt auf CA_CONFIRM_MAX_PER_RUN.
+  Dividenden zaehlen erst ab CA_MATERIAL_DIV_PCT (5 %) vom Kurs, sonst
+  bestaetigt jeder Quartalszahler alles.
+  NICHT betroffen und auch nicht noetig: der P/L-Pfad. `trailing_stop`
+  rechnet `pnl_pct` aus eToro-`netProfit`/`investmentAmount` und
+  `entry_price` kommt aus `openRate` — broker-seitig bereits bereinigt.
 - **Jeder Pfad, der Positionen schliesst, braucht Market-Guard + PENDING-Muster.**
   eToro antwortet bei HK/ASIA langsam; `verify_full_close` läuft dort in den
   Timeout, obwohl der Close real ist. Unverifiziert ⇒ PENDING verbuchen, NICHT
