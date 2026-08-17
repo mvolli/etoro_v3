@@ -350,3 +350,65 @@ def test_budget_leaves_indicators_clean_when_nothing_found(monkeypatch):
     assert budget.annotate("NOACTION", ind) is False
     assert "ca_confirmed" not in ind
     assert (budget.used, budget.hits) == (1, 0)
+
+
+# ── Live-Regression 2026-08-17 (erster Produktivlauf des Guards) ─────────────
+# Drei Faelle aus dem data_worker-Lauf 12:06. Sie halten die Trennschaerfe
+# von Pfad A fest: das Verhaeltnis allein entscheidet NICHT, die Bar-Spanne
+# muss den Sprung offenlassen.
+
+def test_live_krs_pence_to_pound_flip():
+    """KRS.L: 1.400 -> 0.014, Bar-Spanne exakt 0. GBp/GBP-Umstellung.
+
+    Yahoo kennt zu diesem Datum keinen Split — nur die Heuristik faengt das.
+    """
+    hit, reason = is_corporate_action_artifact({
+        "ca_gap_pct": -99.0, "ca_gap_ratio": 0.01,
+        "ca_gap_split_label": "1:100", "ca_gap_bars_ago": 30,
+        "ca_gap_explained_frac": 0.0,
+    })
+    assert hit and "1:100" in reason
+
+
+def test_live_orca_real_move_is_not_suppressed():
+    """ORCA.L: +49,0 % trifft 3:2 auf 0,67 % genau — aber echt gehandelt.
+
+    Eroeffnung = Vortagesschluss (keine Luecke), intraday 13,275 -> 20,00,
+    Volumen 426k -> 2,2M. Die Bar erklaert 107,6 % der Bewegung.
+    Vor dem Fix hat der Guard hier 10 Wochen lang BUYs blockiert.
+    """
+    hit, _ = is_corporate_action_artifact({
+        "ca_gap_pct": 49.02, "ca_gap_ratio": 1.4902,
+        "ca_gap_split_label": "3:2", "ca_gap_bars_ago": 21,
+        "ca_gap_explained_frac": 1.076,
+    })
+    assert hit is False
+
+
+def test_ratio_match_alone_is_not_enough():
+    """Kernregel: glattes Verhaeltnis + ausgehandelte Spanne = kein Artefakt."""
+    base = {
+        "ca_gap_pct": -50.0, "ca_gap_ratio": 0.5,
+        "ca_gap_split_label": "1:2", "ca_gap_bars_ago": 3,
+    }
+    assert is_corporate_action_artifact({**base, "ca_gap_explained_frac": 0.9})[0] is False
+    assert is_corporate_action_artifact({**base, "ca_gap_explained_frac": 0.1})[0] is True
+
+
+def test_missing_bar_range_counts_as_teleport():
+    """Ohne High/Low bleibt es beim Verdacht — Folge ist nur ein BUY weniger."""
+    hit, _ = is_corporate_action_artifact({
+        "ca_gap_pct": -50.0, "ca_gap_split_label": "1:2",
+        "ca_gap_bars_ago": 3, "ca_gap_explained_frac": None,
+    })
+    assert hit is True
+
+
+def test_confirmed_action_ignores_bar_range():
+    """Pfad C ist Grundwahrheit — eine weite Bar hebt sie nicht auf."""
+    hit, _ = is_corporate_action_artifact({
+        "ca_gap_pct": 49.0, "ca_gap_split_label": "3:2",
+        "ca_gap_explained_frac": 1.076,
+        "ca_confirmed": "Split 1.5x am 2026-08-17",
+    })
+    assert hit is True

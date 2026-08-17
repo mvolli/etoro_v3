@@ -168,12 +168,22 @@ def is_corporate_action_artifact(indicators: dict) -> tuple[bool, str]:
        aus Yahoos Action-Historie (``ConfirmBudget.annotate``). Grundwahrheit,
        schlaegt jede Heuristik und braucht keinen Ratio-Treffer.
 
-    A  Sprung >= CA_MIN_GAP_PCT UND Ratio trifft ein glattes Split-Verhaeltnis.
-       Der praezise heuristische Fall — Falsch-Positive brauchen einen echten
-       Move, der zufaellig auf 2 % genau auf 1/2, 4/3, 10:1 … landet.
+    A  Sprung >= CA_MIN_GAP_PCT, Ratio trifft ein glattes Split-Verhaeltnis
+       UND die Bar-Spanne erklaert die Bewegung nicht.
 
     B  Sprung >= CA_EXTREME_GAP_PCT, den die Bar-Spanne nicht erklaert. Netz
        fuer fehlerhafte Yahoo-Reihen, wenn keine Action-Historie vorliegt.
+
+    Die Spannen-Bedingung in A ist kein Tuning, sondern folgt aus der Sache:
+    eine Kapitalmassnahme TELEPORTIERT den Kurs — er wird zwischen zwei
+    Sitzungen neu festgesetzt, es gibt keinen Intraday-Pfad dorthin. Wer die
+    Strecke selbst gehandelt hat, hatte kein Restatement, sondern Nachrichten.
+    Ohne diese Bedingung fiel ORCA.L am 2026-08-17 durch: +49,0 % traf 3:2 auf
+    0,67 % genau, war aber ein echter Move (Eroeffnung = Vortagesschluss,
+    intraday 13,3 -> 20,0 gelaufen, Volumen 426k -> 2,2M). Verhaeltnisse nahe
+    1 haben keine Trennschaerfe: +50 % ist ebenso ein Umtauschverhaeltnis wie
+    eine gewoehnliche Small-Cap-Tagesbewegung. ÷100 (KRS.L, ADME.L: GBp/GBP-
+    Umstellung, Bar-Spanne exakt 0) hat sie.
 
     Warum C noetig ist: bei JMAT.L wirkten am 2026-08-17 Zusammenlegung (0.75)
     und Sonderdividende (476,5 p) GEMEINSAM. Das Ergebnis (-21,9 %, Ratio
@@ -199,14 +209,16 @@ def is_corporate_action_artifact(indicators: dict) -> tuple[bool, str]:
     label = indicators.get("ca_gap_split_label")
     bars_ago = indicators.get("ca_gap_bars_ago")
     age = f", vor {bars_ago} Bars" if bars_ago is not None else ""
+    explained = indicators.get("ca_gap_explained_frac")
+    # Fehlt High/Low, kann die Bewegung nicht ausgehandelt worden SEIN oder
+    # nicht — dann zaehlt sie als unerklaert (fail-closed nur hier: die Folge
+    # ist ein unterdrueckter BUY, nie eine unterdrueckte Risikoreduktion).
+    teleported = explained is None or explained < CA_MAX_EXPLAINED_FRAC
 
-    if label and abs(gap) >= CA_MIN_GAP_PCT:
+    if label and abs(gap) >= CA_MIN_GAP_PCT and teleported:
         return True, f"Kurssprung {gap:+.1f}% = Split-Verhaeltnis {label}{age}"
 
-    explained = indicators.get("ca_gap_explained_frac")
-    if abs(gap) >= CA_EXTREME_GAP_PCT and (
-        explained is None or explained < CA_MAX_EXPLAINED_FRAC
-    ):
+    if abs(gap) >= CA_EXTREME_GAP_PCT and teleported:
         return True, f"unerklaerter Kurssprung {gap:+.1f}%{age}"
 
     return False, ""
