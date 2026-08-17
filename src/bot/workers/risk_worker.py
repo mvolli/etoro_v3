@@ -759,18 +759,15 @@ def main() -> None:
                     # Exposure sank nie.
                     def _trim_market_open(_iid: int) -> bool:
                         try:
-                            from bot.core.market_hours import is_market_open
-                            _r = db.fetchone(
-                                "SELECT symbol, yfinance_symbol, asset_class "
-                                "FROM instruments WHERE instrument_id=?", (_iid,),
+                            from bot.core.market_hours import (
+                                is_market_open, resolve_market_fields,
                             )
-                            if not _r:
-                                return True
-                            _cat = {"forex": "forex", "commodity": "commodities",
-                                    "index": "indices", "crypto": "crypto"}.get(
-                                (_r["asset_class"] or "").lower(), "")
-                            return is_market_open(
-                                _r["symbol"], _r["yfinance_symbol"] or "", _cat)
+                            # Einziger Aufrufer, der auch das Symbol aus der
+                            # instruments-Zeile braucht — er hat nur die ID.
+                            _mf = resolve_market_fields(db, _iid)
+                            if not _mf:
+                                return True  # fail-open: Zeile fehlt
+                            return is_market_open(_mf[0], _mf[1], _mf[2])
                         except Exception:
                             return True  # fail-open
 

@@ -409,7 +409,9 @@ def main() -> None:
         _load_env()
         cfg = _load_config()
     
-        from bot.core.market_hours import is_market_open
+        from bot.core.market_hours import (
+            is_market_open, resolve_market_fields as _resolve_mf,
+        )
         from bot.core.regime import get_regime_params
         from bot.core.risk import apply_config, check_buy_gate, get_score_boost
         apply_config(cfg)  # fix/risk-config-wiring: Limits/Schwellen aus config.yaml
@@ -666,27 +668,16 @@ def main() -> None:
                     return sym
             return str(instrument_id)
     
-        _ASSET_CLASS_TO_CATEGORY = {
-            "forex": "forex", "commodity": "commodities",
-            "index": "indices", "crypto": "crypto",
-        }
-
         def _resolve_market_fields(instrument_id: int) -> tuple[str, str]:
             """yfinance_symbol + market_hours-Kategorie fuer den Market-Check.
             Ohne yf_symbol wuerde z.B. ein Forex-Symbol (EURJPY) als US-Aktie
-            eingestuft und faelschlich an US-Boersenzeiten gebunden."""
-            try:
-                row = db.fetchone(
-                    "SELECT yfinance_symbol, asset_class FROM instruments WHERE instrument_id=?",
-                    (instrument_id,),
-                )
-                if row:
-                    yf_sym = row["yfinance_symbol"] or ""
-                    cat = _ASSET_CLASS_TO_CATEGORY.get((row["asset_class"] or "").lower(), "")
-                    return yf_sym, cat
-            except Exception:
-                pass
-            return "", ""
+            eingestuft und faelschlich an US-Boersenzeiten gebunden.
+
+            Duennes Adapter um market_hours.resolve_market_fields() — das
+            Signal-Symbol steht hier schon fest, gebraucht werden nur die
+            beiden Zusatzfelder."""
+            _mf = _resolve_mf(db, instrument_id)
+            return (_mf[1], _mf[2]) if _mf else ("", "")
 
         # Diversity-Gate: Kategorie-Verteilung aller offenen Positionen —
         # VOR dem eligible-Loop, damit der Precheck unten Kandidaten an der

@@ -108,6 +108,27 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   | `trailing_stop._action_market_open` (BE_CLOSE/SL) | True | Verlustschutz |
   | `risk_worker` Exposure-Trim | True | Positionsabbau |
   | `llm_execution` EXIT | True | Positionsabbau |
+
+  Die Börsenfelder holt überall `market_hours.resolve_market_fields(db,
+  instrument_id)` → `(symbol, yfinance_symbol, category)` oder `None`.
+  **Nie wieder inline abfragen** — die Query stand vorher viermal im Baum,
+  und `execution_worker`/`llm_execution` fragten ganz ohne sie (Krypto und
+  Forex liefen dort an NYSE-Zeiten: `ETC` wurde 9×, `BTC`/`DOT`/`BCH`
+  mehrfach mit „Markt >4h geschlossen" verworfen, obwohl 24/7 handelbar).
+  `None` heißt „Zeile fehlt" und der Aufrufer entscheidet die Richtung —
+  `risk_worker` nutzt das für sein fail-open.
+- **`instruments.yfinance_symbol` ist streckenweise falsch — nie ungeprüft
+  als Marktsignal verwenden.** 149 aktive Aktien (135 tradable) tragen einen
+  Krypto-Ticker, **118 davon denselben**: FNMA/USB/FITB/GBCI stehen alle auf
+  `'BNT-USD'`, 00285.HK/669.HK/STMMI.MI auf `'TRX-USD'`, ADE.DE auf
+  `'BTC-USD'`. `resolve_market_fields()` verwirft deshalb ein `-USD`/`=X`/
+  `=F`/`^`-Symbol, wenn `asset_class` `stock`/`etf` ist — für eine Aktie ist
+  es beweisbar falsch, und ungefiltert hätte die `-USD`-Heuristik in
+  `_get_market_key` US-Bankaktien am BUY-Gate auf 24/7 gesetzt.
+  **Offen und NICHT von diesem Guard gedeckt: der Preis-Pfad.** `data_worker`
+  zieht Kurse über `yfinance_symbol` — für diese 149 Instrumente also
+  potenziell die Reihe eines fremden Assets. Vor dem nächsten Signal-Audit
+  prüfen (`scripts/sync_instrument_catalog.py` ist die Quelle).
 - **BE_CLOSE/SL sind Verlustschutz — Retry NIE unterdrücken.** Für optionale
   Korrekturen (Exposure-Trim) ist „unverifiziert ⇒ PENDING, kein Retry"
   richtig; für den Break-Even-Boden hieße das, ihn still abzuschalten. Bei

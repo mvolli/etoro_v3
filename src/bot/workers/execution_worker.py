@@ -420,7 +420,9 @@ def main() -> None:
         cfg = _load_config()
     
         from bot.api.client import APIError, ClientConfig, EToroClient
-        from bot.core.market_hours import is_market_open, get_market_status
+        from bot.core.market_hours import (
+            is_market_open, get_market_status, resolve_market_fields,
+        )
         from bot.core.risk import apply_config as _apply_risk_config
         from bot.db.connection import DB
         from bot.db.repo import LogRepo, StateRepo, TradeRepo
@@ -712,8 +714,15 @@ def main() -> None:
             #    Aktion: DEFER (bleibt APPROVED) statt FAILED — Execution-Worker
             #    wiederholt alle 15min. Wenn eToro öffnet, schlägt allowEntryOrders
             #    in open_position() an und die Order geht durch.
-            if not is_market_open(symbol, fail_open=False):
-                mkt_status = get_market_status(symbol)
+            # fix/market-key-unknown: Symbol allein reicht nicht. trades.symbol
+            # traegt streckenweise den yfinance-Namespace (AGENTS.md „Zwei
+            # Symbol-Namespaces"), und ohne Kategorie wird ein Forex-Paar an
+            # US-Boersenzeiten gebunden. instruments ist hier die Quelle.
+            _mf = resolve_market_fields(db, instrument_id)
+            _mh_sym, _mh_yf, _mh_cat = _mf if _mf else (symbol, "", "")
+            _mh_sym = _mh_sym or symbol
+            if not is_market_open(_mh_sym, _mh_yf, _mh_cat, fail_open=False):
+                mkt_status = get_market_status(_mh_sym)
                 logger.debug(
                     'ExecutionWorker: %s — Markt statisch geschlossen (%s), DEFER bis Marktöffnung',
                     symbol, mkt_status,

@@ -114,6 +114,110 @@ def test_unbekannter_etoro_suffix_faellt_auf_yfinance_zurueck():
     assert mh.get_instrument_market_key("FOO.XYZ", "FOO.HK", "") == "APAC_HK_GROUP"
 
 
+# ── resolve_market_fields: die eine Quelle fuer die Boersenfelder ────────────
+
+class _FakeDB:
+    """Minimal-DB: sqlite3.Row wird durch dict nachgebildet (row["spalte"])."""
+
+    def __init__(self, rows: dict):
+        self.rows = rows
+
+    def fetchone(self, sql, params=None):
+        return self.rows.get(int(params[0])) if params else None
+
+
+def test_resolve_market_fields_liefert_alle_drei_felder():
+    db = _FakeDB({7111: {"symbol": "BHP.ASX", "yfinance_symbol": "BHP.AX",
+                         "asset_class": "stock"}})
+    # 'stock' hat bewusst KEINE Kategorie — fuer Aktien entscheidet der Suffix
+    assert mh.resolve_market_fields(db, 7111) == ("BHP.ASX", "BHP.AX", "")
+
+
+def test_resolve_market_fields_uebersetzt_asset_class():
+    db = _FakeDB({1: {"symbol": "EURJPY", "yfinance_symbol": "",
+                      "asset_class": "Forex"}})
+    assert mh.resolve_market_fields(db, 1) == ("EURJPY", "", "forex")
+
+
+def test_resolve_market_fields_meldet_luecken_als_none():
+    """None statt ("","",""), damit der Aufrufer die Richtung waehlen kann:
+    risk_worker gibt bei fehlender Zeile fail-open auf, andere fragen weiter."""
+    assert mh.resolve_market_fields(_FakeDB({}), 999) is None
+    assert mh.resolve_market_fields(None, 1) is None
+    assert mh.resolve_market_fields(_FakeDB({}), None) is None
+
+    class Broken:
+        def fetchone(self, *a, **k):
+            raise RuntimeError("db weg")
+
+    assert mh.resolve_market_fields(Broken(), 1) is None
+
+
+def test_ohne_zusatzfelder_waere_forex_eine_us_aktie():
+    """Warum execution_worker/llm_execution die Felder brauchen.
+
+    'EURJPY' hat keinen Suffix — allein betrachtet also eine US-Aktie, die
+    am Wochenende und nachts als geschlossen gilt. Beide Zusatzfelder retten
+    es unabhaengig voneinander.
+    """
+    assert mh.get_instrument_market_key("EURJPY", "", "") == "US"
+    assert mh.get_instrument_market_key("EURJPY", "EURJPY=X", "") == "FOREX"
+    assert mh.get_instrument_market_key("EURJPY", "", "forex") == "FOREX"
+
+
+def test_widerspruechliches_yfinance_symbol_wird_verworfen():
+    """instruments.yfinance_symbol ist streckenweise kaputt.
+
+    149 aktive Aktien tragen einen Krypto-Ticker, 118 davon DENSELBEN:
+    FNMA/USB/FITB/GBCI stehen alle auf 'BNT-USD', 00285.HK/669.HK/STMMI.MI
+    auf 'TRX-USD'. Ungefiltert macht die '-USD'-Heuristik in _get_market_key
+    daraus CRYPTO — US-Bankaktien liefen dann am BUY-Gate rund um die Uhr.
+    Für eine Aktie ist so ein Ticker beweisbar falsch: lieber kein
+    yf_symbol als ein falsches.
+    """
+    db = _FakeDB({
+        1: {"symbol": "FNMA", "yfinance_symbol": "BNT-USD", "asset_class": "stock"},
+        2: {"symbol": "00285.HK", "yfinance_symbol": "TRX-USD", "asset_class": "stock"},
+        3: {"symbol": "SPY", "yfinance_symbol": "^GSPC", "asset_class": "etf"},
+    })
+    for iid, erwarteter_key in ((1, "US"), (2, "APAC_HK_GROUP"), (3, "US")):
+        fields = mh.resolve_market_fields(db, iid)
+        assert fields[1] == "", f"kaputtes yf_symbol bei iid={iid} nicht verworfen"
+        assert mh.get_instrument_market_key(*fields) == erwarteter_key
+
+
+def test_echte_krypto_und_forex_behalten_ihr_yf_symbol():
+    """Die Härtung greift NUR bei asset_class stock/etf — sonst wäre sie
+    genau der Filter, der Krypto und Forex an US-Börsenzeiten bindet."""
+    db = _FakeDB({
+        1: {"symbol": "BCH", "yfinance_symbol": "BCH-USD", "asset_class": "crypto"},
+        2: {"symbol": "EURUSD", "yfinance_symbol": "EURUSD=X", "asset_class": "forex"},
+        3: {"symbol": "GOLD", "yfinance_symbol": "GC=F", "asset_class": "commodity"},
+    })
+    assert mh.get_instrument_market_key(*mh.resolve_market_fields(db, 1)) == "CRYPTO"
+    assert mh.get_instrument_market_key(*mh.resolve_market_fields(db, 2)) == "FOREX"
+    assert mh.get_instrument_market_key(*mh.resolve_market_fields(db, 3)) == "COMMODITIES"
+
+
+def test_plausibles_yf_symbol_einer_aktie_bleibt():
+    """Die Härtung darf den eigentlichen Zweck nicht kaputtmachen:
+    BHP.ASX braucht sein BHP.AX, um die ASX zu finden."""
+    db = _FakeDB({1: {"symbol": "BHP.ASX", "yfinance_symbol": "BHP.AX",
+                      "asset_class": "stock"}})
+    fields = mh.resolve_market_fields(db, 1)
+    assert fields == ("BHP.ASX", "BHP.AX", "")
+    assert mh.get_instrument_market_key(*fields) == "APAC_AU"
+
+
+def test_asset_class_map_deckt_alle_kategorie_keys():
+    """Jede uebersetzte Kategorie muss CATEGORY_TO_MARKET auch kennen —
+    sonst laeuft die Uebersetzung ins Leere und der US-Default greift."""
+    for asset_class, category in mh.ASSET_CLASS_TO_CATEGORY.items():
+        assert category in mh.CATEGORY_TO_MARKET, (
+            f"{asset_class} → {category} fehlt in CATEGORY_TO_MARKET"
+        )
+
+
 def test_apac_ae_handelt_montags_bis_freitags():
     """VAE-Börsen (ADX/DFM) seit dem Mo–Fr-Arbeitswochen-Wechsel 2022.
 

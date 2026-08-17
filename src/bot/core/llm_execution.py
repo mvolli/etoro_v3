@@ -7,7 +7,9 @@ Liest data/llm_position_recommendations.json und fuehrt aus:
 
 Safety:
   - MAX_REC_AGE_MIN: Aeltere Empfehlungen ignoriert (Stale-Data-Schutz)
-  - is_market_open(symbol): EXIT nur bei offenem Markt; TIGHTEN immer
+  - is_market_open(...): EXIT nur bei offenem Markt; TIGHTEN immer.
+    Boersenfelder kommen aus instruments (resolve_market_fields) — das
+    blosse rec-Symbol trifft sonst die falsche Boerse.
   - executed: True verhindert Doppel-Ausfuehrung
   - Bei API-Fehler: executed bleibt False -> naechster Cycle retried
 """
@@ -142,7 +144,7 @@ def execute_llm_recommendations(
         True = keine echten API-Calls, nur Logging.
     """
     from bot.core.trailing_stop import mark_momentum_faded
-    from bot.core.market_hours import is_market_open
+    from bot.core.market_hours import is_market_open, resolve_market_fields
 
     stats = {"exit_count": 0, "tighten_count": 0, "skip_count": 0, "errors": []}
 
@@ -208,8 +210,14 @@ def execute_llm_recommendations(
                 stats["skip_count"] += 1
                 continue
 
+            # fix/market-key-unknown: yfinance_symbol + Kategorie mitgeben.
+            # Das Symbol aus der Recommendation allein liess den Guard bei
+            # Nicht-US-Werten die NYSE fragen. Fail-open bleibt: ein EXIT ist
+            # Risikoabbau und darf an einem unbekannten Kalender nicht haengen.
             try:
-                market_open = is_market_open(symbol)
+                _mf = resolve_market_fields(db, instr_id)
+                _mh_sym, _mh_yf, _mh_cat = _mf if _mf else (symbol, "", "")
+                market_open = is_market_open(_mh_sym or symbol, _mh_yf, _mh_cat)
             except Exception:
                 market_open = True
 

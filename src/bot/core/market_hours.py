@@ -525,6 +525,78 @@ def _check_market_open(market_key: str, now_utc: datetime) -> bool:
     return _is_market_open_now(market_key, now_utc)
 
 
+# ─── Asset-Class → Watchlist-Kategorie ───────────────────────────────────────
+# Uebersetzt instruments.asset_class in das Vokabular von CATEGORY_TO_MARKET.
+# Alles was hier NICHT steht (v.a. 'stock', 'etf') bleibt leer: fuer Aktien
+# entscheidet der Boersen-Suffix, nicht die Kategorie.
+ASSET_CLASS_TO_CATEGORY: dict[str, str] = {
+    'forex': 'forex',
+    'commodity': 'commodities',
+    'index': 'indices',
+    'crypto': 'crypto',
+}
+
+
+def _looks_non_equity(yf_symbol: str) -> bool:
+    """True wenn das yfinance-Symbol ein Krypto-/Forex-/Futures-/Index-Muster
+    traegt — dieselben Muster, aus denen _get_market_key Tier 1 ableitet."""
+    y = (yf_symbol or '').upper().strip()
+    return bool(y) and (
+        y.endswith('-USD') or y.endswith('=X') or y.endswith('=F') or y.startswith('^')
+    )
+
+
+def resolve_market_fields(db: object, instrument_id: object) -> tuple[str, str, str] | None:
+    """(symbol, yfinance_symbol, category) aus instruments — sonst None.
+
+    Die drei Felder, die is_market_open() braucht, um die richtige Boerse zu
+    treffen. Vorher stand dieselbe Abfrage viermal im Baum (signal_worker,
+    trailing_stop, risk_worker, plus zwei Aufrufstellen ganz ohne yf_symbol) —
+    mit dem Risiko, dass eine Kopie beim naechsten Fix vergessen wird.
+
+    Warum alle drei Felder noetig sind:
+      - symbol        traegt den Boersen-Suffix (eToro-Namespace)
+      - yf_symbol     springt ein, wenn der eToro-Suffix ungemappt ist
+                      (BHP.ASX → BHP.AX) — s. _get_market_key Tier 2
+      - category      rettet Forex/Rohstoffe/Indizes, die gar keinen Suffix
+                      haben (EURJPY waere sonst eine US-Aktie)
+
+    None = Zeile fehlt oder DB-Fehler. Der Aufrufer entscheidet, was das
+    heisst — fail-open auf Exit-Pfaden, fail-closed an der BUY-Boundary.
+    """
+    if db is None or instrument_id is None:
+        return None
+    try:
+        row = db.fetchone(
+            "SELECT symbol, yfinance_symbol, asset_class FROM instruments "
+            "WHERE instrument_id = ?",
+            (int(instrument_id),),
+        )
+    except Exception:
+        return None
+    if not row:
+        return None
+    try:
+        sym = row["symbol"] or ''
+        yf = row["yfinance_symbol"] or ''
+        asset_class = (row["asset_class"] or '').lower()
+    except Exception:
+        return None
+
+    # Widerspruechliches yfinance_symbol verwerfen. instruments.yfinance_symbol
+    # ist streckenweise kaputt: 149 aktive Aktien tragen einen Krypto-Ticker,
+    # 118 davon denselben ('BNT-USD' bei FNMA/USB/FITB/GBCI ..., 'TRX-USD' bei
+    # 00285.HK/669.HK/STMMI.MI). Ungefiltert wuerde die '-USD'-Heuristik in
+    # _get_market_key daraus CRYPTO machen — US-Bankaktien liefen dann am
+    # BUY-Gate rund um die Uhr. Fuer eine Aktie IST ein -USD/=X/=F/^-Ticker
+    # beweisbar falsch, also lieber kein yf_symbol als ein falsches: der
+    # Boersen-Suffix von instruments.symbol traegt die Auflösung dann allein.
+    if asset_class in ('stock', 'etf') and _looks_non_equity(yf):
+        yf = ''
+
+    return (sym, yf, ASSET_CLASS_TO_CATEGORY.get(asset_class, ''))
+
+
 def get_instrument_market_key(symbol: str, yf_symbol: str = '', category: str = '') -> str:
     """Public wrapper for _get_market_key — returns the resolved market key."""
     return _get_market_key(symbol, yf_symbol, category)

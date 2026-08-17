@@ -1129,21 +1129,12 @@ def _action_market_open(db: Any, action: "TrailingAction") -> bool:
     gebunden werden. Fail-open: bei jedem Fehler gilt der Markt als offen
     (bisheriges Verhalten bleibt dann erhalten)."""
     try:
-        from bot.core.market_hours import is_market_open
-        yf_sym, cat = "", ""
-        try:
-            if db is not None:
-                row = db.fetchone(
-                    "SELECT yfinance_symbol, asset_class FROM instruments WHERE instrument_id=?",
-                    (action.instrument_id,),
-                )
-                if row:
-                    yf_sym = row["yfinance_symbol"] or ""
-                    cat = {"forex": "forex", "commodity": "commodities",
-                           "index": "indices", "crypto": "crypto"}.get(
-                        (row["asset_class"] or "").lower(), "")
-        except Exception:
-            pass
+        from bot.core.market_hours import is_market_open, resolve_market_fields
+        _mf = resolve_market_fields(db, action.instrument_id)
+        yf_sym, cat = (_mf[1], _mf[2]) if _mf else ("", "")
+        # action.symbol gewinnt bewusst ueber _mf[0]: load_symbols() hat es
+        # bereits aufgeloest, und eine Payload, die doch ein Symbol mitbringt,
+        # soll Vorrang behalten (test_payload_symbol_hat_vorrang).
         return is_market_open(action.symbol, yf_sym, cat)
     except Exception:
         return True
