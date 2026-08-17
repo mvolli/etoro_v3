@@ -64,6 +64,50 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   Folge des Fehlers: der Market-Guard war für 48 von 60 Positionen blind
   (`is_market_open('3364','9633.HK','')` → True, obwohl HK zu), und
   9633.HK lief 2 Tage ohne Break-Even-Schutz.
+- **Market-Key-Auflösung: der US-Default ist eine Antwort, kein Fehler**
+  (fix/market-key-unknown 2026-08-17, Restlücke des 9633.HK-Incidents).
+  `_get_market_key()` fiel für alles Unerkannte auf `'US'` zurück — einen
+  DEFINIERTEN Key. Damit war der `fail_open`-Schalter konstruktionsbedingt
+  tot: er greift nur bei Keys, die in `MARKET_DEFINITIONS` FEHLEN. Der Guard
+  beantwortete still „ist die NYSE offen?" statt „ist die richtige Börse
+  offen?". Drei Regeln halten das jetzt zusammen:
+  1. **Beide Namespaces tragen Börsen-Suffixe.** `instruments.symbol` ist der
+     eToro-Namespace mit EIGENEN Kürzeln (`.ASX`, `.ZU`, `.NV`, `.DH`, `.US`,
+     `.RTH`, `.FUT`), `yfinance_symbol` benutzt andere (`.AX`, `.SW`).
+     `SUFFIX_TO_MARKET` muss BEIDE kennen. Vor dem Fix fielen 751 tradable
+     Instrumente (382 `.ASX`, 113 `.OL`, 89 `.CO`, 62 `.HE`, 55 `.ZU` …) auf
+     `'US'` — mit Folgen: `BHP.ASX` wurde 8×, `STERV.HE` 3×, `YAR.OL`/
+     `ELMRA.OL`/`APA.ASX` je 2× mit „Markt >4h geschlossen — Signal veraltet"
+     verworfen, weil `execution_worker` während der ASX-/Oslo-Session die
+     geschlossene NYSE abfragte.
+  2. **Der yfinance-Fallback gilt NUR für Symbole MIT Suffix.** Ein
+     suffixloses eToro-Symbol ist eine US-Notierung — auch wenn yfinance auf
+     den Heimatmarkt zeigt: `HSBC`/`SONY`/`TM`/`BHP` sind NYSE-ADRs (yf
+     `HSBA.L`/`6758.T`/`7203.T`/`BHP.AX`) und handeln zu US-Zeiten. Ein
+     Fallback ohne diese Bedingung zieht 26 ADRs auf falsche Handelszeiten.
+  3. **Rein numerische Symbole → `UNKNOWN_MARKET_KEY`** (bewusst NICHT in
+     `MARKET_DEFINITIONS`). Das ist keine Aktie, sondern eine durchgereichte
+     `instrumentID` — der Fallback in `trailing_stop.load_symbols()`, wenn die
+     ID nicht auflösbar ist. Erst damit greift `fail_open` überhaupt.
+- **`fail_open` ist am Exit-Boundary bewusst `True` — nicht vergessen, sondern
+  entschieden.** Naheliegend wäre, den Trailing-Pfad analog zur BUY-Boundary
+  auf `fail_open=False` zu ziehen. Das ist FALSCH und darf nicht „nachgezogen"
+  werden: für eine Position, deren Börse wir nicht bestimmen können, hieße
+  fail-closed, den Break-Even-Boden dauerhaft abzuschalten — derselbe Schaden
+  wie im 9633.HK-Incident, nur über einen anderen Weg (vgl. „BE_CLOSE/SL sind
+  Verlustschutz — Retry NIE unterdrücken"). Der Market-Guard ist auf
+  Exit-Pfaden eine Effizienzmaßnahme gegen 165-s-Timeouts, die das
+  PENDING-Muster ohnehin abfängt, kein Sicherheitsgatter. Die Asymmetrie:
+  **nicht kaufen kostet nichts, nicht verkaufen kostet Geld.**
+
+  | Aufrufstelle | `fail_open` | Grund |
+  |---|---|---|
+  | `data_worker` Tier-2-Fetch + BUY-Signal-Store | True | Datenpfad |
+  | `signal_worker` Kandidaten-Slot | **False** | BUY, Skip kostet nichts (Signal bleibt FRESH) |
+  | `execution_worker` Order-Gate | **False** | BUY, DEFER statt Ghost-Order |
+  | `trailing_stop._action_market_open` (BE_CLOSE/SL) | True | Verlustschutz |
+  | `risk_worker` Exposure-Trim | True | Positionsabbau |
+  | `llm_execution` EXIT | True | Positionsabbau |
 - **BE_CLOSE/SL sind Verlustschutz — Retry NIE unterdrücken.** Für optionale
   Korrekturen (Exposure-Trim) ist „unverifiziert ⇒ PENDING, kein Retry"
   richtig; für den Break-Even-Boden hieße das, ihn still abzuschalten. Bei

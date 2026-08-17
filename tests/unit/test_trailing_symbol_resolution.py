@@ -8,16 +8,25 @@ URSACHE: Die eToro-Positions-Payload hat KEINEN 'symbol'-Key. evaluate_trailing
 fiel deshalb ausnahmslos auf `str(instrumentID)` zurueck — 56 von 60
 position_state-Zeilen trugen '3364' statt '9633.HK'.
 
-is_market_open() leitet die Boerse aus dem ERSTEN Argument ab. '3364' hat kein
-erkennbares Suffix -> _get_market_key faellt auf den Tier-3-Default 'US'
-zurueck. NICHT auf fail-open: 'US' ist ein definierter Market-Key, der
-fail_open-Zweig wird nie erreicht. Der Guard beantwortet damit stillschweigend
-die falsche Frage ("ist die NYSE offen?") und war fuer JEDE Nicht-US-Position
-wirkungslos (48 von 60), obwohl er genau dafuer gebaut wurde.
+is_market_open() leitet die Boerse aus dem ERSTEN Argument ab. '3364' hatte kein
+erkennbares Suffix -> _get_market_key fiel auf den Default 'US' zurueck. NICHT
+auf fail-open: 'US' ist ein definierter Market-Key, der fail_open-Zweig wurde
+nie erreicht. Der Guard beantwortete damit stillschweigend die falsche Frage
+("ist die NYSE offen?") und war fuer JEDE Nicht-US-Position wirkungslos
+(48 von 60), obwohl er genau dafuer gebaut wurde.
 
 Belegt am Live-Fall (2026-08-10, waehrend der US-Session):
     is_market_open('3364',   '9633.HK', '') -> True   (falsch — das ist die NYSE)
     is_market_open('9633.HK','9633.HK', '') -> False  (korrekt, HK zu)
+
+NACHTRAG 2026-08-17 — die Restluecke ist geschlossen, es gibt jetzt drei
+gestaffelte Verteidigungslinien statt einer:
+    1. load_symbols() loest die ID zum echten Ticker auf   (2be4a7b, hier getestet)
+    2. schlaegt das fehl, liefert yfinance_symbol die Boerse nach
+    3. weiss auch das nichts, gilt UNKNOWN_MARKET_KEY -> der fail_open-Schalter
+       des Aufrufers entscheidet (BUY fail-closed, Exit fail-open)
+Der Guard kann seither NICHT mehr still zur NYSE-Frage werden — siehe
+test_market_hours_fail_closed.py fuer die Ebenen 2 und 3.
 """
 from __future__ import annotations
 
@@ -141,33 +150,66 @@ def _uhr_stellen(monkeypatch, when_utc):
     monkeypatch.setattr(mh, "datetime", _EingefroreneUhr)
 
 
-def test_market_guard_erkennt_die_boerse_erst_mit_echtem_symbol(monkeypatch):
-    """Regressionsschutz fuer die Ursache selbst.
+def test_market_guard_folgt_der_boerse_auch_bei_roher_id(monkeypatch):
+    """Regressionsschutz fuer die Ursache selbst — Stand nach 2026-08-17.
 
-    '3364' hat kein Suffix -> Tier-3-Default 'US'. Der Guard beantwortet
-    dann die falsche Frage ("ist die NYSE offen?") statt der richtigen
-    ("ist die HKEX offen?") — genau das liess BE_CLOSE bei geschlossener
-    HK-Boerse feuern.
+    Frueher: '3364' hat kein Suffix -> Default 'US', der Guard beantwortet
+    die falsche Frage ("ist die NYSE offen?") statt der richtigen ("ist die
+    HKEX offen?") — genau das liess BE_CLOSE bei geschlossener HK-Boerse
+    feuern. Der Test pinnte damals dieses Fehlverhalten.
 
-    Die Uhr wird eingefroren: das Ergebnis der ID-Variante haengt an der
-    US-Session, nicht an fail-open. Ohne Freeze war der Test nur waehrend
-    13:30-20:00 UTC gruen.
+    Heute rettet der yfinance-Suffix die rohe ID: beide Varianten liefern
+    dieselbe Antwort. Der Test pinnt jetzt DIESE Gleichheit — bricht sie,
+    ist der Guard wieder auf die NYSE-Frage zurueckgefallen.
+
+    Die Uhr wird eingefroren, damit das Ergebnis nicht an der Tageszeit
+    haengt (ohne Freeze war der Test nur waehrend 13:30-20:00 UTC gruen).
     """
-    assert mh.get_instrument_market_key("3364", "9633.HK", "") == "US"
     assert mh.get_instrument_market_key("9633.HK", "9633.HK", "") == "APAC_HK_GROUP"
+    assert mh.get_instrument_market_key("3364", "9633.HK", "") == "APAC_HK_GROUP", (
+        "die rohe instrumentID muss ueber yfinance_symbol zur HKEX finden"
+    )
 
-    # Die Incident-Konstellation: HK zu, US offen -> ID-Variante meldet "offen"
+    # Die Incident-Konstellation: HK zu, US offen. Frueher meldete die
+    # ID-Variante hier "offen" — heute folgt sie der HKEX.
     _uhr_stellen(monkeypatch, HK_ZU_US_OFFEN)
     assert is_market_open("9633.HK", "9633.HK", "") is False
-    assert is_market_open("3364", "9633.HK", "") is True, (
-        "ID statt Symbol laesst den Guard die NYSE fragen — 9633.HK lief so "
+    assert is_market_open("3364", "9633.HK", "") is False, (
+        "ID statt Symbol liess den Guard die NYSE fragen — 9633.HK lief so "
         "2 Tage ohne Break-Even-Schutz"
     )
 
-    # Gegenprobe: HK offen, US zu -> die ID-Variante liegt andersherum daneben
+    # Gegenprobe: HK offen, US zu -> beide Varianten sagen "offen"
     _uhr_stellen(monkeypatch, HK_OFFEN_US_ZU)
     assert is_market_open("9633.HK", "9633.HK", "") is True
-    assert is_market_open("3364", "9633.HK", "") is False
+    assert is_market_open("3364", "9633.HK", "") is True
+
+
+def test_voellig_unaufloesbare_id_blockiert_den_exit_nicht(monkeypatch):
+    """Dritte Verteidigungslinie — und ihre bewusste Asymmetrie.
+
+    Ohne Ticker UND ohne yfinance_symbol ist die Boerse nicht bestimmbar
+    (der Fall aus test_unbekannte_id_faellt_auf_die_id_zurueck). Dann
+    entscheidet fail_open:
+
+      Exit-Pfade (BE_CLOSE/SL/Trim) rufen mit dem Default fail_open=True auf
+      und muessen das auch. Fail-closed hiesse dort: der Break-Even-Boden
+      wird fuer eine Position, die wir nicht identifizieren koennen,
+      dauerhaft abgeschaltet — derselbe Schaden wie im Incident, nur ueber
+      einen anderen Weg. AGENTS.md: "BE_CLOSE/SL sind Verlustschutz — Retry
+      NIE unterdruecken." Ein vergeblicher Close faengt das PENDING-Muster ab.
+
+      Die BUY-Boundary ruft mit fail_open=False auf: dort kostet ein falsches
+      "geschlossen" nur einen DEFER.
+    """
+    _uhr_stellen(monkeypatch, HK_ZU_US_OFFEN)
+    assert is_market_open("9999", "", "") is True
+    assert is_market_open("9999", "", "", fail_open=False) is False
+
+    _uhr_stellen(monkeypatch, HK_OFFEN_US_ZU)
+    assert is_market_open("9999", "", "") is True, (
+        "der Exit-Pfad darf zu KEINER Tageszeit blockiert werden"
+    )
 
 
 def test_stale_hold_vergleich_funktioniert_wieder(monkeypatch):

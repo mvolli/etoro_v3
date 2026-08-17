@@ -11,6 +11,10 @@ DST-aware: uses zoneinfo (Python stdlib) for accurate timezone handling — no m
 fixed UTC tables that break during winter/summer time transitions.
 
 Fail-open: unknown suffixes → True (better to miss a trade than skip a signal).
+
+Unbestimmbare Boerse: Symbole, aus denen sich KEIN Markt ableiten laesst
+(reine Instrument-IDs wie '3364'), bekommen UNKNOWN_MARKET_KEY statt des
+US-Defaults — nur so greift der fail_open-Schalter in is_market_open().
 """
 import logging
 from datetime import datetime, timezone
@@ -127,7 +131,27 @@ MARKET_DEFINITIONS: dict[str, dict] = {
         'open_local': (9, 0),
         'close_local': (15, 30),
     },
+
+    # VAE — ADX Abu Dhabi + DFM Dubai, 10:00–15:00 GST (UTC+4, keine DST).
+    # Handelstage Mo–Fr: seit dem Wechsel der VAE auf die Mo–Fr-Arbeitswoche
+    # (2022) handeln beide Boersen Mo–Fr. Aeltere Broker-Angaben nennen noch
+    # So–Do — veraltet, deshalb reicht die bestehende weekday>=5-Logik.
+    # Fenster bewusst weit (DFM schliesst ~14:45, ADX 15:00): eine zu enge
+    # Grenze kostet Trades, eine zu weite faengt allowEntryOrders ohnehin ab.
+    'APAC_AE': {
+        'tz': 'Asia/Dubai',
+        'open_local': (10, 0),
+        'close_local': (15, 0),
+    },
 }
+
+
+# ─── Unbestimmbare Boerse ────────────────────────────────────────────────────
+# BEWUSST NICHT in MARKET_DEFINITIONS: der fail_open-Schalter in
+# is_market_open() greift ausschliesslich bei Keys, die dort FEHLEN. Ein
+# definierter Key (frueher der stille 'US'-Default) umgeht ihn per
+# Konstruktion — genau das machte den Guard fuer reine Instrument-IDs blind.
+UNKNOWN_MARKET_KEY = 'UNKNOWN'
 
 
 # ─── Suffix → Market Key Mapping ─────────────────────────────────────────────
@@ -145,6 +169,26 @@ SUFFIX_TO_MARKET: dict[str, str] = {
     '.MC': 'EU',     # Spain (BME Madrid)
     '.ST': 'EU',     # Sweden (Nasdaq Stockholm)
     '.LS': 'EU',     # Portugal (Euronext Lisbon)
+    '.OL': 'EU',     # Norway (Oslo Boers, 09:00–16:30 CET)
+    '.CO': 'EU',     # Denmark (Nasdaq Copenhagen, 09:00–16:55 CET)
+    '.HE': 'EU',     # Finland (Nasdaq Helsinki, 10:00–18:30 EET = 09:00–17:30 CET)
+    '.VI': 'EU',     # Austria (Wiener Boerse)
+    '.WA': 'EU',     # Poland (GPW Warschau)
+    '.IR': 'EU',     # Ireland (Euronext Dublin)
+    '.PR': 'EU',     # Czechia (Prague Stock Exchange)
+    '.BD': 'EU',     # Hungary (Budapest Stock Exchange)
+
+    # eToro-Namespace: eigene Boersen-Suffixe, die yfinance so nicht kennt
+    # (AGENTS.md „Zwei Symbol-Namespaces"). instruments.symbol traegt DIESE
+    # Variante — ohne Eintrag fielen sie still auf den US-Default.
+    '.ZU': 'EU',            # SIX Zuerich (yfinance: .SW)
+    '.NV': 'EU',            # Euronext Amsterdam (SHELL.NV, UNA.NV)
+    '.DH': 'EU',            # Euronext Amsterdam (ASM.DH, ESG.DH)
+    '.ASX': 'APAC_AU',      # ASX Sydney (yfinance: .AX)
+    '.AE': 'APAC_AE',       # ADX Abu Dhabi / DFM Dubai
+    '.US': 'US',            # US-Aktien mit eToro-Suffix (CVX.US → CVX)
+    '.RTH': 'US',           # US-Variante im eToro-Katalog (PG.RTH → PG)
+    '.FUT': 'COMMODITIES',  # eToro-CFDs auf Futures/Indizes — 24/5, nicht NYSE
 
     # Asia-Pacific — markets with lunch breaks use a GROUP key
     # that checks BOTH morning and afternoon sessions
@@ -226,13 +270,23 @@ CRYPTO_SYMBOLS = {
 
 # ─── Public API ──────────────────────────────────────────────────────────────
 
+def _suffix_market(sym_upper: str) -> str | None:
+    """Market-Key aus dem Boersen-Suffix eines Symbols, sonst None."""
+    if not sym_upper or '.' not in sym_upper:
+        return None
+    return SUFFIX_TO_MARKET.get('.' + sym_upper.rsplit('.', 1)[1])
+
+
 def _get_market_key(symbol: str, yf_symbol: str = '', category: str = '') -> str:
-    """Determine the market key for a symbol using 3-tier lookup.
+    """Determine the market key for a symbol using 4-tier lookup.
 
     Tier 1: Direct yf_symbol override (forex pairs, commodities, indices)
-    Tier 2: Suffix-based lookup (.DE, .T, .HK, etc.)
+    Tier 2: Suffix-based lookup — eToro-Namespace zuerst (.DE, .T, .HK,
+            .ASX, .ZU ...), bei ungemapptem Suffix der yfinance-Namespace
     Tier 3: Category-based fallback (from watchlist category)
-    Default: US market
+    Tier 4: rein numerisches Symbol = durchgereichte instrumentID
+            → UNKNOWN_MARKET_KEY (Börse unbestimmbar, fail_open entscheidet)
+    Default: US market (suffixloses Symbol = US-Notierung, inkl. ADRs)
     """
     sym_upper = symbol.upper().strip()
 
@@ -259,14 +313,37 @@ def _get_market_key(symbol: str, yf_symbol: str = '', category: str = '') -> str
         return 'CRYPTO'
 
     # ── Tier 2: Suffix-based lookup ──────────────────────────────────────
-    if '.' in symbol:
-        suffix = '.' + sym_upper.split('.')[-1]
-        if suffix in SUFFIX_TO_MARKET:
-            return SUFFIX_TO_MARKET[suffix]
+    # Traegt das Symbol einen Boersen-Suffix, entscheidet der — und zwar
+    # zuerst im eToro-Namespace. Ist DESSEN Suffix ungemappt (BHP.ASX,
+    # GIVN.ZU: eToro und yfinance benutzen verschiedene Kuerzel, s. AGENTS.md
+    # „Zwei Symbol-Namespaces"), liefert der yfinance-Suffix die Boerse nach.
+    #
+    # Der yf-Fallback greift NUR bei einem Symbol MIT Suffix. Ein suffixloses
+    # eToro-Symbol ist eine US-Notierung — auch dann, wenn yfinance auf den
+    # Heimatmarkt zeigt: HSBC/SONY/TM/BHP sind NYSE-ADRs (yf HSBA.L / 6758.T /
+    # 7203.T / BHP.AX) und handeln zu US-Zeiten, nicht in London/Tokio/Sydney.
+    if '.' in sym_upper:
+        _key = _suffix_market(sym_upper) or _suffix_market(yf_upper)
+        if _key:
+            return _key
 
     # ── Tier 3: Category-based fallback ──────────────────────────────────
     if category and category.lower() in CATEGORY_TO_MARKET:
         return CATEGORY_TO_MARKET[category.lower()]
+
+    # ── Tier 4: Boerse unbestimmbar ──────────────────────────────────────
+    # Ein rein numerisches Symbol ist keine Aktie, sondern eine durchgereichte
+    # eToro-instrumentID (trailing_stop faellt darauf zurueck, wenn
+    # load_symbols() die ID nicht aufloesen kann). Dafuer den US-Default zu
+    # nehmen hiesse: der Guard beantwortet still „ist die NYSE offen?" statt
+    # „ist die richtige Boerse offen?" — die Ursache des 9633.HK-Incidents.
+    # UNKNOWN_MARKET_KEY uebergibt die Entscheidung an den fail_open-Schalter
+    # des Aufrufers. Echte US-Ticker sind nie rein numerisch, AAPL/TSLA/BRK.B
+    # bleiben unberuehrt.
+    if sym_upper.isdigit():
+        # Der yfinance-Suffix darf hier retten: eine nackte ID ist keine
+        # US-Notierung, also gilt das ADR-Argument von Tier 2 nicht.
+        return _suffix_market(yf_upper) or UNKNOWN_MARKET_KEY
 
     # Default: US market (no suffix = US stock/ETF)
     return 'US'
@@ -370,13 +447,19 @@ def is_market_open(
     Args:
         symbol: Ticker symbol (e.g. 'AAPL', 'VOW3.DE', '7203.T', 'BTC-USD').
                 Empty string → check if ANY market is open.
-        yf_symbol: yfinance ticker for 3-tier lookup (optional).
+        yf_symbol: yfinance ticker for the tiered lookup (optional).
         category: Watchlist category for fallback (optional).
         fail_open: Verhalten wenn der aufgelöste Market-Key NICHT in
-            MARKET_DEFINITIONS existiert (Mapping-Loch). True (Default) =
-            offen annehmen — richtig für Daten-Fetches. False = geschlossen
-            annehmen — Pflicht am BUY/Execution-Boundary, wo ein unbekannter
-            Markt sonst Ghost-Orders produziert (fix/market-hours-fail-closed).
+            MARKET_DEFINITIONS existiert — also bei einem Mapping-Loch ODER
+            bei UNKNOWN_MARKET_KEY (Börse nicht bestimmbar, s. _get_market_key).
+            True (Default) = offen annehmen — richtig für Daten-Fetches UND
+            für Exit-Pfade (BE_CLOSE/SL/Trim): einen Verlustschutz wegen eines
+            unbekannten Kalenders zu blockieren wäre schlimmer als ein
+            vergeblicher Close-Versuch, den das PENDING-Muster abfängt.
+            False = geschlossen annehmen — Pflicht am BUY/Execution-Boundary,
+            wo ein unbekannter Markt sonst Ghost-Orders produziert
+            (fix/market-hours-fail-closed). Nicht kaufen kostet nichts,
+            nicht verkaufen kostet Geld.
 
     Returns:
         True if the relevant market is currently trading.
@@ -527,8 +610,14 @@ if __name__ == "__main__":
         'RELIANCE.NS',     # Reliance (India)
         '005930.KS',       # Samsung (Korea)
         '2330.TW',         # TSMC (Taiwan)
+        # eToro-Namespace (eigene Suffixe)
+        'BHP.ASX',         # BHP (Sydney, eToro-Suffix)
+        'GIVN.ZU',         # Givaudan (Zuerich, eToro-Suffix)
+        'YAR.OL',          # Yara (Oslo)
+        'EMAAR.AE',        # Emaar (Dubai)
         # Unknown
         'UNKNOWN.XX',
+        '3364',            # reine instrumentID → UNKNOWN
     ]
 
     print(f"{'Symbol':<16} {'Markt':<18} {'Status':<12} {'Öffnungszeiten'}")
