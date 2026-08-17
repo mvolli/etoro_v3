@@ -1328,11 +1328,15 @@ def main() -> int:
             _rd(state_repo, "discovery_worker", elapsed)
         except Exception:
             pass
+        # ca_confirm: echte Yahoo-Abrufe / aus ca_confirm_cache gespart /
+        # bestaetigte Kapitalmassnahmen (s. data_worker-Summary).
         summary = (
             f"DiscoveryWorker: scanned {n_scanned} symbols, "
             f"{k_candidates} BUY candidates, "
             f"{j_stored} stored (top {MAX_STORE}), "
             f"{len(unverified)} unverified, {n_unresolved} unresolved, "
+            f"ca_confirm {_ca_budget.used}net/{_ca_budget.cached}cached/"
+            f"{_ca_budget.hits}hit, "
             f"took {elapsed:.1f}s"
         )
         print(summary)
@@ -1348,6 +1352,9 @@ def main() -> int:
                     "j_stored":     j_stored,
                     "n_unverified": len(unverified),
                     "n_unresolved": n_unresolved,
+                    "ca_confirm_net":    _ca_budget.used,
+                    "ca_confirm_cached": _ca_budget.cached,
+                    "ca_confirm_hits":   _ca_budget.hits,
                     "elapsed_s":    round(elapsed, 2),
                     "top_symbols":  [c["symbol"] for c in store_candidates],
                 },

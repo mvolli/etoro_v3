@@ -987,9 +987,15 @@ def run(project_root: Path | None = None) -> dict:
         _rd(_SR_dur(db), "data_worker", elapsed)
     except Exception:
         pass
+    # ca_confirm=Nnet/Mcached/Khit: N echte Yahoo-Abrufe, M davon aus
+    # ca_confirm_cache gespart, K bestaetigte Kapitalmassnahmen. Macht die
+    # Wirkung des TTL-Cache im Cron-Output direkt ablesbar — bei stehendem
+    # Sprung soll net auf 0 fallen und cached die Symbole zaehlen.
     logger.warning(
-        "DataWorker: %d symbols fetched, %d signals written (%.1fs, failed_cache=%d)",
+        "DataWorker: %d symbols fetched, %d signals written "
+        "(%.1fs, failed_cache=%d, ca_confirm=%dnet/%dcached/%dhit)",
         n_fetched, n_signals, elapsed, len(_FAILED_SYMBOLS_CACHE),
+        _ca_budget.used, _ca_budget.cached, _ca_budget.hits,
     )
 
     # P5 Pulse-Embed: Sharp Moves als Rotations-Hinweis, max 1x/Stunde.
