@@ -31,6 +31,10 @@ nicht, und ein Gate waere dort Verlustschutz-Abschalten (siehe AGENTS.md,
 Reine Berechnung: kein DB-Zugriff. Einzige Netz-Funktion ist
 ``confirm_corporate_action()`` — die wird NICHT aus ``signals.py`` gerufen
 (dessen Purity-Kontrakt), sondern vom data_worker, gedeckelt pro Lauf.
+Ihr Ergebnis cacht ``ConfirmBudget`` persistent mit TTL (``ca_confirm_cache``,
+lazy importiert, damit der DB-Zugriff aus dem Import-Pfad von ``signals.py``
+bleibt) — ohne Cache wiederholte sich fuer dasselbe Symbol bei JEDEM 5-min-Lauf
+dieselbe Abfrage, solange der Sprung im CA_SCAN_BARS-Fenster steht.
 """
 from __future__ import annotations
 
@@ -93,6 +97,24 @@ def _nearest_split_ratio(ratio: float) -> str | None:
 
 # ─── Metrik (pure) ───────────────────────────────────────────────────────────
 
+def _bar_date(index: Any, i: int) -> str | None:
+    """ISO-Datum (``YYYY-MM-DD``) der Bar *i*, falls der Index datumsartig ist.
+
+    Yahoo-Reihen haben durchgehend einen DatetimeIndex; ``None`` kommt nur bei
+    synthetischen Frames ohne Datumssemantik vor (dann wird nicht gecacht).
+    """
+    try:
+        label = index[i]
+        date_fn = getattr(label, "date", None)
+        if callable(date_fn):
+            return date_fn().isoformat()          # pandas.Timestamp / datetime
+        if hasattr(label, "isoformat"):
+            return label.isoformat()[:10]         # datetime.date
+    except Exception:
+        pass
+    return None
+
+
 def scan_price_gaps(df: Any, window: int = CA_SCAN_BARS) -> dict:
     """Groesste Kurs-Sprungstelle der letzten *window* Bars.
 
@@ -103,8 +125,14 @@ def scan_price_gaps(df: Any, window: int = CA_SCAN_BARS) -> dict:
     ``ca_gap_pct``            Close-zu-Close-Sprung in Prozent (mit Vorzeichen)
     ``ca_gap_ratio``          close[i] / close[i-1]
     ``ca_gap_bars_ago``       0 = letzte Bar
+    ``ca_gap_date``           ISO-Datum der Sprung-Bar, sonst ``None``
     ``ca_gap_split_label``    z. B. "4:3", falls das Ratio passt, sonst ``None``
     ``ca_gap_explained_frac`` (High-Low der Sprung-Bar) / |Sprunghoehe|
+
+    ``ca_gap_date`` ist die STABILE Identitaet des Sprungs — anders als
+    ``ca_gap_bars_ago``, das sich mit jeder neuen Bar verschiebt. Nur damit
+    laesst sich ein Bestaetigungs-Ergebnis cachen, ohne dass ein alter
+    Negativ-Eintrag einen neuen Sprung maskiert (s. ``ca_confirm_cache``).
     """
     try:
         import pandas as pd  # noqa: F401  (nur fuer NaN-Semantik der Series)
@@ -149,6 +177,7 @@ def scan_price_gaps(df: Any, window: int = CA_SCAN_BARS) -> dict:
                 "ca_gap_pct": gap_pct,
                 "ca_gap_ratio": ratio,
                 "ca_gap_bars_ago": n - 1 - i,
+                "ca_gap_date": _bar_date(closes.index, i),
                 "ca_gap_split_label": _nearest_split_ratio(ratio),
                 "ca_gap_explained_frac": explained,
             }
@@ -302,30 +331,79 @@ def needs_action_confirmation(indicators: dict) -> bool:
 
 
 class ConfirmBudget:
-    """Gedeckelter Bestaetigungs-Abruf fuer einen Worker-Lauf.
+    """Gedeckelter, persistent gecachter Bestaetigungs-Abruf fuer einen Lauf.
 
     Ein Worker legt EINE Instanz je Lauf an und ruft ``annotate()`` fuer jedes
     Symbol mit Gap. Der Deckel schuetzt das Cron-Zeitbudget (data_worker hat
     ~120 s, siehe FETCH_DEADLINE_S) an Tagen, an denen ein Marktbeben viele
     Symbole gleichzeitig auffaellig macht.
+
+    Ergebnisse liegen mit TTL in ``ca_confirm_cache`` (Tabelle in trading.db) —
+    jeder Prozess ist neu, ein prozess-lokaler Cache wuerde nichts sparen.
+    Zwei Konsequenzen fuer die Reihenfolge in ``annotate()``:
+
+    * Der Cache wird VOR dem Deckel geprueft. Ein Treffer kostet keinen
+      Netz-Call und darf das Budget deshalb nicht verbrauchen, sonst wuerden
+      lange bekannte Symbole frische verhungern lassen.
+    * Ohne Cache-Schluessel (kein ``ca_gap_date``) laeuft alles wie vorher.
+
+    Zaehler: ``used`` = echte Netz-Abrufe, ``cached`` = daraus gesparte,
+    ``hits`` = bestaetigte Kapitalmassnahmen (aus Netz ODER Cache).
     """
 
-    def __init__(self, limit: int = CA_CONFIRM_MAX_PER_RUN):
+    def __init__(self, limit: int = CA_CONFIRM_MAX_PER_RUN, db_path: str | None = None):
         self.limit = limit
+        self.db_path = db_path
         self.used = 0
         self.hits = 0
+        self.cached = 0
+
+    @staticmethod
+    def _cache():
+        """Lazy-Import — haelt DB-Code aus dem Import-Pfad von ``signals.py``."""
+        from bot.core import ca_confirm_cache
+
+        return ca_confirm_cache
 
     def annotate(self, yf_symbol: str, indicators: dict) -> bool:
         """Schreibt ``ca_confirmed`` in *indicators*, wenn bestaetigt.
 
-        Gibt True zurueck, wenn eine materielle Kapitalmassnahme gefunden
-        wurde. Ist das Budget erschoepft, passiert nichts — die Heuristik
-        (Pfad A/B) bleibt als Netz aktiv.
+        Gibt True zurueck, wenn eine materielle Kapitalmassnahme bekannt ist —
+        aus dem Cache oder frisch von Yahoo. Ist das Budget erschoepft und
+        nichts gecacht, passiert nichts: die Heuristik (Pfad A/B) bleibt als
+        Netz aktiv.
         """
-        if not needs_action_confirmation(indicators) or self.used >= self.limit:
+        if not needs_action_confirmation(indicators):
+            return False
+
+        key = None
+        try:
+            cache = self._cache()
+            key = cache.cache_key(yf_symbol, indicators)
+            if key:
+                hit, cached_result = cache.lookup(key, self.db_path)
+                if hit:
+                    self.cached += 1
+                    if cached_result:
+                        indicators["ca_confirmed"] = cached_result
+                        self.hits += 1
+                        return True
+                    return False
+        except Exception as exc:
+            # Fail-open: ein Cache-Problem darf nur den Abruf kosten, nie die
+            # Pruefung. key bleibt None ⇒ es wird auch nicht geschrieben.
+            logger.debug("[corporate_actions] Cache-Lookup uebersprungen — %s", exc)
+            key = None
+
+        if self.used >= self.limit:
             return False
         self.used += 1
         found = confirm_corporate_action(yf_symbol, price=indicators.get("price"))
+        if key:
+            try:
+                self._cache().store(key, yf_symbol, found, self.db_path)
+            except Exception as exc:
+                logger.debug("[corporate_actions] Cache-Schreiben uebersprungen — %s", exc)
         if found:
             indicators["ca_confirmed"] = found
             self.hits += 1

@@ -142,6 +142,18 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   (sonst null Netz-Calls) und gedeckelt auf CA_CONFIRM_MAX_PER_RUN.
   Dividenden zaehlen erst ab CA_MATERIAL_DIV_PCT (5 %) vom Kurs, sonst
   bestaetigt jeder Quartalszahler alles.
+  **Bestaetigungs-Cache mit asymmetrischem TTL** (perf/ca-confirm-cache,
+  `src/bot/core/ca_confirm_cache.py`): der Sprung steht CA_SCAN_BARS (50) Bars
+  in der Reihe, ohne Cache lief dieselbe Abfrage 288-mal am Tag je Symbol
+  (+4,6 s je data_worker-Lauf, gemessen 2026-08-17 an KRS.L/ADME.L). Jeder Lauf
+  ist ein eigener Prozess ⇒ Cache als Tabelle in trading.db, nicht im Prozess.
+  Schluessel = `symbol|gap_date|ratio` — `ca_gap_bars_ago` waere untauglich
+  (verschiebt sich mit jeder Bar), und ohne Sprung-Datum im Schluessel maskiert
+  ein alter Negativ-Eintrag einen neuen Sprung. NEGATIVER TTL 6 h, positiver
+  24 h: das Guard-Fenster IST das Lag zwischen Ex-Tag und Yahoos Anpassung
+  (Stunden bis Tage) — ein negativer Tages-TTL verschluckte genau dieses
+  Fenster und schaltete Pfad C still ab. Cache-Treffer verbrauchen das
+  Netz-Budget NICHT, sonst verhungern frische Symbole hinter bekannten.
   NICHT betroffen und auch nicht noetig: der P/L-Pfad. `trailing_stop`
   rechnet `pnl_pct` aus eToro-`netProfit`/`investmentAmount` und
   `entry_price` kommt aus `openRate` — broker-seitig bereits bereinigt.
