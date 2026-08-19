@@ -1,41 +1,46 @@
 {
-  "updated_at": "2026-08-05T19:07:24.653969+00:00",
-  "auto_expires_at": "2026-08-19T19:07:24.653984+00:00",
+  "updated_at": "2026-08-16T20:30:43.351788+00:00",
+  "auto_expires_at": "2026-08-30T20:30:43.351820+00:00",
   "adjustments": {
     "CORE_SWEEP": {
-      "score_multiplier": 0.35,
-      "skip": false,
-      "reason": "27 trades, 29.6% WR, -2.82 avg PnL \u2014 negative Performance rechtfertigt 0.35"
-    },
-    "TREND_PULLBACK,GOLDEN_CROSS": {
       "score_multiplier": 0.6,
       "skip": false,
-      "reason": "Negative durchschnittliche PnL (-1.61%) bei CLOSED Trades. Signal f\u00e4ngt 'falling knives' oder entryt zu sp\u00e4t."
+      "reason": "Hohe Rejection-Rate (78%) und niedrige success_rate (0.17) bei CLOSED-Trades. Signal ist zu generisch und fängt zu viel Rauschen ein."
     },
     "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": {
       "score_multiplier": 0.7,
       "skip": false,
-      "reason": "Durchschnittliche PnL negativ (-1.42% HIGH, -0.83% MEDIUM). Trotz besserer Success-Rate als CORE_SWEEP noch Verlustzone."
+      "reason": "Success rate von 0.16 ist kritisch niedrig. Trotz 'IMPROVING' im Namen scheitern viele Trades am Widerstand oder Timing."
     },
-    "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD": {
-      "score_multiplier": 0.3,
+    "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20": {
+      "score_multiplier": 1.3,
       "skip": false,
-      "reason": "37 trades, 2.7% WR, -2.43 avg PnL \u2014 katastrophal, st\u00e4rker als 2-BB (0.7)"
+      "reason": "40% WR, +4.66% avg PnL bei n=10 — bestes Signal mit n>=3. 1.3x (code-capped auf 1.0, kein Dampfer)."
     },
-    "TREND_PULLBACK": {
+    "TREND_PULLBACK,GOLDEN_CROSS": {
       "score_multiplier": 0.5,
       "skip": false,
-      "reason": "Isoliert 96.5% Fail-Rate (43/44 FAILED), avg_pnl=-3.09. Combo-split cascade auf alle TREND_PULLBACK-Kombos."
+      "reason": "27.1% WR, -1.75% avg PnL. avg_loss=-2.43% vs avg_win=+0.09% — Verluste 27x groesser als Gewinne."
+    },
+    "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD": {
+      "score_multiplier": 0.3,
+      "skip": false,
+      "reason": "10% WR (n=10), 0.01% avg PnL. Falling-Knife-Effekt bei BB+RSI Extreme."
+    },
+    "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD": {
+      "score_multiplier": 0.2,
+      "skip": false,
+      "reason": "2.7% WR (n=37), -0.43% avg PnL. Schlechteste Combo im System."
     }
   },
   "strategy_notes": [
-    "Exit-Problem identifiziert: Viele Trades haben peak=null oder peak<0, was auf Entry-Fehler hindeutet, nicht auf Timing-Exit.",
-    "Gewinner brauchen Zeit: MSFT (+24.96%) hielt 4.8 Tage, w\u00e4hrend Verluste oft <1 Tag halten. Panik-Exits vermeiden.",
-    "BB 3-Combo (2.7% WR) fehlte Multiplikator \u2014 nach 2026-08-05 Self-Improvement: 0.3 wiederhergestellt.",
-    "TREND_PULLBACK individual auf 0.5 ged\u00e4mpft \u2014 Cascade auf alle Combos via combo-split."
+    "Exit-Optimierung: Bei Trades mit peak > 2% und negativem PnL (z.B. CWC.DE, 6198.HK) muss der Trailing-Stop enger gesetzt oder ein Take-Profit-Level eingefügt werden, um Gewinne zu sichern.",
+    "Slippage-Check: 2883.HK verliert innerhalb von 1 Tag. Prüfen, ob Slippage bei schnellen MACD-Wendungen in HK-Aktien zu hoch ist.",
+    "Self-Improvement Run: RSI_EXTREME+MACD_TURN mit 1.3x boosted (40% WR, +4.66% avg), TREND_PULLBACK+GOLDEN_CROSS mit 0.5x gedämpft (27% WR, -1.75% avg, Verluste 27x Gewinne).",
+    "Self-Improvement Run: RSI_EXTREME+MACD_TURN boosted (1.3x, 40% WR), TREND_PULLBACK+GOLDEN_CROSS gedampft (0.5x, 27% WR), BB_LOWER+BB_EXTREME+RSI_EXTREME gedampft (0.2x, 2.7% WR)."
   ],
   "conviction_issues": [
-    "VERY_HIGH Conviction Trades zeigen gemischte PnL (von -3.12% bis +22.17%), was auf inkonsistente Signal-Definition oder Marktregime-Mismatch hindeutet.",
-    "HIGH Conviction bei TREND_PULLBACK f\u00fchrt zu Verlusten, trotz theoretisch guter Logik."
+    "CORE_SWEEP (MEDIUM) hat 245 Rejections und nur 19 ACTIVE Trades — Signal ist ineffizient.",
+    "VERY_HIGH Conviction Trades (z.B. BB_LOWER_RSI_OVERSOLD...) haben oft negative avg_pnl trotz hoher Conviction, was auf 'Falling Knife'-Effekte hindeutet."
   ]
 }
