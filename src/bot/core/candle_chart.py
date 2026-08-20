@@ -428,6 +428,8 @@ _MP_CRITICAL  = "#d03b3b"
 _MP_TEXT      = "#ffffff"
 _MP_TEXT_DIM  = "#c3c2b7"
 _MP_GRID      = "#383835"   # neutraler Mittelpunkt = recessives Raster
+_MP_LABEL_WIDTH = 26        # Zeichen je Zeile (2 Zeilen = 52) — deckt auch
+                            # "Vanguard FTSE All World High Dividend Yield" (43)
 
 
 def movers_bar_png(movers: list[dict], top_n: int = 12,
@@ -473,18 +475,29 @@ def movers_bar_png(movers: list[dict], top_n: int = 12,
     items = sorted(chosen, key=lambda m: float(m["change_pct"]))
     # Klarname statt Symbol: 'ICM_3040' ist der iShares Core MSCI World —
     # eine Achsenbeschriftung, die man nachschlagen muss, erklaert nichts.
-    # Schmaler als in den Listen, weil die y-Achse sonst die Zeichenflaeche
-    # frisst.
+    #
+    # ZWEIZEILIG statt gekuerzt: "Vanguard FTSE All World High Dividend
+    # Yield" auf 22 Zeichen zu schneiden ergibt "Vanguard FTSE All Wor…" —
+    # das unterscheidet sich von anderen Vanguard-Titeln nicht mehr. Zwei
+    # Zeilen a 22 Zeichen fassen 44 und damit praktisch jeden Namen
+    # vollstaendig. Erst wenn auch das nicht reicht, wird die ZWEITE Zeile
+    # gekuerzt — nie die erste, die traegt die Unterscheidung.
+    import textwrap as _tw
+
     def _label(m):
         n = (m.get("name") or "").strip()
         if not n:
             return str(m.get("symbol") or "?")
-        return n if len(n) <= 22 else n[:21] + "…"
+        zeilen = _tw.wrap(n, width=_MP_LABEL_WIDTH, max_lines=2, placeholder="…")
+        return "\n".join(zeilen) if zeilen else n
+
     labels = [_label(m) for m in items]
     values = [float(m.get("change_pct") or 0.0) for m in items]
     colors = [_MP_GOOD if v >= 0 else _MP_CRITICAL for v in values]
 
-    height = max(2.4, 0.42 * len(items) + 1.1)
+    # Zwei Textzeilen je Balken brauchen mehr Hoehe, sonst laufen die
+    # Beschriftungen benachbarter Balken ineinander.
+    height = max(2.8, 0.58 * len(items) + 1.2)
     fig, ax = plt.subplots(figsize=(9.0, height), dpi=150)
     fig.patch.set_facecolor(_MP_SURFACE)
     ax.set_facecolor(_MP_SURFACE)
@@ -497,7 +510,8 @@ def movers_bar_png(movers: list[dict], top_n: int = 12,
     pad = span * 0.30
     ax.set_xlim(-span - pad, span + pad)
     ax.set_yticks(range(len(items)))
-    ax.set_yticklabels(labels, color=_MP_TEXT, fontsize=9)
+    ax.set_yticklabels(labels, color=_MP_TEXT, fontsize=8.5,
+                       va="center", linespacing=1.25)
 
     # Direktlabel je Balken: Prozent + Dollar-Wirkung. Damit steht die
     # Aussage auch ohne Farbe da (CVD/Graustufendruck).

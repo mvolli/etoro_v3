@@ -96,3 +96,51 @@ def test_leere_liste_ergibt_keine_grafik():
 def test_grafik_entsteht_sobald_bewegungen_da_sind():
     png = movers_bar_png(NACH_BETRAG)
     assert png and png[:4] == b"\x89PNG"
+
+
+# ── Zweizeilige Beschriftung ──────────────────────────────────────────────────
+
+def _labels(movers, **kw):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    erfasst = {}
+    orig = plt.subplots
+
+    def spion(*a, **k):
+        fig, ax = orig(*a, **k)
+        erfasst["ax"] = ax
+        return fig, ax
+
+    plt.subplots = spion
+    try:
+        movers_bar_png(movers, **kw)
+    finally:
+        plt.subplots = orig
+    return [t.get_text() for t in erfasst["ax"].get_yticklabels()]
+
+
+def test_langer_name_wird_umgebrochen_statt_gekuerzt():
+    """'Vanguard FTSE All World High Dividend Yield' (43 Zeichen) auf eine
+    Zeile zu schneiden ergaebe 'Vanguard FTSE All Wor…' — nicht mehr von
+    anderen Vanguard-Titeln unterscheidbar."""
+    lang = "Vanguard FTSE All World High Dividend Yield"
+    lbl = _labels([{"symbol": "VFA", "name": lang, "change_pct": 4.1}])[0]
+    assert "\n" in lbl, "muss umgebrochen werden"
+    assert "…" not in lbl, "darf nicht gekuerzt werden"
+    assert lbl.replace("\n", " ") == lang
+
+
+def test_kurzer_name_bleibt_einzeilig():
+    assert _labels([{"symbol": "ALV.DE", "name": "Allianz SE",
+                     "change_pct": 1.0}])[0] == "Allianz SE"
+
+
+def test_hoechstens_zwei_zeilen():
+    sehr_lang = "Ein extrem langer Fondsname der auf keinen Fall in zwei Zeilen passt weil er endlos ist"
+    lbl = _labels([{"symbol": "X", "name": sehr_lang, "change_pct": 1.0}])[0]
+    assert lbl.count("\n") <= 1
+
+
+def test_ohne_namen_bleibt_das_symbol():
+    assert _labels([{"symbol": "ALV.DE", "change_pct": 1.0}])[0] == "ALV.DE"
