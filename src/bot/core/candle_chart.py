@@ -409,3 +409,92 @@ def pulse_grid_png(movers, bars: int = 30) -> bytes | None:
     except Exception:
         logger.debug("pulse_grid_png failed", exc_info=True)
         return None
+
+
+# ── Haupt-Konto-Report: Tagesveraenderung je Position ─────────────────────────
+# feat/main-portfolio-report (2026-08-20). Form bewusst ein horizontaler
+# Balken statt eines Kerzengitters: gefragt ist "wer hat sich wie stark
+# bewegt" (Groesse + Vorzeichen ueber Entitaeten), nicht der Kursverlauf
+# einzelner Titel — und ein Balken braucht keinen OHLC-Abruf.
+#
+# Farben sind die Status-Rollen (good/critical), nicht die generische
+# Blau/Rot-Divergenz: Gewinn/Verlust IST ein Status, deckt sich mit der
+# Finanzkonvention und mit COLOR_GREEN/COLOR_RED der Embeds. Beide Stufen
+# klaren 3:1 auf der dunklen Flaeche. Die Farbe traegt die Aussage nie
+# allein — jeder Balken hat Symbol und Prozentwert als Direktlabel.
+_MP_SURFACE   = "#1a1a19"   # dunkle Chart-Flaeche
+_MP_GOOD      = "#0ca30c"
+_MP_CRITICAL  = "#d03b3b"
+_MP_TEXT      = "#ffffff"
+_MP_TEXT_DIM  = "#c3c2b7"
+_MP_GRID      = "#383835"   # neutraler Mittelpunkt = recessives Raster
+
+
+def movers_bar_png(movers: list[dict], top_n: int = 12,
+                   title: str = "Tagesveränderung je Position") -> bytes | None:
+    """Horizontaler Balken der Tagesveraenderung, staerkste Bewegung oben.
+
+    *movers*: [{symbol, change_pct, pnl_delta, amount}] — bereits nach
+    |change_pct| sortiert (diff_snapshots liefert das so).
+
+    Gibt None zurueck, wenn nichts darzustellen ist oder matplotlib fehlt —
+    der Report laeuft dann ohne Grafik weiter statt auszufallen.
+    """
+    if not movers:
+        return None
+    try:
+        import io
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except Exception as exc:  # pragma: no cover - Umgebungsfrage
+        logger.warning("[chart] movers_bar_png: matplotlib fehlt (%s)", exc)
+        return None
+
+    items = list(movers)[:top_n][::-1]        # unten = schwaechste Bewegung
+    labels = [str(m.get("symbol") or "?") for m in items]
+    values = [float(m.get("change_pct") or 0.0) for m in items]
+    colors = [_MP_GOOD if v >= 0 else _MP_CRITICAL for v in values]
+
+    height = max(2.4, 0.42 * len(items) + 1.1)
+    fig, ax = plt.subplots(figsize=(9.0, height), dpi=150)
+    fig.patch.set_facecolor(_MP_SURFACE)
+    ax.set_facecolor(_MP_SURFACE)
+
+    # Duenne Marke, 2px Flaechenabstand zwischen benachbarten Balken
+    bars = ax.barh(range(len(items)), values, height=0.62, color=colors,
+                   edgecolor=_MP_SURFACE, linewidth=2.0, zorder=3)
+
+    span = max((abs(v) for v in values), default=1.0) or 1.0
+    pad = span * 0.30
+    ax.set_xlim(-span - pad, span + pad)
+    ax.set_yticks(range(len(items)))
+    ax.set_yticklabels(labels, color=_MP_TEXT, fontsize=9)
+
+    # Direktlabel je Balken: Prozent + Dollar-Wirkung. Damit steht die
+    # Aussage auch ohne Farbe da (CVD/Graustufendruck).
+    for i, (b, v, m) in enumerate(zip(bars, values, items)):
+        d = m.get("pnl_delta")
+        txt = f"{v:+.1f}%" + (f"  ({float(d):+,.0f}$)" if d is not None else "")
+        off = span * 0.03
+        ax.text(v + (off if v >= 0 else -off), i, txt,
+                va="center", ha="left" if v >= 0 else "right",
+                color=_MP_TEXT, fontsize=8.5, zorder=4)
+
+    # Nulllinie als Bezug, Raster recessiv
+    ax.axvline(0, color=_MP_TEXT_DIM, linewidth=1.0, zorder=2)
+    ax.xaxis.grid(True, color=_MP_GRID, linewidth=0.8, zorder=1)
+    ax.set_axisbelow(True)
+    ax.tick_params(axis="x", colors=_MP_TEXT_DIM, labelsize=8)
+    ax.tick_params(axis="y", length=0)
+    for side in ("top", "right", "left", "bottom"):
+        ax.spines[side].set_visible(False)
+
+    ax.set_title(title, color=_MP_TEXT, fontsize=11, pad=10, loc="left")
+    ax.set_xlabel("Veränderung in %", color=_MP_TEXT_DIM, fontsize=8.5)
+
+    fig.tight_layout()
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", facecolor=fig.get_facecolor())
+    plt.close(fig)
+    return buf.getvalue()

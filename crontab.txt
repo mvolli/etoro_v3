@@ -80,3 +80,15 @@
 # Eigener worker_lock('sector_sync') — laeuft nie parallel zu sich selbst.
 # Hermes-Job 629f07e94d80 (feat/sector-backfill 2026-08-12).
 50 3 * * *     bash /home/mvolli/.hermes/scripts/v3_sector_sync.sh >> logs/sector_sync.log 2>&1
+
+# Hauptkonto-Report — taeglich 23:30 lokal, direkt nach dem Bot-Tagesreport
+# (23:15). Berichtet ueber das HAUPTKONTO des Users (ETORO_MAIN_*), nicht
+# ueber das Bot-Konto: Kennzahlen, Tagesveraenderungen gegen den letzten
+# Snapshot, Balkengrafik der staerksten Bewegungen, KI-Einschaetzung und die
+# Nachrichten hinter den groessten Ausschlaegen.
+#
+# Eigene DB: data/main_portfolio.db (NICHT trading.db — die gehoert laut
+# AGENTS.md allein dem Bot). trading.db wird nur LESEND fuer die
+# instrument_id -> Symbol/Sektor-Aufloesung benutzt.
+# Hermes-Job 0ca502026ef1 (feat/main-portfolio-report 2026-08-20).
+30 23 * * *    bash /home/mvolli/.hermes/scripts/v3_main_report.sh >> logs/main_report.log 2>&1

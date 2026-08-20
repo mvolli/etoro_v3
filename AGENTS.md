@@ -218,6 +218,25 @@ Vier Ebenen, alle im `check_buy_gate`-Pfad UND im Core-Sweep:
 - **`max_positions` existiert nicht mehr** (weder Gate, Konstante, Config-Key
   noch BIBLE-Limit). Grenzen sind Exposure/Cash/Instrument/Sektor/Region.
 
+## Haupt-Konto-Report (seit 2026-08-20)
+
+`src/bot/workers/main_report_worker.py` berichtet taeglich 23:30 nach
+**#reports** ueber das HAUPTKONTO des Users — zusaetzlich zum Bot-Tagesreport
+(23:15). Zwei Abgrenzungen, die nicht aufgeweicht werden duerfen:
+
+- **Keys:** ausschliesslich `ETORO_MAIN_*`. Der API-Key ist bei Bot- und
+  Hauptkonto IDENTISCH, nur der USER-Key trennt sie — ein vertauschter
+  User-Key liest klaglos das falsche Konto und der Report waere still falsch.
+- **DB:** `data/main_portfolio.db`, NICHT `trading.db`. Auf `trading.db` wird
+  nur LESEND zugegriffen (instrument_id -> Symbol/Sektor/yfinance_symbol).
+
+Weiteres: `unrealizedPnL` auf Portfolio-Ebene ist autoritativ und weicht
+bewusst von der Positions-Summe ab — die Differenz ist das Innenleben der
+Copy-Trading-Mirrors und wird im Report ausgewiesen, nicht wegge­rechnet.
+Der Snapshot wird ERST nach dem Posten gespeichert, sonst vergleicht ein
+Wiederholungslauf gegen sich selbst. Erster Lauf = `is_baseline`, keine
+Bewegungslisten (sonst meldete er "+71 Positionen").
+
 ## Work Guidance
 
 Workflow: Skill `finance/etoro-v3-safe-change` befolgen (lesen → pure

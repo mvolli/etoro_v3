@@ -2287,6 +2287,107 @@ def post_daily_report_embed(
 # P15 — KILL SWITCH ALERT
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def post_main_portfolio_embeds(
+    account: dict,
+    diff: dict,
+    sections: "list[tuple[str, list[str], bool]]",
+    llm_review: "dict | None" = None,
+    news: "list[tuple[str, list[str]]] | None" = None,
+    dry_run: bool = False,
+) -> "str | bool":
+    """Haupt-Konto-Report -> #reports (feat/main-portfolio-report 2026-08-20).
+
+    BEWUSST mehrteilig: Kopf-Embed mit Kennzahlen + Chart, danach die
+    Detail-Abschnitte. _post_embed verteilt automatisch auf Folge-Embeds,
+    wenn 25 Felder oder 6000 Zeichen ueberschritten werden — hier wird
+    nichts gekuerzt (Invariante fix/embeds-no-hidden-data).
+
+    sections: (Titel, Zeilen, inline) — Zeilen gehen durch
+    pack_lines_into_fields, laufen also in Folgefelder statt abgeschnitten
+    zu werden.
+
+    Chart vorher via attach_chart() anhaengen.
+    """
+    eq = account.get("equity", 0.0)
+    pnl = account.get("unrealized_pnl", 0.0)
+    d_eq = diff.get("equity_delta")
+    d_pct = diff.get("equity_delta_pct")
+
+    if diff.get("is_baseline"):
+        color = COLOR_BLUE
+        delta_txt = "_Erster Lauf — dies ist die Vergleichsbasis fuer morgen._"
+    else:
+        color = COLOR_GREEN if (d_eq or 0) >= 0 else COLOR_RED
+        pct_txt = f" ({d_pct:+.2f}%)" if d_pct is not None else ""
+        delta_txt = (f"Seit {diff.get('prev_date')}: **${d_eq:+,.2f}**{pct_txt}")
+
+    # Kennzahlen-Kopf. Die Mirror-Differenz wird ausgewiesen, nicht
+    # weggerechnet: Positions-P/L und Portfolio-P/L weichen um das
+    # Innenleben kopierter Portfolios ab.
+    desc = (
+        f"**Depotwert: ${eq:,.2f}**\n{delta_txt}\n\n"
+        f"Investiert `${account.get('invested', 0):,.2f}` · "
+        f"Cash `${account.get('credit', 0):,.2f}` · "
+        f"{account.get('position_count', 0)} Positionen"
+    )
+
+    fields: list[dict] = [
+        {"name": "💰 Unrealisiert (gesamt)",
+         "value": f"**${pnl:+,.2f}**", "inline": True},
+        {"name": "📊 davon Positionen",
+         "value": f"${account.get('positions_pnl', 0):+,.2f}", "inline": True},
+        {"name": "👥 davon Copy-Trading",
+         "value": f"${account.get('mirror_pnl', 0):+,.2f}", "inline": True},
+    ]
+
+    if account.get("mirror_count"):
+        fields.append({
+            "name": f"👥 Copy-Trading ({account['mirror_count']})",
+            "value": (f"Eingesetzt `${account.get('mirror_invested', 0):,.2f}` · "
+                      f"frei `${account.get('mirror_available', 0):,.2f}` · "
+                      f"realisiert `${account.get('mirror_net_profit', 0):+,.2f}`"),
+            "inline": False,
+        })
+
+    for title, lines, inline in sections:
+        if lines:
+            fields.extend(pack_lines_into_fields(title, lines, inline=inline))
+
+    if llm_review:
+        verdict = str(llm_review.get("verdict") or "—")
+        fields.append({
+            "name": f"🤖 KI-Einschätzung — {verdict}",
+            "value": str(llm_review.get("summary") or "_keine_")[:1020],
+            "inline": False,
+        })
+        for label, key in (("✅ Stärken", "strengths"), ("⚠️ Risiken", "risks"),
+                           ("🎯 Beobachten", "watch")):
+            items = llm_review.get(key) or []
+            if items:
+                fields.extend(pack_lines_into_fields(
+                    label, [f"• {str(i)}" for i in items], inline=False))
+
+    if news:
+        for sym, heads in news:
+            if heads:
+                fields.extend(pack_lines_into_fields(
+                    f"📰 {sym}", [f"• {h}" for h in heads], inline=False))
+
+    embed = {
+        "title":       f"📈 Hauptkonto — Tagesreport {account.get('snapshot_date', '')}",
+        "description": desc,
+        "color":       color,
+        "fields":      fields,
+        "footer":      {"text": "eToro RoBoCop · Hauptkonto · täglich"},
+        "timestamp":   _ts(),
+    }
+    ok = _post_embed(embed, DISCORD_REPORTS_CHANNEL, dry_run)
+    if ok and not dry_run:
+        insert_system_log("INFO", "discord_embeds",
+                          f"P16 Hauptkonto-Report {account.get('snapshot_date','')} gepostet")
+    return ok
+
+
 def post_kill_switch_embed(
     reason: str = 'Manual kill switch',
     dry_run: bool = False,
