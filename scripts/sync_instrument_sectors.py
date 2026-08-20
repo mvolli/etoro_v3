@@ -62,10 +62,12 @@ DRY_RUN = os.environ.get("SECTORSYNC_DRY_RUN", "0") == "1"
 
 DB_PATH = PROJECT_ROOT / "data" / "trading.db"
 
-# Sektoren, die yfinance nicht kennt (ETFs, Rohstoffe, Krypto, Forex), werden
-# als 'unknown' markiert statt NULL zu bleiben — sonst laufen sie bei jedem
-# Run erneut in die Prioritaets-Queue. Der Read-Path behandelt 'unknown' wie
-# NULL (fail-open), das Feld dient nur der Rotations-Buchhaltung.
+# Sektoren, die yfinance nicht kennt (Forex, Rohstoffe, Indizes, Krypto),
+# werden aus asset_class abgeleitet (bot.core.sector_taxonomy) statt als
+# 'unknown' markiert — sonst laufen sie im Hauptkonto-Report in "Sektor
+# noch nicht abgerufen" (fix/forex-sector-unknown 2026-08-20). Der Read-Path
+# behandelt 'unknown' wie NULL (fail-open), das Feld dient nur der
+# Rotations-Buchhaltung.
 UNKNOWN = "unknown"
 
 
@@ -95,7 +97,7 @@ def _select_candidates(db, limit: int) -> list[dict]:
     rows = db.fetchall(
         """
         SELECT i.instrument_id, i.symbol, i.yfinance_symbol, i.sector,
-               i.sector_checked_at,
+               i.asset_class, i.sector_checked_at,
                CASE
                    WHEN p.instrument_id IS NOT NULL THEN 0
                    WHEN w.instrument_id IS NOT NULL THEN 1
@@ -132,6 +134,25 @@ def _fetch_sector(yf_symbol: str) -> tuple[str | None, str | None]:
         return None, None
 
 
+def _resolve_sector(row: dict) -> tuple[str | None, str | None]:
+    """(sector, industry) fuer ein Instrument.
+
+    fix/forex-sector-unknown (2026-08-20): Forex/Rohstoffe/Indizes/Krypto
+    haben bei yfinance KEINE Sektoren — die wurden bisher als 'unknown'
+    markiert und fielen im Hauptkonto-Report in "Sektor noch nicht
+    abgerufen" ($4.766 = 67.3% des Equity). Fuer diese Asset-Klassen wird
+    der Sektor stattdessen direkt aus asset_class abgeleitet (kein
+    yfinance-Call — spart Rate-Limiting und liefert sofortige Werte).
+    """
+    from bot.core.sector_taxonomy import derive_asset_class_sector
+
+    derived = derive_asset_class_sector(row.get("asset_class"))
+    if derived:
+        return derived, None
+    yf_sym = (row.get("yfinance_symbol") or "").strip() or row["symbol"]
+    return _fetch_sector(yf_sym)
+
+
 def main() -> int:
     from bot.core.worker_lock import worker_lock
     from bot.db.connection import DB
@@ -162,9 +183,9 @@ def main() -> int:
             filled = unknown = 0
 
             for idx, row in enumerate(candidates, 1):
-                # Namespace-Invariante: yfinance IMMER im Yahoo-Namespace fragen.
-                yf_sym = (row.get("yfinance_symbol") or "").strip() or row["symbol"]
-                sector, industry = _fetch_sector(yf_sym)
+                # fix/forex-sector-unknown: asset-class-derived Sektor
+                # (Forex/Rohstoffe/Indizes/Krypto) hat Vorrang vor yfinance.
+                sector, industry = _resolve_sector(row)
 
                 if sector:
                     filled += 1

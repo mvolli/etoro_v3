@@ -201,8 +201,10 @@ Vier Ebenen, alle im `check_buy_gate`-Pfad UND im Core-Sweep:
   Kandidaten hinzufügt, muss beide Argumente durchreichen.
 - **`instruments.sector`** füllt `scripts/sync_instrument_sectors.py`
   (yfinance, ~5,6 s/Symbol, 200/Run, TTL 90 d, Priorität: gehalten → Whitelist
-  → nie geprüft). `'unknown'` = kein Sektor vorhanden (Forex/Rohstoff/Index),
-  wird wie NULL behandelt (fail-open).
+  → nie geprüft). Forex/Rohstoff/Index/Krypto hat yfinance KEINE Sektoren —
+  die leitet das Script aus `asset_class` ab (`bot/core/sector_taxonomy.py`:
+  FOREX/COMMODITY/INDEX/CRYPTO, fix/forex-sector-unknown 2026-08-20), sonst
+  'unknown'. `'unknown'` wird wie NULL behandelt (fail-open).
 - **`resolve_asset_class`**: kuratiertes `ASSET_CLASS_MAP` hat Vorrang, AUSSER
   bei FINANCIAL/CONSUMER/HEALTHCARE/ENERGY — die liefern nur den 20 %-Default
   und weichen dem DB-Sektor, sonst entstehen zwei Töpfe für eine Branche.
@@ -311,7 +313,7 @@ Ausschliesslich die Eligibility-API für Tradability-Checks verwenden.
 |--------|-------|------|
 | `scripts/sync_instrument_catalog.py` | Importiert neue Instrumente aus eToro-Vollkatalog (`GET /market-data/instruments` ohne Parameter → ~15k Instrumente). Neue: `is_active=0, is_tradable=NULL`. Weggefallene: `is_active=0`. | Manuell (monatlich) |
 | `scripts/sync_instrument_tradability.py` | Prüft `allowOpenPosition` via Eligibility-API für alle aktiven Instrumente. TTL=30 Tage. Verarbeitet max 500 Instrumente pro Run. 100er-Batches, 3s Sleep (Rate-Limit ~20 req/min). | Wöchentlich So 03:30 UTC (`c4d9e1f2a7b3`) |
-| `scripts/sync_instrument_sectors.py` | Füllt `instruments.sector`/`industry` aus yfinance (Quelle für das Sektor-Gate). TTL=90 Tage, 200/Run (~19 min bei ~5.6s/Symbol). Priorität: gehaltene Positionen → Core-Sweep-Whitelist → nie geprüft → älteste. Eigener `worker_lock('sector_sync')`. | Täglich 03:50 lokal (`629f07e94d80`, Wrapper `v3_sector_sync.sh`) |
+| `scripts/sync_instrument_sectors.py` | Füllt `instruments.sector`/`industry`: Aktien/ETFs aus yfinance, Forex/Rohstoff/Index/Krypto aus `asset_class` (sector_taxonomy). TTL=90 Tage, 200/Run (~19 min bei ~5.6s/Symbol). Priorität: gehaltene Positionen → Core-Sweep-Whitelist → nie geprüft → älteste. Eigener `worker_lock('sector_sync')`. | Täglich 03:50 lokal (`629f07e94d80`, Wrapper `v3_sector_sync.sh`) |
 
 ```bash
 # Einmaliger Vollabgleich nach eToro-Katalog-Erweiterung:
