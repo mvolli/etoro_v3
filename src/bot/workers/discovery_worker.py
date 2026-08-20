@@ -819,8 +819,8 @@ def main() -> int:
         # stores NOTHING — an unverified signal pool is exactly the bug
         # class that produced the VALT.L incident.
         from bot.api.client import APIError, ClientConfig, EToroClient
-        _api_key = os.environ.get("ETORO_API_KEY", "")
-        _user_key = os.environ.get("ETORO_USER_KEY", "")
+        _api_key = os.environ.get("ETORO_BOT_API_KEY", "")
+        _user_key = os.environ.get("ETORO_BOT_USER_KEY", "")
         verify_client: EToroClient | None = None
         if _api_key and _user_key:
             verify_client = EToroClient(
@@ -830,7 +830,7 @@ def main() -> int:
             )
         else:
             logger.critical(
-                "[%s] ETORO_API_KEY/ETORO_USER_KEY fehlen — Kandidaten können nicht "
+                "[%s] ETORO_BOT_API_KEY/ETORO_BOT_USER_KEY fehlen — Kandidaten können nicht "
                 "verifiziert werden, es werden KEINE Signale gespeichert (fail-closed)",
                 WORKER_NAME,
             )

@@ -259,7 +259,7 @@ def _load_config() -> dict:
 
 def _load_env_keys() -> tuple[str, str]:
     """
-    Read ETORO_API_KEY and ETORO_USER_KEY from ~/.hermes/.env.
+    Read ETORO_BOT_API_KEY and ETORO_BOT_USER_KEY from ~/.hermes/.env.
     Falls back to environment variables if .env is absent.
     Raises RuntimeError if either key is missing.
     """
@@ -280,13 +280,13 @@ def _load_env_keys() -> tuple[str, str]:
                     key, val = m.group(1), m.group(2).strip().strip('"').strip("'")
                     env_vars[key] = val
 
-    api_key = env_vars.get("ETORO_API_KEY") or os.environ.get("ETORO_API_KEY", "")
-    user_key = env_vars.get("ETORO_USER_KEY") or os.environ.get("ETORO_USER_KEY", "")
+    api_key = env_vars.get("ETORO_BOT_API_KEY") or os.environ.get("ETORO_BOT_API_KEY", "")
+    user_key = env_vars.get("ETORO_BOT_USER_KEY") or os.environ.get("ETORO_BOT_USER_KEY", "")
 
     if not api_key:
-        raise RuntimeError("ETORO_API_KEY not found in ~/.hermes/.env or environment")
+        raise RuntimeError("ETORO_BOT_API_KEY not found in ~/.hermes/.env or environment")
     if not user_key:
-        raise RuntimeError("ETORO_USER_KEY not found in ~/.hermes/.env or environment")
+        raise RuntimeError("ETORO_BOT_USER_KEY not found in ~/.hermes/.env or environment")
 
     return api_key, user_key
 

@@ -63,10 +63,10 @@ def _load_env_keys() -> tuple[str, str]:
                 if m:
                     key, val = m.group(1), m.group(2).strip().strip('"').strip("'")
                     env_vars[key] = val
-    api_key = env_vars.get("ETORO_API_KEY") or os.environ.get("ETORO_API_KEY", "")
-    user_key = env_vars.get("ETORO_USER_KEY") or os.environ.get("ETORO_USER_KEY", "")
+    api_key = env_vars.get("ETORO_BOT_API_KEY") or os.environ.get("ETORO_BOT_API_KEY", "")
+    user_key = env_vars.get("ETORO_BOT_USER_KEY") or os.environ.get("ETORO_BOT_USER_KEY", "")
     if not api_key or not user_key:
-        raise RuntimeError("ETORO_API_KEY / ETORO_USER_KEY not found")
+        raise RuntimeError("ETORO_BOT_API_KEY / ETORO_BOT_USER_KEY not found")
     return api_key, user_key
 
 

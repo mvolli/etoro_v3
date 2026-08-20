@@ -467,8 +467,8 @@ def main() -> None:
         _price_client = None
         try:
             from bot.api.client import ClientConfig, EToroClient
-            _api_key = os.environ.get("ETORO_API_KEY", "")
-            _user_key = os.environ.get("ETORO_USER_KEY", "")
+            _api_key = os.environ.get("ETORO_BOT_API_KEY", "")
+            _user_key = os.environ.get("ETORO_BOT_USER_KEY", "")
             if _api_key and _user_key:
                 _price_client = EToroClient(
                     api_key=_api_key, user_key=_user_key,

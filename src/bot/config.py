@@ -200,13 +200,13 @@ def load_config(
     for ep in env_paths:
         if ep and ep.exists():
             env = _load_env(ep)
-            cfg.api_key = cfg.api_key or env.get("ETORO_API_KEY", "")
-            cfg.user_key = cfg.user_key or env.get("ETORO_USER_KEY", "")
+            cfg.api_key = cfg.api_key or env.get("ETORO_BOT_API_KEY", "")
+            cfg.user_key = cfg.user_key or env.get("ETORO_BOT_USER_KEY", "")
             cfg.discord_token = cfg.discord_token or env.get("DISCORD_BOT_TOKEN", "")
 
     # Fallback: environment variables
-    cfg.api_key = cfg.api_key or os.environ.get("ETORO_API_KEY", "")
-    cfg.user_key = cfg.user_key or os.environ.get("ETORO_USER_KEY", "")
+    cfg.api_key = cfg.api_key or os.environ.get("ETORO_BOT_API_KEY", "")
+    cfg.user_key = cfg.user_key or os.environ.get("ETORO_BOT_USER_KEY", "")
     cfg.discord_token = cfg.discord_token or os.environ.get("DISCORD_BOT_TOKEN", "")
 
     return cfg

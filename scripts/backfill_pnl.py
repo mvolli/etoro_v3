@@ -41,10 +41,10 @@ def _load_env() -> None:
 def main() -> int:
     _load_env()
 
-    api_key  = os.environ.get("ETORO_API_KEY", "")
-    user_key = os.environ.get("ETORO_USER_KEY", "")
+    api_key  = os.environ.get("ETORO_BOT_API_KEY", "")
+    user_key = os.environ.get("ETORO_BOT_USER_KEY", "")
     if not api_key or not user_key:
-        logger.critical("ETORO_API_KEY / ETORO_USER_KEY fehlen — Abbruch")
+        logger.critical("ETORO_BOT_API_KEY / ETORO_BOT_USER_KEY fehlen — Abbruch")
         return 1
 
     from bot.api.client import ClientConfig, EToroClient

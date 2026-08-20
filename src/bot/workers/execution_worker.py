@@ -470,8 +470,8 @@ def main() -> None:
             print(f"ExecutionWorker: KILL SWITCH — {len(stale_approved)} approvals rejected, no execution")
             return
 
-        api_key = os.environ.get("ETORO_API_KEY", "")
-        user_key = os.environ.get("ETORO_USER_KEY", "")
+        api_key = os.environ.get("ETORO_BOT_API_KEY", "")
+        user_key = os.environ.get("ETORO_BOT_USER_KEY", "")
         client_cfg = ClientConfig.from_dict(cfg.get("api", {}))
         client = EToroClient(api_key=api_key, user_key=user_key, config=client_cfg)
 

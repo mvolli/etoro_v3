@@ -210,8 +210,8 @@ def run(dry_run: bool = False) -> int:
     try:
         from bot.api.client import ClientConfig, EToroClient
         from bot.config import load_config
-        api_key = os.environ.get("ETORO_API_KEY", "")
-        user_key = os.environ.get("ETORO_USER_KEY", "")
+        api_key = os.environ.get("ETORO_BOT_API_KEY", "")
+        user_key = os.environ.get("ETORO_BOT_USER_KEY", "")
         if api_key and user_key:
             cfg = load_config()
             api_cfg = (cfg.api if isinstance(cfg.api, dict)

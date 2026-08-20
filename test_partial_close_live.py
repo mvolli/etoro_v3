@@ -70,8 +70,8 @@ def _load_env() -> None:
 
 def _headers() -> dict:
     return {
-        "x-api-key": os.environ["ETORO_API_KEY"],
-        "x-user-key": os.environ["ETORO_USER_KEY"],
+        "x-api-key": os.environ["ETORO_BOT_API_KEY"],
+        "x-user-key": os.environ["ETORO_BOT_USER_KEY"],
         "x-request-id": str(uuid.uuid4()),
         "Content-Type": "application/json",
         "Accept": "application/json",
@@ -193,8 +193,8 @@ def poll_position(
 
 def main() -> int:
     _load_env()
-    if "ETORO_API_KEY" not in os.environ or "ETORO_USER_KEY" not in os.environ:
-        print("❌ ETORO_API_KEY / ETORO_USER_KEY nicht in der Umgebung gefunden.")
+    if "ETORO_BOT_API_KEY" not in os.environ or "ETORO_BOT_USER_KEY" not in os.environ:
+        print("❌ ETORO_BOT_API_KEY / ETORO_BOT_USER_KEY nicht in der Umgebung gefunden.")
         return 1
 
     print("═" * 70)

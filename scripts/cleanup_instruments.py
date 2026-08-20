@@ -164,8 +164,8 @@ def _verify_against_etoro(
                 if m:
                     env[m.group(1)] = m.group(2).strip().strip('"').strip("'")
         return (
-            env.get("ETORO_API_KEY") or os.environ.get("ETORO_API_KEY", ""),
-            env.get("ETORO_USER_KEY") or os.environ.get("ETORO_USER_KEY", ""),
+            env.get("ETORO_BOT_API_KEY") or os.environ.get("ETORO_BOT_API_KEY", ""),
+            env.get("ETORO_BOT_USER_KEY") or os.environ.get("ETORO_BOT_USER_KEY", ""),
         )
 
     api_key, user_key = _env_keys()

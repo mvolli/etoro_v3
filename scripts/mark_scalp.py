@@ -57,8 +57,8 @@ def main() -> int:
             busy_timeout_ms=cfg["db"].get("busy_timeout_ms", 5000))
 
     client = EToroClient(
-        api_key=os.environ.get("ETORO_API_KEY", ""),
-        user_key=os.environ.get("ETORO_USER_KEY", ""),
+        api_key=os.environ.get("ETORO_BOT_API_KEY", ""),
+        user_key=os.environ.get("ETORO_BOT_USER_KEY", ""),
         config=ClientConfig.from_dict(cfg.get("api", {})),
     )
 
