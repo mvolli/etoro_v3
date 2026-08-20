@@ -94,8 +94,14 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
             is_buy        INTEGER,
             leverage      INTEGER,
             opened_at     TEXT,
+            name          TEXT,
             PRIMARY KEY (snapshot_date, position_id)
         )""")
+    # Idempotente Migration fuer bestehende DBs (AGENTS.md: je Spalte einzeln)
+    try:
+        conn.execute("ALTER TABLE position_snapshot ADD COLUMN name TEXT")
+    except Exception:
+        pass
     conn.commit()
 
 
@@ -107,7 +113,7 @@ def _save_snapshot(conn, account: dict, positions: list[dict]) -> None:
         f"INSERT OR REPLACE INTO account_snapshot ({','.join(cols)}) "
         f"VALUES ({','.join('?' * len(cols))})",
         tuple(account.get(c) for c in cols))
-    pcols = ("snapshot_date position_id instrument_id symbol amount units open_rate "
+    pcols = ("snapshot_date position_id instrument_id symbol name amount units open_rate "
              "close_rate pnl_usd is_buy leverage opened_at").split()
     conn.executemany(
         f"INSERT OR REPLACE INTO position_snapshot ({','.join(pcols)}) "
@@ -117,17 +123,25 @@ def _save_snapshot(conn, account: dict, positions: list[dict]) -> None:
     conn.commit()
 
 
-def _load_previous(conn, before_date: str) -> tuple[dict | None, list[dict] | None]:
-    """Juengster Snapshot VOR *before_date* — nicht einfach 'gestern'.
+def _load_previous(conn, taken_at: str) -> tuple[dict | None, list[dict] | None]:
+    """Juengster Snapshot, der AELTER ist als der jetzige Lauf.
 
-    Faellt ein Lauf aus (Neustart, Netzfehler), waere ein starrer
-    Gestern-Bezug leer und der Report meldete faelschlich 'Baseline'. So
-    vergleicht er gegen den letzten vorhandenen Stand und nennt dessen Datum.
+    Bewusst ueber `taken_at`, nicht ueber `snapshot_date`:
+
+    - Ein starrer Gestern-Bezug waere leer, sobald ein Lauf ausfaellt
+      (Neustart, Netzfehler) — der Report meldete dann faelschlich 'Baseline'.
+    - Ein Datums-Vergleich (`snapshot_date <`) haette den zweiten Lauf
+      DESSELBEN Tages ebenfalls zur Baseline gemacht: der erste Live-Lauf lief
+      morgens, der Cron laeuft 23:30 — beide tragen dasselbe Datum, es gaebe
+      also nie einen Vergleich am Einfuehrungstag.
+
+    So heisst die Aussage immer "seit dem letzten Report", egal wann der war,
+    und der Report nennt dessen Zeitstempel.
     """
     conn.row_factory = sqlite3.Row
     row = conn.execute(
-        "SELECT * FROM account_snapshot WHERE snapshot_date < ? "
-        "ORDER BY snapshot_date DESC LIMIT 1", (before_date,)).fetchone()
+        "SELECT * FROM account_snapshot WHERE taken_at < ? "
+        "ORDER BY taken_at DESC LIMIT 1", (taken_at,)).fetchone()
     if not row:
         return None, None
     acc = dict(row)
@@ -147,7 +161,7 @@ def _instrument_meta(instrument_ids: list[int]) -> dict[int, dict]:
         conn.row_factory = sqlite3.Row
         ph = ",".join("?" * len(ids))
         rows = conn.execute(
-            f"SELECT instrument_id, symbol, yfinance_symbol, sector "
+            f"SELECT instrument_id, symbol, name, yfinance_symbol, sector "
             f"FROM instruments WHERE instrument_id IN ({ph})", tuple(ids)).fetchall()
         conn.close()
         return {int(r["instrument_id"]): dict(r) for r in rows}
@@ -246,16 +260,24 @@ Antworte NUR mit JSON:
 # ── Report ────────────────────────────────────────────────────────────────────
 
 def _fmt_pos(p: dict) -> str:
+    """Klarname zuerst — 'ICM_3040' sagt niemandem etwas, 'iShares Core MSCI
+    World' schon. Das Symbol bleibt in Klammern fuer die Nachschlage-Faelle."""
+    from bot.core.main_portfolio import display_name
     pnl = p.get("pnl_usd", 0.0)
     pct = (pnl / p["amount"] * 100) if p.get("amount") else 0.0
     em = "🟢" if pnl >= 0 else "🔴"
-    return f"{em} `{p['symbol']:<10}` ${p['amount']:>7,.0f}  {pnl:+7.2f}$ ({pct:+.1f}%)"
+    nm = display_name(p.get("name"), p["symbol"], width=26)
+    tail = f" `{p['symbol']}`" if nm != p["symbol"] else ""
+    return f"{em} **{nm}**{tail}\n`   ${p['amount']:>7,.0f}  {pnl:+8.2f}$ ({pct:+.1f}%)`"
 
 
 def _fmt_mover(m: dict) -> str:
+    from bot.core.main_portfolio import display_name
     em = "🟢" if m["change_pct"] >= 0 else "🔴"
-    return (f"{em} `{m['symbol']:<10}` {m['change_pct']:+6.2f}%  "
-            f"({m['pnl_delta']:+,.2f}$)")
+    nm = display_name(m.get("name"), m["symbol"], width=26)
+    tail = f" `{m['symbol']}`" if nm != m["symbol"] else ""
+    return (f"{em} **{nm}**{tail}\n"
+            f"`   {m['change_pct']:+6.2f}%   {m['pnl_delta']:+8.2f}$`")
 
 
 def run(dry_run: bool = False) -> int:
@@ -287,13 +309,14 @@ def run(dry_run: bool = False) -> int:
     raw_ids = [int(p.get("instrumentID") or 0) for p in (cp.get("positions") or [])]
     meta = _instrument_meta(raw_ids)
     symbol_by_id = {i: m["symbol"] for i, m in meta.items() if m.get("symbol")}
+    name_by_id = {i: (m.get("name") or "") for i, m in meta.items()}
 
-    account, positions = build_snapshot(cp, symbol_by_id)
+    account, positions = build_snapshot(cp, symbol_by_id, name_by_id=name_by_id)
 
     MAIN_DB.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(MAIN_DB), timeout=10)
     _ensure_schema(conn)
-    prev_acc, prev_pos = _load_previous(conn, account["snapshot_date"])
+    prev_acc, prev_pos = _load_previous(conn, account["taken_at"])
     diff = diff_snapshots(prev_acc, prev_pos, account, positions)
 
     sector_by_symbol = {m["symbol"]: (m.get("sector") or "")

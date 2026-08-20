@@ -451,8 +451,36 @@ def movers_bar_png(movers: list[dict], top_n: int = 12,
         logger.warning("[chart] movers_bar_png: matplotlib fehlt (%s)", exc)
         return None
 
-    items = list(movers)[:top_n][::-1]        # unten = schwaechste Bewegung
-    labels = [str(m.get("symbol") or "?") for m in items]
+    # Auswahl und Anordnung sind ZWEI Schritte — vorher waren sie eins, und
+    # das Ergebnis las sich als Zickzack (+6.8 / -5.4 / +4.1 / -3.7 ...),
+    # weil die Liste nach BETRAG sortiert ankommt.
+    #
+    # 1. AUSWAHL von beiden Enden: die staerksten Gewinner UND die staerksten
+    #    Verlierer. Wuerde man einfach die ersten N nach Vorzeichen sortieren,
+    #    zeigte ein guter Tag nur Gewinner und die Verluste verschwaenden.
+    gains = sorted((m for m in movers if float(m.get("change_pct") or 0) >= 0),
+                   key=lambda m: -float(m["change_pct"]))
+    losses = sorted((m for m in movers if float(m.get("change_pct") or 0) < 0),
+                    key=lambda m: float(m["change_pct"]))
+    half = max(1, top_n // 2)
+    # Ist eine Seite duenn, darf die andere den Platz nutzen.
+    n_gain = min(len(gains), max(half, top_n - len(losses)))
+    n_loss = min(len(losses), top_n - n_gain)
+    chosen = gains[:n_gain] + losses[:n_loss]
+
+    # 2. ANORDNUNG als Rangliste: bester Titel oben, schlechtester unten.
+    #    barh zeichnet Index 0 unten, deshalb aufsteigend sortieren.
+    items = sorted(chosen, key=lambda m: float(m["change_pct"]))
+    # Klarname statt Symbol: 'ICM_3040' ist der iShares Core MSCI World —
+    # eine Achsenbeschriftung, die man nachschlagen muss, erklaert nichts.
+    # Schmaler als in den Listen, weil die y-Achse sonst die Zeichenflaeche
+    # frisst.
+    def _label(m):
+        n = (m.get("name") or "").strip()
+        if not n:
+            return str(m.get("symbol") or "?")
+        return n if len(n) <= 22 else n[:21] + "…"
+    labels = [_label(m) for m in items]
     values = [float(m.get("change_pct") or 0.0) for m in items]
     colors = [_MP_GOOD if v >= 0 else _MP_CRITICAL for v in values]
 

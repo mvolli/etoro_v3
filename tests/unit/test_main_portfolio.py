@@ -198,3 +198,68 @@ def test_top_positions_aggregiert_je_symbol():
     assert top[0]["amount"] == 738.0
     assert top[0]["pnl_usd"] == pytest.approx(26.43)
     assert top[0]["parts"] == 2
+
+
+def test_movers_werden_je_symbol_zusammengefasst():
+    """Mehrere Positionen im selben Titel bewegen sich identisch (gleicher
+    Kurs) — ungruppiert stuende derselbe Titel mehrfach mit DERSELBEN
+    Prozentzahl in Liste und Grafik und verdraengte andere Titel."""
+    pa, pp = _snap([("a1", 1, 100.0, 10.0, 10.0, 0.0),
+                    ("a2", 1, 200.0, 10.0, 10.0, 0.0),
+                    ("b1", 2, 50.0, 5.0, 5.0, 0.0)])
+    ca, cp_ = _snap([("a1", 1, 100.0, 10.0, 11.0, 10.0),
+                     ("a2", 1, 200.0, 10.0, 11.0, 20.0),
+                     ("b1", 2, 50.0, 5.0, 4.0, -10.0)], date="2026-08-20")
+    movers = diff_snapshots(pa, pp, ca, cp_)["movers"]
+    assert len(movers) == 2, "je Symbol genau ein Eintrag"
+    a = next(m for m in movers if m["symbol"] == "ID1")
+    assert a["change_pct"] == pytest.approx(10.0)   # Prozent bleibt
+    assert a["pnl_delta"] == pytest.approx(30.0)    # Dollar summiert
+    assert a["amount"] == pytest.approx(300.0)      # Einsatz summiert
+    assert a["parts"] == 2
+
+
+# ── Klarnamen ─────────────────────────────────────────────────────────────────
+
+def test_display_name_nutzt_klarnamen():
+    from bot.core.main_portfolio import display_name
+    assert display_name("Allianz SE", "ALV.DE") == "Allianz SE"
+
+
+def test_display_name_faellt_auf_symbol_zurueck():
+    from bot.core.main_portfolio import display_name
+    assert display_name(None, "ALV.DE") == "ALV.DE"
+    assert display_name("   ", "ALV.DE") == "ALV.DE"
+
+
+def test_display_name_kuerzt_lange_namen():
+    from bot.core.main_portfolio import display_name
+    lang = "Vanguard FTSE All World High Dividend Yield UCITS ETF"
+    out = display_name(lang, "VFA_10560", width=26)
+    assert len(out) == 26 and out.endswith("…")
+
+
+def test_snapshot_traegt_den_namen():
+    """'ICM_3040' ist der iShares Core MSCI World — ein Report, den man
+    ohne Nachschlagen nicht lesen kann, ist keiner."""
+    acc, pos = build_snapshot(_cp([_pos("1", 3040, 20.0, 1.0, 1.0, 0.0)]),
+                              {3040: "ICM_3040"},
+                              name_by_id={3040: "iShares Core MSCI World UCITS ETF"},
+                              now=NOW)
+    assert pos[0]["name"] == "iShares Core MSCI World UCITS ETF"
+    assert pos[0]["symbol"] == "ICM_3040"
+
+
+def test_ohne_namensmap_bleibt_der_name_leer_statt_zu_werfen():
+    _, pos = build_snapshot(_cp([_pos("1", 3040, 20.0, 1.0, 1.0, 0.0)]), {}, now=NOW)
+    assert pos[0]["name"] == ""
+
+
+def test_aggregation_behaelt_den_namen():
+    pos = [{"symbol": "ICM_3040", "name": "iShares Core MSCI World",
+            "amount": 488.0, "pnl_usd": 15.0},
+           {"symbol": "ICM_3040", "name": "iShares Core MSCI World",
+            "amount": 250.0, "pnl_usd": 10.0}]
+    top = top_positions(pos, 3)
+    assert top[0]["name"] == "iShares Core MSCI World"
+    assert top[0]["amount"] == 738.0

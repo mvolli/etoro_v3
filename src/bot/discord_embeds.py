@@ -2319,7 +2319,8 @@ def post_main_portfolio_embeds(
     else:
         color = COLOR_GREEN if (d_eq or 0) >= 0 else COLOR_RED
         pct_txt = f" ({d_pct:+.2f}%)" if d_pct is not None else ""
-        delta_txt = (f"Seit {diff.get('prev_date')}: **${d_eq:+,.2f}**{pct_txt}")
+        seit = (diff.get("prev_taken_at") or diff.get("prev_date") or "?")[:16]
+        delta_txt = f"Seit letztem Report ({seit}): **${d_eq:+,.2f}**{pct_txt}"
 
     # Kennzahlen-Kopf. Die Mirror-Differenz wird ausgewiesen, nicht
     # weggerechnet: Positions-P/L und Portfolio-P/L weichen um das

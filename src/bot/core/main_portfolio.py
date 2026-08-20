@@ -37,10 +37,24 @@ def _f(value: Any, default: float = 0.0) -> float:
         return default
 
 
+def display_name(name: str | None, symbol: str, width: int = 26) -> str:
+    """Klarname fuer die Anzeige, Symbol als Rueckfallebene.
+
+    eToro-Symbole sind teils undurchsichtig: 'ICM_3040' ist der iShares Core
+    MSCI World, 'VFA_10560' der Vanguard FTSE All-World High Dividend Yield.
+    Ein Report, den man ohne Nachschlagen nicht lesen kann, ist keiner.
+    """
+    n = (name or "").strip()
+    if not n:
+        return symbol
+    return n if len(n) <= width else n[: width - 1] + "…"
+
+
 def build_snapshot(
     client_portfolio: dict,
     symbol_by_id: dict[int, str] | None = None,
     now: datetime | None = None,
+    name_by_id: dict[int, str] | None = None,
 ) -> tuple[dict, list[dict]]:
     """(account, positions) aus der eToro-clientPortfolio-Antwort.
 
@@ -52,6 +66,7 @@ def build_snapshot(
     """
     now = now or datetime.now(timezone.utc)
     symbol_by_id = symbol_by_id or {}
+    name_by_id = name_by_id or {}
     raw = client_portfolio.get("positions") or []
 
     positions: list[dict] = []
@@ -62,6 +77,7 @@ def build_snapshot(
             "position_id": str(p.get("positionID") or ""),
             "instrument_id": iid,
             "symbol": symbol_by_id.get(iid) or f"ID{iid}",
+            "name": (name_by_id.get(iid) or "").strip(),
             "amount": _f(p.get("amount")),
             "units": _f(p.get("units")),
             "open_rate": _f(p.get("openRate")),
@@ -121,7 +137,7 @@ def diff_snapshots(
             "opened": [], "closed": [], "movers": [],
             "equity_delta": None, "equity_delta_pct": None,
             "pnl_delta": None, "invested_delta": None,
-            "prev_date": None,
+            "prev_date": None, "prev_taken_at": None,
         }
 
     prev_by_id = {p["position_id"]: p for p in prev_positions}
@@ -146,11 +162,27 @@ def diff_snapshots(
             "change_pct": chg,
             "pnl_delta": round(cur["pnl_usd"] - old["pnl_usd"], 2),
         })
+    # Je SYMBOL zusammenfassen. Mehrere Positionen im selben Titel bewegen
+    # sich zwangslaeufig identisch (gleicher Kurs), stuenden also mehrfach mit
+    # DERSELBEN Prozentzahl in Liste und Grafik und verdraengten andere Titel.
+    # Der Prozentwert ist je Position gleich und wird uebernommen; Dollar-
+    # Wirkung und Einsatz werden summiert, weil sie sich aufaddieren.
+    per_symbol: dict[str, dict] = {}
+    for m in movers:
+        agg = per_symbol.get(m["symbol"])
+        if agg is None:
+            per_symbol[m["symbol"]] = {**m, "parts": 1}
+        else:
+            agg["pnl_delta"] = round(agg["pnl_delta"] + m["pnl_delta"], 2)
+            agg["amount"] = round(agg["amount"] + m["amount"], 2)
+            agg["parts"] += 1
+    movers = list(per_symbol.values())
     movers.sort(key=lambda m: -abs(m["change_pct"]))
 
     return {
         "is_baseline": False,
         "prev_date": prev_account.get("snapshot_date"),
+        "prev_taken_at": prev_account.get("taken_at"),
         "opened": sorted(opened, key=lambda p: -p["amount"]),
         "closed": sorted(closed, key=lambda p: -p["amount"]),
         "movers": movers,
@@ -191,7 +223,8 @@ def top_positions(positions: list[dict], n: int = 10) -> list[dict]:
     agg: dict[str, dict] = {}
     for p in positions:
         a = agg.setdefault(p["symbol"], {
-            "symbol": p["symbol"], "amount": 0.0, "pnl_usd": 0.0, "parts": 0})
+            "symbol": p["symbol"], "name": p.get("name", ""),
+            "amount": 0.0, "pnl_usd": 0.0, "parts": 0})
         a["amount"] += p["amount"]
         a["pnl_usd"] += p["pnl_usd"]
         a["parts"] += 1
