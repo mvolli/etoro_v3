@@ -1615,19 +1615,31 @@ def main() -> int:
                         ),
                         severity="CRITICAL",
                     )
-                # Regime-Alert (DEFENSIVE/CRITICAL) — 1x pro 30-min-Fenster
+                # Regime-Alert (DEFENSIVE/CRITICAL) — NUR bei Regime-WECHSEL
+                # (fix/regime-alert-dedupe 2026-08-21: 103 Fires in 7 Tagen,
+                # weil der Alert in JEDEM 30-min-Zyklus postete, solange das
+                # Regime persistierte. Der Alert ist ein Wechsel-Ereignis,
+                # kein Zustand — Persistenz gehört in den Heartbeat-Embed,
+                # der ohnehin 30-min-regelmaessig cb_status mitliefert.)
                 if regime in ("DEFENSIVE", "CRITICAL"):
-                    _risk_scalar = float(state_repo.get("RISK_SCALAR") or "0.5")
-                    _discord(
-                        "post_alert_embed",
-                        title=f"{'🔴' if regime == 'CRITICAL' else '🟠'} {regime}-Regime aktiv",
-                        description=(
-                            f"Drawdown: **{drawdown_pct:.2f}%** | risk_scalar={_risk_scalar:.2f}\n"
-                            f"Equity: **${current_equity:.2f}** | Peak: **${peak_equity:.2f}**\n"
-                            f"{'Nur VERY_HIGH Signale' if regime == 'CRITICAL' else 'Nur HIGH+ Signale'} — kein Pyramiding."
-                        ),
-                        severity="CRITICAL" if regime == "CRITICAL" else "WARNING",
-                    )
+                    _last_alerted = state_repo.get("REGIME_ALERTED") or ""
+                    if _last_alerted != regime:
+                        state_repo.set("REGIME_ALERTED", regime)
+                        _risk_scalar = float(state_repo.get("RISK_SCALAR") or "0.5")
+                        _discord(
+                            "post_alert_embed",
+                            title=f"{'🔴' if regime == 'CRITICAL' else '🟠'} {regime}-Regime aktiv",
+                            description=(
+                                f"Drawdown: **{drawdown_pct:.2f}%** | risk_scalar={_risk_scalar:.2f}\n"
+                                f"Equity: **${current_equity:.2f}** | Peak: **${peak_equity:.2f}**\n"
+                                f"{'Nur VERY_HIGH Signale' if regime == 'CRITICAL' else 'Nur HIGH+ Signale'} — kein Pyramiding."
+                            ),
+                            severity="CRITICAL" if regime == "CRITICAL" else "WARNING",
+                        )
+                elif (state_repo.get("REGIME_ALERTED") or "") not in ("", "NORMAL"):
+                    # Regime zurück in NORMAL/CAUTION — Flag reset, damit die
+                    # nächste DEFENSIVE/CRITICAL-Eintrittsmeldung wieder feuert
+                    state_repo.set("REGIME_ALERTED", "NORMAL")
         except Exception as _hb_exc:
             logger.debug(f"[{WORKER_NAME}] Heartbeat-Embed uebersprungen: {_hb_exc}")
 

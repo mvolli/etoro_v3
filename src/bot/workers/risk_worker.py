@@ -9,9 +9,11 @@ Schedule: */5 * * * * cd /path/to/etoro_v3 && python3 -m bot.workers.risk_worker
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
@@ -48,6 +50,64 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger("risk_worker")
+
+
+# ── fix/sl-close-unverified-dedupe (2026-08-21) ────────────────────────────────
+# A verified=False SL-close (eToro already closed the position, or the API
+# reports no open position to verify) used to log an ERROR and fire a
+# CRITICAL Discord alert on EVERY 5-minute risk cycle — one position stuck in
+# this state spammed ~288 alerts/day. The state is already persisted (trades.
+# verification_status='PENDING', Reconciler finalizes it), so this is a
+# notification problem, not a re-close problem. Per-position cap + cooldown,
+# and the alert downgrades to WARNING after the first hit.
+SL_UNVERIFIED_MAX_ALERTS = 3
+SL_UNVERIFIED_COOLDOWN_HOURS = 6
+
+
+def _unverified_close_alert_due(state_repo, position_id: str, symbol: str) -> tuple[bool, int]:
+    """Return (should_alert, alert_count) for an unverified SL-close.
+
+    Persists per-position counter + last-alert timestamp in system_state.
+    Alert fires on the first hit and again only after the cooldown window;
+    once the cap is reached it never fires again for that position.
+    """
+    pid = str(position_id)
+    key = f"SL_UNVERIFIED_{pid}"
+    try:
+        raw = state_repo.get(key)
+        info = json.loads(raw) if raw else {}
+        count = int(info.get("count", 0))
+        last = info.get("last_at", "")
+    except Exception:
+        count, last = 0, ""
+    count += 1
+    now = datetime.now(timezone.utc)
+    due = count <= SL_UNVERIFIED_MAX_ALERTS
+    if due and last:
+        try:
+            last_dt = datetime.fromisoformat(last)
+            if last_dt.tzinfo is None:
+                last_dt = last_dt.replace(tzinfo=timezone.utc)
+            due = (now - last_dt).total_seconds() >= SL_UNVERIFIED_COOLDOWN_HOURS * 3600
+        except Exception:
+            due = count <= 1  # unparsable timestamp → only first alert
+    try:
+        state_repo.set(key, json.dumps({"count": count, "last_at": now.isoformat(),
+                                        "symbol": symbol}))
+    except Exception:
+        pass
+    return due, count
+
+
+def _clear_unverified_close_state(state_repo, position_id: str) -> None:
+    """Reset per-position unverified-close state (verified close / new day)."""
+    try:
+        state_repo.db.execute(
+            "DELETE FROM system_state WHERE key = ?",
+            (f"SL_UNVERIFIED_{position_id}",),
+        )
+    except Exception:
+        pass
 
 
 def _load_config() -> dict:
@@ -298,6 +358,9 @@ def main() -> None:
                     if verified:
                         closed_count += 1
                         logger.warning("RiskWorker: %s", detail)
+                        # fix/sl-close-unverified-dedupe: verified close resets
+                        # any leftover unverified-alert state for this position.
+                        _clear_unverified_close_state(state_repo, str(position_id))
                         # Remove from local portfolio snapshot
                         db.execute(
                             "DELETE FROM portfolio_snapshot WHERE api_position_id = ?",
@@ -361,12 +424,28 @@ def main() -> None:
                             logger.debug("Discord close embed failed: %s", _emb_exc)
                     else:
                         # ── UNVERIFIED: still send embed + save estimated PnL ───
-                        logger.error("RiskWorker: SL-Close NOT verified — %s", detail)
-                        log_repo.write(
-                            "ERROR",
-                            "risk_worker",
-                            f"SL-Close unverified: {symbol} ({position_id}) — {detail}",
-                        )
+                        # fix/sl-close-unverified-dedupe (2026-08-21): per-position
+                        # cap + cooldown on the CRITICAL alert (was: 1 ERROR +
+                        # 1 CRITICAL embed every 5-min cycle per stuck position).
+                        _alert_due, _uv_count = _unverified_close_alert_due(
+                            state_repo, str(position_id), symbol)
+                        if _alert_due:
+                            logger.error("RiskWorker: SL-Close NOT verified — %s", detail)
+                            log_repo.write(
+                                "ERROR",
+                                "risk_worker",
+                                f"SL-Close unverified: {symbol} ({position_id}) — {detail}",
+                            )
+                        else:
+                            logger.warning(
+                                "RiskWorker: SL-Close still unverified (%s, alert %s suppressed) — %s",
+                                symbol, _uv_count, detail,
+                            )
+                            log_repo.write(
+                                "WARN",
+                                "risk_worker",
+                                f"SL-Close unverified (suppressed, count={_uv_count}): {symbol} ({position_id}) — {detail}",
+                            )
                         
                         # ── Save estimated PnL to DB (PENDING verification) ────
                         try:
@@ -379,56 +458,83 @@ def main() -> None:
                         except Exception as _db_exc:
                             logger.debug("Trade DB update (PENDING) failed: %s", _db_exc)
                         
-                        # ── Discord: Provisional CLOSE Embed → #etoro-trades ────
-                        try:
+                        # fix/sl-close-unverified-dedupe (2026-08-21): the
+                        # provisional CLOSE embed to #etoro-trades AND the
+                        # CRITICAL alert BOTH used to fire every 5-min cycle
+                        # (2600.HK: 105 embeds + 105 alerts in ~11h). Gate both
+                        # behind the per-position dedupe — post the provisional
+                        # close + alert at most SL_UNVERIFIED_MAX_ALERTS times
+                        # per position (6h cooldown), downgrade CRITICAL→WARNING
+                        # after the first hit. The PENDING trade record above is
+                        # idempotent and the Reconciler finalizes it.
+                        if _alert_due:
+                            # ── Discord: Provisional CLOSE Embed → #etoro-trades ────
                             try:
-                                from bot.core.candle_chart import trade_story_png
-                                import sys as _sys
-                                from pathlib import Path as _P
-                                _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
-                                import discord_embeds as _DE_st
-                                _DE_st.attach_chart(trade_story_png(
-                                    client, pos.get("instrumentID"), symbol,
-                                    entry=float(pos.get("openRate", 0) or 0) or None,
-                                    exit_price=close_price,
-                                    opened_at=pos.get("openDateTime"),
-                                ))
-                            except Exception:
-                                pass
-                            _close_ok = _discord(
-                                "post_position_closed_embed",
-                                symbol=symbol,
-                                amount_usd=float(pos.get("amount", 0)),
-                                position_id=str(position_id),
-                                entry_price=float(pos.get("openRate", 0)),
-                                close_price=close_price,
-                                pnl_usd=pnl_usd_est,
-                                pnl_pct=pnl_pct,
-                                reason=f"{sl_action.reason} (⚠️ PnL geschätzt — Reconciler finalisiert)",
+                                try:
+                                    from bot.core.candle_chart import trade_story_png
+                                    import sys as _sys
+                                    from pathlib import Path as _P
+                                    _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
+                                    import discord_embeds as _DE_st
+                                    _DE_st.attach_chart(trade_story_png(
+                                        client, pos.get("instrumentID"), symbol,
+                                        entry=float(pos.get("openRate", 0) or 0) or None,
+                                        exit_price=close_price,
+                                        opened_at=pos.get("openDateTime"),
+                                    ))
+                                except Exception:
+                                    pass
+                                _close_ok = _discord(
+                                    "post_position_closed_embed",
+                                    symbol=symbol,
+                                    amount_usd=float(pos.get("amount", 0)),
+                                    position_id=str(position_id),
+                                    entry_price=float(pos.get("openRate", 0)),
+                                    close_price=close_price,
+                                    pnl_usd=pnl_usd_est,
+                                    pnl_pct=pnl_pct,
+                                    reason=f"{sl_action.reason} (⚠️ PnL geschätzt — Reconciler finalisiert)",
+                                )
+                                from bot.core.event_log import record_posted_event
+                                record_posted_event(
+                                    db, _DE, symbol=symbol, event_type="CLOSE",
+                                    source="risk_sl", post_result=_close_ok,
+                                    position_id=str(position_id),
+                                    instrument_id=int(pos.get("instrumentID") or 0) or None,
+                                    price=close_price or None,
+                                    amount_usd=float(pos.get("amount", 0)),
+                                    pnl_usd=pnl_usd_est, pnl_pct=pnl_pct,
+                                    pnl_source="derived",
+                                    reason=f"{sl_action.reason} (unverifiziert)",
+                                    chart_posted=True, reported_final=False,
+                                )
+                            except Exception as _emb_exc:
+                                logger.debug("Discord provisional close embed failed: %s", _emb_exc)
+
+                            # ── Additional alert for unverified status ──────────────
+                            # CRITICAL on the first hit, then WARNING (state is
+                            # already persisted in trades.verification_status and
+                            # the Reconciler finalizes it — no CRITICAL spam).
+                            _sev = "CRITICAL" if _uv_count <= 1 else "WARNING"
+                            _emoji = "🔴" if _sev == "CRITICAL" else "🟡"
+                            _discord(
+                                "post_alert_embed",
+                                title=f"{_emoji} SL-Close unverifiziert"
+                                + ("" if _uv_count <= 1 else f" (#{_uv_count}, gedrosselt)"),
+                                description=(
+                                    f"{symbol}: {detail} — Embed mit geschätztem PnL gesendet, "
+                                    f"Reconciler wird finalisieren. "
+                                    f"(max. {SL_UNVERIFIED_MAX_ALERTS} Alerts, Cooldown "
+                                    f"{SL_UNVERIFIED_COOLDOWN_HOURS}h)"
+                                ),
+                                severity=_sev,
                             )
-                            from bot.core.event_log import record_posted_event
-                            record_posted_event(
-                                db, _DE, symbol=symbol, event_type="CLOSE",
-                                source="risk_sl", post_result=_close_ok,
-                                position_id=str(position_id),
-                                instrument_id=int(pos.get("instrumentID") or 0) or None,
-                                price=close_price or None,
-                                amount_usd=float(pos.get("amount", 0)),
-                                pnl_usd=pnl_usd_est, pnl_pct=pnl_pct,
-                                pnl_source="derived",
-                                reason=f"{sl_action.reason} (unverifiziert)",
-                                chart_posted=True, reported_final=False,
+                        else:
+                            logger.info(
+                                "RiskWorker: SL-Close unverified alert+embed suppressed for %s "
+                                "(count=%s) — PENDING record saved, Reconciler finalisiert",
+                                symbol, _uv_count,
                             )
-                        except Exception as _emb_exc:
-                            logger.debug("Discord provisional close embed failed: %s", _emb_exc)
-                        
-                        # ── Additional alert for unverified status ──────────────
-                        _discord(
-                            "post_alert_embed",
-                            title="🔴 SL-Close unverifiziert",
-                            description=f"{symbol}: {detail} — Embed mit geschätztem PnL gesendet, Reconciler wird finalisieren.",
-                            severity="CRITICAL",
-                        )
                 except APIError as exc:
                     logger.error(
                         "RiskWorker: Failed to close position %s — %s", position_id, exc

@@ -250,10 +250,19 @@ gilt uneingeschränkt.
 ## Verification
 
 ```bash
-PYTHONPATH=src python3 -m pytest                  # volle Suite, alles grün
+PYTHONPATH=src /usr/bin/python3 -m pytest           # volle Suite, alles grün
 sqlite3 -readonly data/trading.db "SELECT key,value FROM system_state WHERE key LIKE 'LAST_RUN_%'"
 bash scripts/etoro_kill_switch_watchdog.sh        # leer = gesund
 ```
+
+**Interpreter-Regel:** die Suite IMMER mit `/usr/bin/python3` (System-Python,
+hat matplotlib 3.10.8) ausführen — die Cron-Worker laufen exakt darauf. Das bare
+`python3` auf der WSL-PATH ist der `~/.hermes/hermes-agent/venv`, in dem
+matplotlib NICHT installiert ist — alle chart/PNG-Tests (pulse_grid_png /
+daily_grid_png / candle render) importieren matplotlib in try/except, geben
+None zurück und scheitern daher leise unter dem Venv. Der Interpreter zählt:
+`python3 -m pytest` allein reicht nicht. Stand 2026-08-20: 976 Tests grün
+unter `/usr/bin/python3`.
 
 ---
 

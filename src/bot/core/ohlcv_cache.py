@@ -438,11 +438,106 @@ def get_cached_ohlcv_df(conn, instrument_id: int, days: int = 90) -> Optional[An
     return df[['Open', 'High', 'Low', 'Close', 'Volume']]
 
 
+# fix/crypto-symbol-contamination (2026-08-21): ein Backfill-Skript (25.06.)
+# hat 180 stock/etf-Instrumente per Name-Fuzzy-Match auf echte Krypto-Ticker
+# gemappt (STMicroelectronics -> TRX-USD, First Bancorp -> BNT-USD, ...). Der
+# Preis-Pfad hat seither Krypto-Kurse in deren ohlcv_daily geschrieben.
+# Krypto-ETPs (CoinShares/Grayscale/21Shares/iShares Bitcoin/Ethereum/Solana)
+# sind die LEGITIME Ausnahme — dort ist der Krypto-Ticker das Referenz.
+# WICHTIG: Commodity-Futures/FX tragen ebenfalls '-USD' (z.B. MICRO WT-USD,
+# RUBBER-USD, GOLD/EUR) — das ist ein separater, vorbestehender Naming-Stil und
+# kriecht hier NICHT an. Der Guard feuert nur für stock/etf-asset_class.
+_CRYPTO_BASE_TICKERS = {
+    "BTC", "ETH", "SOL", "BNT", "TRX", "GALA", "XLM", "AVAX", "CELO",
+    "ATOM", "DOGE", "DOT", "LTC", "LINK", "SHIB", "MIOTA",
+}
+_CRYPTO_ETP_NAME_KEYWORDS = (
+    "coinshares", "grayscale", "21shares", "ishares", "abrdn", "hashdex",
+    "van eck", "fidelity", "winklev", "teucrium",
+)
+_CRYPTO_ASSET_WORDS = ("bitcoin", "ethereum", "solana", "crypto", "blockchain", "etp")
+
+
+def _is_crypto_price_ticker(yf_symbol: str) -> bool:
+    """Echter Krypto-Basis-Ticker mit Yahoo '-USD'-Suffix (BTC-USD, SOL-USD, …).
+
+    Nur die bekannte Krypto-Basisticker-Liste zahlt — commodity-Futures/FX,
+    die ebenfalls '-USD' tragen (MICRO WT-USD, GOLD/EUR), werden NICHT
+    erkannt.
+    """
+    if not yf_symbol:
+        return False
+    base = yf_symbol.upper().replace("-USD", "").strip()
+    return base in _CRYPTO_BASE_TICKERS
+
+
+def _is_crypto_etp(name: str | None) -> bool:
+    """True für echte Krypto-Tracking-ETPs/ETFs (legitimes -USD-Mapping)."""
+    n = (name or "").lower()
+    return any(k in n for k in _CRYPTO_ETP_NAME_KEYWORDS) and any(
+        w in n for w in _CRYPTO_ASSET_WORDS
+    )
+
+
+def _asset_class_price_mismatch(
+    conn, instrument_id: int, yf_symbol: str
+) -> bool:
+    """Wahrheitsschutz: echter Krypto-Ticker auf einem stock/etf-Instrument?
+
+    fix/crypto-symbol-contamination: ein stock/etf mit einem echten
+    Krypto-Basisticker als yfinance_symbol ist per Name-Fuzzy-Match
+    verseucht (180 Aktien im Juni-Backfill) — die Krypto-Kurse gehören NICHT
+    in seine ohlcv_daily. Ausnahmen: crypto-asset_class, und echte
+    Krypto-ETPs im Namen (dort ist der Ticker das Referenz).
+    Commodity/index/forex-Futures/FX mit '-USD' bleiben unangetastet.
+    """
+    if not _is_crypto_price_ticker(yf_symbol):
+        return False
+    try:
+        row = conn.execute(
+            "SELECT asset_class, name FROM instruments WHERE instrument_id = ?",
+            (instrument_id,),
+        ).fetchone()
+    except Exception:
+        return False
+    if row is None:
+        return False
+    asset_class, name = row[0], row[1]
+    if (asset_class or "").lower() not in ("stock", "etf"):
+        return False
+    if _is_crypto_etp(name):
+        return False
+    return True
+
+
 def ensure_ohlcv(conn, instrument_id: int, yf_symbol: str, required_days: int = 50):
     """Check-Fetch-Store: Stelle sicher, dass mindestens N Tage Daten vorliegen.
-    
+
     Returns: (has_data: bool, days_available: int)
     """
+    # fix/crypto-symbol-contamination (2026-08-21): Asset-Class-Sanity-Guard.
+    # Krypto-Ticker auf einem Nicht-Krypto-Instrument = kontaminiertes
+    # yfinance_symbol (Fuzzy-Match-Fehlgriff). Die Krypto-Kurse gehören NICHT
+    # in die ohlcv_daily des Instruments — statt sie zu speichern, NULL die
+    # yfinance_symbol (Selbst-Heilung: der nächste Fetch läuft dann über den
+    # rohen eToro-Symbol-Kandidaten) und melde es.
+    if _asset_class_price_mismatch(conn, instrument_id, yf_symbol):
+        logger.warning(
+            f"{yf_symbol} looks like a crypto ticker for non-crypto instrument "
+            f"{instrument_id} — NULLing yfinance_symbol (contamination guard)"
+        )
+        try:
+            conn.execute(
+                "UPDATE instruments SET yfinance_symbol = NULL, "
+                "yahoo_fail_count = 0, last_updated = CURRENT_TIMESTAMP "
+                "WHERE instrument_id = ?",
+                (instrument_id,),
+            )
+            conn.commit()
+        except Exception as e:
+            logger.debug(f"Contamination-guard NULL failed for {instrument_id}: {e}")
+        return False, 0
+
     # CHECK
     latest = check_latest_date(conn, instrument_id)
     
@@ -545,7 +640,11 @@ def bulk_ensure_ohlcv(conn, instruments: list, required_days: int = 50, batch_si
                 skipped_delisted += 1
                 continue
             
-            yf_sym = inst.get('yfinance_symbol', inst.get('symbol'))
+            # fix/crypto-symbol-contamination (2026-08-21): `or` (not
+            # `get(key, default)`) — a NULLed yfinance_symbol (key present,
+            # value None) must fall back to the raw eToro symbol so the
+            # contamination-guard self-heal re-resolves via candidates.
+            yf_sym = inst.get('yfinance_symbol') or inst.get('symbol')
 
             if not yf_sym:
                 results[iid] = {'has_data': False, 'days': 0, 'error': 'no_yf_symbol'}
