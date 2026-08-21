@@ -65,42 +65,63 @@ SL_UNVERIFIED_COOLDOWN_HOURS = 6
 
 
 def _unverified_close_alert_due(state_repo, position_id: str, symbol: str) -> tuple[bool, int]:
-    """Return (should_alert, alert_count) for an unverified SL-close.
+    """Return (should_alert, alerts_sent) for an unverified SL-close.
 
-    Persists per-position counter + last-alert timestamp in system_state.
-    Alert fires on the first hit and again only after the cooldown window;
-    once the cap is reached it never fires again for that position.
+    `count` zaehlt GESENDETE Alerts, `hits` die gesehenen Zyklen, `last_at`
+    ist der Zeitpunkt des letzten ALERTS. Alert feuert beim ersten Treffer
+    und danach erst wieder nach Ablauf des Cooldowns, hoechstens
+    SL_UNVERIFIED_MAX_ALERTS mal.
+
+    fix/sl-unverified-cooldown-never-elapses (2026-08-21): vorher wurden
+    `count` UND `last_at` bei JEDEM Aufruf fortgeschrieben — auch wenn der
+    Alert unterdrueckt wurde. Damit war `now - last_at` immer ~5 Minuten
+    (der risk_worker-Takt), der 6h-Cooldown konnte nie ablaufen, und der
+    Cap `count <= 3` war nach 15 Minuten erschoepft. Ergebnis: statt der
+    dokumentierten 3 Alerts kam GENAU EINER, danach dauerhaft Stille.
+    Simulation ueber 288 Zyklen belegte 1 statt 3. Zaehler und Zeitstempel
+    duerfen nur fortschreiben, wenn wirklich alarmiert wurde.
     """
     pid = str(position_id)
     key = f"SL_UNVERIFIED_{pid}"
     try:
         raw = state_repo.get(key)
         info = json.loads(raw) if raw else {}
-        count = int(info.get("count", 0))
-        last = info.get("last_at", "")
+        count = int(info.get("count", 0))       # bereits GESENDETE Alerts
+        hits = int(info.get("hits", 0))         # gesehene Zyklen (Diagnose)
+        last = info.get("last_at", "")          # Zeitpunkt des letzten ALERTS
     except Exception:
-        count, last = 0, ""
-    count += 1
+        count, hits, last = 0, 0, ""
+    hits += 1
     now = datetime.now(timezone.utc)
-    due = count <= SL_UNVERIFIED_MAX_ALERTS
-    if due and last:
+
+    if count >= SL_UNVERIFIED_MAX_ALERTS:
+        due = False                             # Cap ausgeschoepft
+    elif not last:
+        due = True                              # erster Treffer
+    else:
         try:
             last_dt = datetime.fromisoformat(last)
             if last_dt.tzinfo is None:
                 last_dt = last_dt.replace(tzinfo=timezone.utc)
             due = (now - last_dt).total_seconds() >= SL_UNVERIFIED_COOLDOWN_HOURS * 3600
         except Exception:
-            due = count <= 1  # unparsable timestamp → only first alert
+            # Unlesbarer Zeitstempel: der Zustand existiert bereits, also
+            # wurde schon einmal alarmiert — nicht erneut feuern.
+            due = False
+
+    if due:
+        count += 1
+        last = now.isoformat()
     try:
-        state_repo.set(key, json.dumps({"count": count, "last_at": now.isoformat(),
-                                        "symbol": symbol}))
+        state_repo.set(key, json.dumps({"count": count, "hits": hits,
+                                        "last_at": last, "symbol": symbol}))
     except Exception:
         pass
     return due, count
 
 
 def _clear_unverified_close_state(state_repo, position_id: str) -> None:
-    """Reset per-position unverified-close state (verified close / new day)."""
+    """Reset per-position unverified-close state (verified close)."""
     try:
         state_repo.db.execute(
             "DELETE FROM system_state WHERE key = ?",
@@ -108,6 +129,38 @@ def _clear_unverified_close_state(state_repo, position_id: str) -> None:
         )
     except Exception:
         pass
+
+
+def _sweep_unverified_close_state(state_repo) -> int:
+    """Verwaiste SL_UNVERIFIED_*-Keys entfernen. Gibt die Anzahl zurueck.
+
+    fix/sl-unverified-state-leak (2026-08-21): `_clear_unverified_close_state`
+    laeuft nur beim VERIFIZIERTEN Close im risk_worker — genau diese Faelle
+    finalisiert aber laut Design der Reconciler (`verification_status` von
+    'PENDING' auf 'VERIFIED'/'UNRESOLVED'). Der risk_worker sah die Position
+    danach nie wieder, der Key blieb fuer immer in `system_state` liegen.
+
+    Statt an allen drei Finalisierungsstellen des Reconcilers einzuhaken
+    (leicht zu uebersehen, wenn eine vierte dazukommt), raeumt der Worker
+    einmal pro Lauf selbst auf: ein Key ueberlebt nur, solange sein Trade
+    wirklich noch PENDING ist. Das ist idempotent und heilt auch Altlasten.
+    """
+    try:
+        cur = state_repo.db.execute(
+            """
+            DELETE FROM system_state
+            WHERE key LIKE 'SL_UNVERIFIED_%'
+              AND SUBSTR(key, 15) NOT IN (
+                  SELECT api_position_id FROM trades
+                  WHERE verification_status = 'PENDING'
+                    AND api_position_id IS NOT NULL
+              )
+            """
+        )
+        return int(getattr(cur, "rowcount", 0) or 0)
+    except Exception as exc:
+        logger.debug("SL_UNVERIFIED sweep failed: %s", exc)
+        return 0
 
 
 def _load_config() -> dict:
@@ -167,6 +220,12 @@ def main() -> None:
         portfolio_repo = PortfolioRepo(db)
         state_repo = StateRepo(db)
         log_repo = LogRepo(db)
+
+        # fix/sl-unverified-state-leak: verwaiste Dedupe-Keys aufraeumen,
+        # deren Trade der Reconciler laengst finalisiert hat.
+        _swept = _sweep_unverified_close_state(state_repo)
+        if _swept:
+            logger.info("RiskWorker: %d verwaiste SL_UNVERIFIED-Keys entfernt", _swept)
 
         # ── Heartbeat (dead-man's switch) ─────────────────────────────────────────
         from bot.core.heartbeat import record_heartbeat
@@ -438,13 +497,15 @@ def main() -> None:
                             )
                         else:
                             logger.warning(
-                                "RiskWorker: SL-Close still unverified (%s, alert %s suppressed) — %s",
+                                "RiskWorker: SL-Close still unverified (%s, %s Alert(s) bereits "
+                                "gesendet — weitere gedrosselt) — %s",
                                 symbol, _uv_count, detail,
                             )
                             log_repo.write(
                                 "WARN",
                                 "risk_worker",
-                                f"SL-Close unverified (suppressed, count={_uv_count}): {symbol} ({position_id}) — {detail}",
+                                f"SL-Close unverified (gedrosselt, {_uv_count} Alert(s) gesendet): "
+                                f"{symbol} ({position_id}) — {detail}",
                             )
                         
                         # ── Save estimated PnL to DB (PENDING verification) ────

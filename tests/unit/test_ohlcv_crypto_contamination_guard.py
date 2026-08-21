@@ -233,3 +233,51 @@ def test_bulk_ohlcv_delisted_skipped(conn):
         )
     mock_eo.assert_not_called()
     assert results[3]["error"] == "yahoo_delisted"
+
+
+# ── fix/crypto-guard-selfheal-loop (2026-08-21) ───────────────────────────────
+# Der Guard NULLt `yfinance_symbol`, damit der naechste Lauf ueber den rohen
+# eToro-Symbol-Kandidaten neu aufloest. Ist das Symbol SELBST der auffaellige
+# Ticker, liefert der Fallback denselben Wert zurueck — der Guard feuert
+# erneut, das Instrument bekaeme nie Daten und `yahoo_fail_count` wuerde jeden
+# Zyklus auf 0 zurueckgesetzt. Ein Fuzzy-Match-Fehlgriff erzeugt IMMER einen
+# abweichenden String, also ist Gleichheit ein sicheres Ausschlusskriterium.
+
+def test_symbol_gleich_yfinance_symbol_ist_ausgenommen(conn):
+    """ATOM = echter NASDAQ-Ticker (Atomera) und zugleich Cosmos-Krypto."""
+    _add(conn, iid=1, symbol="ATOM", yf="ATOM", ac="stock",
+         name="Atomera Incorporated")
+    assert _asset_class_price_mismatch(conn, 1, "ATOM") is False
+
+
+def test_fuzzy_leiche_feuert_weiterhin(conn):
+    """Gegenprobe: abweichendes Symbol = echter Fehlgriff, muss feuern."""
+    _add(conn, iid=2, symbol="LLTC", yf="LTC", ac="stock",
+         name="Linear Technology Corporation")
+    assert _asset_class_price_mismatch(conn, 2, "LTC") is True
+
+
+def test_ausnahme_ist_gross_klein_unabhaengig(conn):
+    _add(conn, iid=3, symbol="atom", yf="ATOM", ac="stock", name="Atomera Inc")
+    assert _asset_class_price_mismatch(conn, 3, "ATOM") is False
+
+
+def test_keine_dauerschleife_nach_null(conn, monkeypatch):
+    """Der eigentliche Schaden: NULLen darf sich nicht endlos wiederholen.
+
+    Simuliert den Fallback aus bulk_ensure_ohlcv (`yfinance_symbol or symbol`)
+    ueber mehrere Laeufe. Ohne die Ausnahme feuerte der Guard in JEDEM Lauf.
+    """
+    _add(conn, iid=4, symbol="ATOM", yf="ATOM", ac="stock", name="Atomera Inc")
+    feuer = 0
+    for _ in range(5):
+        row = conn.execute(
+            "SELECT yfinance_symbol, symbol FROM instruments WHERE instrument_id = 4"
+        ).fetchone()
+        yf_sym = row["yfinance_symbol"] or row["symbol"]     # Fallback wie in bulk
+        if _asset_class_price_mismatch(conn, 4, yf_sym):
+            feuer += 1
+            conn.execute("UPDATE instruments SET yfinance_symbol = NULL "
+                         "WHERE instrument_id = 4")
+            conn.commit()
+    assert feuer == 0, f"Guard feuerte {feuer}x auf einen legitimen Ticker"

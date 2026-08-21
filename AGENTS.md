@@ -244,8 +244,28 @@ Bewegungslisten (sonst meldete er "+71 Positionen").
 Workflow: Skill `finance/etoro-v3-safe-change` befolgen (lesen → pure
 Function → Tests → volle Suite → Commit/Push → Live-Verifikation).
 Debugging: Skills `finance/trading-system-debugging`, `ghost-order-debugging`.
-Regeln: Skill `finance/trading-bible-v5`. NIEMALS-Liste der Root-AGENTS.md
-gilt uneingeschränkt.
+Regeln: Skill `finance/trading-bible-v5`.
+
+### NIEMALS
+
+1. **NIE** eine andere DB-Datei benutzen als `etoro_v3/data/trading.db`.
+   `etoro_trading.db`, `etoro_v3.db`, `bot_state.db`, `db/etoro_trading.db`
+   sind gelöschte Altlasten — wer sie referenziert, liest Phantom-Daten.
+2. **NIE** Pfade unter `~/.hermes/workspace/etoro/` verwenden — archiviert.
+3. **NIE** `/tmp/etoro_key.txt` oder Klartext-Keys in Dateien/Memories/Discord.
+   Keys kommen ausschließlich aus `~/.hermes/.env`.
+4. **NIE** Linux-crontab oder systemd für Bot-Jobs — der Bot läuft über
+   `~/.hermes/cron/jobs.json`.
+5. **NIE** pausierte (`enabled:false`) Cron-Jobs reaktivieren.
+6. **NIE** alle Positionen auf einmal schließen (auch nicht bei Drawdown).
+7. **NIE** Dateien außerhalb von tmp/cache löschen ohne Rückfrage bei VoLLi.
+8. **NIE** Emails an Fremde, Käufe oder externe Posts ohne Rückfrage bei VoLLi.
+
+Quelle: `~/.hermes/workspace/AGENTS.md`. Diese Liste steht hier im **Original**,
+nicht als Verweis: Die AGENTS-Kette lädt "from git root down to cwd", und
+`etoro_v3` ist ein eigenes Git-Repo — das Elternverzeichnis wird nie erreicht.
+Ein blosser Verweis erreicht den Prompt also nicht. Änderungen an der
+Root-Datei müssen hier nachgezogen werden.
 
 ## Verification
 

@@ -490,22 +490,37 @@ def _asset_class_price_mismatch(
     in seine ohlcv_daily. Ausnahmen: crypto-asset_class, und echte
     Krypto-ETPs im Namen (dort ist der Ticker das Referenz).
     Commodity/index/forex-Futures/FX mit '-USD' bleiben unangetastet.
+
+    fix/crypto-guard-selfheal-loop (2026-08-21): Instrumente, bei denen
+    `yfinance_symbol == symbol`, sind AUSGENOMMEN. Ein Fuzzy-Match-Fehlgriff
+    erzeugt immer einen ABWEICHENDEN String — Gleichheit heisst also, dass
+    der eToro-Ticker selbst so lautet. Ohne diese Ausnahme entstuende eine
+    Dauerschleife: der Guard NULLt `yfinance_symbol`, der Fallback in
+    `bulk_ensure_ohlcv` (`yfinance_symbol or symbol`) liefert denselben Wert
+    zurueck, der Guard feuert erneut — das Instrument bekaeme nie Daten und
+    `yahoo_fail_count` wuerde jeden Zyklus auf 0 zurueckgesetzt. Betrifft
+    Ticker, die zugleich echte Aktien sind (ATOM = Atomera/NASDAQ,
+    LINK = Interlink). Heute kein solches Instrument im Katalog — der Guard
+    darf aber nicht darauf bauen.
     """
     if not _is_crypto_price_ticker(yf_symbol):
         return False
     try:
         row = conn.execute(
-            "SELECT asset_class, name FROM instruments WHERE instrument_id = ?",
+            "SELECT asset_class, name, symbol FROM instruments WHERE instrument_id = ?",
             (instrument_id,),
         ).fetchone()
     except Exception:
         return False
     if row is None:
         return False
-    asset_class, name = row[0], row[1]
+    asset_class, name, symbol = row[0], row[1], row[2]
     if (asset_class or "").lower() not in ("stock", "etf"):
         return False
     if _is_crypto_etp(name):
+        return False
+    if (symbol or "").strip().upper() == (yf_symbol or "").strip().upper():
+        # Kein Fuzzy-Fehlgriff moeglich — und NULLen wuerde nichts aendern.
         return False
     return True
 
