@@ -29,7 +29,10 @@ def test_combo_inherits_weakest_conviction():
 
 
 def test_single_signal_conviction_unchanged():
-    """Einzelsignal: min = max = eigene Conviction (Rule 6 HIGH)."""
+    """Einzelsignal: min = max = eigene Conviction (Rule 6 MEDIUM).
+
+    fix/tp-conviction-calibration (2026-08-21): TREND_PULLBACK-Einzel-
+    Signale liefen mit HIGH durchweg rot (Payoff ~0.05) → MEDIUM."""
     ind = {
         "rsi": 45.0, "macd_hist": 0.5, "macd_hist_prev": 0.4,
         "bb_pct": 0.5, "price": 100.0, "sma20": 100.0, "sma50": 95.0,
@@ -37,7 +40,7 @@ def test_single_signal_conviction_unchanged():
     }
     result = generate_signal("TEST", ind)
     assert result.signal_types == ["TREND_PULLBACK"]
-    assert result.conviction == "HIGH"
+    assert result.conviction == "MEDIUM"
 
 
 # ── Kelly auf Komponenten-Ebene ──────────────────────────────────────────────
@@ -63,7 +66,7 @@ def test_kelly_falls_back_to_component_pool():
     rows = [("A,B", 2.0)] * 2                    # zu wenig exakt
     rows += [("A,C", -2.0)] * 10 + [("B,D", -3.0)] * 10  # Komponenten-Pool: alles Verlust
     f = kelly_size_factor("A,B", _FakeDB(rows), min_trades=10)
-    assert f == 0.3  # Pool ist durchweg negativ → Minimum
+    assert f == 0.5  # Pool ist durchweg negativ → Minimum (fix/kelly-centering)
 
 
 def test_kelly_neutral_when_even_pool_too_small():

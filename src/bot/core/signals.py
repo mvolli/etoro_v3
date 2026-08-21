@@ -384,6 +384,15 @@ def generate_signal(symbol: str, indicators: dict) -> SignalResult:
     # MACD muss > -0.005 sein (verschärft von -0.01) → filtert stärkere Downtrends heraus.
     # Vorher: 63.6% Fail-Rate (28/44), weil TREND_PULLBACK auch bei stark
     # negativem MACD feuerte → Preis unter SMA50, aber Signal ignorierte Trendkraft.
+    # fix/tp-conviction-calibration (2026-08-21): Einzel-Komponente TREND_PULLBACK
+    # lief mit HIGH Conviction durchweg rot (non-CORE_SWEEP: HIGH-Conviction
+    # WR 28% / -268 USD; das TREND_PULLBACK-Cluster 40 Verluste avg -2.36%
+    # gegen 17 Gewinne avg +0.11% — WR ~32% mit Payoff ~0.05, d.h. fast jede
+    # Gewinnerholung ging an den SL). Der EDGE lebt in der MACD_TURN-Combo
+    # (WR 50%, avg +5%) — die behält ihre eigene MEDIUM-Conviction, und per
+    # fix/combo-conviction-min kann kein Component die Combo mehr nach oben
+    # ziehen. Einzel-Pullback ohne MACD-Wende ist eine ZIEHUNG, keine
+    # Bestätigung → MEDIUM (Score 15 statt 20 = kleinere Position).
     if all(x is not None for x in [rsi, sma20, sma50, price, macd_hist]):
         # fix/macd-floor-scale: das MACD-Histogramm hat Preiseinheiten — der
         # absolute Floor -0.005 war bei einem $100-Titel -0.005% vom Preis,
@@ -393,7 +402,7 @@ def generate_signal(symbol: str, indicators: dict) -> SignalResult:
         if (price > sma50 and price <= sma20 * 1.02  # near/below SMA20
                 and 35 <= rsi <= 55
                 and macd_hist > _macd_floor and rsi > 30):  # RSI>30: keine Entries im Downtrend
-            signals.append(("TREND_PULLBACK", CONVICTION_HIGH, 20.0))
+            signals.append(("TREND_PULLBACK", CONVICTION_MEDIUM, 15.0))
 
     # Rule 7: Golden Cross — schnellerer MA (SMA20) über langsamerem MA (SMA50).
     # fix/golden-cross-direction: war sma50 > sma20 (= Death-Cross-Struktur, BEARISH).

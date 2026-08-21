@@ -15,7 +15,7 @@ def kelly_size_factor(signal_type: str, db, min_trades: int = 10) -> float:
     Formula:
         f  = win_rate - (1 - win_rate) / (avg_win / avg_loss)
         f* = 0.5 * f   (Half-Kelly: standard for real systems with imperfect estimates)
-        clamped to [0.3, 1.5]
+        clamped/centered to [0.5, 1.5] (neutral 1.0 at f* == 0)
 
     Parameters
     ----------
@@ -29,7 +29,7 @@ def kelly_size_factor(signal_type: str, db, min_trades: int = 10) -> float:
     Returns
     -------
     float
-        Multiplier in [0.3, 1.5]. 1.0 = neutral (no change to sizing).
+        Multiplier in [0.5, 1.5]. 1.0 = neutral (no change to sizing).
 
     fix/kelly-components (2026-07-26): vorher Exact-Match auf den vollen
     Combo-String — bei ~30 moeglichen Combos erreichten nur 2 je min_trades,
@@ -72,7 +72,7 @@ def kelly_size_factor(signal_type: str, db, min_trades: int = 10) -> float:
     if not losses:
         return 1.5   # all winners → max factor
     if not wins:
-        return 0.3   # all losers → min factor
+        return 0.5   # all losers → min factor (fix/kelly-centering)
 
     win_rate = len(wins) / len(pnls)
     avg_win  = sum(wins)   / len(wins)
@@ -84,4 +84,13 @@ def kelly_size_factor(signal_type: str, db, min_trades: int = 10) -> float:
     f = win_rate - (1.0 - win_rate) / (avg_win / avg_loss)
     half_kelly = 0.5 * f
 
-    return max(0.3, min(1.5, half_kelly))
+    # fix/kelly-centering (2026-08-21): the old clamp max(0.3, min(1.5,
+    # half_kelly)) mapped half_kelly < 0.3 straight to the 0.3 floor — and
+    # REAL signals sit below 0.3 almost everywhere, so EVERY signal clamped
+    # to 0.3 and the factor was a uniform 30x shrinkage (good AND bad alike,
+    # measured on trading.db 2026-08-21). Now the factor is CENTERED at
+    # half_kelly == 0 -> 1.0 (neutral) and scaled linearly (f=+0.5 -> 1.5,
+    # f=-0.5 -> 0.5), so it can actually reward proven edges and shrink
+    # weak ones. Floor 0.5 (was 0.3): 0.3 punished every negative-edge
+    # signal identically and killed signal variety without discriminating.
+    return max(0.5, min(1.5, 1.0 + 2.0 * half_kelly))

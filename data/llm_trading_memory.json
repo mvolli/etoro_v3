@@ -578,6 +578,34 @@
         "avg_loss_pct": -1.78
       },
       "notes": "RSI_EXTREME+MACD_TURN: bestes Signal (40% WR). TREND_PULLBACK+GOLDEN_CROSS: schlechtes R/W-Ratio (0.09/2.43). BB_EXTREME Combos: Falling-Knife-Effekt."
+    },
+    {
+      "run_id": "self_improvement_20260819_190714",
+      "timestamp": "2026-08-19T19:07:14.259993Z",
+      "action": "update_signal_weights",
+      "changes": [
+        "TREND_PULLBACK,GOLDEN_CROSS: 0.5 → 0.3 (27.1% WR, -2.95% avg PnL, n=48)",
+        "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING: 0.7 → 0.5 (24.1% WR, -2.22% avg PnL, n=29)",
+        "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20: 1.3x bestätigt (40% WR, +9.48% avg PnL, n=10)",
+        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD: 0.2 bestätigt (2.7% WR, n=37)"
+      ],
+      "rationale": "Signal-Performance-Analyse über alle CLOSED-Trades (n=252, WR=25.8%, avg_pnl=-1.87%). TREND_PULLBACK+GOLDEN_CROSS und MACD_TURN+BB_LOW_IMPROVING zeigen konsistent negative avg_pnl und WR < 30%. RSI_EXTREME+MACD_TURN ist das einzige profitable Signal mit n>=5.",
+      "tests_passed": 895,
+      "tests_failed_preexisting": 2,
+      "note": "Chart-Tests (test_chart_markers, test_exit_monitor, test_pulse_chart) failen pre-existing in headless matplotlib-Env — keine Regression durch diese Änderung."
+    },
+    {
+      "run_id": "self_improvement_20260821_191300",
+      "timestamp": "2026-08-21T19:13:00Z",
+      "action": "code_change",
+      "changes": [
+        "fix/kelly-centering (src/bot/core/sizing.py): Kelly-Faktor war TOE — jeder Signal clamped auf 0.3 Floor (halves of half-Kelly < 0.3 everywhere), also UNIFORM 30x shrinkage. Jetzt centered bei half_kelly=0 -> 1.0, linear scaled, floor 0.5 (was 0.3). MACD_TURN+BB_LOW jetzt 1.30 (was 0.30), TP+GC 0.50 (was 0.30).",
+        "fix/tp-conviction-calibration (src/bot/core/signals.py): Rule 6 TREND_PULLBACK Einzel-Komponente HIGH->MEDIUM, Score 20->15. EDGE lebt in der MACD_TURN-Combo (MEDIUM, unchanged), per fix/combo-conviction-min no component raises the combo conviction.",
+        "tests: test_sizing.py + test_learning_loop.py updated (0.3 floor asserts -> 0.5/1.0/1.5 centered values), suite 1030 passed."
+      ],
+      "rationale": "Diagnosis (all CLOSED trades, SQL): n=269 WR=28.62% sum=-425.67 USD. Conviction misaligned: MEDIUM=best (37 trades, 48.6% WR, +143 USD non-CORE_SWEEP), HIGH=worst (78, 28.2% WR, -268 USD). TREND_PULLBACK cluster: 17 wins avg +0.11% vs 40 losses avg -2.36% (payoff ~0.05, total -173 USD) -> single-pullback demoted to MEDIUM. Kelly dead at 0.3 floor: every signal clamped uniformly -> centered so it actually rewards/shrinks by evidence.",
+      "tests_passed": 1030,
+      "note": "90d window == full history (bot started ~50d ago, no 'older' bucket) -> no decay check needed. Kelly 90d factors measured live: MACD_TURN+BB_LOW 1.302, TP+GC 0.500, CORE_SWEEP 0.500, RSI+MACD_TURN 1.353, 3-BB-Combo 0.500, 4-comp-Combo 1.179. llm_signal_weights.json (auto-generated, 2026-08-20) currently dampens MACD_TURN+BB_LOW at 0.5x which partially offsets the Kelly boost; regenerates next LLM-Review cycle."
     }
   ],
   "decision_outcomes": [
@@ -683,26 +711,6 @@
     "config/sizing.high_pct: Nach sizing.high_pct=6.5: avg_pnl=-1.34%, win_rate=0% (3 Trades)"
   ],
   "runs": [
-    {
-      "date": "2026-07-14",
-      "closed_trades": 25,
-      "insights": 3,
-      "adjustments": [
-        "TREND_PULLBACK",
-        "GOLDEN_CROSS",
-        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD"
-      ]
-    },
-    {
-      "date": "2026-07-15",
-      "closed_trades": 29,
-      "insights": 3,
-      "adjustments": [
-        "TREND_PULLBACK",
-        "GOLDEN_CROSS",
-        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD"
-      ]
-    },
     {
       "date": "2026-07-16",
       "closed_trades": 39,
@@ -977,6 +985,27 @@
         "CORE_SWEEP",
         "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING"
       ]
+    },
+    {
+      "date": "2026-08-19",
+      "closed_trades": 100,
+      "insights": 2,
+      "adjustments": [
+        "CORE_SWEEP",
+        "TREND_PULLBACK,GOLDEN_CROSS",
+        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD"
+      ]
+    },
+    {
+      "date": "2026-08-20",
+      "closed_trades": 100,
+      "insights": 2,
+      "adjustments": [
+        "CORE_SWEEP",
+        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD",
+        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD",
+        "TREND_PULLBACK,GOLDEN_CROSS"
+      ]
     }
   ],
   "signal_insights": {
@@ -1106,12 +1135,6 @@
     ],
     "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD": [
       {
-        "date": "2026-07-19",
-        "score_multiplier": 0.5,
-        "skip": false,
-        "reason": "80% Verlustrate bei VERY_HIGH Conviction, avg_pnl negativ."
-      },
-      {
         "date": "2026-07-21",
         "score_multiplier": 0.8,
         "skip": false,
@@ -1164,6 +1187,12 @@
         "score_multiplier": 0.3,
         "skip": true,
         "reason": "Extrem schlechte Performance (WR 97%, avg_pnl -0.42%) bei VERY_HIGH Conviction. Reine RSI-Oversold-Strategie ohne MACD-Konfirmation versagt."
+      },
+      {
+        "date": "2026-08-20",
+        "score_multiplier": 0.1,
+        "skip": false,
+        "reason": "Extremely poor performance (1 win, 36 losses) confirms falling knife risk. Heavily dampen to avoid capital loss."
       }
     ],
     "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": [
@@ -1246,18 +1275,6 @@
     ],
     "TREND_PULLBACK,GOLDEN_CROSS": [
       {
-        "date": "2026-08-04",
-        "score_multiplier": 0.6,
-        "skip": false,
-        "reason": "Negative durchschnittliche PnL (-1.61%) bei CLOSED Trades. Signal fängt 'falling knives' oder entryt zu spät."
-      },
-      {
-        "date": "2026-08-05",
-        "score_multiplier": 0.5,
-        "skip": false,
-        "reason": "Hohe Verlustrate (26/35) und negative PnL (-1.46). Golden Cross allein reicht im CAUTION-Regime nicht."
-      },
-      {
         "date": "2026-08-06",
         "score_multiplier": 0.7,
         "skip": false,
@@ -1304,6 +1321,18 @@
         "score_multiplier": 0.7,
         "skip": false,
         "reason": "Negative avg_pnl (-1.61%) und hohe Verluste trotz HIGH Conviction. Exit-Problem (peak > 0 aber pnl < 0) deutet auf zu frühes Schließen hin, aber Signalqualität leidet."
+      },
+      {
+        "date": "2026-08-19",
+        "score_multiplier": 0.5,
+        "skip": false,
+        "reason": "Sehr hohe Verlustrate bei HIGH Conviction (79% losses), Entry-Qualität fraglich."
+      },
+      {
+        "date": "2026-08-20",
+        "score_multiplier": 0.8,
+        "skip": false,
+        "reason": "High success rate but negative average PnL. Slight dampening to improve risk-reward profile."
       }
     ],
     "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20": [
@@ -1327,12 +1356,6 @@
       }
     ],
     "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD": [
-      {
-        "date": "2026-07-23",
-        "score_multiplier": 0.7,
-        "skip": false,
-        "reason": "37 Trades zeigen Falling-Knife-Charakter mit avg_pnl -0.43; Dämpfung reduziert Risiko bei falschen Kaufsignalen."
-      },
       {
         "date": "2026-07-23",
         "score_multiplier": 0.6,
@@ -1380,21 +1403,21 @@
         "score_multiplier": 0.5,
         "skip": false,
         "reason": "VERY_HIGH Conviction mit 90% Verlustrate (36/37) und negativer PnL. Falling-Knife-Signal ohne MACD-Konfirmation."
+      },
+      {
+        "date": "2026-08-19",
+        "score_multiplier": 0.3,
+        "skip": false,
+        "reason": "Falling Knife Muster (WR 90%), RSI-Extremwerte allein sind Kaufsignale."
+      },
+      {
+        "date": "2026-08-20",
+        "score_multiplier": 0.2,
+        "skip": false,
+        "reason": "Poor performance (1 win, 9 losses) with near-zero PnL. Dampen significantly."
       }
     ],
     "CORE_SWEEP": [
-      {
-        "date": "2026-08-05",
-        "score_multiplier": 0.5,
-        "skip": false,
-        "reason": "Extrem hohe Reject-Rate (659/781) und negative avg_pnl (-0.76). Signal ist zu aggressiv für das aktuelle CAUTION-Regime."
-      },
-      {
-        "date": "2026-08-06",
-        "score_multiplier": 0.5,
-        "skip": false,
-        "reason": "Hohe Reject-Rate und niedrige Success-Rate (0.08) deuten auf ineffizientes Signal hin. Dämpfen, um Capital für bessere Signale zu sparen."
-      },
       {
         "date": "2026-08-07",
         "score_multiplier": 0.6,
@@ -1442,14 +1465,22 @@
         "score_multiplier": 0.6,
         "skip": false,
         "reason": "Hohe Rejection-Rate (78%) und niedrige success_rate (0.17) bei CLOSED-Trades. Signal ist zu generisch und fängt zu viel Rauschen ein."
+      },
+      {
+        "date": "2026-08-19",
+        "score_multiplier": 0.7,
+        "skip": false,
+        "reason": "Niedrige Success-Rate (21%) und negative avg_pnl (-0.95%) im DEFENSIVE-Regime."
+      },
+      {
+        "date": "2026-08-20",
+        "score_multiplier": 0.5,
+        "skip": false,
+        "reason": "High rejection rate (73%) and low success rate (27%) indicate low quality or excessive filtering friction."
       }
     ]
   },
   "strategy_notes": [
-    "BB_EXTREME_RSI_OVERSOLD von VERY_HIGH auf HIGH reduziert — 37 Trades zeigen Falling-Knife-Charakter.",
-    "TREND_PULLBACK,GOLDEN_Cross hat hohe Rejection-Rate, Score-Multiplier senken",
-    "LUS1.DE zeigt, dass MEDIUM Conviction bei korrektem MACD-Turnover profitabler sein kann als HIGH Conviction im aktuellen Markt.",
-    "RSI<25 ist ein Krisenzeichen, kein Kaufsignal (WR 9%).",
     "Gewinner brauchen Zeit (Median 143h); junge Positionen nicht vorzeitig schließen.",
     "Exit-Problem bei W7L.L: 6.82% PnL, aber kein Peak-Tracking im Log. Trailing-Stop oder Profit-Take bei >5% prüfen.",
     "SL-Überwachung: NVDA und META zeigen, dass der automatische SL bei -3.0% manchmal durch Slippage oder verzögerte Ausführung gebrochen wird.",
@@ -1462,7 +1493,10 @@
     "RSI_EXTREME_OVERSOLD allein ist ein 'Falling Knife' (WR 8%); erst mit MACD-Wende validieren.",
     "Slippage-Check: 2883.HK verliert innerhalb von 1 Tag. Prüfen, ob Slippage bei schnellen MACD-Wendungen in HK-Aktien zu hoch ist.",
     "Stale-Exit 00006.HK: GOOD (+1.0% seit Exit)",
-    "Stale-Exit NG.L: GOOD (-0.3% seit Exit)"
+    "Stale-Exit NG.L: GOOD (-0.3% seit Exit)",
+    "HTRO.ST Verlust zeigt: Kein Peak = Entry-Fehler, nicht Exit-Problem. Signal muss strenger werden.",
+    "TREND_PULLBACK,GOLDEN_CROSS signals need better exit logic as they win often but lose money on average.",
+    "Stale-Exit PG: GOOD (-0.1% seit Exit)"
   ],
   "config_history": [
     {
@@ -1536,42 +1570,6 @@
     }
   ],
   "ghost_rate_history": [
-    {
-      "ts": "2026-07-16T20:31:15.349397+00:00",
-      "rates": {
-        "_OTHER": 0.14,
-        ".DE": 0.0,
-        ".L": 0.23,
-        ".PA": 0.05,
-        ".MC": 0.17,
-        ".MI": 0.17,
-        ".ST": 0.2,
-        ".ASX": 0.12,
-        ".ZU": 0.0,
-        "_ASIA": 0.0,
-        "_FUT": 1.0,
-        "_FOREX": 1.0,
-        ".OL": 1.0
-      }
-    },
-    {
-      "ts": "2026-07-17T20:31:04.858926+00:00",
-      "rates": {
-        "_OTHER": 0.12,
-        ".PA": 0.04,
-        "_ASIA": 0.0,
-        ".L": 0.21,
-        ".MC": 0.14,
-        ".ST": 0.17,
-        ".DE": 0.0,
-        ".MI": 0.17,
-        ".ASX": 0.12,
-        ".ZU": 0.0,
-        "_FUT": 1.0,
-        "_FOREX": 1.0,
-        ".OL": 1.0
-      }
-    },
     {
       "ts": "2026-07-18T20:30:32.110428+00:00",
       "rates": {
@@ -2094,6 +2092,39 @@
         ".MC": 0.0,
         "_CRYPTO": 0.0,
         ".ZU": 0.0
+      }
+    },
+    {
+      "ts": "2026-08-19T20:30:30.009669+00:00",
+      "rates": {
+        "_OTHER": 0.03,
+        ".ST": 0.0,
+        ".L": 0.0,
+        ".PA": 0.0,
+        ".OL": 0.0,
+        "_ASIA": 0.0,
+        "_CRYPTO": 0.0,
+        ".ASX": 0.0,
+        ".MI": 0.0,
+        ".DE": 0.0,
+        ".HE": 0.0,
+        ".MC": 0.0
+      }
+    },
+    {
+      "ts": "2026-08-20T20:30:22.506677+00:00",
+      "rates": {
+        "_OTHER": 0.03,
+        ".ST": 0.0,
+        ".L": 0.0,
+        ".PA": 0.0,
+        ".OL": 0.0,
+        "_ASIA": 0.0,
+        "_CRYPTO": 0.0,
+        ".ASX": 0.0,
+        ".MI": 0.0,
+        ".DE": 0.0,
+        ".HE": 0.0
       }
     }
   ]
