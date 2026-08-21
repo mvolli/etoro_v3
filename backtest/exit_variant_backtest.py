@@ -12,15 +12,26 @@ Variants (factorial: 3-level SL-Grid × Early-Lock × Chandelier-Trail):
 
 Commons:
   * Entry at NEXT bar open after signal bar (no lookahead; indicators use data ≤ t)
-  * One open trade per symbol at a time
+  * Intrabar causality: arm checks (Early-Lock peak, Chandelier trail) use data
+    through bar i-1 only — a bar's own high cannot arm a stop its own low hits
+  * One open trade per symbol AND per signal type (3 independent lanes; capital
+    per lane is unconstrained — a capacity model would be needed for that)
   * Full closes only (no partials, no broker TP), $1000 notional per trade
   * Intra-bar fills: Low ≤ stop → fill at min(Open, stop) (gap-aware, conservative)
   * Time stop: 20 bars (Bible stale-exit max) → close at Close
-  * Falling-Knife-Gate blocks DIP signals (≥4 down days / ROC5d ≤ -12% / ≥2.5 ATR below SMA20)
+  * Costs: --cost-pct X deducts a round-trip fee (X% of notional) from each trade;
+    metrics are reported NET, gross_pnl_usd kept per trade for the gross/net table
+  * Equity curve on CALENDAR days (unrealized M2M) → MDD/Sharpe on a daily basis;
+    capital_deployed = mean open-position notional (concentration measure)
+  * Benchmark: equal-weight buy&hold of the universe + SPY over the sim window
+  * Falling-Knife-Gate blocks DIP signals (≥4 down days / ROC5d ≤ -12% / ≥N ATR
+    below SMA20; N = --knife-atr, live default 2.5)
   * Data: yfinance auto_adjust=True (splits/dividends adjusted), disk-cached CSVs
 
 Usage:
-  cd etoro_v3 && /usr/bin/python3 backtest/exit_variant_backtest.py [--workers 4] [--limit N]
+  cd etoro_v3 && /usr/bin/python3 backtest/exit_variant_backtest.py
+      [--study main] [--start 2025-01-01] [--end ...] [--sim-start ...]
+      [--cost-pct 0.3] [--knife-atr 2.5] [--workers 4] [--limit N]
 """
 from __future__ import annotations
 
@@ -111,18 +122,28 @@ VARIANTS: list[Variant] = [
 # 3. DATA LOADING (yfinance, batched + disk-cached)
 # ──────────────────────────────────────────────────────────────────────────────
 
-def _cache_path(sym: str) -> Path:
+# Study presets: (data start, sim window start, sim window end, out tag)
+#   main = 2025-01 → today (primary study)
+#   bear = 2022-01 → 2023-12 (bear-cycle stress; data from 2021-06 for warmup)
+STUDIES: dict[str, dict] = {
+    "main": {"start": "2025-01-01", "sim_start": None,  "end": None},
+    "bear": {"start": "2021-06-01", "sim_start": "2022-01-01", "end": "2024-01-01"},
+}
+
+
+def _cache_path(sym: str, start: str, end: str | None) -> Path:
     safe = sym.replace("^", "x").replace("-", "_").replace("=", "")
-    return CACHE_DIR / f"{safe}.csv"
+    tag = end if end else "today"
+    return CACHE_DIR / f"{safe}_{start}_{tag}.csv"
 
 
-def load_ohlcv(symbols: list[str]) -> dict[str, pd.DataFrame]:
-    """Load OHLCV 2025-01-01→today with per-symbol disk cache."""
+def load_ohlcv(symbols: list[str], start: str, end: str | None = None) -> dict[str, pd.DataFrame]:
+    """Load OHLCV [start, end] with per-symbol + per-range disk cache."""
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     result: dict[str, pd.DataFrame] = {}
     missing: list[str] = []
     for sym in symbols:
-        p = _cache_path(sym)
+        p = _cache_path(sym, start, end)
         if p.exists():
             try:
                 df = pd.read_csv(p, parse_dates=["Date"], index_col="Date")
@@ -136,7 +157,7 @@ def load_ohlcv(symbols: list[str]) -> dict[str, pd.DataFrame]:
     for i in range(0, len(missing), 25):
         batch = missing[i:i + 25]
         try:
-            raw = yf.download(batch, start=START, end=END, auto_adjust=True,
+            raw = yf.download(batch, start=start, end=end, auto_adjust=True,
                               progress=False, threads=True)
         except Exception as e:
             print(f"  batch {batch[:3]}.. failed: {e}", file=sys.stderr)
@@ -163,7 +184,7 @@ def load_ohlcv(symbols: list[str]) -> dict[str, pd.DataFrame]:
             df = df[["Open", "High", "Low", "Close", "Volume"]].copy()
             df.index.name = "Date"
             try:
-                df.to_csv(_cache_path(sym))
+                df.to_csv(_cache_path(sym, start, end))
             except Exception:
                 pass
             result[sym] = df
@@ -207,8 +228,12 @@ def compute_arrays(df: pd.DataFrame) -> dict[str, np.ndarray]:
             "down_days": down_days, "roc5": roc5}
 
 
-def signal_mask(arr: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
-    """Per-bar boolean masks: DIP / MOMENTUM / MACD_TURN (indicators ≤ bar t)."""
+def signal_mask(arr: dict[str, np.ndarray], knife_atr: float) -> dict[str, np.ndarray]:
+    """Per-bar boolean masks: DIP / MOMENTUM / MACD_TURN (indicators ≤ bar t).
+
+    knife_atr: Falling-Knife-Gate ATR criterion (live default 2.5; higher =
+    looser gate = more DIP trades allowed through).
+    """
     c, rsi = arr["close"], arr["rsi"]
     hist, bb, atr = arr["hist"], arr["bb"], arr["atr"]
     sma20, sma50 = arr["sma20"], arr["sma50"]
@@ -223,7 +248,7 @@ def signal_mask(arr: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
     knife = (
         (arr["down_days"] >= KNIFE_MAX_DOWN_DAYS)
         | (arr["roc5"] <= KNIFE_MAX_ROC5D_PCT)
-        | (atr_dist >= KNIFE_MAX_ATR_BELOW_SMA20)
+        | (atr_dist >= knife_atr)
     )
 
     def ok(*masks) -> np.ndarray:
@@ -270,13 +295,19 @@ def signal_mask(arr: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
 # 5. BACKTEST ENGINE (one open trade per symbol, next-open entry)
 # ──────────────────────────────────────────────────────────────────────────────
 
-def simulate_symbol(sym: str, df: pd.DataFrame, variant: Variant) -> list[dict]:
+def simulate_symbol(sym: str, df: pd.DataFrame, variant: Variant,
+                    knife_atr: float = KNIFE_MAX_ATR_BELOW_SMA20,
+                    cost_pct: float = 0.0,
+                    min_entry: str | None = None) -> list[dict]:
     arr = compute_arrays(df)
-    masks = signal_mask(arr)
+    masks = signal_mask(arr, knife_atr)
     o, h, l, c = arr["open"], arr["high"], arr["low"], arr["close"]
     atr, sma20 = arr["atr"], arr["sma20"]
     n = len(c)
     dates = df.index
+    # round-trip cost (entry + exit) in % of notional, applied at trade level
+    cost_usd = TRADE_NOTIONAL * cost_pct / 100.0
+    date_strs = dates.strftime("%Y-%m-%d")
 
     out: list[dict] = []
     for sig_name, mask in masks.items():
@@ -290,7 +321,11 @@ def simulate_symbol(sym: str, df: pd.DataFrame, variant: Variant) -> list[dict]:
                 i = t
                 entry_price = o[entry_i]
                 sl_price = entry_price * (1 - (entry_sl_pct / 100.0)) if entry_sl_pct else None
-                peak_high = max(h[entry_i + 1: i + 1])
+                # INTRABAR CAUSALITY: arming state may only use bars ≤ i-1.
+                # A bar's own high must not arm a stop that the same bar's
+                # low then trips (intraday path order is unknowable → assume
+                # worst: high-after-low, so arming needs the previous bar).
+                peak_high = max(h[entry_i + 1: i]) if i > entry_i + 1 else h[entry_i]
                 peak_pct = (peak_high - entry_price) / entry_price * 100.0
 
                 exit_price = None
@@ -299,7 +334,7 @@ def simulate_symbol(sym: str, df: pd.DataFrame, variant: Variant) -> list[dict]:
                 if sl_price is not None and l[i] <= sl_price:
                     exit_price = min(o[i], sl_price)
                     exit_reason = "SL"
-                # 2) early lock (BE floor)
+                # 2) early lock (BE floor) — not checkable on the entry bar itself
                 if variant.early_lock and peak_pct >= BE_ARM_PCT:
                     floor = entry_price * (1 + BE_FLOOR_PCT / 100.0)
                     if l[i] <= floor:
@@ -307,10 +342,11 @@ def simulate_symbol(sym: str, df: pd.DataFrame, variant: Variant) -> list[dict]:
                         if exit_price is None or p < exit_price:
                             exit_price, exit_reason = p, "BE_LOCK"
                 # 3) chandelier trail
-                if variant.chandelier and peak_pct >= CHANDELIER_ARM_PCT and atr[i] == atr[i]:
-                    # highest close since entry (through bar i-1 to be causal)
+                if (variant.chandelier and peak_pct >= CHANDELIER_ARM_PCT
+                        and atr[i - 1] == atr[i - 1]):
+                    # ATR and highest close through bar i-1 (causal)
                     hc = max(c[entry_i + 1: i]) if i > entry_i + 1 else c[entry_i]
-                    stop = hc - CHANDELIER_MULT * atr[i]
+                    stop = hc - CHANDELIER_MULT * atr[i - 1]
                     # trail must never undercut entry (BE-floor already covers that)
                     stop = max(stop, entry_price)
                     if l[i] <= stop:
@@ -322,13 +358,15 @@ def simulate_symbol(sym: str, df: pd.DataFrame, variant: Variant) -> list[dict]:
                     exit_price, exit_reason = c[i], "TIME"
 
                 if exit_price is not None:
+                    gross_usd = TRADE_NOTIONAL * (exit_price / entry_price - 1.0)
                     out.append({
                         "symbol": sym, "signal": sig_name,
                         "entry_date": str(dates[entry_i].date()),
                         "exit_date": str(dates[i].date()),
-                        "entry": entry_price, "exit": exit_price,
+                        "entry": float(entry_price), "exit": float(exit_price),
                         "pnl_pct": (exit_price / entry_price - 1.0) * 100.0,
-                        "pnl_usd": TRADE_NOTIONAL * (exit_price / entry_price - 1.0),
+                        "gross_pnl_usd": float(gross_usd),
+                        "pnl_usd": float(gross_usd - cost_usd),
                         "bars": i - entry_i, "reason": exit_reason,
                     })
                     in_trade = False
@@ -336,13 +374,33 @@ def simulate_symbol(sym: str, df: pd.DataFrame, variant: Variant) -> list[dict]:
 
             # --- look for entry: signal on bar t, enter at open[t+1] ---
             if mask[t] and t + 1 < n:
+                e = t + 1
+                if min_entry is not None and date_strs[e] < min_entry:
+                    continue
                 in_trade = True
-                entry_i = t + 1
+                entry_i = e
                 if variant.atr_sl:
                     a = atr[t]
                     entry_sl_pct = min(max(1.5 * a / c[t] * 100.0, 3.0), 6.0) if a == a else 3.0
                 else:
                     entry_sl_pct = variant.sl_pct
+                # the SL is DEFINED at entry (level from data ≤ t) → it can fire
+                # on the entry bar itself. BE/Chandelier need a prior-bar peak,
+                # so they start the next bar.
+                if entry_sl_pct and l[e] <= o[e] * (1 - entry_sl_pct / 100.0):
+                    exit_price = min(o[e], o[e] * (1 - entry_sl_pct / 100.0))
+                    gross_usd = TRADE_NOTIONAL * (exit_price / o[e] - 1.0)
+                    out.append({
+                        "symbol": sym, "signal": sig_name,
+                        "entry_date": str(dates[e].date()),
+                        "exit_date": str(dates[e].date()),
+                        "entry": float(o[e]), "exit": float(exit_price),
+                        "pnl_pct": (exit_price / o[e] - 1.0) * 100.0,
+                        "gross_pnl_usd": float(gross_usd),
+                        "pnl_usd": float(gross_usd - cost_usd),
+                        "bars": 0, "reason": "SL",
+                    })
+                    in_trade = False  # closed on the entry bar — do not leave it open
     return out
 
 
@@ -350,7 +408,17 @@ def simulate_symbol(sym: str, df: pd.DataFrame, variant: Variant) -> list[dict]:
 # 6. METRICS
 # ──────────────────────────────────────────────────────────────────────────────
 
-def metrics(trades: list[dict]) -> dict:
+def metrics(trades: list[dict], calendar: list[str] | None = None,
+            mark_closes: dict[str, dict[str, float]] | None = None) -> dict:
+    """Aggregate trade stats.
+
+    Realized stats (n/WR/PF/avg/totals) are always computed. The equity curve
+    — and hence MDD and Sharpe — is built on a CALENDAR-day basis when
+    `calendar` (list of date strings) and `mark_closes` ({symbol: {date: close}})
+    are supplied: realized PnL books at exit, open positions are marked to the
+    day's close (no look-ahead). Without them, it falls back to booking realized
+    PnL on event days only (weaker, but still valid for per-signal slices).
+    """
     if not trades:
         return {"n": 0}
     pnls = np.array([t["pnl_pct"] for t in trades])
@@ -358,16 +426,43 @@ def metrics(trades: list[dict]) -> dict:
     losses = pnls[pnls <= 0]
     pf = (wins.sum() / abs(losses.sum())) if len(losses) and losses.sum() != 0 else (
         float("inf") if len(wins) else 0.0)
-    # equity curve (daily, $1k per trade, PnL booked on exit day)
-    all_dates = sorted({t["exit_date"] for t in trades})
+    total_net = float(np.sum([t["pnl_usd"] for t in trades]))
+    total_gross = float(np.sum([t.get("gross_pnl_usd", t["pnl_usd"]) for t in trades]))
+
+    # ---- equity curve ----
+    entries_by_date: dict[str, list[dict]] = {}
+    for t in trades:
+        entries_by_date.setdefault(t["entry_date"], []).append(t)
+
+    if calendar is not None and mark_closes is not None:
+        days = list(calendar)
+    else:
+        days = sorted({t["entry_date"] for t in trades} | {t["exit_date"] for t in trades})
+
     curve = []
     equity = INITIAL_EQUITY
-    daily = {}
-    for t in trades:
-        daily[t["exit_date"]] = daily.get(t["exit_date"], 0.0) + t["pnl_usd"]
-    for d in all_dates:
-        equity += daily.get(d, 0.0)
-        curve.append(equity)
+    open_pos: list[dict] = []
+    for d in days:
+        # book realized PnL for positions closing today
+        still = []
+        for t in open_pos:
+            if t["exit_date"] == d:
+                equity += t["pnl_usd"]
+            else:
+                still.append(t)
+        open_pos = still
+        # new positions entering today
+        for t in entries_by_date.get(d, []):
+            open_pos.append(t)
+        # mark open positions to today's close (unrealized, no look-ahead)
+        um = 0.0
+        if mark_closes is not None:
+            for t in open_pos:
+                cl = mark_closes.get(t["symbol"], {}).get(d)
+                if cl is not None and cl > 0:
+                    um += TRADE_NOTIONAL * (cl / t["entry"] - 1.0)
+        curve.append(equity + um)
+
     curve = np.array(curve)
     peak = np.maximum.accumulate(curve)
     mdd = float(((curve - peak) / peak).min() * 100) if len(curve) else 0.0
@@ -380,7 +475,9 @@ def metrics(trades: list[dict]) -> dict:
         "avg_loss": float(losses.mean()) if len(losses) else 0.0,
         "profit_factor": round(pf, 2) if pf != float("inf") else 99.0,
         "avg_pnl_pct": float(pnls.mean()),
-        "total_pnl_usd": float(np.sum([t["pnl_usd"] for t in trades])),
+        "total_pnl_usd": total_net,
+        "gross_pnl_usd": total_gross,
+        "costs_usd": round(total_gross - total_net, 2),
         "avg_bars": float(np.mean([t["bars"] for t in trades])),
         "mdd_pct": round(mdd, 2),
         "sharpe": round(sharpe, 2),
@@ -391,9 +488,49 @@ def metrics(trades: list[dict]) -> dict:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 7. WORKER + MAIN
+# 7. BENCHMARK (equal-weight B&H + SPY)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def benchmark(data: dict[str, pd.DataFrame], sim_start: str | None,
+              end: str | None) -> dict:
+    """Honest baselines: equal-weight buy-and-hold of the universe + SPY.
+
+    Per symbol: enter at first open ≥ sim_start (or ≥ START if none given),
+    exit at last close. No rebalancing. SPY = raw total return.
+    """
+    per_sym: dict[str, float] = {}
+    for sym, df in data.items():
+        d = df
+        if sim_start is not None:
+            d = d.loc[d.index >= pd.Timestamp(sim_start)]
+        if end is not None:
+            d = d.loc[d.index < pd.Timestamp(end)]
+        if d.empty or len(d) < 5:
+            continue
+        entry = float(d["Open"].iloc[0])
+        last = float(d["Close"].iloc[-1])
+        if entry > 0:
+            per_sym[sym] = last / entry - 1.0
+    eq_ret = float(np.mean(list(per_sym.values()))) if per_sym else 0.0
+    spy = None
+    if "SPY" in data:
+        d = data["SPY"]
+        if sim_start is not None:
+            d = d.loc[d.index >= pd.Timestamp(sim_start)]
+        if end is not None:
+            d = d.loc[d.index < pd.Timestamp(end)]
+        if len(d) >= 5:
+            spy = float(d["Close"].iloc[-1] / d["Open"].iloc[0] - 1.0)
+    return {"equal_weight_bh": {"n_symbols": len(per_sym),
+                                "total_return_pct": round(eq_ret * 100, 2)},
+            "spy_total_return_pct": round(spy * 100, 2) if spy is not None else None}
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 8. WORKER + MAIN
 # ──────────────────────────────────────────────────────────────────────────────
 _variant_ref: "Variant | None" = None
+_sim_params: tuple = (KNIFE_MAX_ATR_BELOW_SMA20, 0.0, None)  # (knife_atr, cost_pct, min_entry)
 
 
 def _process_symbol(args):
@@ -401,34 +538,63 @@ def _process_symbol(args):
     sym, cache_csv = args
     variant = _variant_ref
     assert variant is not None
+    knife_atr, cost_pct, min_entry = _sim_params
     df = pd.read_csv(cache_csv, parse_dates=["Date"], index_col="Date")
-    trades = simulate_symbol(sym, df, variant)
+    trades = simulate_symbol(sym, df, variant, knife_atr=knife_atr,
+                             cost_pct=cost_pct, min_entry=min_entry)
     return trades
 
 
 def main() -> int:
-    global _variant_ref
+    global _variant_ref, _sim_params
     ap = argparse.ArgumentParser()
     ap.add_argument("--workers", type=int, default=max(2, cpu_count() // 2))
     ap.add_argument("--limit", type=int, default=0, help="only first N symbols (smoke test)")
+    ap.add_argument("--study", choices=sorted(STUDIES.keys()), default="main",
+                    help="date-range preset (main=2025→today, bear=2022-23 stress)")
+    ap.add_argument("--start", default=None, help="override data start (ISO)")
+    ap.add_argument("--sim-start", default=None, help="override sim window start (ISO)")
+    ap.add_argument("--end", default=None, help="override sim window end (ISO, exclusive)")
+    ap.add_argument("--knife-atr", type=float, default=KNIFE_MAX_ATR_BELOW_SMA20,
+                    help=f"knife-gate ATR-below-SMA20 threshold (default {KNIFE_MAX_ATR_BELOW_SMA20})")
+    ap.add_argument("--cost-pct", type=float, default=0.0,
+                    help="round-trip cost %% per trade (0.2 = 20 bps each way)")
+    ap.add_argument("--out", default=None, help="output JSON tag (default: study name)")
     args = ap.parse_args()
+
+    st = dict(STUDIES[args.study])
+    start = args.start or st["start"]
+    sim_start = args.sim_start if args.sim_start is not None else st["sim_start"]
+    end = args.end if args.end is not None else st["end"]
+    sim_start = sim_start or START
+    if args.out:
+        tag = args.out
+    else:
+        tag = args.study
+        if args.knife_atr != KNIFE_MAX_ATR_BELOW_SMA20:
+            tag += f"_ka{args.knife_atr:g}"
+        if args.cost_pct > 0:
+            tag += f"_c{args.cost_pct:g}"
+        if args.start or args.sim_start or args.end:
+            tag += "_custom"
+    _sim_params = (args.knife_atr, args.cost_pct, sim_start)
 
     t0 = time.time()
     symbols = UNIVERSE_SYMBOLS[:args.limit] if args.limit else UNIVERSE_SYMBOLS
-    print(f"Universe: {len(symbols)} symbols, {len(UNIVERSE)} asset groups")
-    print("Loading OHLCV 2025-01-01 → today (cached)...")
-    data = load_ohlcv(symbols)
+    print(f"Study: {tag} | data {start} → {end or 'today'} | sim window from {sim_start}")
+    print(f"Universe: {len(symbols)} symbols | knife_atr={args.knife_atr} | cost={args.cost_pct}%/rt")
+    data = load_ohlcv(symbols, start, end)
     print(f"  loaded {len(data)}/{len(symbols)} symbols in {time.time()-t0:.1f}s")
     failed = [s for s in symbols if s not in data]
     if failed:
         print(f"  FAILED (skipped): {failed}")
 
-    # cache to disk for the worker pool
+    # per-symbol CSVs for the worker pool (sim window slice)
     tmp = ROOT / "data" / "backtest_symfiles"
     tmp.mkdir(parents=True, exist_ok=True)
     paths = []
     for sym, df in data.items():
-        p = tmp / f"{sym.replace('^','x').replace('-','_')}.csv"
+        p = tmp / f"{tag}_{sym.replace('^','x').replace('-','_')}.csv"
         df.to_csv(p)
         paths.append((sym, str(p)))
 
@@ -441,27 +607,57 @@ def main() -> int:
                 results.setdefault(v.key, []).extend(sym_trades)
         print(f"  {v.key} {v.name}: {len(results[v.key])} trades in {time.time()-t_v:.1f}s")
 
-    # aggregate
+    # calendar + mark closes for the overall equity curve (sim window only)
+    all_dates = sorted({d for df in data.values()
+                        for d in df.index.strftime("%Y-%m-%d").tolist()
+                        if d >= sim_start and (end is None or d < end)})
+    mark_closes = {}
+    for sym, df in data.items():
+        d = df.loc[df.index.strftime("%Y-%m-%d") >= sim_start]
+        if end:
+            d = d.loc[d.index.strftime("%Y-%m-%d") < end]
+        mark_closes[sym] = {ds: float(c) for ds, c in
+                            zip(d.index.strftime("%Y-%m-%d"), d["Close"])}
+
+    # aggregate — per-signal stats only over trades that ENTERED in the sim
+    # window (the overall curve keeps boundary trades so open positions settle)
+    in_win = lambda tr: [t for t in tr
+                         if t["entry_date"] >= sim_start
+                         and (end is None or t["entry_date"] < end)]
     summary = {}
     for v in VARIANTS:
         tr = results[v.key]
-        by_sig = {s: metrics([t for t in tr if t["signal"] == s])
+        tw = in_win(tr)
+        by_sig = {s: metrics([t for t in tw if t["signal"] == s])
                   for s in ("DIP", "MOMENTUM", "MACD_TURN")}
-        summary[v.key] = {"name": v.name, "overall": metrics(tr), **{f"sig_{s}": m for s, m in by_sig.items()}}
+        overall = metrics(tw, calendar=all_dates, mark_closes=mark_closes)
+        summary[v.key] = {"name": v.name, "overall": overall,
+                          **{f"sig_{s}": m for s, m in by_sig.items()}}
 
-    out_path = ROOT / "backtest" / "results" / "exit_variant_results.json"
+    out_path = ROOT / "backtest" / "results" / f"exit_variant_results_{tag}.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {"generated": pd.Timestamp.utcnow().isoformat(), "start": START,
+    payload = {"generated": pd.Timestamp.now(tz="UTC").isoformat(),
+               "study": tag, "data_start": start, "sim_start": sim_start,
+               "sim_end": end, "knife_atr": args.knife_atr, "cost_pct": args.cost_pct,
+               "benchmark": benchmark(data, sim_start, end),
                "symbols": list(data.keys()), "n_symbols": len(data),
-               "trades_per_variant": {k: len(vv) for k, vv in results.items()},
+               "trades_per_variant": {k: len(in_win(vv)) for k, vv in results.items()},
                "summary": summary}
     out_path.write_text(json.dumps(payload, indent=2, default=str))
     print(f"\nResults → {out_path}")
     print(f"Total wall time: {time.time()-t0:.1f}s")
 
     # console table
+    bm = payload["benchmark"]
+    print(f"\n=== BENCHMARK (sim {sim_start} → {end or 'today'}) ===")
+    print(f"  equal-weight B&H ({bm['equal_weight_bh']['n_symbols']} sym): "
+          f"{bm['equal_weight_bh']['total_return_pct']:+.2f}%")
+    if bm["spy_total_return_pct"] is not None:
+        print(f"  SPY total return: {bm['spy_total_return_pct']:+.2f}%")
+
     print("\n=== OVERALL BY VARIANT ===")
-    hdr = f"{'Var':4} {'Name':26} {'Trades':>7} {'WR%':>6} {'PF':>6} {'Avg%':>7} {'TotPnL$':>10} {'MDD%':>7} {'Sharpe':>7}"
+    hdr = (f"{'Var':4} {'Name':26} {'Trades':>7} {'WR%':>6} {'PF':>6} {'Avg%':>7} "
+           f"{'Gross$':>9} {'Net$':>9} {'Cost$':>7} {'MDD%':>7} {'Sharpe':>7}")
     print(hdr)
     for v in VARIANTS:
         m = summary[v.key]["overall"]
@@ -469,7 +665,8 @@ def main() -> int:
             print(f"{v.key:4} {v.name:26} {'0':>7}")
             continue
         print(f"{v.key:4} {v.name:26} {m['n']:>7} {m['wr']:>6.1f} {m['profit_factor']:>6.2f} "
-              f"{m['avg_pnl_pct']:>7.2f} {m['total_pnl_usd']:>10.0f} {m['mdd_pct']:>7.1f} {m['sharpe']:>7.2f}")
+              f"{m['avg_pnl_pct']:>7.2f} {m['gross_pnl_usd']:>9.0f} {m['total_pnl_usd']:>9.0f} "
+              f"{m['costs_usd']:>7.0f} {m['mdd_pct']:>7.1f} {m['sharpe']:>7.2f}")
 
     print("\n=== BY SIGNAL TYPE (per variant) ===")
     for v in VARIANTS:

@@ -1,0 +1,342 @@
+{
+  "generated": "2026-08-21T19:52:41.234209+00:00",
+  "study": "bear_ka2.5_c0.3",
+  "data_start": "2021-06-01",
+  "sim_start": "2022-01-01",
+  "sim_end": "2024-01-01",
+  "knife_atr": 2.5,
+  "cost_pct": 0.3,
+  "benchmark": {
+    "equal_weight_bh": {
+      "n_symbols": 39,
+      "total_return_pct": 5.67
+    },
+    "spy_total_return_pct": 2.95
+  },
+  "symbols": [
+    "AAPL",
+    "MSFT",
+    "NVDA",
+    "GOOGL",
+    "AMZN",
+    "META",
+    "TSLA",
+    "AVGO",
+    "AMD",
+    "NFLX",
+    "UBER",
+    "ABNB",
+    "SHOP",
+    "PLTR",
+    "MELI",
+    "SPY",
+    "QQQ",
+    "IWM",
+    "VOO",
+    "GLD",
+    "TLT",
+    "XLE",
+    "SMH",
+    "JPM",
+    "V",
+    "PG",
+    "KO",
+    "JNJ",
+    "WMT",
+    "UNH",
+    "XOM",
+    "LLY",
+    "BTC-USD",
+    "ETH-USD",
+    "FXI",
+    "KWEB",
+    "EWJ",
+    "FXA",
+    "EAF"
+  ],
+  "n_symbols": 39,
+  "trades_per_variant": {
+    "V0": 1336,
+    "V1": 1123,
+    "V2": 1470,
+    "V3": 1474
+  },
+  "summary": {
+    "V0": {
+      "name": "SL-Grid",
+      "overall": {
+        "n": 1336,
+        "wr": 25.0,
+        "avg_win": 10.861078200996145,
+        "avg_loss": -3.065683658900075,
+        "profit_factor": 1.18,
+        "avg_pnl_pct": 0.4160068060739792,
+        "total_pnl_usd": 1549.8509291483651,
+        "gross_pnl_usd": 5557.850929148366,
+        "costs_usd": 4008.0,
+        "avg_bars": 8.819610778443113,
+        "mdd_pct": -318.35,
+        "sharpe": 0.22,
+        "final_equity": 26457.0,
+        "by_reason": {
+          "SL": 963,
+          "BE_LOCK": 0,
+          "CHANDELIER": 0,
+          "TIME": 373
+        }
+      },
+      "sig_DIP": {
+        "n": 0
+      },
+      "sig_MOMENTUM": {
+        "n": 267,
+        "wr": 26.96629213483146,
+        "avg_win": 9.381315132410672,
+        "avg_loss": -2.981258091263737,
+        "profit_factor": 1.16,
+        "avg_pnl_pct": 0.3524695196147555,
+        "total_pnl_usd": 140.0936173713971,
+        "gross_pnl_usd": 941.0936173713972,
+        "costs_usd": 801.0,
+        "avg_bars": 9.573033707865168,
+        "mdd_pct": -13.36,
+        "sharpe": 0.57,
+        "final_equity": 10767.09,
+        "by_reason": {
+          "SL": 183,
+          "BE_LOCK": 0,
+          "CHANDELIER": 0,
+          "TIME": 84
+        }
+      },
+      "sig_MACD_TURN": {
+        "n": 1069,
+        "wr": 24.5088868101029,
+        "avg_win": 11.267730647324974,
+        "avg_loss": -3.086083888998075,
+        "profit_factor": 1.19,
+        "avg_pnl_pct": 0.43187626864143747,
+        "total_pnl_usd": 1409.757311776968,
+        "gross_pnl_usd": 4616.757311776968,
+        "costs_usd": 3207.0,
+        "avg_bars": 8.631431244153415,
+        "mdd_pct": -73.99,
+        "sharpe": 0.83,
+        "final_equity": 17118.76,
+        "by_reason": {
+          "SL": 780,
+          "BE_LOCK": 0,
+          "CHANDELIER": 0,
+          "TIME": 289
+        }
+      }
+    },
+    "V1": {
+      "name": "SL-Grid\u00d73 (ATR)",
+      "overall": {
+        "n": 1123,
+        "wr": 31.87889581478183,
+        "avg_win": 10.222207900086618,
+        "avg_loss": -4.541402698030943,
+        "profit_factor": 1.05,
+        "avg_pnl_pct": 0.16507334304304352,
+        "total_pnl_usd": -1515.2263576266223,
+        "gross_pnl_usd": 1853.7736423733782,
+        "costs_usd": 3369.0,
+        "avg_bars": 11.22172751558326,
+        "mdd_pct": -187.88,
+        "sharpe": 0.09,
+        "final_equity": 11460.9,
+        "by_reason": {
+          "SL": 715,
+          "BE_LOCK": 0,
+          "CHANDELIER": 0,
+          "TIME": 408
+        }
+      },
+      "sig_DIP": {
+        "n": 0
+      },
+      "sig_MOMENTUM": {
+        "n": 249,
+        "wr": 32.53012048192771,
+        "avg_win": 9.756130361822562,
+        "avg_loss": -4.191901978582484,
+        "profit_factor": 1.12,
+        "avg_pnl_pct": 0.34540974660951945,
+        "total_pnl_usd": 113.07026905770397,
+        "gross_pnl_usd": 860.0702690577039,
+        "costs_usd": 747.0,
+        "avg_bars": 11.558232931726907,
+        "mdd_pct": -19.93,
+        "sharpe": 0.24,
+        "final_equity": 10280.06,
+        "by_reason": {
+          "SL": 153,
+          "BE_LOCK": 0,
+          "CHANDELIER": 0,
+          "TIME": 96
+        }
+      },
+      "sig_MACD_TURN": {
+        "n": 874,
+        "wr": 31.69336384439359,
+        "avg_win": 10.35849772174506,
+        "avg_loss": -4.6397546592827705,
+        "profit_factor": 1.04,
+        "avg_pnl_pct": 0.11369603813680482,
+        "total_pnl_usd": -1628.2966266843252,
+        "gross_pnl_usd": 993.7033733156745,
+        "costs_usd": 2622.0,
+        "avg_bars": 11.125858123569794,
+        "mdd_pct": -113.09,
+        "sharpe": -0.87,
+        "final_equity": 10035.85,
+        "by_reason": {
+          "SL": 562,
+          "BE_LOCK": 0,
+          "CHANDELIER": 0,
+          "TIME": 312
+        }
+      }
+    },
+    "V2": {
+      "name": "Early-Lock",
+      "overall": {
+        "n": 1470,
+        "wr": 42.10884353741496,
+        "avg_win": 4.95328594813116,
+        "avg_loss": -2.979558678724504,
+        "profit_factor": 1.21,
+        "avg_pnl_pct": 0.36087045326437767,
+        "total_pnl_usd": 894.7956629863506,
+        "gross_pnl_usd": 5304.795662986351,
+        "costs_usd": 4410.0,
+        "avg_bars": 6.736054421768707,
+        "mdd_pct": -307.78,
+        "sharpe": -0.26,
+        "final_equity": 27717.49,
+        "by_reason": {
+          "SL": 797,
+          "BE_LOCK": 423,
+          "CHANDELIER": 0,
+          "TIME": 250
+        }
+      },
+      "sig_DIP": {
+        "n": 0
+      },
+      "sig_MOMENTUM": {
+        "n": 289,
+        "wr": 44.29065743944637,
+        "avg_win": 4.882227643905646,
+        "avg_loss": -2.9643198653663227,
+        "profit_factor": 1.31,
+        "avg_pnl_pct": 0.5109676127887359,
+        "total_pnl_usd": 609.6964009594467,
+        "gross_pnl_usd": 1476.6964009594467,
+        "costs_usd": 867.0,
+        "avg_bars": 7.782006920415225,
+        "mdd_pct": -12.4,
+        "sharpe": 0.99,
+        "final_equity": 11368.7,
+        "by_reason": {
+          "SL": 151,
+          "BE_LOCK": 76,
+          "CHANDELIER": 0,
+          "TIME": 62
+        }
+      },
+      "sig_MACD_TURN": {
+        "n": 1181,
+        "wr": 41.57493649449619,
+        "avg_win": 4.971810312572841,
+        "avg_loss": -2.983114401841413,
+        "profit_factor": 1.19,
+        "avg_pnl_pct": 0.3241404963612959,
+        "total_pnl_usd": 285.09926202690343,
+        "gross_pnl_usd": 3828.099262026904,
+        "costs_usd": 3543.0,
+        "avg_bars": 6.4801016088060965,
+        "mdd_pct": -58.18,
+        "sharpe": 0.97,
+        "final_equity": 16819.1,
+        "by_reason": {
+          "SL": 646,
+          "BE_LOCK": 347,
+          "CHANDELIER": 0,
+          "TIME": 188
+        }
+      }
+    },
+    "V3": {
+      "name": "Early-Lock+Chandelier",
+      "overall": {
+        "n": 1474,
+        "wr": 24.016282225237447,
+        "avg_win": 8.456339190866741,
+        "avg_loss": -2.2589962681480764,
+        "profit_factor": 1.18,
+        "avg_pnl_pct": 0.31442893706986474,
+        "total_pnl_usd": 212.6825324098064,
+        "gross_pnl_usd": 4634.682532409806,
+        "costs_usd": 4422.0,
+        "avg_bars": 6.654002713704206,
+        "mdd_pct": -304.06,
+        "sharpe": 0.65,
+        "final_equity": 27002.38,
+        "by_reason": {
+          "SL": 796,
+          "BE_LOCK": 137,
+          "CHANDELIER": 315,
+          "TIME": 226
+        }
+      },
+      "sig_DIP": {
+        "n": 0
+      },
+      "sig_MOMENTUM": {
+        "n": 290,
+        "wr": 28.965517241379313,
+        "avg_win": 7.4300180161987495,
+        "avg_loss": -2.3009786492213293,
+        "profit_factor": 1.32,
+        "avg_pnl_pct": 0.5176548676589693,
+        "total_pnl_usd": 631.1991162110107,
+        "gross_pnl_usd": 1501.199116211011,
+        "costs_usd": 870.0,
+        "avg_bars": 7.789655172413793,
+        "mdd_pct": -12.27,
+        "sharpe": 1.0,
+        "final_equity": 11390.2,
+        "by_reason": {
+          "SL": 150,
+          "BE_LOCK": 26,
+          "CHANDELIER": 56,
+          "TIME": 58
+        }
+      },
+      "sig_MACD_TURN": {
+        "n": 1184,
+        "wr": 22.804054054054053,
+        "avg_win": 8.775639111874558,
+        "avg_loss": -2.2495341560024635,
+        "profit_factor": 1.15,
+        "avg_pnl_pct": 0.2646523155573307,
+        "total_pnl_usd": -418.5165838012051,
+        "gross_pnl_usd": 3133.483416198795,
+        "costs_usd": 3552.0,
+        "avg_bars": 6.375844594594595,
+        "mdd_pct": -61.46,
+        "sharpe": 0.89,
+        "final_equity": 16082.48,
+        "by_reason": {
+          "SL": 646,
+          "BE_LOCK": 111,
+          "CHANDELIER": 259,
+          "TIME": 168
+        }
+      }
+    }
+  }
+}
