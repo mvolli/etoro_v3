@@ -61,6 +61,62 @@ def _discord(fn_name: str, **kwargs):
         pass
     return None
 
+
+def maybe_post_regime_alert(state_repo, regime: str, drawdown_pct: float,
+                            current_equity: float, peak_equity: float,
+                            discord=None) -> bool:
+    """Regime-Eintrittsmeldung — feuert nur beim WECHSEL. True = gepostet.
+
+    Zwei Eigenschaften, die beide schon einmal falsch waren:
+
+    1. Der Alert ist ein WECHSEL-Ereignis, kein Zustand. Vor
+       fix/regime-alert-dedupe (2026-08-21) postete er in JEDEM 30-min-Zyklus,
+       solange das Regime anhielt — 20-48 Meldungen taeglich. `REGIME_ALERTED`
+       in `system_state` haelt fest, wofuer schon alarmiert wurde.
+    2. Das Flag wird ERST nach erfolgreichem Post gesetzt
+       (fix/regime-alert-set-after-post). Stand das `set()` davor, galt das
+       Regime nach einem fehlgeschlagenen Discord-Post als gemeldet und die
+       Eintrittsmeldung ins DEFENSIVE/CRITICAL-Regime ging DAUERHAFT verloren.
+       Das ist kein Spam-, sondern ein Stillstands-Risiko bei genau der
+       Meldung, die zaehlt.
+
+    `discord` ist injizierbar (Test ohne Netzwerk); Default ist `_discord`.
+    Rueckgabe von `post_alert_embed`: Message-ID bzw. True, sonst False —
+    `_discord` kapselt Ausnahmen zu None.
+    """
+    post = discord if discord is not None else _discord
+
+    if regime not in ("DEFENSIVE", "CRITICAL"):
+        # Zurueck in NORMAL/CAUTION: Flag freigeben, damit der naechste
+        # Eintritt wieder meldet.
+        if (state_repo.get("REGIME_ALERTED") or "") not in ("", "NORMAL"):
+            state_repo.set("REGIME_ALERTED", "NORMAL")
+        return False
+
+    if (state_repo.get("REGIME_ALERTED") or "") == regime:
+        return False  # fuer dieses Regime bereits gemeldet
+
+    risk_scalar = float(state_repo.get("RISK_SCALAR") or "0.5")
+    ok = post(
+        "post_alert_embed",
+        title=f"{'🔴' if regime == 'CRITICAL' else '🟠'} {regime}-Regime aktiv",
+        description=(
+            f"Drawdown: **{drawdown_pct:.2f}%** | risk_scalar={risk_scalar:.2f}\n"
+            f"Equity: **${current_equity:.2f}** | Peak: **${peak_equity:.2f}**\n"
+            f"{'Nur VERY_HIGH Signale' if regime == 'CRITICAL' else 'Nur HIGH+ Signale'}"
+            " — kein Pyramiding."
+        ),
+        severity="CRITICAL" if regime == "CRITICAL" else "WARNING",
+    )
+    if ok:
+        state_repo.set("REGIME_ALERTED", regime)
+        return True
+    logger.warning(
+        "[%s] Regime-Alert (%s) nicht zugestellt — Flag bleibt offen, "
+        "naechster Zyklus versucht erneut", WORKER_NAME, regime,
+    )
+    return False
+
 # ── constants ─────────────────────────────────────────────────────────────────
 WORKER_NAME = "reconciler"
 ORPHAN_THRESHOLD_MINUTES = 5
@@ -1615,31 +1671,12 @@ def main() -> int:
                         ),
                         severity="CRITICAL",
                     )
-                # Regime-Alert (DEFENSIVE/CRITICAL) — NUR bei Regime-WECHSEL
-                # (fix/regime-alert-dedupe 2026-08-21: 103 Fires in 7 Tagen,
-                # weil der Alert in JEDEM 30-min-Zyklus postete, solange das
-                # Regime persistierte. Der Alert ist ein Wechsel-Ereignis,
-                # kein Zustand — Persistenz gehört in den Heartbeat-Embed,
-                # der ohnehin 30-min-regelmaessig cb_status mitliefert.)
-                if regime in ("DEFENSIVE", "CRITICAL"):
-                    _last_alerted = state_repo.get("REGIME_ALERTED") or ""
-                    if _last_alerted != regime:
-                        state_repo.set("REGIME_ALERTED", regime)
-                        _risk_scalar = float(state_repo.get("RISK_SCALAR") or "0.5")
-                        _discord(
-                            "post_alert_embed",
-                            title=f"{'🔴' if regime == 'CRITICAL' else '🟠'} {regime}-Regime aktiv",
-                            description=(
-                                f"Drawdown: **{drawdown_pct:.2f}%** | risk_scalar={_risk_scalar:.2f}\n"
-                                f"Equity: **${current_equity:.2f}** | Peak: **${peak_equity:.2f}**\n"
-                                f"{'Nur VERY_HIGH Signale' if regime == 'CRITICAL' else 'Nur HIGH+ Signale'} — kein Pyramiding."
-                            ),
-                            severity="CRITICAL" if regime == "CRITICAL" else "WARNING",
-                        )
-                elif (state_repo.get("REGIME_ALERTED") or "") not in ("", "NORMAL"):
-                    # Regime zurück in NORMAL/CAUTION — Flag reset, damit die
-                    # nächste DEFENSIVE/CRITICAL-Eintrittsmeldung wieder feuert
-                    state_repo.set("REGIME_ALERTED", "NORMAL")
+                # Regime-Eintrittsmeldung (nur bei WECHSEL, Flag erst nach
+                # erfolgreichem Post) — Logik + Tests in
+                # maybe_post_regime_alert() / test_reconciler_regime_alert.py
+                maybe_post_regime_alert(
+                    state_repo, regime, drawdown_pct, current_equity, peak_equity
+                )
         except Exception as _hb_exc:
             logger.debug(f"[{WORKER_NAME}] Heartbeat-Embed uebersprungen: {_hb_exc}")
 
