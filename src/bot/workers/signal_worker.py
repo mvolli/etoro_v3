@@ -977,10 +977,17 @@ def main() -> None:
             buy_amount = round((pct / 100.0) * equity * buy_aggressiveness, 2)
 
             # Kelly: dynamische Groessenkorrektur basierend auf Signal-Performance (Prio 1)
-            # Half-Kelly [0.3, 1.5]: mehr Kapital in bewiesene Signale, weniger in schwache.
+            # Risk-neutral Scale (fix/kelly-risk-neutral 2026-08-22): gewichtetes
+            # Mittel ~0.30 (Kalibrierung an 243 Closed Trades) — das Risiko-Niveau
+            # des Kontos bleibt beim getesteten Wert. Proven Lossbringer konnen bis
+            # kelly_min_factor (default 0.15) runterskaliert werden, Proven Edges
+            # steigen ueber den Base-Wert. Params: config.yaml sizing.kelly_*.
             try:
                 from bot.core.sizing import kelly_size_factor
-                _k = kelly_size_factor(signal.get("signal_type", ""), db)
+                _k = kelly_size_factor(
+                    signal.get("signal_type", ""),
+                    db,
+                )
                 if _k != 1.0:
                     _old_amt = buy_amount
                     buy_amount = round(buy_amount * _k, 2)

@@ -85,6 +85,13 @@ class SizingConfig:
     high_pct: float = 7.0
     medium_pct: float = 6.0
     low_pct: float = 2.0
+    # Risk-neutral Kelly scale (fix/kelly-risk-neutral, 2026-08-21):
+    # factor = clamp(kelly_base + kelly_scale * kelly, kelly_min_factor, kelly_max_factor)
+    kelly_min_trades: int = 25     # min trades before Kelly scaling kicks in
+    kelly_base: float = 0.49       # calibrated so trade-weighted mean ≈ 0.30 (tested risk level)
+    kelly_scale: float = 0.45      # multiplier on the Kelly fraction
+    kelly_min_factor: float = 0.15 # floor: negative-edge combos shrink to this
+    kelly_max_factor: float = 0.94 # cap = base + scale (natuerliche Grenze bei kelly=1.0)
 
 
 @dataclass

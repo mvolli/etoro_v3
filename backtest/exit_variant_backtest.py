@@ -21,8 +21,12 @@ Commons:
   * Time stop: 20 bars (Bible stale-exit max) → close at Close
   * Costs: --cost-pct X deducts a round-trip fee (X% of notional) from each trade;
     metrics are reported NET, gross_pnl_usd kept per trade for the gross/net table
-  * Equity curve on CALENDAR days (unrealized M2M) → MDD/Sharpe on a daily basis;
-    capital_deployed = mean open-position notional (concentration measure)
+  * MDD/Sharpe on the STRATEGY-PnL curve (realized + unrealized, calendar
+    days), NOT the leveraged book: MDD in $ and % of peak equity; Sharpe =
+    daily PnL returns normalized by AVERAGE BOUND CAPITAL (return on capital
+    deployed), annualized ×√252. (Fix 2026-08-22: old version measured the
+    ~21×$1k long book against a 10k base → −84% MDD on a winning run and
+    Sharpe 2.8 on losing variants.)
   * Benchmark: equal-weight buy&hold of the universe + SPY over the sim window
   * Falling-Knife-Gate blocks DIP signals (≥4 down days / ROC5d ≤ -12% / ≥N ATR
     below SMA20; N = --knife-atr, live default 2.5)
@@ -412,12 +416,21 @@ def metrics(trades: list[dict], calendar: list[str] | None = None,
             mark_closes: dict[str, dict[str, float]] | None = None) -> dict:
     """Aggregate trade stats.
 
-    Realized stats (n/WR/PF/avg/totals) are always computed. The equity curve
-    — and hence MDD and Sharpe — is built on a CALENDAR-day basis when
-    `calendar` (list of date strings) and `mark_closes` ({symbol: {date: close}})
-    are supplied: realized PnL books at exit, open positions are marked to the
-    day's close (no look-ahead). Without them, it falls back to booking realized
-    PnL on event days only (weaker, but still valid for per-signal slices).
+    Realized stats (n/WR/PF/avg/totals) are always computed. The risk metrics
+    (MDD, Sharpe) are built from the STRATEGY-PnL curve, NOT the leveraged
+    book:
+
+    * MDD — peak-to-trough of (realized + unrealized) PnL, reported in $ and
+      as % of peak equity. The old version measured the ~21×$1k long book
+      swinging against a 10k base, which produced −84% MDD on a +$3.8k PnL
+      run (an impossibility).
+    * Sharpe — daily returns of that PnL curve normalized by AVERAGE BOUND
+      CAPITAL (return on capital deployed), annualized ×√252. The old version
+      measured beta of the long book, so losing variants scored Sharpe 2.8.
+
+    When `calendar` + `mark_closes` are supplied the curve is on a CALENDAR-day
+    basis with open positions marked to the day's close (no look-ahead).
+    Without them it falls back to event days (weaker, still valid for slices).
     """
     if not trades:
         return {"n": 0}
@@ -439,35 +452,51 @@ def metrics(trades: list[dict], calendar: list[str] | None = None,
     else:
         days = sorted({t["entry_date"] for t in trades} | {t["exit_date"] for t in trades})
 
-    curve = []
-    equity = INITIAL_EQUITY
+    pcurve = []
+    capcurve = []
+    realized = 0.0
     open_pos: list[dict] = []
     for d in days:
         # book realized PnL for positions closing today
         still = []
         for t in open_pos:
             if t["exit_date"] == d:
-                equity += t["pnl_usd"]
+                realized += t["pnl_usd"]
             else:
                 still.append(t)
         open_pos = still
         # new positions entering today
         for t in entries_by_date.get(d, []):
             open_pos.append(t)
-        # mark open positions to today's close (unrealized, no look-ahead)
+        # mark open positions to today's close (unrealized, no look-ahead);
+        # bound capital = sum of notional of open positions
         um = 0.0
+        cap = 0.0
         if mark_closes is not None:
             for t in open_pos:
                 cl = mark_closes.get(t["symbol"], {}).get(d)
                 if cl is not None and cl > 0:
                     um += TRADE_NOTIONAL * (cl / t["entry"] - 1.0)
-        curve.append(equity + um)
+                cap += TRADE_NOTIONAL
+        pcurve.append(realized + um)
+        capcurve.append(cap)
 
-    curve = np.array(curve)
-    peak = np.maximum.accumulate(curve)
-    mdd = float(((curve - peak) / peak).min() * 100) if len(curve) else 0.0
-    returns = np.diff(curve) / curve[:-1] if len(curve) > 1 else np.array([0.0])
-    sharpe = float(returns.mean() / returns.std() * math.sqrt(252)) if returns.std() > 0 else 0.0
+    pcurve = np.array(pcurve)
+    capcurve = np.array(capcurve)
+    # MDD of the STRATEGY PnL curve (peak-to-trough in $, then % of peak
+    # equity) — NOT the leveraged book against a 10k base.
+    ppeak = np.maximum.accumulate(pcurve)
+    mdd_usd = float((pcurve - ppeak).min()) if len(pcurve) else 0.0
+    base_eq = INITIAL_EQUITY + float(ppeak.max())
+    mdd = float((mdd_usd / base_eq) * 100) if base_eq > 0 else 0.0
+    # Sharpe of strategy PnL normalized by AVERAGE BOUND CAPITAL (return on
+    # capital deployed, not beta of a ~21k long book on a 10k base).
+    cap_avg = float(capcurve.mean()) if len(capcurve) else 0.0
+    if len(pcurve) > 1 and cap_avg > 0:
+        rets = np.diff(pcurve) / cap_avg
+        sharpe = float(rets.mean() / rets.std() * math.sqrt(252)) if rets.std() > 0 else 0.0
+    else:
+        sharpe = 0.0
     return {
         "n": len(trades),
         "wr": float((pnls > 0).mean() * 100),
@@ -479,9 +508,12 @@ def metrics(trades: list[dict], calendar: list[str] | None = None,
         "gross_pnl_usd": total_gross,
         "costs_usd": round(total_gross - total_net, 2),
         "avg_bars": float(np.mean([t["bars"] for t in trades])),
+        "mdd_usd": round(mdd_usd, 2),
         "mdd_pct": round(mdd, 2),
         "sharpe": round(sharpe, 2),
-        "final_equity": round(float(curve[-1]), 2) if len(curve) else INITIAL_EQUITY,
+        "bound_capital_avg": round(cap_avg, 2),
+        "bound_capital_peak": round(float(capcurve.max()), 2) if len(capcurve) else 0.0,
+        "final_pnl_curve": round(float(pcurve[-1]), 2) if len(pcurve) else 0.0,
         "by_reason": {r: sum(1 for t in trades if t["reason"] == r)
                       for r in ("SL", "BE_LOCK", "CHANDELIER", "TIME")},
     }
@@ -657,8 +689,11 @@ def main() -> int:
 
     print("\n=== OVERALL BY VARIANT ===")
     hdr = (f"{'Var':4} {'Name':26} {'Trades':>7} {'WR%':>6} {'PF':>6} {'Avg%':>7} "
-           f"{'Gross$':>9} {'Net$':>9} {'Cost$':>7} {'MDD%':>7} {'Sharpe':>7}")
+           f"{'Gross$':>9} {'Net$':>9} {'Cost$':>7} {'MDD$':>8} {'MDD%':>7} "
+           f"{'Cap$avg':>9} {'Sharpe':>7}")
     print(hdr)
+    print("  (MDD/Sharpe on the STRATEGY-PnL curve; Cap$avg = average bound capital;")
+    print("   Sharpe = return on bound capital — see metrics() docstring)")
     for v in VARIANTS:
         m = summary[v.key]["overall"]
         if m["n"] == 0:
@@ -666,7 +701,8 @@ def main() -> int:
             continue
         print(f"{v.key:4} {v.name:26} {m['n']:>7} {m['wr']:>6.1f} {m['profit_factor']:>6.2f} "
               f"{m['avg_pnl_pct']:>7.2f} {m['gross_pnl_usd']:>9.0f} {m['total_pnl_usd']:>9.0f} "
-              f"{m['costs_usd']:>7.0f} {m['mdd_pct']:>7.1f} {m['sharpe']:>7.2f}")
+              f"{m['costs_usd']:>7.0f} {m['mdd_usd']:>8.0f} {m['mdd_pct']:>7.1f} "
+              f"{m['bound_capital_avg']:>9.0f} {m['sharpe']:>7.2f}")
 
     print("\n=== BY SIGNAL TYPE (per variant) ===")
     for v in VARIANTS:

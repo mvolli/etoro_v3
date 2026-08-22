@@ -4,10 +4,20 @@
 - fix/kelly-components: Kelly poolt auf Komponenten-Ebene wenn Exact-Match duenn
 """
 
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
+
 import sqlite3
 
 from bot.core.signals import generate_signal
-from bot.core.sizing import kelly_size_factor
+from bot.core.sizing import (
+    kelly_size_factor,
+    DEFAULT_BASE,
+    DEFAULT_MAX_FACTOR,
+    DEFAULT_MIN_FACTOR,
+)
 
 
 # ── Combo-Conviction = schwaechste Komponente ────────────────────────────────
@@ -55,10 +65,10 @@ class _FakeDB:
 
 def test_kelly_exact_match_preferred():
     """Genug exakte Treffer → Komponenten-Pool wird ignoriert."""
-    rows = [("A,B", 2.0)] * 12          # 12 exakte, alle Gewinner → 1.5
+    rows = [("A,B", 2.0)] * 12          # 12 exakte, alle Gewinner → max_factor
     rows += [("A,C", -5.0)] * 20        # giftiger Pool — darf nicht zaehlen
     f = kelly_size_factor("A,B", _FakeDB(rows), min_trades=10)
-    assert f == 1.5
+    assert f == DEFAULT_MAX_FACTOR
 
 
 def test_kelly_falls_back_to_component_pool():
@@ -66,20 +76,23 @@ def test_kelly_falls_back_to_component_pool():
     rows = [("A,B", 2.0)] * 2                    # zu wenig exakt
     rows += [("A,C", -2.0)] * 10 + [("B,D", -3.0)] * 10  # Komponenten-Pool: alles Verlust
     f = kelly_size_factor("A,B", _FakeDB(rows), min_trades=10)
-    assert f == 0.5  # Pool ist durchweg negativ → Minimum (fix/kelly-centering)
+    # Pool ist durchweg negativ → min_factor (fix/kelly-risk-neutral:
+    # 0.5 Floor weg, proven Lossbringer skalieren Richtung 0)
+    assert f == DEFAULT_MIN_FACTOR
 
 
 def test_kelly_neutral_when_even_pool_too_small():
     rows = [("X,Y", 1.0)] * 3
     f = kelly_size_factor("A,B", _FakeDB(rows), min_trades=10)
-    assert f == 1.0
+    # fix/kelly-risk-neutral: no data → base (0.49), nicht 1.0
+    assert f == DEFAULT_BASE
 
 
 def test_kelly_component_pool_requires_shared_component():
     """Nur Trades mit gemeinsamer Komponente zaehlen in den Pool."""
     rows = [("C,D", -9.0)] * 50  # keinerlei Ueberschneidung mit A,B
     f = kelly_size_factor("A,B", _FakeDB(rows), min_trades=10)
-    assert f == 1.0
+    assert f == DEFAULT_BASE
 
 
 def test_kelly_db_error_is_neutral():
@@ -87,4 +100,4 @@ def test_kelly_db_error_is_neutral():
         def fetchall(self, *a, **k):
             raise RuntimeError("boom")
 
-    assert kelly_size_factor("A,B", _Broken()) == 1.0
+    assert kelly_size_factor("A,B", _Broken()) == DEFAULT_BASE
