@@ -1024,7 +1024,30 @@ def main() -> None:
                     )
             except Exception as _db_exc:
                 logger.debug("SignalWorker: Deployment-Boost uebersprungen: %s", _db_exc)
-    
+
+            # feat/entry-quality (2026-08-22) SHADOW-Modus: Execution-Time-
+            # Wirkung loggen, OHNE buy_amount zu aendern. Die Evaluation (mit
+            # vollen Indikatoren) wurde am Signal-Gen in entry_quality_events
+            # erfasst (data_worker); hier wird der kombinierte Sizing-
+            # Multiplikator fuer das konkrete Signal gelesen und die would-be
+            # Effect (neue Groesse / would-block) protokolliert — Basis der
+            # Phase-1-Shadow-Auswertung (gate-WR vs. live-WR, false-positive
+            # Rate), bevor live-Mode die Gates auf Sizing schaltet. Fail-open:
+            # kein Size-Change, kein Reject.
+            try:
+                from bot.core import entry_quality as _eq
+                _eq_sm = _eq.latest_size_mult(db, signal_id)
+                if _eq_sm != 1.0:
+                    _eq_would_amt = round(buy_amount * _eq_sm, 2)
+                    logger.info(
+                        "SignalWorker: ENTRY-QUALITY %s (shadow): size_mult=%.2f "
+                        "$%.2f -> $%.2f%s",
+                        symbol, _eq_sm, buy_amount, _eq_would_amt,
+                        " WOULD-BLOCK" if _eq_sm <= 0.0 else "",
+                    )
+            except Exception:
+                logger.debug("entry_quality: shadow-log fehlgeschlagen (fail-open)", exc_info=True)
+
             # Enforce minimum from regime params
             min_buy = regime_params.get("min_buy_usd", 50.0)
             if buy_amount < min_buy:
@@ -1511,6 +1534,38 @@ def main() -> None:
                     signal_repo.update_signal_status(_cs_sig_id, "CONSUMED")
                 except Exception:
                     _cs_sig_id = None
+                # feat/entry-quality (2026-08-22) SHADOW-Modus: Core-Sweep-
+                # Regime-Gate loggen + entry_quality_events recorden, OHNE die
+                # Order zu aendern. Volle Indikatoren sind hier nicht
+                # verfuegbar (Sweep plant gegen _atr_by_id/_rsi_by_id) — das
+                # core_sweep_regime-Gate braucht nur das Regime; der
+                # Trend-Override faellt fail-open aus (keine Daten = kein
+                # Override). Basis der Phase-1-Shadow-Auswertung
+                # (CORE_SWEEP-Regime-Druck: -$171 Drag).
+                try:
+                    from bot.core import entry_quality as _eq
+                    _eq_ev_cs = _eq.evaluate(
+                        cfg, symbol=_o.symbol, signal_type="CORE_SWEEP",
+                        indicators={}, regime=regime or "NORMAL",
+                        is_core_sweep=True,
+                    )
+                    _eq_mode = str(
+                        ((cfg.get("trading", {}) or {}).get("entry_quality", {}) or {}).get("mode", "shadow")
+                    )
+                    _eq.ensure_table(db)
+                    _eq.record(
+                        db, _eq_ev_cs, mode=_eq_mode, applied=False,
+                        signal_id=_cs_sig_id, instrument_id=_o.instrument_id,
+                        is_core_sweep=True,
+                    )
+                    if _eq_ev_cs.hits:
+                        logger.info(
+                            "SignalWorker: ENTRY-QUALITY CORE_SWEEP %s (shadow, %s): %s%s",
+                            _o.symbol, regime, _eq_ev_cs.reasons,
+                            " WOULD-BLOCK" if _eq_ev_cs.blocked else "",
+                        )
+                except Exception:
+                    logger.debug("entry_quality: core-sweep shadow-log fehlgeschlagen (fail-open)", exc_info=True)
                 _cs_tid = trade_repo.create(
                     instrument_id=_o.instrument_id, symbol=_o.symbol, direction="BUY",
                     amount_usd=_o.amount_usd, stop_loss_pct=_cs_sl,

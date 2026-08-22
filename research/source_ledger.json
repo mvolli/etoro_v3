@@ -1,0 +1,60 @@
+{
+ "industry_fulltext": [
+  "QS_meanrev",
+  "QS_macd",
+  "IO_rsi",
+  "IO_macd",
+  "IO_confluence",
+  "IO_atr",
+  "quantstart",
+  "quantified_kelly",
+  "quantified_52w",
+  "qs_mom"
+ ],
+ "arxiv": [
+  {
+   "title": "Analysis of frequent trading effects of various machine learning models",
+   "url": "http://arxiv.org/abs/2311.10719v1"
+  },
+  {
+   "title": "A Financial Time Series Denoiser Based on Diffusion Model",
+   "url": "http://arxiv.org/abs/2409.02138v1"
+  },
+  {
+   "title": "Working Paper: Improved Stock Price Forecasting Algorithm based on Feature-weighed Support Vector Regression by using Grey Correlation Degree",
+   "url": "http://arxiv.org/abs/1902.08938v1"
+  },
+  {
+   "title": "Generating Alpha: A Hybrid AI-Driven Trading System Integrating Technical Analysis, Machine Learning and Financial Sentiment for Regime-Adaptive Equity Strategies",
+   "url": "http://arxiv.org/abs/2601.19504v1"
+  },
+  {
+   "title": "DoubleEnsemble: A New Ensemble Method Based on Sample Reweighting and Feature Selection for Financial Data Analysis",
+   "url": "http://arxiv.org/abs/2010.01265v3"
+  },
+  {
+   "title": "Blending Ensemble for Classification with Genetic-algorithm generated Alpha factors and Sentiments (GAS)",
+   "url": "http://arxiv.org/abs/2411.03035v1"
+  },
+  {
+   "title": "A multi-factor market-neutral investment strategy for New York Stock Exchange equities",
+   "url": "http://arxiv.org/abs/2412.12350v1"
+  },
+  {
+   "title": "Enhancing Financial Data Visualization for Investment Decision-Making",
+   "url": "http://arxiv.org/abs/2403.18822v1"
+  },
+  {
+   "title": "Optimizing MACD Trading Strategies A Dance of Finance, Wavelets, and Genetics",
+   "url": "http://arxiv.org/abs/2501.10808v2"
+  },
+  {
+   "title": "A Framework for Predictive Directional Trading Based on Volatility and Causal Inference",
+   "url": "http://arxiv.org/abs/2507.09347v1"
+  },
+  {
+   "title": "MetaPS: Adaptive Programmatic Strategy Selection for Market Agents",
+   "url": "http://arxiv.org/abs/2606.22385v1"
+  }
+ ]
+}

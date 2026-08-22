@@ -1,0 +1,60 @@
+{
+ "QS_meanrev": [
+  "The Kalman filter provides a real-time method for tracking mean reversion, dynamically updating estimates as market conditions change",
+  "8%) * Time spent in the market: 33% * Max drawdown: 20% * Profit factor: 1.",
+  "8%) * Time spent in the market: 36% * Max drawdown: 47% * Profit factor: 1.",
+  "9%) (Reinvested dividends not included) * Time spent in the market: 21% * Max drawdown: 23% * Profit factor: 1."
+ ],
+ "QS_macd": [
+  "Relying Solely on MACD Crossovers: While MACD crossovers between the fast line and the signal line can be used as trading signals, relying solely on these crossovers may result in false signals.",
+  "Signal Confirmation: The MACD indicator helps confirm potential trade signals by providing visual cues of momentum shifts in the market.",
+  "Confirmation Indicators: While the MACD can be a reliable indicator on its own, you can enhance its signals by using additional confirmation indicators.",
+  "When the MACD generates a signal in the direction of the trend, and the confirmation indicators also confirm the signal, it can increase your confidence in taking the trade.",
+  "Over-Optimizing MACD Parameters: While it can be tempting to optimize the MACD parameters to achieve the best possible results, excessive parameter tweaking can lead to curve-fitting and overfitting the indicator to past data.",
+  "By only taking MACD signals that align with the trend filter, you can potentially improve the quality of your trades and avoid counter-trend signals during periods of consolidation or market noise.",
+  "If we add a long-term trend filter, such as a[200-day average](https://www",
+  "Consider Additional Filters: Explore the possibility of adding additional filters or indicators to enhance the MACD trading strategy"
+ ],
+ "IO_rsi": [
+  "Traders in that situation might delay buying until they see other technical indicators confirm their buy signal.",
+  "A false positive, for example, would be a bullish crossover followed by a sudden decline in a stock.",
+  "Using shorter periods between five and nine makes the RSI more sensitive, appealing to day traders who want to capture quick momentum shifts, though they tend to generate more noise."
+ ],
+ "IO_macd": [
+  "Crossovers of MACD lines should be noted, but confirmation should be sought from other technical signals, such as the RSI, or perhaps a few [candlestick](https://www.",
+  "Because it is a lagging indicator, MACD argues that confirmation in subsequent price action should develop before taking the signal.",
+  "## Limitations of MACD A moving average divergence can signal a possible reversal, but it will also produce numerous \u2018false positives\u2019 along the way.",
+  "False positive divergences often occur when the price of an asset moves sideways in a consolidation, such as in a [range](https://www."
+ ],
+ "IO_confluence": [
+  "com/answers?q=What+is+financial+synergy+in+business+combinations%3F&utm_source=investopedia&utm_medium=internal&utm_campaign=inv_answers&utm_content=widget-1-auto-scroll)[How can i combine fibonacci retracements with other technical analysis tools to improve my trading accuracy?](https://www.",
+  "com/answers?q=How+can+I+combine+Fibonacci+retracements+with+other+technical+analysis+tools+to+improve+my+trading+accuracy%3F&utm_source=investopedia&utm_medium=internal&utm_campaign=inv_answers&utm_content=widget-1-auto-scroll)[What are the key benefits of business consolidation through mergers and acquisitions?](https://www.",
+  "* [How can I combine Fibonacci retracements with other technical analysis tools to improve my trading accuracy?](https://www.",
+  "Title: Confluence in Finance: Definition, Overview, and Practical Applications URL Source: https://www.",
+  "com/how-the-national-debt-affects-your-finances-today-12064710) # Confluence in Finance: Definition, Overview, and Practical Applications By [James Chen](https://www.",
+  "com/legal-4768893#editorial-policy) Close ### Key Takeaways * Confluence combines multiple strategies and ideas into one comprehensive investment strategy aligned with an investor's risk profile and goals.",
+  "* It can enhance technical analysis by using various indicators together to confirm trading signals or reversals.",
+  "com/thmb/DORX5dHeeJWO8AlVouRUN_rfF3Y=/200x200/filters:no_upscale():max_bytes(150000):strip_icc():format(webp)/photo__james_chen-5bfc26144cedfd0026c00af8",
+  "com/thmb/xohvuxDAVdfqpz3o8qIUO3ZPwJg=/200x200/filters:no_upscale():max_bytes(150000):strip_icc():format(webp)/InvestopediaHeadShot-988693bb87b54bb095bd3789cd117a50",
+  "com/thmb/ZYbfyQdpAD0E6uv1V5LNt6tNXTs=/282x188/filters:no_upscale():max_bytes(150000):strip_icc():format(webp)/spotprice"
+ ],
+ "quantstart": [
+  "jpg) White Noise and Random Walks in Time Series Analysis](https://www.",
+  "com/articles/White-Noise-and-Random-Walks-in-Time-Series-Analysis/) [![Image 135](https://quantstartmedia.",
+  "jpg) Kalman Filter-Based Pairs Trading Strategy In QSTrader](https://www",
+  "com/articles/kalman-filter-based-pairs-trading-strategy-in-qstrader/) [![Image 98](https://quantstartmedia",
+  "jpg) Dynamic Hedge Ratio Between ETF Pairs Using the Kalman Filter](https://www",
+  "jpg) Annualised Rolling Sharpe Ratio in QSTrader](https://www.",
+  "com/articles/annualised-rolling-sharpe-ratio-in-qstrader/) [![Image 82](https://quantstartmedia."
+ ],
+ "quantified_kelly": [
+  ", a scientist at Bell Labs, developed the Kelly Criterion in 1956 while working on problems related to long-distance telephone signal noise at AT&T.",
+  "Kelly\u2019s original intention was to address issues related to signal noise, but his formula quickly found applications beyond telecommunications, particularly in the realms of gambling and investing."
+ ],
+ "quantified_52w": [
+  "* Performance may be equivalent to or slightly better than the benchmark, but the drawdowns and risk may still be large; the \u201cedge\u201d is not obviously large in the backtests presented.",
+  "Momentum (trends) are a powerful force in finance, and trading in the direction of the trend is clearly beneficial, especially on the long side as the edge is much more significant for rising stocks than for falling stocks.",
+  "* As always, the devil is in the details: how you define \u201cnear the high,\u201d how you filter stocks (e",
+  ", other momentum, trend filters, liquidity), when you exit, what your time horizon is"
+ ]
+}

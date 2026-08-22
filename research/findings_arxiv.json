@@ -1,0 +1,95 @@
+{
+ "Analysis of frequent trading effects of various machine learning models": {
+  "url": "http://arxiv.org/abs/2311.10719v1",
+  "query": "all:\"trading signal\" AND all:\"machine le",
+  "key_sentences": [
+   "The proposed algorithm employs neural network predictions to generate trading signals and execute buy and sell operations based on specific conditions.",
+   "By harnessing the power of neural networks, the algorithm enhances the accuracy and reliability of the trading strategy."
+  ]
+ },
+ "A Financial Time Series Denoiser Based on Diffusion Model": {
+  "url": "http://arxiv.org/abs/2409.02138v1",
+  "query": "all:\"trading signal\" AND all:\"machine le",
+  "key_sentences": [
+   "Financial time series often exhibit low signal-to-noise ratio, posing significant challenges for accurate data interpretation and prediction and ultimately decision making.",
+   "Generative models have gained attention as powerful tools for simulating and predicting intricate data patterns, with the diffusion model emerging as a particularly effective method.",
+   "This paper introduces a novel approach utilizing the diffusion model as a denoiser for financial time series in order to improve data predictability and trading performance."
+  ]
+ },
+ "Working Paper: Improved Stock Price Forecasting Algorithm based on Feature-weigh": {
+  "url": "http://arxiv.org/abs/1902.08938v1",
+  "query": "all:\"technical indicator\" AND all:\"stock",
+  "key_sentences": [
+   "This paper aims to improve the accuracy of stock price forecasting.",
+   "It improves the support vector machine regression algorithm by using grey correlation analysis (GCA) and improves the accuracy of stock prediction."
+  ]
+ },
+ "Generating Alpha: A Hybrid AI-Driven Trading System Integrating Technical Analys": {
+  "url": "http://arxiv.org/abs/2601.19504v1",
+  "query": "all:\"alpha\" AND all:\"signal generation\" ",
+  "key_sentences": [
+   "During times of high volatility and regime shifts causes many traditional strategies like trend-following or mean-reversion to fail.",
+   "This paper proposes a hybrid AI-based trading strategy that combines (1) trend-following and directional momentum capture via EMA and MACD, (2) detection of price normalization through mean-reversion using RSI and Bollinger Bands, (3) market psychological interpretation through sentiment analysis using FinBERT, (4) signal generation through machine learning using XGBoost and (5)dynamically adjusting exposure with market regime filtering based on volatility and return environments."
+  ]
+ },
+ "DoubleEnsemble: A New Ensemble Method Based on Sample Reweighting and Feature Se": {
+  "url": "http://arxiv.org/abs/2010.01265v3",
+  "query": "all:\"feature selection\" AND all:\"quantit",
+  "key_sentences": [
+   "Modern machine learning models (such as deep neural networks and boosting decision tree models) have become increasingly popular in financial market prediction, due to their superior capacity to extract complex non-linear patterns.",
+   "However, since financial datasets have very low signal-to-noise ratio and are non-stationary, complex models are often very prone to overfitting and suffer from instability issues.",
+   "Moreover, as various machine learning and data mining tools become more widely used in quantitative trading, many trading firms have been producing an increasing number of features (aka factors).",
+   "Therefore, how to automatically select effective features becomes an imminent problem."
+  ]
+ },
+ "Blending Ensemble for Classification with Genetic-algorithm generated Alpha fact": {
+  "url": "http://arxiv.org/abs/2411.03035v1",
+  "query": "all:\"feature selection\" AND all:\"quantit",
+  "key_sentences": [
+   "With the increasing maturity and expansion of the cryptocurrency market, understanding and predicting its price fluctuations has become an important issue in the field of financial engineering.",
+   "This article introduces an innovative Genetic Algorithm-generated Alpha Sentiment (GAS) blending ensemble model specifically designed to predict Bitcoin market trends.",
+   "The model integrates advanced ensemble learning methods, feature selection algorithms, and in-depth sentiment analysis to effectively capture the complexity and variability of daily Bitcoin trading data.",
+   "The GAS framework combines 34 Alpha factors with 8 news economic sentiment factors to provide deep insights into Bitcoin price fluctuations by accurately analyzing market sentiment and technical indicators."
+  ]
+ },
+ "A multi-factor market-neutral investment strategy for New York Stock Exchange eq": {
+  "url": "http://arxiv.org/abs/2412.12350v1",
+  "query": "all:\"feature selection\" AND all:\"quantit",
+  "key_sentences": [
+   "A robust feature set is integrated combining momentum-based indicators, fundamental factors, and analyst recommendations.",
+   "Using various statistical tests for feature selection, the strategy identifies key drivers of equity performance and ranks stocks to build a balanced portfolio of long and short positions."
+  ]
+ },
+ "Enhancing Financial Data Visualization for Investment Decision-Making": {
+  "url": "http://arxiv.org/abs/2403.18822v1",
+  "query": "all:\"feature selection\" AND all:\"quantit",
+  "key_sentences": [
+   "This paper delves into the potential of Long Short-Term Memory (LSTM) networks for predicting stock dynamics, with a focus on discerning nuanced rise and fall patterns.",
+   "Leveraging a dataset from the New York Stock Exchange (NYSE), the study incorporates multiple features to enhance LSTM's capacity in capturing complex patterns."
+  ]
+ },
+ "Optimizing MACD Trading Strategies A Dance of Finance, Wavelets, and Genetics": {
+  "url": "http://arxiv.org/abs/2501.10808v2",
+  "query": "all:\"win rate\" AND all:\"trading strategy",
+  "key_sentences": [
+   "This paper begins by screening and cleaning the dataset, establishing a model that adheres to the basic buy and sell rules of the MACD, and calculating key metrics such as the win rate, return, Sharpe ratio, and maximum drawdown for each stock.",
+   "However, the MACD often generates erroneous signals in highly volatile markets."
+  ]
+ },
+ "A Framework for Predictive Directional Trading Based on Volatility and Causal In": {
+  "url": "http://arxiv.org/abs/2507.09347v1",
+  "query": "all:\"win rate\" AND all:\"trading strategy",
+  "key_sentences": [
+   "Purpose: This study introduces a novel framework for identifying and exploiting predictive lead-lag relationships in financial markets.",
+   "We propose an integrated approach that combines advanced statistical methodologies with machine learning models to enhance the identification and exploitation of predictive relationships between equities.",
+   "From the resulting clusters, we constructed a multi-stage causal inference pipeline, incorporating the Granger Causality Test (GCT), a customised Peter-Clark Momentary Conditional Independence (PCMCI) test, and Effective Transfer Entropy (ETE) to identify robust, predictive linkages."
+  ]
+ },
+ "MetaPS: Adaptive Programmatic Strategy Selection for Market Agents": {
+  "url": "http://arxiv.org/abs/2606.22385v1",
+  "query": "all:\"momentum\" AND all:\"mean reversion\" ",
+  "key_sentences": [
+   "No single market strategy always wins: momentum, mean reversion, risk control,and event-driven rules can each succeed or fail as market conditions change.Rather than asking large language models to directly generate market actions,we study an executable decision paradigm where an agent selects from a library of programmatic strategies, each implemented as a code module mapping market observations to actions.We propose \\textbf{MetaPS}, a simulation-guided framework for adaptive programmatic strategy selection."
+  ]
+ }
+}

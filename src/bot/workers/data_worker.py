@@ -40,6 +40,7 @@ if str(_PROJECT_ROOT / "src") not in sys.path:
 from bot.db.connection import DB
 from bot.db.repo import SignalRepo, PortfolioRepo
 from bot.core.signals import generate_signal, compute_indicators
+from bot.core import entry_quality
 from bot.core.corporate_actions import ConfirmBudget
 from bot.core.market_hours import is_market_open, get_market_status, CRYPTO_SYMBOLS, get_instrument_market_key
 from bot.api.instruments import get_instrument_map, symbol_to_id
@@ -899,6 +900,7 @@ def run(project_root: Path | None = None) -> dict:
 
             # 7. Store signal in DB
             signal_types_str = ",".join(result.signal_types) if result.signal_types else result.direction
+            _signal_id: int | None = None
 
             # fix/signal-dedup: auf Tages-Bars bleibt eine Signal-Bedingung
             # oft stundenlang wahr — ohne Dedup entsteht alle 5 min ein
@@ -917,7 +919,7 @@ def run(project_root: Path | None = None) -> dict:
                 )
                 continue
 
-            signal_repo.create(
+            _signal_id = signal_repo.create(
                 instrument_id=instrument_id,
                 signal_type=signal_types_str,
                 conviction=result.conviction,
@@ -940,6 +942,44 @@ def run(project_root: Path | None = None) -> dict:
                 "[%s] SIGNAL %s %s conviction=%s score=%.1f",
                 WORKER_NAME, result.direction, original_sym, result.conviction, result.score,
             )
+
+            # feat/entry-quality (2026-08-22): SHADOW-Modus — Entry-Quality-Gates
+            # am Signal-Gen bewerten und in entry_quality_events loggen. Volle
+            # Indikatoren sind hier vorhanden (compute_indicators). Execution
+            # bleibt UNVERAENDERT — die Zeile dient der Phase-1-Shadow-Auswertung
+            # (gate-WR vs. live-WR, false-positive-Rate), bevor die Gates in
+            # live-Mode auf Sizing geschaltet werden. Fail-open wie das
+            # Knife-Gate: ein Gate-Fehler darf das Signal-Storage NICHT
+            # unterbrechen.
+            try:
+                from bot.db.repo import StateRepo as _eq_state_repo
+                _eq_regime = _eq_state_repo(db).get_regime() or "NORMAL"
+            except Exception:
+                _eq_regime = "NORMAL"
+            try:
+                _eq_ev = entry_quality.evaluate(
+                    cfg,
+                    symbol=original_sym,
+                    signal_type=signal_types_str,
+                    indicators=indicators,
+                    regime=_eq_regime,
+                )
+                entry_quality.ensure_table(db)
+                entry_quality.record(
+                    db, _eq_ev,
+                    mode=str(((cfg.get("trading", {}) or {}).get("entry_quality", {}) or {}).get("mode", "shadow")),
+                    applied=False,
+                    signal_id=_signal_id,
+                    instrument_id=instrument_id,
+                )
+                if _eq_ev.hits:
+                    logger.info(
+                        "[%s] ENTRY-QUALITY %s (shadow): size_mult=%.2f blocked=%s %s",
+                        WORKER_NAME, original_sym,
+                        _eq_ev.size_mult, _eq_ev.blocked, _eq_ev.reasons,
+                    )
+            except Exception:
+                logger.debug("entry_quality: evaluate/record fehlgeschlagen (fail-open)", exc_info=True)
 
         except Exception as exc:
             elapsed = time.monotonic() - t_sym_start

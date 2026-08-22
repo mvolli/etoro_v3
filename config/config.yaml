@@ -79,6 +79,44 @@ trading:
       JNJ:  1022
       WMT:  1035
 
+  # ── feat/entry-quality (2026-08-22): qualitative Entry-Pruefung ──────────
+  # PHASE 1 = SHADOW (mode: shadow): alle 5 Gates werden bewertet und in
+  # entry_quality_events geloggt — die Execution aendert sich NICHT (kein
+  # Size-Change, kein Reject). Basis: Live-DB-Evidenz (Pure-Oversold-Cluster
+  # ohne MACD_TURN = 2.7% WR; CORE_SWEEP = -$171 Drag) + Web-Research
+  # (Confluence, Trend-Filter, Volatility-Gating, Regime-Conditional;
+  # references/entry-quality-plan-2026-08-22.md). Nach ~50 Shadow-Trades
+  # bestimmt der gate-WR-vs-live-WR-Abgleich, welche Gates auf
+  # mode: live (Phase 2: Sizing-Koeffizienten 0.25-1.0, keine Hard-Blocks).
+  # Faellt FAIL-OPEN aus: fehlende Daten = kein Gate-Hit.
+  entry_quality:
+    enabled: true
+    mode: shadow              # shadow | live
+    min_size_mult: 0.25       # hart-clamped Floor fuer kombinierte Sizing-Multipliers
+    gates:
+      macd_turn_required:     # Pure-Oversold OHNE MACD_TURN → 0.5x (2.7%-WR-Cluster)
+        enabled: true
+        size_mult: 0.5
+      core_sweep_regime:      # CORE_SWEEP nur in allowed Regimes (live: block)
+        enabled: true
+        allowed_regimes: ["NORMAL", "CAUTION"]
+        trend_override: true
+        min_roc_5d_pct: -12.0
+        size_mult: 0.0
+      dipbuy_trend:           # Dip-Buys brauchen ROC5d > min (soft 0.5x)
+        enabled: true
+        min_roc_5d_pct: -15.0
+        size_mult: 0.5
+      volume_confirm:         # vol_ratio >= min am Entry (soft 0.5x)
+        enabled: true
+        min_vol_ratio: 1.2
+        size_mult: 0.5
+      atr_window:             # ATR%-Fenster am Entry (soft 0.5x)
+        enabled: true
+        min_atr_pct: 0.8
+        max_atr_pct: 7.0
+        size_mult: 0.5
+
 risk:
   daily_loss_limit_pct: 5.0   # Auto-kill-switch: intraday equity drop from day start (%; 0 = disabled)
   weekly_loss_limit_pct: 8.0  # Auto-kill-switch: max drawdown from 7-day equity high (%; 0 = disabled)
