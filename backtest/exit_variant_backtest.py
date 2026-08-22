@@ -513,6 +513,9 @@ def metrics(trades: list[dict], calendar: list[str] | None = None,
         "sharpe": round(sharpe, 2),
         "bound_capital_avg": round(cap_avg, 2),
         "bound_capital_peak": round(float(capcurve.max()), 2) if len(capcurve) else 0.0,
+        # Net PnL normalized by average bound capital — the honest
+        # "return on real capital" comparable against a buy&hold benchmark.
+        "pct_on_bound_capital": round(total_net / cap_avg * 100, 2) if cap_avg > 0 else 0.0,
         "final_pnl_curve": round(float(pcurve[-1]), 2) if len(pcurve) else 0.0,
         "by_reason": {r: sum(1 for t in trades if t["reason"] == r)
                       for r in ("SL", "BE_LOCK", "CHANDELIER", "TIME")},
@@ -690,10 +693,13 @@ def main() -> int:
     print("\n=== OVERALL BY VARIANT ===")
     hdr = (f"{'Var':4} {'Name':26} {'Trades':>7} {'WR%':>6} {'PF':>6} {'Avg%':>7} "
            f"{'Gross$':>9} {'Net$':>9} {'Cost$':>7} {'MDD$':>8} {'MDD%':>7} "
-           f"{'Cap$avg':>9} {'Sharpe':>7}")
+           f"{'Cap$avg':>9} {'OnCap%':>8} {'Sharpe':>7}")
     print(hdr)
     print("  (MDD/Sharpe on the STRATEGY-PnL curve; Cap$avg = average bound capital;")
-    print("   Sharpe = return on bound capital — see metrics() docstring)")
+    print("   OnCap% = Net$ / Cap$avg — the return on REAL capital, comparable")
+    print("   to the benchmark below; Sharpe = return on bound capital —")
+    print("   see metrics() docstring)")
+    beats = []
     for v in VARIANTS:
         m = summary[v.key]["overall"]
         if m["n"] == 0:
@@ -702,7 +708,23 @@ def main() -> int:
         print(f"{v.key:4} {v.name:26} {m['n']:>7} {m['wr']:>6.1f} {m['profit_factor']:>6.2f} "
               f"{m['avg_pnl_pct']:>7.2f} {m['gross_pnl_usd']:>9.0f} {m['total_pnl_usd']:>9.0f} "
               f"{m['costs_usd']:>7.0f} {m['mdd_usd']:>8.0f} {m['mdd_pct']:>7.1f} "
-              f"{m['bound_capital_avg']:>9.0f} {m['sharpe']:>7.2f}")
+              f"{m['bound_capital_avg']:>9.0f} {m['pct_on_bound_capital']:>8.1f} {m['sharpe']:>7.2f}")
+        beats.append((v.key, m["pct_on_bound_capital"]))
+
+    print("\n=== VS BENCHMARK (the conclusion, not just the numbers) ===")
+    for label, pct in (("equal-weight B&H", bm["equal_weight_bh"]["total_return_pct"]),
+                       ("SPY total", bm["spy_total_return_pct"])):
+        if pct is None:
+            continue
+        print(f"  {label:18}: {pct:+7.2f}%")
+        for vkey, pc in beats:
+            mark = "beats " if pc > pct else "LOSES"
+            print(f"    {vkey}: {pc:+7.2f}% on bound capital  →  {mark}")
+    if beats:
+        best = max(beats, key=lambda x: x[1])
+        print(f"  → best variant {best[0]} at {best[1]:+.2f}% on bound capital vs the")
+        print("    benchmarks above. Until a variant beats B&H, 'change nothing at")
+        print("    the exits' IS the result (capacity caveat: see file header).")
 
     print("\n=== BY SIGNAL TYPE (per variant) ===")
     for v in VARIANTS:
