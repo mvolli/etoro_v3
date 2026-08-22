@@ -421,9 +421,9 @@ def metrics(trades: list[dict], calendar: list[str] | None = None,
     book:
 
     * MDD — peak-to-trough of (realized + unrealized) PnL, reported in $ and
-      as % of peak equity. The old version measured the ~21×$1k long book
-      swinging against a 10k base, which produced −84% MDD on a +$3.8k PnL
-      run (an impossibility).
+      as % of AVERAGE BOUND CAPITAL (same basis as OnCap / Sharpe). The old
+      version measured the ~21×$1k long book swinging against a 10k base,
+      which produced −84% MDD on a +$3.8k PnL run (an impossibility).
     * Sharpe — daily returns of that PnL curve normalized by AVERAGE BOUND
       CAPITAL (return on capital deployed), annualized ×√252. The old version
       measured beta of the long book, so losing variants scored Sharpe 2.8.
@@ -457,10 +457,15 @@ def metrics(trades: list[dict], calendar: list[str] | None = None,
     realized = 0.0
     open_pos: list[dict] = []
     for d in days:
-        # book realized PnL for positions closing today
+        # book realized PnL for positions closing today.
+        # `<= d` (not `== d`) is load-bearing: same-day SL trades
+        # (entry_date == exit_date) are ADDED later in this same day's
+        # iteration, so a `== d` check would never remove them and they
+        # would leak into `open_pos` for the rest of the curve,
+        # inflating bound capital (cap peak 150 > engine max 120).
         still = []
         for t in open_pos:
-            if t["exit_date"] == d:
+            if t["exit_date"] <= d:
                 realized += t["pnl_usd"]
             else:
                 still.append(t)
@@ -483,15 +488,15 @@ def metrics(trades: list[dict], calendar: list[str] | None = None,
 
     pcurve = np.array(pcurve)
     capcurve = np.array(capcurve)
-    # MDD of the STRATEGY PnL curve (peak-to-trough in $, then % of peak
-    # equity) — NOT the leveraged book against a 10k base.
+    cap_avg = float(capcurve.mean()) if len(capcurve) else 0.0
+    # MDD of the STRATEGY PnL curve (peak-to-trough in $). The % form uses
+    # the SAME basis as OnCap — AVERAGE BOUND CAPITAL — not a mix of a
+    # nominal account base and realized PnL.
     ppeak = np.maximum.accumulate(pcurve)
     mdd_usd = float((pcurve - ppeak).min()) if len(pcurve) else 0.0
-    base_eq = INITIAL_EQUITY + float(ppeak.max())
-    mdd = float((mdd_usd / base_eq) * 100) if base_eq > 0 else 0.0
+    mdd = float((mdd_usd / cap_avg) * 100) if cap_avg > 0 else 0.0
     # Sharpe of strategy PnL normalized by AVERAGE BOUND CAPITAL (return on
     # capital deployed, not beta of a ~21k long book on a 10k base).
-    cap_avg = float(capcurve.mean()) if len(capcurve) else 0.0
     if len(pcurve) > 1 and cap_avg > 0:
         rets = np.diff(pcurve) / cap_avg
         sharpe = float(rets.mean() / rets.std() * math.sqrt(252)) if rets.std() > 0 else 0.0

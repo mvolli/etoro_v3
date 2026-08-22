@@ -50,6 +50,12 @@ from datetime import datetime, timedelta, timezone
 logger = logging.getLogger(__name__)
 
 DEFAULT_MIN_TRADES = 25
+# CALIBRATION IS POINT-IN-TIME: base was fitted (2026-08-22) so the then-
+# current 90d trade mix reproduces the tested risk level (weighted mean
+# ~0.30). If the live signal mix shifts materially (e.g. large share of
+# high-Kelly combos), the weighted mean drifts and per-trade risk moves
+# again. Re-fit DEFAULT_BASE when the realized trade-weighted mean
+# deviates >~25% from 0.30 — or on a quarterly cadence.
 DEFAULT_BASE = 0.49
 DEFAULT_SCALE = 0.45
 DEFAULT_MIN_FACTOR = 0.15
