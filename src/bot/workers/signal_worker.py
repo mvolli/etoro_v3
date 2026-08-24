@@ -1053,10 +1053,15 @@ def main() -> None:
                 if _eq_sm != 1.0:
                     _eq_new_amt = round(buy_amount * _eq_sm, 2)
                     if _eq_mode == "live":
+                        _eq_new_amt, _eq_floored = _eq.apply_sizing(
+                            buy_amount, _eq_sm,
+                            float(regime_params.get("min_buy_usd", 50.0)),
+                        )
                         logger.info(
                             "SignalWorker: ENTRY-QUALITY %s (live): size_mult=%.2f "
-                            "$%.2f -> $%.2f",
+                            "$%.2f -> $%.2f%s",
                             symbol, _eq_sm, buy_amount, _eq_new_amt,
+                            " [auf min_buy angehoben]" if _eq_floored else "",
                         )
                         buy_amount = _eq_new_amt
                         _eq.mark_applied(db, signal_id)
@@ -1587,12 +1592,16 @@ def main() -> None:
                     )
                     if _eq_ev_cs.hits:
                         if _eq_cs_applied:
-                            _cs_amt = round(_cs_amt * _eq_ev_cs.size_mult, 2)
+                            _cs_amt, _cs_floored = _eq.apply_sizing(
+                                _cs_amt, _eq_ev_cs.size_mult,
+                                float(regime_params.get("min_buy_usd", 50.0)),
+                            )
                             logger.info(
                                 "SignalWorker: ENTRY-QUALITY CORE_SWEEP %s (live, %s): %s "
-                                "-> size_mult=%.2f $%.2f -> $%.2f",
+                                "-> size_mult=%.2f $%.2f -> $%.2f%s",
                                 _o.symbol, regime, _eq_ev_cs.reasons,
                                 _eq_ev_cs.size_mult, _o.amount_usd, _cs_amt,
+                                " [auf min_buy angehoben]" if _cs_floored else "",
                             )
                         else:
                             logger.info(

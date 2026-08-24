@@ -184,3 +184,51 @@ def test_shipped_config_has_no_hard_blocks():
     }
     assert not blocking, f"Hard-Blocks in config.yaml: {blocking}"
     assert float(eq["min_size_mult"]) > 0.0
+
+
+
+# ─── apply_sizing(): Boden bei min_buy ───────────────────────────────────────
+
+def test_apply_sizing_no_gate_is_identity():
+    assert EQ.apply_sizing(340.0, 1.0, 50.0) == (340.0, False)
+
+
+def test_apply_sizing_scales_when_result_stays_above_min():
+    assert EQ.apply_sizing(340.0, 0.5, 50.0) == (170.0, False)
+
+
+def test_apply_sizing_floors_at_min_buy_instead_of_dropping_below():
+    """Kern des Fixes: 57.53 * 0.5 = 28.77 waere unter 50 und wuerde
+    stromabwaerts komplett verworfen — der Trade faende nicht statt und
+    liefere kein Ergebnis. Stattdessen auf das Minimum anheben."""
+    amount, floored = EQ.apply_sizing(57.53, 0.5, 50.0)
+    assert (amount, floored) == (50.0, True)
+
+
+def test_apply_sizing_never_exceeds_ungated_amount():
+    """Der Boden darf eine Position nie vergroessern."""
+    for amt in (50.0, 57.53, 70.0, 120.0, 340.5):
+        for mult in (0.25, 0.5):
+            for min_buy in (50.0, 75.0, 100.0, 150.0):
+                out, _ = EQ.apply_sizing(amt, mult, min_buy)
+                assert out <= amt, f"{amt} {mult} {min_buy} -> {out}"
+
+
+def test_apply_sizing_leaves_already_too_small_amounts_alone():
+    """War der Betrag schon vor dem Gate unter min_buy, bleibt alles wie
+    bisher — der Downstream-Filter sortiert ihn aus."""
+    amount, floored = EQ.apply_sizing(30.0, 0.5, 50.0)
+    assert floored is False
+    assert amount == 15.0
+
+
+def test_apply_sizing_respects_regime_specific_minimum():
+    """min_buy_usd ist regimeabhaengig: NORMAL 50, CAUTION 75,
+    DEFENSIVE 100, CRITICAL 150."""
+    assert EQ.apply_sizing(340.0, 0.25, 50.0) == (85.0, False)
+    assert EQ.apply_sizing(340.0, 0.25, 100.0) == (100.0, True)
+    assert EQ.apply_sizing(340.0, 0.25, 150.0) == (150.0, True)
+
+
+def test_apply_sizing_handles_zero_amount():
+    assert EQ.apply_sizing(0.0, 0.5, 50.0) == (0.0, False)

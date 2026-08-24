@@ -345,6 +345,32 @@ def record(
         return None
 
 
+def apply_sizing(amount: float, size_mult: float, min_buy: float) -> tuple[float, bool]:
+    """Gate-Multiplikator anwenden, ohne unter ``min_buy`` zu fallen.
+
+    Ohne diesen Boden wird aus einem Soft-Gate ein stiller Hard-Block: der
+    Betrag wird heruntergesetzt, faellt unter die Mindestordergroesse und
+    der Trade wird komplett verworfen — die markierten Signale liefern dann
+    NIE ein Ergebnis, womit der Live-WR-Abgleich fuer genau diese Gruppe
+    blind bleibt. Gemessen am 2026-08-24: 42% der letzten 120 Trades fielen
+    nach einem 0.5x-Gate unter die 50-USD-Grenze (min_buy_usd ist zudem
+    regimeabhaengig: NORMAL 50, CAUTION 75, DEFENSIVE 100, CRITICAL 150).
+
+    Der angehobene Betrag ist nie groesser als der ungegatete — das Gate
+    kann eine Position also niemals vergroessern. War der Betrag schon vor
+    dem Gate unter ``min_buy``, bleibt er unveraendert und wird wie bisher
+    stromabwaerts aussortiert.
+
+    Returns ``(betrag, wurde_angehoben)``.
+    """
+    if size_mult >= 1.0 or amount <= 0:
+        return round(amount, 2), False
+    scaled = round(amount * size_mult, 2)
+    if scaled < min_buy <= amount:
+        return round(min_buy, 2), True
+    return scaled, False
+
+
 def mark_applied(db, signal_id: int | None) -> None:
     """Markiert die juengste Evaluation eines Signals als tatsaechlich angewandt.
 
