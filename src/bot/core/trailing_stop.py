@@ -105,7 +105,18 @@ MOMENTUM_FADE_ENABLED = True
 # Vollausstieg das Aufteilen. Bei Trendfolge waere es andersherum.
 # ATR-skaliert, weil adaptive Ausstiege in Vergleichstests deutlich besser
 # abschneiden als feste Prozentmarken.
-FULL_EXIT_ENABLED = True
+# feat/min-remaining (2026-08-24): Untergrenze der Restposition.
+# close_pct wirkt auf die AKTUELLE Groesse, nicht auf den Einstieg — die Kette
+# lautet 100 -> 75 -> 56 -> 42 %. Ohne Untergrenze zerfaellt eine Position so
+# in Splitter (gemessen: Median 11 % Rest). Wuerde ein Teilverkauf die Marke
+# unterschreiten, wird stattdessen GANZ geschlossen: die Leiter bleibt
+# erhalten, aber sie kann eine Position nicht mehr zerfasern.
+MIN_REMAINING_PCT = 50.0
+
+FULL_EXIT_ENABLED = False       # 2026-08-24: aus — die Untergrenze oben
+                                # uebernimmt den Vollausstieg, ohne die
+                                # Profit-Leiter auszuhebeln. true setzt ein
+                                # zusaetzliches ATR-Ziel davor.
 FULL_EXIT_ATR_MULT = 2.0        # Ziel = atr_mult x ATR%
 FULL_EXIT_MIN_PCT = 4.0         # Untergrenze des Ziels
 FULL_EXIT_MAX_PCT = 10.0        # Obergrenze des Ziels
@@ -237,6 +248,7 @@ def apply_config(cfg: dict) -> None:
     global STALE_MIN_PEAK_PCT, STALE_LLM_HOLD_GRACE_H, STALE_MAX_DAYS
     global PROFIT_LADDER_ATR_SCALE, MIN_PARTIAL_CLOSE_USD
     global FULL_EXIT_ENABLED, FULL_EXIT_ATR_MULT, FULL_EXIT_MIN_PCT, FULL_EXIT_MAX_PCT
+    global MIN_REMAINING_PCT
     t = ((cfg or {}).get('trailing') or {})
     try:
         MIN_PARTIAL_CLOSE_USD = float(t.get('min_partial_close_usd', MIN_PARTIAL_CLOSE_USD))
@@ -266,6 +278,7 @@ def apply_config(cfg: dict) -> None:
     MOMENTUM_MIN_LOCK_PCT = float(mf.get('min_lock_pct', MOMENTUM_MIN_LOCK_PCT))
     MOMENTUM_FADE_CLOSE_PCT = float(mf.get('close_pct', MOMENTUM_FADE_CLOSE_PCT))
     MOMENTUM_MAX_RETRACE_ABS = float(mf.get('max_retrace_abs_pct', MOMENTUM_MAX_RETRACE_ABS))
+    MIN_REMAINING_PCT = float(t.get('min_remaining_pct', MIN_REMAINING_PCT))
     fe = (t.get('full_exit') or {})
     if 'enabled' in fe:
         FULL_EXIT_ENABLED = bool(fe['enabled'])
@@ -296,6 +309,24 @@ def should_full_exit(pnl_pct: float, atr_pct: float | None) -> bool:
     if not FULL_EXIT_ENABLED:
         return False
     return pnl_pct >= full_exit_threshold(atr_pct)
+
+
+def would_breach_min_remaining(remaining_frac: float, close_pct: float) -> bool:
+    """Wuerde dieser Teilverkauf die Restposition unter die Marke druecken?
+
+    ``remaining_frac``: Anteil der Position, der noch offen ist (1.0 = ganz).
+    ``close_pct``: Anteil DER AKTUELLEN Position, den der Teilverkauf nimmt.
+
+    True heisst: statt des Teilverkaufs ganz schliessen. Auch dann True, wenn
+    die Marke bereits unterschritten ist — eine schon zerfaserte Position soll
+    nicht noch weiter zersplittert werden. Rein und seiteneffektfrei.
+    """
+    floor = MIN_REMAINING_PCT / 100.0
+    if floor <= 0.0:
+        return False
+    if remaining_frac <= floor:
+        return True
+    return remaining_frac * (1.0 - close_pct / 100.0) < floor
 
 
 def should_momentum_fade(pnl_pct: float, peak_pnl_pct: float, already_faded: bool) -> bool:
@@ -399,6 +430,7 @@ def _ensure_position_state_table(db: Any) -> None:
         # (KTA.DE-Vorfall 2026-07-06: 39 Signale, Position in 50%-Schritten
         # von ~$500 auf $14.75 zerlegt).
         "ALTER TABLE position_state ADD COLUMN sell_exit_at TEXT",
+        "ALTER TABLE position_state ADD COLUMN remaining_frac REAL NOT NULL DEFAULT 1.0",
     ):
         try:
             db.execute(ddl)
@@ -599,16 +631,18 @@ def load_position_dynamic(db: Any, position_ids: list[str]) -> dict[str, dict]:
         _ensure_position_state_table(db)
         placeholders = ",".join("?" * len(position_ids))
         rows = db.fetchall(
-            f"SELECT position_id, peak_pnl_pct, momentum_faded, strategy "
+            f"SELECT position_id, peak_pnl_pct, momentum_faded, strategy, "
+            f"COALESCE(remaining_frac, 1.0) "
             f"FROM position_state WHERE position_id IN ({placeholders})",
             list(position_ids),
         )
         result: dict[str, dict] = {}
-        for pid, peak, faded, strat in rows:
+        for pid, peak, faded, strat, remaining in rows:
             result[pid] = {
                 'peak': float(peak or 0.0),
                 'faded': bool(faded),
                 'strategy': (strat or 'swing'),
+                'remaining': float(remaining if remaining is not None else 1.0),
             }
         return result
     except Exception as exc:
@@ -632,6 +666,50 @@ def update_peak_pnl(db: Any, position_id: str, symbol: str, pnl_pct: float) -> N
         """, (position_id, symbol, float(pnl_pct)))
     except Exception as exc:
         logger.warning("[trailing] update_peak_pnl(%s) failed: %s", position_id, exc)
+
+
+def _as_full_exit(a: 'TrailingAction', remaining_frac: float) -> 'TrailingAction':
+    """Wandelt einen Teilverkauf in einen Vollausstieg um (Untergrenze erreicht)."""
+    return TrailingAction(
+        action='FULL_EXIT',
+        symbol=a.symbol,
+        position_id=a.position_id,
+        pnl_pct=a.pnl_pct,
+        reason=(
+            f"{a.reason} | Rest {remaining_frac * 100:.0f}% — ein weiterer "
+            f"Teilverkauf ({a.close_pct:.0f}%) wuerde unter {MIN_REMAINING_PCT:.0f}% "
+            f"fallen, daher Full Close"
+        ),
+        instrument_id=a.instrument_id,
+        amount_usd=a.amount_usd,
+        open_rate=a.open_rate,
+    )
+
+
+def apply_partial_to_remaining(db: Any, position_id: str, symbol: str,
+                               close_pct: float) -> None:
+    """Schreibt den verbleibenden Anteil nach einem Teilverkauf fort.
+
+    ``close_pct`` wirkt auf die AKTUELLE Groesse, die Fortschreibung ist also
+    multiplikativ. Bewusst in SQL gerechnet statt im Aufrufer: der
+    Ausfuehrungs-Loop kennt den vorherigen Stand nicht, und so kann er auch
+    nicht veralten. Fail-open.
+    """
+    keep = max(0.0, min(1.0, 1.0 - (close_pct or 0.0) / 100.0))
+    try:
+        db.execute(
+            """
+            INSERT INTO position_state (position_id, symbol, remaining_frac, updated_at)
+            VALUES (?, ?, ?, datetime('now'))
+            ON CONFLICT(position_id) DO UPDATE SET
+                remaining_frac = COALESCE(position_state.remaining_frac, 1.0) * ?,
+                updated_at = datetime('now')
+            """,
+            (position_id, symbol, keep, keep),
+        )
+    except Exception as exc:
+        logger.warning("[trailing] apply_partial_to_remaining(%s) failed: %s",
+                       position_id, exc)
 
 
 def mark_momentum_faded(db: Any, position_id: str, symbol: str) -> None:
@@ -748,6 +826,7 @@ def evaluate_trailing(
         prev_peak = float(meta.get('peak', 0.0))
         faded = bool(meta.get('faded', False))
         strategy = meta.get('strategy', 'swing')
+        remaining_frac = float(meta.get('remaining', 1.0))
         peak = max(prev_peak, pnl_pct)
         if peak > prev_peak:
             update_peak_pnl(db, pos_id, symbol, pnl_pct)  # SQL raises the mark
@@ -799,7 +878,12 @@ def evaluate_trailing(
             # Quick-profit lock in the +min_lock..+BE_trigger gap that the
             # ladder never reaches — the whole point of momentum-fade.
             elif should_momentum_fade(pnl_pct, peak, faded):
-                actions.append(_fade_action())
+                _fa = _fade_action()
+                actions.append(
+                    _as_full_exit(_fa, remaining_frac)
+                    if would_breach_min_remaining(remaining_frac, _fa.close_pct or 0.0)
+                    else _fa
+                )
             else:
                 # ── Stale-Exit (fix/stale-exit 2026-07-15): totes Kapital.
                 # days_held aus openDateTime (Broker-Wahrheit); kaputter
@@ -880,7 +964,7 @@ def evaluate_trailing(
         elif pending:
             # Structured ladder profit-taking takes priority over the fade.
             level = pending[0]
-            actions.append(TrailingAction(
+            _pa = TrailingAction(
                 action='PARTIAL_CLOSE',
                 symbol=symbol,
                 position_id=pos_id,
@@ -891,10 +975,22 @@ def evaluate_trailing(
                 amount_usd=amount,
                 open_rate=open_rate,
                 level_threshold=level['threshold'],
-            ))
+            )
+            # feat/min-remaining: Die Leiter bleibt erhalten — sie darf die
+            # Position nur nicht unter die Untergrenze zerfasern.
+            actions.append(
+                _as_full_exit(_pa, remaining_frac)
+                if would_breach_min_remaining(remaining_frac, _pa.close_pct or 0.0)
+                else _pa
+            )
         elif should_momentum_fade(pnl_pct, peak, faded):
             # No ladder level due, but a built-up gain is fading back → lock it.
-            actions.append(_fade_action())
+            _fa = _fade_action()
+            actions.append(
+                _as_full_exit(_fa, remaining_frac)
+                if would_breach_min_remaining(remaining_frac, _fa.close_pct or 0.0)
+                else _fa
+            )
         elif pnl_pct >= BREAK_EVEN_TRIGGER_PCT:
             # Only break-even (BE-trigger..first-rung range, or all due levels taken)
             actions.append(TrailingAction(
@@ -1266,6 +1362,9 @@ def execute_trailing_actions(
                             # Lernschleife: Eintrag fuer 72h-Rueckblick
                             _append_stale_outcome(db, action)
                             _embed_reason = f'💤 {action.reason}'
+                        elif action.action == 'FULL_EXIT':
+                            stats['full_exits'] += 1
+                            _embed_reason = f'🎯 Vollausstieg: {action.reason}'
                         else:
                             stats['be_closes'] += 1
                             _embed_reason = f'Break-Even-Schutz: {action.reason}'
@@ -1390,6 +1489,11 @@ def execute_trailing_actions(
                     verified, detail = _verify_partial_close(client, action)
                     if verified:
                         logger.info('[trailing] %s', detail)
+                        # feat/min-remaining: Restanteil fortschreiben.
+                        apply_partial_to_remaining(
+                            db, action.position_id, action.symbol,
+                            action.close_pct or 0.0,
+                        )
                         stats['partial_closes'] += 1
                         if is_fade:
                             stats['momentum_fades'] += 1

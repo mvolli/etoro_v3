@@ -224,6 +224,15 @@ trailing:                     # Dynamic profit-taking (runs each risk_worker cyc
     min_peak_pct: 2.0         # Peak < Momentum-Fade-Arm-Schwelle: Position lief nie
     llm_hold_grace_h: 24      # frische LLM-HOLD-Empfehlung schont ...
     max_days: 20              # ... harter Deckel: dann Exit trotz HOLD
+  # feat/min-remaining (2026-08-24): Untergrenze der Restposition.
+  # close_pct wirkt auf die AKTUELLE Groesse, nicht auf den Einstieg — die
+  # Kette lautet 100 -> 75 -> 56 -> 42 %. Ohne Untergrenze zerfaellt eine
+  # Position in Splitter (gemessen: Median 11 % Rest bei 9.9 % Median-Peak).
+  # Wuerde ein Teilverkauf diese Marke unterschreiten, wird stattdessen GANZ
+  # geschlossen. Die Profit-Leiter bleibt damit erhalten und wirksam — sie
+  # kann eine Position nur nicht mehr zerfasern. 0 schaltet die Regel ab.
+  min_remaining_pct: 50.0
+
   full_exit:                  # feat/full-exit (2026-08-24): Ziel erreicht -> GANZ raus
     # Gemessen vor der Umstellung: offene Positionen erreichten im Median
     # 9.9 % Peak-PnL, realisiert wurden aber nur 0.27 % (Median der Gewinner).
@@ -233,7 +242,10 @@ trailing:                     # Dynamic profit-taking (runs each risk_worker cyc
     # Methodenpassung: unsere Gewinnersignale sind Mean-Reversion, keine
     # Trendfolge. Hinter dem Umkehrpunkt gibt es keine Kante mehr, dort schlaegt
     # ein fester Vollausstieg das Aufteilen (bei Trendfolge waere es umgekehrt).
-    enabled: true
+    # 2026-08-24 auf false: die Untergrenze oben uebernimmt den Vollausstieg,
+    # ohne die Leiter auszuhebeln. Bei true feuert zusaetzlich ein ATR-Ziel,
+    # das die Leiter praktisch stilllegt (erste Stufe liegt bei ~6 %).
+    enabled: false
     atr_mult: 2.0             # Ziel = atr_mult x ATR% der Position
     min_pct: 4.0              # Untergrenze (ruhige Titel)
     max_pct: 10.0             # Obergrenze (volatile Titel)
