@@ -715,6 +715,36 @@ def main() -> None:
         # Experiment — max. 1 Position, feste Groesse. Es gibt bisher KEINE
         # verwertbare Evidenz (6 geschlossene Trades, alle exakt 0.0 %), das
         # Limit haelt das Risiko klein und sammelt trotzdem Datenpunkte.
+        # feat/rebuy-cooldown (2026-08-24): Nachkauf desselben Instruments erst
+        # nach N Stunden. Grund: LEG.DE, IBE.MC, MAU.PA und 6753.T wurden je
+        # zwei- bis dreimal gekauft, immer EXAKT einen 15-Minuten-Zyklus
+        # auseinander. Die bestehende Sperre (get_approved_instrument_ids)
+        # deckt nur status='APPROVED' ab — "Instrumente, die auf Ausfuehrung
+        # warten". Die Bestaetigung erfolgt aber rund 3 Minuten nach der
+        # Freigabe, der naechste Zyklus kommt nach 15: das Fenster der Sperre
+        # ist zu diesem Zeitpunkt immer schon geschlossen, und eine ACTIVE
+        # Position blockiert nichts.
+        #
+        # Bewusst zeitbasiert statt "nur eine Position je Instrument":
+        # Nachkaufen soll erlaubt bleiben, nur nicht im Minutentakt.
+        #
+        # created_at ist UTC (approved_at dagegen lokal — die beiden NICHT
+        # mischen, sonst verrutscht der Vergleich um zwei Stunden).
+        _rebuy_h = float((cfg.get("trading", {}) or {}).get("rebuy_cooldown_hours", 6.0))
+        _recent_buys: set[int] = set()
+        if _rebuy_h > 0:
+            try:
+                _recent_buys = {
+                    r["instrument_id"] for r in db.fetchall(
+                        "SELECT DISTINCT instrument_id FROM trades "
+                        "WHERE status IN ('APPROVED','SUBMITTING','ACTIVE') "
+                        "AND created_at > datetime('now', ?)",
+                        (f"-{_rebuy_h} hours",),
+                    )
+                }
+            except Exception:
+                _recent_buys = set()
+
         _comm_cfg = ((cfg.get("trading", {}) or {}).get("commodity", {}) or {})
         _comm_ids: set[int] = set()
         _comm_open = 0
@@ -768,6 +798,13 @@ def main() -> None:
                 continue
     
             symbol = _resolve_symbol(instrument_id)
+
+            # feat/rebuy-cooldown: frisch gekauft -> kein Nachkauf.
+            # Skip statt REJECT: nach Ablauf der Sperrfrist ist das Signal
+            # sofort wieder Kandidat, sofern es dann noch gilt.
+            if instrument_id in _recent_buys:
+                _skip["nachkauf_cooldown"].append(symbol)
+                continue
 
             # feat/commodity: hoechstens N Rohstoffpositionen gleichzeitig.
             # Skip statt REJECT — schliesst die offene Position, ist das

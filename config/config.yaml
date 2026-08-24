@@ -30,6 +30,15 @@ trading:
   # ausschliesslich mit HIGH/VERY_HIGH befuellt werden.
   candidate_slots: 5
 
+  # feat/rebuy-cooldown (2026-08-24): Nachkauf desselben Instruments erst nach
+  # N Stunden. Ausloeser: LEG.DE, IBE.MC, MAU.PA (3x!) und 6753.T wurden
+  # mehrfach gekauft, immer exakt einen 15-Minuten-Zyklus auseinander. Die
+  # bestehende Sperre deckt nur status=APPROVED ab; die Bestaetigung erfolgt
+  # aber ~3 Minuten nach Freigabe, der naechste Zyklus nach 15 — das Fenster
+  # war immer schon zu. Nachkaufen bleibt erlaubt, nur nicht im Minutentakt.
+  # 0 schaltet die Regel ab.
+  rebuy_cooldown_hours: 6.0
+
   # feat/commodity (2026-08-24): bewusst kleines Experiment.
   # Rohstoffe brauchen bei eToro 1000 USD Mindest-EXPOSURE. amount ist die
   # Margin, Exposure = amount x leverage — 500 USD bei Hebel 2 erreichen die
