@@ -704,6 +704,12 @@ def main() -> None:
         skipped_closed: list[str] = []
         skipped_diversity: list[str] = []
         eligible: list[tuple[dict, str]] = []  # (signal, symbol) — open market, not blacklisted
+        # feat/eligible-counters (2026-08-24): Der Filter verschluckte 17 von 18
+        # frischen Signalen, ohne zu sagen woran. Ohne diese Zaehler bleibt nur
+        # Raten — pro Lauf steht jetzt in einer Zeile, welcher Zweig wie viele
+        # Kandidaten aussortiert hat, mit Beispielsymbolen.
+        from collections import defaultdict as _dd
+        _skip: dict[str, list[str]] = _dd(list)
     
         # APPROVED-Check: Instrumente mit bereits APPROVED-Trade vorab laden
         _approved_ids: set[int] = set()
@@ -723,6 +729,11 @@ def main() -> None:
                     instrument_id, ghost_count,
                 )
                 signal_repo.update_signal_status(signal_id, "REJECTED")
+                # fix (2026-08-24): hier fehlte das continue — ein gesperrtes
+                # Instrument wurde als REJECTED markiert, lief aber weiter durch
+                # den Filter und konnte trotzdem im eligible-Pool landen.
+                _skip["ghost_blacklist"].append(str(instrument_id))
+                continue
 
             # APPROVED-Check: kein neues Signal fuer Instrument mit
             # bereits APPROVED-Trade (fix/duplicate-instrument-approval 2026-07-27)
@@ -734,6 +745,7 @@ def main() -> None:
                     instrument_id,
                 )
                 signal_repo.update_signal_status(signal_id, "REJECTED")
+                _skip["bereits_approved"].append(str(instrument_id))
                 continue
     
             symbol = _resolve_symbol(instrument_id)
@@ -741,6 +753,7 @@ def main() -> None:
             if _is_llm_ghost_blocked(symbol, _llm_blacklist):
                 logger.info("SignalWorker: %s LLM-Exchange-Blacklist", symbol)
                 signal_repo.update_signal_status(signal_id, "REJECTED")
+                _skip["llm_exchange_blacklist"].append(symbol)
                 continue
 
             # LLM Signal-Type Blacklist (deaktivierte Signal-Typen)
@@ -750,6 +763,7 @@ def main() -> None:
                 logger.info("SignalWorker: %s Signal-Typ gesperrt (%s): %s",
                             symbol, _sig_type[:40], _sig_reason[:60])
                 signal_repo.update_signal_status(signal_id, "REJECTED")
+                _skip["llm_signaltyp_gesperrt"].append(symbol)
                 continue
 
             # Signal-Type Cooldown (fix/signal-type-cooldown: gleiche
@@ -764,6 +778,7 @@ def main() -> None:
                         symbol, _sig_type[:60], SIGNAL_TYPE_COOLDOWN_MINUTES,
                     )
                     signal_repo.update_signal_status(signal_id, "REJECTED")
+                    _skip["signaltyp_cooldown"].append(symbol)
                     continue
 
             # Slippage-Blacklist: Instrumente mit >=3 Slippage-Rejects in 7d
@@ -775,6 +790,7 @@ def main() -> None:
                     symbol,
                 )
                 signal_repo.update_signal_status(signal_id, "REJECTED")
+                _skip["slippage_blacklist"].append(symbol)
                 continue
 
             # Diversity-Precheck (fix/diversity-slot-guard, 2026-07-15):
@@ -789,6 +805,7 @@ def main() -> None:
                     and _open_signal_cats.get(_pre_cat, 0) / position_count
                         >= MAX_CATEGORY_FRACTION):
                 skipped_diversity.append(f"{symbol}({_pre_cat})")
+                _skip["diversity_kappe"].append(symbol)
                 continue
 
             # News/Earnings-Risk-Flag (fix/llm-news-flags): AVOID → Signal
@@ -800,6 +817,7 @@ def main() -> None:
                     "SignalWorker: %s News-Flag AVOID (%s) — uebersprungen",
                     symbol, (_nf.get("reason") or "")[:80],
                 )
+                _skip["news_avoid"].append(symbol)
                 continue
 
             # Market hours (fix/market-hours-slot-guard): Signale geschlossener
@@ -812,10 +830,33 @@ def main() -> None:
             _yf_sym, _mh_category = _resolve_market_fields(instrument_id)
             if not is_market_open(symbol, _yf_sym, _mh_category, fail_open=False):
                 skipped_closed.append(symbol)
+                _skip["markt_geschlossen"].append(f"{symbol}[{_mh_category}]")
                 continue
 
             eligible.append((signal, symbol))
     
+        # feat/eligible-counters: eine Zeile pro Lauf, warum aussortiert wurde.
+        _in = len(buy_signals)
+        _out = len(eligible)
+        if _in:
+            _parts = " ".join(
+                f"{k}={len(v)}" for k, v in sorted(_skip.items(), key=lambda kv: -len(kv[1]))
+            ) or "keine"
+            logger.info(
+                "SignalWorker: eligible-Filter %d Signale -> %d Kandidaten | %s",
+                _in, _out, _parts,
+            )
+            for _k, _v in sorted(_skip.items(), key=lambda kv: -len(kv[1]))[:4]:
+                logger.info("SignalWorker:   %s (%d): %s", _k, len(_v), ", ".join(_v[:8]))
+            try:
+                log_repo.write(
+                    "INFO", "signal_worker",
+                    f"eligible-Filter: {_in} -> {_out} | {_parts}",
+                    {"skip_counts": {k: len(v) for k, v in _skip.items()}},
+                )
+            except Exception:
+                pass
+
         if skipped_diversity:
             logger.info(
                 "SignalWorker: %d Kandidat(en) am Diversity-Precheck uebersprungen "
