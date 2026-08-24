@@ -663,6 +663,7 @@ class EToroClient:
         symbol: str = "",
         take_profit_pct: float | None = None,
         is_crypto: bool = False,
+        leverage: int = 1,
     ) -> dict:
         """Open a new long position on *instrument_id*.
 
@@ -935,15 +936,42 @@ class EToroClient:
             )
             return {"success": False, "error": f"SL Quality Gate: {sl_check.summary()}"}
 
+        # feat/commodity-leverage (2026-08-24): Hebel aufloesen.
+        # HARTER DECKEL 2 — bewusst im Client, nicht nur in der Config: eine
+        # versehentlich zu hohe Einstellung darf nie bis zur Order durchkommen.
+        # Zusaetzlich gegen die leverageConfigs des Instruments geprueft; laesst
+        # der Broker den Wert nicht zu, faellt er auf 1 zurueck statt die Order
+        # zu riskieren. ``amount`` ist bei eToro die MARGIN, die Positionsgroesse
+        # ist amount x leverage — die Mindest-Exposure (z.B. 1000 USD bei
+        # Rohstoffen) wird also mit 500 USD Margin bei Hebel 2 erreicht.
+        _lev = max(1, min(2, int(leverage or 1)))
+        if _lev > 1 and elig_data is not None:
+            _allowed = False
+            for _lc in (elig_data.get("leverageConfigs") or []):
+                if _lc.get("direction") == "long" and _lev in (_lc.get("leverageValues") or []):
+                    _allowed = True
+                    break
+            if not _allowed:
+                logger.warning(
+                    "open_position %s: Hebel %d vom Broker nicht zugelassen — "
+                    "faellt auf 1 zurueck", instrument_id, _lev,
+                )
+                _lev = 1
+        if _lev != int(leverage or 1):
+            logger.info("open_position %s: Hebel %s -> %d", instrument_id, leverage, _lev)
+
         # SL bounds validation against eligibility leverageConfigs
         if elig_data is not None:
             sl_distance_pct = ((current_price - stop_loss_rate) / current_price) * 100
             leverage_configs = elig_data.get("leverageConfigs", [])
-            # Find the config for leverage=1, long direction (our standard)
+            # Find the config for the ACTUAL leverage, long direction.
+            # feat/commodity-leverage: war fest auf 1 — bei Hebel 2 gelten
+            # andere SL-Grenzen, sonst sitzt der Stop ausserhalb des Erlaubten
+            # und die Order wird abgewiesen oder falsch abgesichert.
             matching_config = None
             for lc in leverage_configs:
                 if (lc.get("direction") == "long" and
-                    1 in lc.get("leverageValues", [])):
+                    _lev in lc.get("leverageValues", [])):
                     matching_config = lc
                     break
             # If no exact match, use the first long config
@@ -983,7 +1011,7 @@ class EToroClient:
             _tp_pct = float(take_profit_pct)
             try:
                 for _lc in (elig_data or {}).get("leverageConfigs", []) or []:
-                    if _lc.get("direction") == "long" and 1 in (_lc.get("leverageValues") or []):
+                    if _lc.get("direction") == "long" and _lev in (_lc.get("leverageValues") or []):
                         _tp_max = float(_lc.get("maxTakeProfitPercentage") or 0) or None
                         if _tp_max:
                             _tp_pct = min(_tp_pct, _tp_max)
@@ -995,8 +1023,8 @@ class EToroClient:
         body = {
             "transaction": "Buy",
             "instrumentId": instrument_id,
-            "amount": amount_usd,
-            "leverage": 1,
+            "amount": amount_usd,          # = MARGIN, Exposure ist amount x leverage
+            "leverage": _lev,
             "isNoStopLoss": False,
             "stopLossRate": stop_loss_rate,
         }
@@ -1005,10 +1033,13 @@ class EToroClient:
             body["takeProfitRate"] = take_profit_rate
 
         logger.debug(
-            "open_position instrument=%s symbol=%s amount=%.2f sl_pct=%.1f sl_rate=%.6f",
+            "open_position instrument=%s symbol=%s amount=%.2f lev=%d "
+            "exposure=%.2f sl_pct=%.1f sl_rate=%.6f",
             instrument_id,
             _symbol,
             amount_usd,
+            _lev,
+            amount_usd * _lev,
             stop_loss_pct,
             stop_loss_rate,
         )

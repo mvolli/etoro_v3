@@ -29,6 +29,22 @@ trading:
   # Bei Cash > cash_target_max_pct kommen bis zu 2 weitere hinzu, die
   # ausschliesslich mit HIGH/VERY_HIGH befuellt werden.
   candidate_slots: 5
+
+  # feat/commodity (2026-08-24): bewusst kleines Experiment.
+  # Rohstoffe brauchen bei eToro 1000 USD Mindest-EXPOSURE. amount ist die
+  # Margin, Exposure = amount x leverage — 500 USD bei Hebel 2 erreichen die
+  # Schwelle also genau. Hoeher als 2 wird NIE gehebelt (der API-Client
+  # deckelt zusaetzlich hart und faellt auf 1 zurueck, wenn der Broker den
+  # Wert nicht zulaesst).
+  # Evidenzlage: 6 geschlossene Trades, alle exakt 0.0 % — es gibt schlicht
+  # keine. max_positions 1 und die feste Groesse halten den Verlustfall bei
+  # rund 60 USD (6 % Stop auf 1000 USD Exposure), waehrend Datenpunkte
+  # entstehen. Erst mit belastbarer Historie ueber Ausweitung nachdenken.
+  commodity:
+    enabled: true
+    leverage: 2               # HARTER Deckel im Client: nie mehr als 2
+    position_usd: 500.0       # feste Margin, keine Kelly-/Regime-Skalierung
+    max_positions: 1          # gleichzeitig offene Rohstoffpositionen
   max_trades_per_day: 0       # 0 = deaktiviert (2026-07-14, User-Entscheid). Runaway-Schutz
                               # uebernehmen: Exposure-Gate 75%, cash_emergency_pct,
                               # daily_loss_limit (Auto-Kill-Switch) und 3 Slots/15-min-Zyklus.

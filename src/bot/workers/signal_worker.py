@@ -710,6 +710,25 @@ def main() -> None:
         # Kandidaten aussortiert hat, mit Beispielsymbolen.
         from collections import defaultdict as _dd
         _skip: dict[str, list[str]] = _dd(list)
+
+        # feat/commodity (2026-08-24): Rohstoffe sind ein bewusst kleines
+        # Experiment — max. 1 Position, feste Groesse. Es gibt bisher KEINE
+        # verwertbare Evidenz (6 geschlossene Trades, alle exakt 0.0 %), das
+        # Limit haelt das Risiko klein und sammelt trotzdem Datenpunkte.
+        _comm_cfg = ((cfg.get("trading", {}) or {}).get("commodity", {}) or {})
+        _comm_ids: set[int] = set()
+        _comm_open = 0
+        try:
+            _comm_ids = {
+                r["instrument_id"] for r in db.fetchall(
+                    "SELECT instrument_id FROM instruments WHERE asset_class = 'commodity'")
+            }
+            _comm_open = len(db.fetchall(
+                "SELECT p.instrument_id FROM portfolio_snapshot p "
+                "JOIN instruments i ON i.instrument_id = p.instrument_id "
+                "WHERE i.asset_class = 'commodity'"))
+        except Exception:
+            _comm_ids, _comm_open = set(), 0
     
         # APPROVED-Check: Instrumente mit bereits APPROVED-Trade vorab laden
         _approved_ids: set[int] = set()
@@ -749,6 +768,17 @@ def main() -> None:
                 continue
     
             symbol = _resolve_symbol(instrument_id)
+
+            # feat/commodity: hoechstens N Rohstoffpositionen gleichzeitig.
+            # Skip statt REJECT — schliesst die offene Position, ist das
+            # Signal sofort wieder Kandidat.
+            if instrument_id in _comm_ids:
+                if not _comm_cfg.get("enabled", False):
+                    _skip["commodity_aus"].append(symbol)
+                    continue
+                if _comm_open >= int(_comm_cfg.get("max_positions", 1)):
+                    _skip["commodity_limit"].append(symbol)
+                    continue
 
             if _is_llm_ghost_blocked(symbol, _llm_blacklist):
                 logger.info("SignalWorker: %s LLM-Exchange-Blacklist", symbol)
@@ -1122,6 +1152,23 @@ def main() -> None:
                         )
             except Exception:
                 logger.debug("entry_quality: sizing fehlgeschlagen (fail-open)", exc_info=True)
+
+            # feat/commodity: feste Margin statt Sizing-Kette. Die Kette
+            # wuerde fuer einen Rohstoff rund 150 USD ergeben — zu wenig, um
+            # mit Hebel 2 die 1000-USD-Mindest-Exposure zu erreichen. Fest
+            # bedeutet zugleich: keine Kelly-/Regime-Skalierung nach oben,
+            # der Einsatz ist auf genau diesen Betrag begrenzt.
+            if signal.get("instrument_id") in _comm_ids and _comm_cfg.get("enabled", False):
+                _comm_amt = float(_comm_cfg.get("position_usd", 500.0))
+                if _comm_amt != buy_amount:
+                    logger.info(
+                        "SignalWorker: %s Rohstoff — feste Groesse $%.2f statt $%.2f "
+                        "(Hebel %s, Exposure $%.2f)",
+                        symbol, _comm_amt, buy_amount,
+                        _comm_cfg.get("leverage", 2),
+                        _comm_amt * float(_comm_cfg.get("leverage", 2)),
+                    )
+                    buy_amount = _comm_amt
 
             # Enforce minimum from regime params
             min_buy = regime_params.get("min_buy_usd", 50.0)

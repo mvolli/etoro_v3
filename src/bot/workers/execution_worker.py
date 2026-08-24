@@ -815,8 +815,10 @@ def main() -> None:
                     (instrument_id,),
                 )
                 _is_crypto = bool(_ac_row and _ac_row["asset_class"] == "crypto")
+                _is_commodity = bool(_ac_row and _ac_row["asset_class"] == "commodity")
             except Exception:
                 _is_crypto = False
+                _is_commodity = False
             _max_spread = float(
                 cfg.get("trading", {}).get("max_spread_pct_crypto", 3.0)
                 if _is_crypto
@@ -875,6 +877,15 @@ def main() -> None:
                     symbol=_canonical_symbol(db, instrument_id, symbol),
                     take_profit_pct=float(cfg.get("sl", {}).get("safety_tp_pct", 25.0)),
                     is_crypto=_is_crypto,  # fix/crypto-entry-orders: 24/7-Market-Order
+                    # feat/commodity-leverage: Rohstoffe brauchen 1000 USD
+                    # Mindest-Exposure. Bei Hebel 2 reichen dafuer 500 USD
+                    # Margin. Der Client deckelt zusaetzlich hart auf 2 und
+                    # faellt auf 1 zurueck, wenn der Broker den Wert nicht
+                    # zulaesst. Alles andere bleibt ungehebelt.
+                    leverage=(
+                        int((cfg.get("trading", {}) or {}).get("commodity", {}).get("leverage", 2))
+                        if _is_commodity else 1
+                    ),
                 )
     
                 # d1. BLOCKED path — open_position() returned a soft-block dict
