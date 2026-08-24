@@ -121,10 +121,19 @@ ASSET_CLASS_SCORE_BOOST: dict[str, float] = {
     # 2026-08-24: COMMODITY 0.95 -> 1.00, CRYPTO 0.85 -> 1.15.
     # Die Abwertung war empirisch falsch herum. Gemessen an geschlossenen
     # Trades: Krypto n=11 WR 63.6 % avg +14.2 % (+67 USD) gegen Aktien n=256
-    # WR 31.3 % avg +0.1 % (-466 USD). Krypto war damit die mit Abstand beste
-    # Anlageklasse im Bestand — und wurde mit 0.85 gegen 1.15 systematisch aus
-    # den knappen Kandidaten-Slots gedraengt: 576 Krypto-Signale in drei Tagen,
-    # davon 0 gehandelt.
+    # WR 31.3 % avg +0.1 % (-466 USD). Krypto ist damit die beste Anlageklasse
+    # im Bestand.
+    #
+    # KORREKTUR 2026-08-24, nachtraeglich zu 563b772: Die urspruengliche
+    # Begruendung behauptete zusaetzlich, der Boost habe 576 Krypto-Signale aus
+    # den knappen Kandidaten-Slots gedraengt. Das war FALSCH. Nachgemessen
+    # waren ALLE 571 Krypto-Signale der letzten drei Tage vom Typ
+    # BB_UPPER_RSI_OVERBOUGHT, also VERKAUFSsignale — sie waren nie
+    # Kaufkandidaten und werden im Kauf-Pfad korrekt aussortiert
+    # (signal_worker filtert SELL/OVERBOUGHT). Es gab in dem Zeitraum NULL
+    # kauffaehige Krypto-Signale; der Boost kann sie folglich nicht verdraengt
+    # haben. Der Gleichstand bleibt richtig, weil die Performance ihn traegt —
+    # die Wirkung setzt aber erst ein, WENN Krypto-Kaufsignale entstehen.
     # Bewusst nur auf Gleichstand mit Aktien, nicht darueber: n=11 traegt keine
     # Bevorzugung. Die Aussage ist "kein Grund zur Abwertung", nicht "besser".
     # Rohstoffe auf neutral, weil es dort ueberhaupt keine Evidenz gibt
