@@ -1590,3 +1590,68 @@
 
 **Tests:** 1030 passed (Suite grün unter /usr/bin/python3). 90d-Fenster == voller Verlauf (Bot ~50d alt), kein Decay-Check nötig.
 **LLM-Fazit:** Kelly war das eigentliche Problem — nicht die Signal-Rules. Ein Floor bei 0.3 bestraft jeden negativen Edge identisch und tötet die Signal-Vielfalt, ohne zu differenzieren. Centering + MEDIUM-Demotion des Einzel-Pullbacks realignieren Sizing mit der Evidenz, ohne Discovery/Signal-Typen zu löschen (keine Anti-Brake).
+
+## 2026-08-22 20:32 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 4% (1/27)
+- `.ST`: 0% (0/16)
+- `.L`: 0% (0/32) ← GEBLOCKT
+- `.PA`: 0% (0/6)
+- `.OL`: 0% (0/5) ← GEBLOCKT
+- `_ASIA`: 0% (0/25)
+- `_CRYPTO`: 0% (0/3)
+- `.ASX`: 0% (0/8)
+- `.MI`: 0% (0/5)
+- `.DE`: 0% (0/2)
+- `.HE`: 0% (0/2)
+
+**Schwache Signaltypen:** CORE_SWEEP
+
+**Anomalien:**
+- VERY_HIGH conviction signals (BB/RSI Oversold) show catastrophic loss rates (90%+), contradicting the conviction hierarchy.
+- TREND_PULLBACK,GOLDEN_CROSS has a high win rate (67%) but negative average PnL (-1.6%), indicating poor risk-reward or exit timing.
+- CORE_SWEEP has a low success rate (26%) and negative average PnL (-0.99%).
+
+**LLM-Fazit:** DEFENSIVE-Regime aktiv. Sehr hohe Conviction-Signale (Oversold) performen extrem schlecht (90% Verlustquote), was auf ein 'Falling Knife'-Problem hindeutet. TREND_PULLBACK-Signale gewinnen oft, verlieren aber Geld im Durchschnitt, was auf Exit-Probleme hindeutet.
+
+## 2026-08-23 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 4% (1/27)
+- `.L`: 0% (0/34) ← GEBLOCKT
+- `.ST`: 0% (0/16)
+- `.PA`: 0% (0/6)
+- `.OL`: 0% (0/5) ← GEBLOCKT
+- `_ASIA`: 0% (0/25)
+- `_CRYPTO`: 0% (0/3)
+- `.ASX`: 0% (0/8)
+- `.MI`: 0% (0/5)
+- `.DE`: 0% (0/2)
+- `.HE`: 0% (0/2)
+
+**Schwache Signaltypen:** CORE_SWEEP
+
+**Anomalien:**
+- VERY_HIGH conviction signals (BB/RSI Oversold) show catastrophic loss rates (90%+), indicating severe entry quality issues.
+- TREND_PULLBACK,GOLDEN_CROSS has a high win rate (67%) but negative average PnL (-1.6%), suggesting exit logic is failing to capture gains or stop-losses are too wide.
+- CORE_SWEEP has a low success rate (26%) and negative average PnL (-0.99%), underperforming despite high volume.
+
+**LLM-Fazit:** Portfolio im CAUTION-Regime mit 8.512 USD. Ghost-Raten sind stabil und niedrig, keine strukturellen Exchange-Blocks detected. Kritisch: VERY_HIGH Conviction Oversold-Signale verlieren massiv (90%+ Verlustquote), während TREND_PULLBACK-GoldenCross zwar oft gewinnt, aber im Schnitt Geld verliert. Empfehlung: Dämpfen von Oversold-Entry-Signaturen und Review der Exit-Logik für Trend-Signale.
+## 2026-08-24 20:35 UTC — Self-Improvement (Conviction-Leiter-Abflachung + TP+GC-Dämpfer)
+
+**Diagnose (SQL, data/trading.db, alle CLOSED mit pnl_usd):**
+- Conviction-Split (Vollverlauf): **MEDIUM = beste Stufe** (n=122, WR 42.6%, −10.32 USD), **HIGH = einziger groesster Drag** (n=84, WR 31.0%, **−269.08 USD**), VERY_HIGH = WR 10.9% (n=55, −42.09 USD).
+- Seit 08-10 (nach Entry-Quality Phase-2 + Kelly-Shrinkage): MACD_TURN_BELOW_SMA20+BB_LOW_MACD_IMPROVING MEDIUM n=14 **+41.17 USD, avg +10.28%** — einzige profitabel Familie. CORE_SWEEP −37.59, TP+GC HIGH −17.0.
+- Payoff-Analyse: **TP+GC WR 25.0% bei Breakeven 45.8%** (avg_win +2.03 / avg_loss −2.41 → payoff 0.84) → strukturell negativ, n=56.
+- Kern-Problem: die statische Sizing-Leiter war INVERTIERT ZUR EVIDENZ — die zwei groessten Stufen (VERY_HIGH 7.0%, HIGH 6.0%) sind die zwei schlechtesten; MEDIUM (5.0%) ist die beste. Kelly darf nur daempfen (<=1.0, min_trades=25) und erreicht die Verluststufen nicht voll.
+
+**Aenderungen (keine Code-Aenderung, keine DB-Aenderung):**
+1. `data/llm_signal_weights.json`: TREND_PULLBACK,GOLDEN_CROSS `score_multiplier` 0.8 → **0.25** (Exact-Match-Entry; Regel-8-geprueft: MACD_TURN-Combos bleiben 1.0, 3-Oversold-Combo 0.2, CORE_SWEEP 0.6 — nichts verdraengt).
+2. `config/config.yaml` sizing: `very_high_pct` 7.0 → **5.0**, `high_pct` 6.0 → **5.0** — Abflachung auf MEDIUM-Base. Leiter bleibt monoton (5 ≥ 5 ≥ 5 ≥ 2, User-Entscheid 2026-07-14), alle Werte innerhalb BIBLE_HARD_LIMITS.
+
+**Nicht wiederholt (schon 2026-08-24 erledigt):** Kelly-Centering/Schrumpfung, CORE_SWEEP-Kelly, Entry-Quality Phase-2 Live, Exit-Rework (Vollausstieg am Ziel + Restposition-Untergrenze), Nachkauf-Sperre, Krypto-Reval-Fix, Commodity-Sizing, Core-Sweep-News-Flags.
+
+**Tests:** 1100 passed (PYTHONPATH=src /usr/bin/python3 -m pytest -q, 16.8s). Kill-Switch-Healthcheck leer = gesund.
+
+**Naechster Fokus:** TP+GC beobachten (Kelly ~0.20 + 0.25-Ranking-Daempfer); CORE_SWEEP-Whitelist-Qualitaet (RSI<30-Filter statt nur >75); Oversold-3-Combo: n=37/WR 2.7% ist belastbar genug fuer Skip-Option beim naechsten Review.
