@@ -118,8 +118,21 @@ ASSET_CLASS_SCORE_BOOST: dict[str, float] = {
     "BROAD_ETF":  1.10,
     "INTL":       1.10,
     "BOND":       1.00,
-    "COMMODITY":  0.95,
-    "CRYPTO":     0.85,
+    # 2026-08-24: COMMODITY 0.95 -> 1.00, CRYPTO 0.85 -> 1.15.
+    # Die Abwertung war empirisch falsch herum. Gemessen an geschlossenen
+    # Trades: Krypto n=11 WR 63.6 % avg +14.2 % (+67 USD) gegen Aktien n=256
+    # WR 31.3 % avg +0.1 % (-466 USD). Krypto war damit die mit Abstand beste
+    # Anlageklasse im Bestand — und wurde mit 0.85 gegen 1.15 systematisch aus
+    # den knappen Kandidaten-Slots gedraengt: 576 Krypto-Signale in drei Tagen,
+    # davon 0 gehandelt.
+    # Bewusst nur auf Gleichstand mit Aktien, nicht darueber: n=11 traegt keine
+    # Bevorzugung. Die Aussage ist "kein Grund zur Abwertung", nicht "besser".
+    # Rohstoffe auf neutral, weil es dort ueberhaupt keine Evidenz gibt
+    # (6 Trades, alle exakt 0.0 %).
+    # Die Exposure-Deckel bleiben unveraendert: ASSET_CLASS_LIMITS haelt
+    # CRYPTO bei 10 % und COMMODITY bei 20 % der Equity.
+    "COMMODITY":  1.00,
+    "CRYPTO":     1.15,
 }
 # Fallback boost for equity symbols not present in ASSET_CLASS_MAP —
 # classify_asset_class() below decides when this applies (default: any
