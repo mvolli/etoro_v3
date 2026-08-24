@@ -79,30 +79,37 @@ trading:
       JNJ:  1022
       WMT:  1035
 
-  # ── feat/entry-quality (2026-08-22): qualitative Entry-Pruefung ──────────
-  # PHASE 1 = SHADOW (mode: shadow): alle 5 Gates werden bewertet und in
-  # entry_quality_events geloggt — die Execution aendert sich NICHT (kein
-  # Size-Change, kein Reject). Basis: Live-DB-Evidenz (Pure-Oversold-Cluster
-  # ohne MACD_TURN = 2.7% WR; CORE_SWEEP = -$171 Drag) + Web-Research
-  # (Confluence, Trend-Filter, Volatility-Gating, Regime-Conditional;
-  # references/entry-quality-plan-2026-08-22.md). Nach ~50 Shadow-Trades
-  # bestimmt der gate-WR-vs-live-WR-Abgleich, welche Gates auf
-  # mode: live (Phase 2: Sizing-Koeffizienten 0.25-1.0, keine Hard-Blocks).
-  # Faellt FAIL-OPEN aus: fehlende Daten = kein Gate-Hit.
+  # ── feat/entry-quality: qualitative Entry-Pruefung ───────────────────────
+  # PHASE 2 = LIVE seit 2026-08-24 (mode: live): die 5 Gates wirken auf die
+  # Positionsgroesse. Kombiniert = MIN ueber alle Treffer, geklemmt auf
+  # min_size_mult. Ausschliesslich Soft-Gates (0.25-1.0) — KEINE Hard-Blocks,
+  # gemaess Plan-Phase 2 und der Anti-Brake-Vorgabe: ein getroffenes Signal
+  # wird kleiner gehandelt, nicht verworfen. Das erhaelt Trade-Count,
+  # Discovery UND die laufende Datensammlung fuer die WR-Auswertung.
+  # Basis: Live-DB-Evidenz (Pure-Oversold-Cluster ohne MACD_TURN = 2.7% WR;
+  # CORE_SWEEP = -$171 Drag) + references/entry-quality-plan-2026-08-22.md.
+  # Auswertung laeuft weiter gegen entry_quality_events: mode + applied
+  # trennen wirksame von beobachteten Zeilen (applied=1 = Groesse geaendert).
+  # Faellt FAIL-OPEN aus: fehlende Daten = kein Gate-Hit, keine Aenderung.
+  # Rueckweg jederzeit: mode: shadow — der Code bleibt identisch.
   entry_quality:
     enabled: true
-    mode: shadow              # shadow | live
+    mode: live                # shadow | live
     min_size_mult: 0.25       # hart-clamped Floor fuer kombinierte Sizing-Multipliers
     gates:
       macd_turn_required:     # Pure-Oversold OHNE MACD_TURN → 0.5x (2.7%-WR-Cluster)
         enabled: true
         size_mult: 0.5
-      core_sweep_regime:      # CORE_SWEEP nur in allowed Regimes (live: block)
+      core_sweep_regime:      # CORE_SWEEP ausserhalb allowed Regimes -> 0.25x
         enabled: true
         allowed_regimes: ["NORMAL", "CAUTION"]
         trend_override: true
         min_roc_5d_pct: -12.0
-        size_mult: 0.0
+        # 2026-08-24: war 0.0 (Hard-Block). Phase 2 verbietet Hard-Blocks —
+        # ein Block wuerde die Klemme auf min_size_mult umgehen UND die
+        # Datensammlung fuer diesen Cluster beenden. 0.25 = kleinste
+        # zugelassene Groesse, Trade findet statt und liefert ein Ergebnis.
+        size_mult: 0.25
       dipbuy_trend:           # Dip-Buys brauchen ROC5d > min (soft 0.5x)
         enabled: true
         min_roc_5d_pct: -15.0

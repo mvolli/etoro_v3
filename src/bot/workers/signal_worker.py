@@ -1032,28 +1032,43 @@ def main() -> None:
             except Exception as _db_exc:
                 logger.debug("SignalWorker: Deployment-Boost uebersprungen: %s", _db_exc)
 
-            # feat/entry-quality (2026-08-22) SHADOW-Modus: Execution-Time-
-            # Wirkung loggen, OHNE buy_amount zu aendern. Die Evaluation (mit
-            # vollen Indikatoren) wurde am Signal-Gen in entry_quality_events
-            # erfasst (data_worker); hier wird der kombinierte Sizing-
-            # Multiplikator fuer das konkrete Signal gelesen und die would-be
-            # Effect (neue Groesse / would-block) protokolliert — Basis der
-            # Phase-1-Shadow-Auswertung (gate-WR vs. live-WR, false-positive
-            # Rate), bevor live-Mode die Gates auf Sizing schaltet. Fail-open:
-            # kein Size-Change, kein Reject.
+            # feat/entry-quality PHASE 2 (2026-08-24): mode-abhaengige Wirkung.
+            # Die Evaluation (mit vollen Indikatoren) wurde am Signal-Gen in
+            # entry_quality_events erfasst (data_worker); hier wird der
+            # kombinierte Sizing-Multiplikator fuer das konkrete Signal gelesen.
+            #   mode=live   -> buy_amount wird skaliert, Event als applied=1
+            #                  markiert. Nur Soft-Gates (Floor min_size_mult),
+            #                  keine Hard-Blocks — der Trade findet statt, nur
+            #                  kleiner. Das haelt die Datensammlung am Laufen.
+            #   mode=shadow -> nur would-be-Logging, keine Aenderung.
+            # Laeuft VOR der min_buy-Enforce, damit ein herunterskalierter
+            # Betrag unter dem Minimum regulaer aussortiert wird.
+            # Fail-open: bei jedem Fehler bleibt buy_amount unveraendert.
             try:
                 from bot.core import entry_quality as _eq
+                _eq_mode = str(
+                    ((cfg.get("trading", {}) or {}).get("entry_quality", {}) or {}).get("mode", "shadow")
+                ).lower()
                 _eq_sm = _eq.latest_size_mult(db, signal_id)
                 if _eq_sm != 1.0:
-                    _eq_would_amt = round(buy_amount * _eq_sm, 2)
-                    logger.info(
-                        "SignalWorker: ENTRY-QUALITY %s (shadow): size_mult=%.2f "
-                        "$%.2f -> $%.2f%s",
-                        symbol, _eq_sm, buy_amount, _eq_would_amt,
-                        " WOULD-BLOCK" if _eq_sm <= 0.0 else "",
-                    )
+                    _eq_new_amt = round(buy_amount * _eq_sm, 2)
+                    if _eq_mode == "live":
+                        logger.info(
+                            "SignalWorker: ENTRY-QUALITY %s (live): size_mult=%.2f "
+                            "$%.2f -> $%.2f",
+                            symbol, _eq_sm, buy_amount, _eq_new_amt,
+                        )
+                        buy_amount = _eq_new_amt
+                        _eq.mark_applied(db, signal_id)
+                    else:
+                        logger.info(
+                            "SignalWorker: ENTRY-QUALITY %s (shadow): size_mult=%.2f "
+                            "$%.2f -> $%.2f%s",
+                            symbol, _eq_sm, buy_amount, _eq_new_amt,
+                            " WOULD-BLOCK" if _eq_sm <= 0.0 else "",
+                        )
             except Exception:
-                logger.debug("entry_quality: shadow-log fehlgeschlagen (fail-open)", exc_info=True)
+                logger.debug("entry_quality: sizing fehlgeschlagen (fail-open)", exc_info=True)
 
             # Enforce minimum from regime params
             min_buy = regime_params.get("min_buy_usd", 50.0)
@@ -1549,6 +1564,10 @@ def main() -> None:
                 # Trend-Override faellt fail-open aus (keine Daten = kein
                 # Override). Basis der Phase-1-Shadow-Auswertung
                 # (CORE_SWEEP-Regime-Druck: -$171 Drag).
+                # PHASE 2: _cs_amt traegt den ggf. herunterskalierten Betrag.
+                # Wird vor dem Gate gesetzt, damit ein Fehler im Gate den
+                # urspruenglichen Betrag unveraendert laesst (fail-open).
+                _cs_amt = _o.amount_usd
                 try:
                     from bot.core import entry_quality as _eq
                     _eq_ev_cs = _eq.evaluate(
@@ -1558,24 +1577,34 @@ def main() -> None:
                     )
                     _eq_mode = str(
                         ((cfg.get("trading", {}) or {}).get("entry_quality", {}) or {}).get("mode", "shadow")
-                    )
+                    ).lower()
+                    _eq_cs_applied = bool(_eq_ev_cs.hits) and _eq_mode == "live"
                     _eq.ensure_table(db)
                     _eq.record(
-                        db, _eq_ev_cs, mode=_eq_mode, applied=False,
+                        db, _eq_ev_cs, mode=_eq_mode, applied=_eq_cs_applied,
                         signal_id=_cs_sig_id, instrument_id=_o.instrument_id,
                         is_core_sweep=True,
                     )
                     if _eq_ev_cs.hits:
-                        logger.info(
-                            "SignalWorker: ENTRY-QUALITY CORE_SWEEP %s (shadow, %s): %s%s",
-                            _o.symbol, regime, _eq_ev_cs.reasons,
-                            " WOULD-BLOCK" if _eq_ev_cs.blocked else "",
-                        )
+                        if _eq_cs_applied:
+                            _cs_amt = round(_cs_amt * _eq_ev_cs.size_mult, 2)
+                            logger.info(
+                                "SignalWorker: ENTRY-QUALITY CORE_SWEEP %s (live, %s): %s "
+                                "-> size_mult=%.2f $%.2f -> $%.2f",
+                                _o.symbol, regime, _eq_ev_cs.reasons,
+                                _eq_ev_cs.size_mult, _o.amount_usd, _cs_amt,
+                            )
+                        else:
+                            logger.info(
+                                "SignalWorker: ENTRY-QUALITY CORE_SWEEP %s (shadow, %s): %s%s",
+                                _o.symbol, regime, _eq_ev_cs.reasons,
+                                " WOULD-BLOCK" if _eq_ev_cs.blocked else "",
+                            )
                 except Exception:
-                    logger.debug("entry_quality: core-sweep shadow-log fehlgeschlagen (fail-open)", exc_info=True)
+                    logger.debug("entry_quality: core-sweep gate fehlgeschlagen (fail-open)", exc_info=True)
                 _cs_tid = trade_repo.create(
                     instrument_id=_o.instrument_id, symbol=_o.symbol, direction="BUY",
-                    amount_usd=_o.amount_usd, stop_loss_pct=_cs_sl,
+                    amount_usd=_cs_amt, stop_loss_pct=_cs_sl,
                     signal_id=_cs_sig_id, signal_price=None,
                 )
                 from datetime import datetime as _csdt, timezone as _cstz
@@ -1583,24 +1612,24 @@ def main() -> None:
                     _cs_tid, "APPROVED",
                     approved_at=_csdt.now(_cstz.utc).strftime("%Y-%m-%d %H:%M:%S"))
                 approved_count += 1
-                cash_estimate -= _o.amount_usd
+                cash_estimate -= _cs_amt
                 # fix/core-sweep-portfolio-gates: Exposure mitfuehren wie im
                 # Signalpfad (Zeile ~1295), damit spaetere Leser im selben Lauf
                 # den Stand INKL. Sweep sehen.
-                total_exposure += _o.amount_usd
+                total_exposure += _cs_amt
                 position_count += 1
                 _held_ids.add(_o.instrument_id)
                 approved_trades_info.append({
-                    "symbol": _o.symbol, "amount_usd": _o.amount_usd,
+                    "symbol": _o.symbol, "amount_usd": _cs_amt,
                     "signal_type": "CORE_SWEEP", "conviction": "CORE",
                     "score": 0.0, "signal_price": None,
                 })
                 logger.info(
                     "SignalWorker: CORE-SWEEP APPROVED #%d — %s $%.2f (SL %.2f%%)",
-                    _cs_tid, _o.symbol, _o.amount_usd, _cs_sl)
+                    _cs_tid, _o.symbol, _cs_amt, _cs_sl)
                 log_repo.write(
                     "INFO", "signal_worker",
-                    f"Core-Sweep APPROVED: {_o.symbol} BUY ${_o.amount_usd:.2f}",
+                    f"Core-Sweep APPROVED: {_o.symbol} BUY ${_cs_amt:.2f}",
                     {"trade_id": _cs_tid, "instrument_id": _o.instrument_id})
         except Exception as _cs_exc:
             logger.warning("SignalWorker: Core-Sweep-Pass uebersprungen: %s", _cs_exc)

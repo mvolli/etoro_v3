@@ -345,6 +345,27 @@ def record(
         return None
 
 
+def mark_applied(db, signal_id: int | None) -> None:
+    """Markiert die juengste Evaluation eines Signals als tatsaechlich angewandt.
+
+    Phase 2 (live): trennt in ``entry_quality_events`` die Zeilen, die die
+    Execution wirklich veraendert haben (``applied=1``), von reinen
+    Beobachtungen. Ohne diese Trennung waere die spaetere WR-Auswertung
+    mehrdeutig, weil ``mode=live`` allein nichts darueber aussagt, ob ein
+    Gate bei diesem Signal ueberhaupt gegriffen hat. Fail-open: wirft nicht.
+    """
+    if signal_id is None:
+        return
+    try:
+        db.execute(
+            f"UPDATE {TABLE_NAME} SET applied = 1 WHERE id = ("
+            f"SELECT id FROM {TABLE_NAME} WHERE signal_id = ? ORDER BY id DESC LIMIT 1)",
+            (signal_id,),
+        )
+    except Exception:
+        logger.debug("entry_quality: mark_applied fehlgeschlagen (fail-open)", exc_info=True)
+
+
 def latest_size_mult(db, signal_id: int | None) -> float:
     """Kombinierter Sizing-Multiplikator fuer ein Signal (1.0 = kein Gate).
 
