@@ -1660,7 +1660,25 @@ def main() -> None:
             if _sweep_reasons:
                 logger.info("SignalWorker: %s", _sweep_reasons[0])
             _cs_live = _cs_enabled(cfg)
+            _cs_news_skipped: list[str] = []
             for _o in _sweep_orders:
+                # feat/core-sweep-news (2026-08-24): News-Flags gelten auch hier.
+                # Der Sweep lief bisher an ihnen vorbei — am 24.08. kaufte er
+                # NVDA (AVOID: Earnings am 26.08.) und JNJ (CAUTION: Talc-
+                # Rechtsrisiko) fuer je 162.30 USD, waehrend derselbe Titel im
+                # Signal-Pfad blockiert worden waere.
+                # Begruendung fuer die Ausnahme war stets "kein Signal-Trade" —
+                # das traegt bei Kelly und Veto, aber nicht hier: Earnings in
+                # zwei Tagen sind ein EREIGNISrisiko und betreffen jeden Kauf,
+                # unabhaengig vom Pfad.
+                _cs_nf = _news_flags.get(_o.symbol) or {}
+                if _cs_nf.get("flag") == "AVOID":
+                    _cs_news_skipped.append(_o.symbol)
+                    logger.info(
+                        "SignalWorker: Core-Sweep %s uebersprungen — News-Flag AVOID (%s)",
+                        _o.symbol, (_cs_nf.get("reason") or "")[:70],
+                    )
+                    continue
                 if not _cs_live:
                     logger.info(
                         "SignalWorker: [DRY] Core-Sweep wuerde $%.2f in %s (id=%s) deployen",
@@ -1705,6 +1723,15 @@ def main() -> None:
                 # Wird vor dem Gate gesetzt, damit ein Fehler im Gate den
                 # urspruenglichen Betrag unveraendert laesst (fail-open).
                 _cs_amt = _o.amount_usd
+
+                # feat/core-sweep-news: CAUTION halbiert, wie im Signal-Pfad.
+                if _cs_nf.get("flag") == "CAUTION":
+                    _cs_amt = round(_cs_amt * 0.5, 2)
+                    logger.info(
+                        "SignalWorker: Core-Sweep %s News-Flag CAUTION — Groesse "
+                        "halbiert auf $%.2f (%s)",
+                        _o.symbol, _cs_amt, (_cs_nf.get("reason") or "")[:60],
+                    )
 
                 # feat/core-sweep-kelly (2026-08-24): Der Sweep war der EINZIGE
                 # Kaufpfad ohne Kelly-Skalierung — er bekam implizit Faktor 1.0,
@@ -1800,6 +1827,17 @@ def main() -> None:
                     "INFO", "signal_worker",
                     f"Core-Sweep APPROVED: {_o.symbol} BUY ${_cs_amt:.2f}",
                     {"trade_id": _cs_tid, "instrument_id": _o.instrument_id})
+            if _cs_news_skipped:
+                logger.info(
+                    "SignalWorker: Core-Sweep — %d Titel wegen News-Flag AVOID "
+                    "uebersprungen: %s",
+                    len(_cs_news_skipped), ", ".join(_cs_news_skipped[:8]),
+                )
+                log_repo.write(
+                    "INFO", "signal_worker",
+                    f"Core-Sweep: {len(_cs_news_skipped)} Titel wegen News-AVOID uebersprungen",
+                    {"symbols": _cs_news_skipped[:12]},
+                )
         except Exception as _cs_exc:
             logger.warning("SignalWorker: Core-Sweep-Pass uebersprungen: %s", _cs_exc)
 
