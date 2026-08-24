@@ -28,6 +28,18 @@ from bot.core.trailing_stop import (
 from bot.db.connection import DB
 
 
+@pytest.fixture(autouse=True)
+def _ladder_isolation(monkeypatch):
+    """feat/full-exit (2026-08-24): Der Vollausstieg feuert ab +4 % und haette
+    hier Vorrang vor jeder Leiter-Stufe — diese Tests pruefen aber gezielt das
+    Leiterverhalten. Deshalb wird der Vollausstieg isoliert abgeschaltet; er
+    ist in tests/unit/test_full_exit.py eigenstaendig abgedeckt.
+    """
+    import bot.core.trailing_stop as _ts
+    monkeypatch.setattr(_ts, "FULL_EXIT_ENABLED", False)
+
+
+
 @pytest.fixture
 def db(tmp_path):
     return DB(db_path=tmp_path / "trading.db")

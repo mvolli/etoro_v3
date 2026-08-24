@@ -888,7 +888,14 @@ def main() -> None:
         # werden Slots 4-5 AUSSCHLIESSLICH mit HIGH/VERY_HIGH aus dem Rest
         # befuellt — Qualitaet der Extra-Slots ist strukturell garantiert,
         # eine Mindestanzahl-Schwelle ist damit ueberfluessig.
-        candidates = unique_candidates[:3]
+        # 2026-08-24: Basis-Slots konfigurierbar (war fest 3). Bei 82 % Cash
+        # liefen 97-99 % der erzeugten Signale ungenutzt in die 60-Minuten-TTL,
+        # weil pro 15-Minuten-Zyklus nur 3 Kandidaten geprueft wurden. Da die
+        # Signalqualitaet inzwischen gefiltert wird (Entry-Quality-Gates live,
+        # Kelly nach gemessenem Edge), ist der Durchsatz der bindende Engpass.
+        # Alle nachgelagerten Gates gelten unveraendert pro Kandidat.
+        _base_slots = int(cfg.get("trading", {}).get("candidate_slots", 5))
+        candidates = unique_candidates[:max(1, _base_slots)]
         try:
             _cash_max_pct = float(cfg.get("trading", {}).get("cash_target_max_pct", 30.0))
             _cash_pct = (cash_estimate / equity * 100.0) if equity > 0 else 0.0

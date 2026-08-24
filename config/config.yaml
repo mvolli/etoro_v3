@@ -25,6 +25,10 @@ trading:
   # (75%), cash_target_min_pct, per-Instrument (10%), Sektor- und Regionen-Caps.
   max_fragments_per_instrument: 3  # Maximum partial fills / DCA entries per ticker
   min_buy_usd: 50.0           # Minimum order size in USD
+  # 2026-08-24: Basis-Kandidaten-Slots pro signal_worker-Zyklus (war fest 3).
+  # Bei Cash > cash_target_max_pct kommen bis zu 2 weitere hinzu, die
+  # ausschliesslich mit HIGH/VERY_HIGH befuellt werden.
+  candidate_slots: 5
   max_trades_per_day: 0       # 0 = deaktiviert (2026-07-14, User-Entscheid). Runaway-Schutz
                               # uebernehmen: Exposure-Gate 75%, cash_emergency_pct,
                               # daily_loss_limit (Auto-Kill-Switch) und 3 Slots/15-min-Zyklus.
@@ -220,11 +224,33 @@ trailing:                     # Dynamic profit-taking (runs each risk_worker cyc
     min_peak_pct: 2.0         # Peak < Momentum-Fade-Arm-Schwelle: Position lief nie
     llm_hold_grace_h: 24      # frische LLM-HOLD-Empfehlung schont ...
     max_days: 20              # ... harter Deckel: dann Exit trotz HOLD
+  full_exit:                  # feat/full-exit (2026-08-24): Ziel erreicht -> GANZ raus
+    # Gemessen vor der Umstellung: offene Positionen erreichten im Median
+    # 9.9 % Peak-PnL, realisiert wurden aber nur 0.27 % (Median der Gewinner).
+    # Vier unabhaengige Teilverkaufsmechanismen nahmen je ~25 % und liessen im
+    # Median 11 % der Einstiegsgroesse uebrig — die Gewinner wurden zerlegt,
+    # waehrend sie noch stiegen. momentum_faded stand auf 36 von 42 Positionen.
+    # Methodenpassung: unsere Gewinnersignale sind Mean-Reversion, keine
+    # Trendfolge. Hinter dem Umkehrpunkt gibt es keine Kante mehr, dort schlaegt
+    # ein fester Vollausstieg das Aufteilen (bei Trendfolge waere es umgekehrt).
+    enabled: true
+    atr_mult: 2.0             # Ziel = atr_mult x ATR% der Position
+    min_pct: 4.0              # Untergrenze (ruhige Titel)
+    max_pct: 10.0             # Obergrenze (volatile Titel)
+
   momentum_fade:              # Universal quick-profit lock — protects a gain that starts fading
     enabled: true             # false → disable momentum-fade entirely (ladder/BE unchanged)
-    arm_pct: 2.0              # Peak PnL must reach this before fade protection arms (%)
+    # 2026-08-24: 2.0 -> 5.0. Bei 2 % Peak feuerte der Fade auf normalem
+    # Rauschen — ein Rueckgang von 0.6 Prozentpunkten genuegte fuer einen
+    # Teilverkauf, und er hatte auf 86 % aller offenen Positionen ausgeloest.
+    # Praxisregel: ein Trailing gilt als zu eng, wenn die Trefferquote unter
+    # 30 % liegt und der Kurs nach dem Ausstieg sofort weiterlaeuft — beides
+    # traf zu. Ab 5 % schuetzt er nur noch substanzielle Gewinne; alles
+    # darunter laeuft bis zum Vollausstiegsziel oder in den Stop.
+    arm_pct: 5.0              # Peak PnL must reach this before fade protection arms (%)
     retrace_frac: 0.30        # Fire when PnL gives back this fraction of its peak (0.30 = 30%)
-    min_lock_pct: 1.0         # Never fire below this current PnL — leave it to BE/SL (%)
+    min_lock_pct: 2.0         # Never fire below this current PnL — leave it to BE/SL (%)
+                              # 2026-08-24: 1.0 -> 2.0, damit kein Mini-Gewinn realisiert wird
     close_pct: 25.0           # % Default-Fade-Close (KI kalibriert live; war 50%)
     max_retrace_abs_pct: 4.0  # Absoluter Cap: max. Profit-pp vor Fade (bei Peaks >13% bindend)
   scalp:                      # Early first profit rung — only for positions tagged strategy='scalp'

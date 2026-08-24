@@ -93,6 +93,23 @@ MIN_PARTIAL_CLOSE_USD = 10.0
 #    Stufe (ATR×2, clamp [2%,5%]), damit ein bewusst kurzfristiger Trade schnell
 #    einen Teilgewinn sichert, statt auf die Swing-Leiter (+6/+10/+18%) zu warten.
 MOMENTUM_FADE_ENABLED = True
+# feat/full-exit (2026-08-24): Vollausstieg am Ziel statt Teilverkauf-Kaskade.
+# Gemessen: offene Positionen erreichen im Median 9.9 % Peak-PnL, realisiert
+# werden aber nur 0.27 % (Median der Gewinner) — vier unabhaengige
+# Teilverkaufsmechanismen (Ladder, Fade, Scalp, Stale) nehmen je ~25 % und
+# lassen im Median 11 % der Einstiegsgroesse uebrig. Die Gewinner werden
+# zerlegt, waehrend sie noch steigen.
+# Methodenpassung: unsere Gewinnersignale (MACD_TURN_BELOW_SMA20,
+# BB_LOW_MACD_IMPROVING) sind Mean-Reversion, keine Trendfolge. Hinter dem
+# Umkehrpunkt gibt es keine Kante mehr — dort schlaegt ein fester
+# Vollausstieg das Aufteilen. Bei Trendfolge waere es andersherum.
+# ATR-skaliert, weil adaptive Ausstiege in Vergleichstests deutlich besser
+# abschneiden als feste Prozentmarken.
+FULL_EXIT_ENABLED = True
+FULL_EXIT_ATR_MULT = 2.0        # Ziel = atr_mult x ATR%
+FULL_EXIT_MIN_PCT = 4.0         # Untergrenze des Ziels
+FULL_EXIT_MAX_PCT = 10.0        # Obergrenze des Ziels
+
 MOMENTUM_ARM_PCT = 2.0          # Peak muss dieses PnL erreichen, bevor Fade-Schutz armiert
 MOMENTUM_RETRACE_FRAC = 0.40    # Rueckgabe dieses Anteils vom Peak → feuert
 MOMENTUM_MIN_LOCK_PCT = 1.0     # unter diesem aktuellen PnL nie feuern (BE/SL-Revier)
@@ -219,6 +236,7 @@ def apply_config(cfg: dict) -> None:
     global STALE_EXIT_ENABLED, STALE_MIN_DAYS, STALE_PNL_BAND_PCT
     global STALE_MIN_PEAK_PCT, STALE_LLM_HOLD_GRACE_H, STALE_MAX_DAYS
     global PROFIT_LADDER_ATR_SCALE, MIN_PARTIAL_CLOSE_USD
+    global FULL_EXIT_ENABLED, FULL_EXIT_ATR_MULT, FULL_EXIT_MIN_PCT, FULL_EXIT_MAX_PCT
     t = ((cfg or {}).get('trailing') or {})
     try:
         MIN_PARTIAL_CLOSE_USD = float(t.get('min_partial_close_usd', MIN_PARTIAL_CLOSE_USD))
@@ -248,6 +266,12 @@ def apply_config(cfg: dict) -> None:
     MOMENTUM_MIN_LOCK_PCT = float(mf.get('min_lock_pct', MOMENTUM_MIN_LOCK_PCT))
     MOMENTUM_FADE_CLOSE_PCT = float(mf.get('close_pct', MOMENTUM_FADE_CLOSE_PCT))
     MOMENTUM_MAX_RETRACE_ABS = float(mf.get('max_retrace_abs_pct', MOMENTUM_MAX_RETRACE_ABS))
+    fe = (t.get('full_exit') or {})
+    if 'enabled' in fe:
+        FULL_EXIT_ENABLED = bool(fe['enabled'])
+    FULL_EXIT_ATR_MULT = float(fe.get('atr_mult', FULL_EXIT_ATR_MULT))
+    FULL_EXIT_MIN_PCT = float(fe.get('min_pct', FULL_EXIT_MIN_PCT))
+    FULL_EXIT_MAX_PCT = float(fe.get('max_pct', FULL_EXIT_MAX_PCT))
     sc = (t.get('scalp') or {})
     if 'enabled' in sc:
         SCALP_ENABLED = bool(sc['enabled'])
@@ -255,6 +279,23 @@ def apply_config(cfg: dict) -> None:
     SCALP_MIN_PCT = float(sc.get('min_pct', SCALP_MIN_PCT))
     SCALP_MAX_PCT = float(sc.get('max_pct', SCALP_MAX_PCT))
     SCALP_CLOSE_PCT = float(sc.get('close_pct', SCALP_CLOSE_PCT))
+
+
+def full_exit_threshold(atr_pct: float | None) -> float:
+    """ATR-skaliertes Vollausstiegsziel, geklemmt auf [min_pct, max_pct]."""
+    base = (atr_pct if atr_pct and atr_pct > 0 else FULL_EXIT_MIN_PCT) * FULL_EXIT_ATR_MULT
+    return round(min(max(base, FULL_EXIT_MIN_PCT), FULL_EXIT_MAX_PCT), 2)
+
+
+def should_full_exit(pnl_pct: float, atr_pct: float | None) -> bool:
+    """Pure decision: Ziel erreicht -> Position GANZ schliessen.
+
+    Hat Vorrang vor Ladder und Fade. Rein und seiteneffektfrei, damit die
+    Schwelle ohne DB und ohne eToro-API testbar bleibt.
+    """
+    if not FULL_EXIT_ENABLED:
+        return False
+    return pnl_pct >= full_exit_threshold(atr_pct)
 
 
 def should_momentum_fade(pnl_pct: float, peak_pnl_pct: float, already_faded: bool) -> bool:
@@ -821,7 +862,22 @@ def evaluate_trailing(
             lv for lv in sorted(profit_levels, key=lambda x: x['threshold'])
             if pnl_pct >= lv['threshold'] and lv['threshold'] not in taken
         ]
-        if pending:
+        if should_full_exit(pnl_pct, atr_pct):
+            # feat/full-exit: Ziel erreicht — GANZ raus, vor Ladder und Fade.
+            actions.append(TrailingAction(
+                action='FULL_EXIT',
+                symbol=symbol,
+                position_id=pos_id,
+                pnl_pct=pnl_pct,
+                reason=(
+                    f"+{pnl_pct:.1f}% >= +{full_exit_threshold(atr_pct):.1f}% "
+                    f"Vollausstiegsziel (ATR-skaliert) — Full Close"
+                ),
+                instrument_id=instrument_id,
+                amount_usd=amount,
+                open_rate=open_rate,
+            ))
+        elif pending:
             # Structured ladder profit-taking takes priority over the fade.
             level = pending[0]
             actions.append(TrailingAction(
@@ -1160,7 +1216,7 @@ def execute_trailing_actions(
     """
     import time
     stats = {'partial_closes': 0, 'break_evens': 0, 'be_closes': 0,
-             'momentum_fades': 0, 'stale_exits': 0, 'errors': []}
+             'momentum_fades': 0, 'stale_exits': 0, 'full_exits': 0, 'errors': []}
 
     for action in actions:
         # fix/stale-price-trailing (2026-07-14, HLAG.DE 21:49): Trigger
@@ -1184,14 +1240,15 @@ def execute_trailing_actions(
             stats['break_evens'] += 1
             continue
 
-        if action.action in ('BE_CLOSE', 'STALE_EXIT'):
+        if action.action in ('BE_CLOSE', 'STALE_EXIT', 'FULL_EXIT'):
             # BE_CLOSE: Loss protection — runs in ALL regimes.
             # STALE_EXIT (fix/stale-exit): Kapital-Freisetzung, ebenfalls in
             # allen Regimes (De-Risking, kein Profit-Taking).
             logger.info('[trailing] %s: %s %+.1f%% — %s', action.action,
                         action.symbol, action.pnl_pct, action.reason)
             if dry_run:
-                stats['be_closes' if action.action == 'BE_CLOSE' else 'stale_exits'] += 1
+                stats[{'BE_CLOSE': 'be_closes',
+                       'FULL_EXIT': 'full_exits'}.get(action.action, 'stale_exits')] += 1
                 continue
             try:
                 result = client.close_position(
