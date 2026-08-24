@@ -1573,6 +1573,34 @@ def main() -> None:
                 # Wird vor dem Gate gesetzt, damit ein Fehler im Gate den
                 # urspruenglichen Betrag unveraendert laesst (fail-open).
                 _cs_amt = _o.amount_usd
+
+                # feat/core-sweep-kelly (2026-08-24): Der Sweep war der EINZIGE
+                # Kaufpfad ohne Kelly-Skalierung — er bekam implizit Faktor 1.0,
+                # waehrend jeder Signal-Trade nach seinem gemessenen Edge
+                # dimensioniert wurde. Gemessen an 73 geschlossenen Sweep-Trades:
+                # WR 32.9 %, avg -0.99 %, -171 USD Ergebnis — bei der GROESSTEN
+                # Durchschnittsgroesse im ganzen Bestand (234 USD gegen 67 USD
+                # bei den besten Signalen). Der Sweep hat mit n=73 zugleich die
+                # belastbarste Stichprobe ueberhaupt, die Schrumpfung greift hier
+                # also am wenigsten. Fail-open: Fehler laesst den Betrag stehen.
+                try:
+                    from bot.core.sizing import kelly_size_factor as _cs_ksf
+                    from bot.core import entry_quality as _cs_eq
+                    _cs_kf = _cs_ksf("CORE_SWEEP", db)
+                    if _cs_kf < 1.0:
+                        _cs_amt, _cs_floored = _cs_eq.apply_sizing(
+                            _cs_amt, _cs_kf,
+                            float(regime_params.get("min_buy_usd", 50.0)),
+                        )
+                        logger.info(
+                            "SignalWorker: CORE-SWEEP KELLY %s: factor=%.3f "
+                            "$%.2f -> $%.2f%s",
+                            _o.symbol, _cs_kf, _o.amount_usd, _cs_amt,
+                            " [auf min_buy angehoben]" if _cs_floored else "",
+                        )
+                except Exception:
+                    logger.debug("core-sweep kelly fehlgeschlagen (fail-open)",
+                                 exc_info=True)
                 try:
                     from bot.core import entry_quality as _eq
                     _eq_ev_cs = _eq.evaluate(

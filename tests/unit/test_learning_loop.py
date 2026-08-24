@@ -64,11 +64,32 @@ class _FakeDB:
 
 
 def test_kelly_exact_match_preferred():
-    """Genug exakte Treffer → Komponenten-Pool wird ignoriert."""
-    rows = [("A,B", 2.0)] * 12          # 12 exakte, alle Gewinner → max_factor
-    rows += [("A,C", -5.0)] * 20        # giftiger Pool — darf nicht zaehlen
+    """Gut belegte exakte Treffer setzen sich gegen den Komponenten-Pool durch.
+
+    feat/kelly-shrinkage (2026-08-24): Der Vorrang der exakten Combo gilt
+    weiterhin — aber proportional zur Stichprobe statt als Alles-oder-nichts.
+    """
+    good = [("A,B", 2.0)] * 400          # eigene Combo: gut belegt, Gewinner
+    toxic = [("A,C", -5.0)] * 400        # Gegen-Pool: gleich gross, Verlierer
+    f_own = kelly_size_factor("A,B", _FakeDB(good + toxic), min_trades=10)
+    f_other = kelly_size_factor("A,C", _FakeDB(good + toxic), min_trades=10)
+    assert f_own > f_other, "die eigene Evidenz muss die Richtung bestimmen"
+    assert f_own > DEFAULT_BASE
+    assert f_other < DEFAULT_BASE
+
+
+def test_kelly_thin_exact_match_no_longer_overrides_contradicting_pool():
+    """Die ersetzte Klippe, als bewusste Verhaltensaenderung festgehalten.
+
+    Frueher genuegten 12 exakte Gewinner, um einen 20 Trades grossen
+    Verlierer-Pool vollstaendig zu verdraengen (Ergebnis: max_factor). Bei
+    n=12 hat die Trefferquote aber noch rund +-15 Prozentpunkte Streuung —
+    zu wenig, um widersprechende Evidenz zu ueberstimmen. Die Schrumpfung
+    zieht die Schaetzung jetzt zum Pool, das Ergebnis liegt unter base.
+    """
+    rows = [("A,B", 2.0)] * 12 + [("A,C", -5.0)] * 20
     f = kelly_size_factor("A,B", _FakeDB(rows), min_trades=10)
-    assert f == DEFAULT_MAX_FACTOR
+    assert f < DEFAULT_BASE
 
 
 def test_kelly_falls_back_to_component_pool():

@@ -182,6 +182,16 @@ sizing:                       # Position size as % of portfolio equity
   kelly_scale: 0.45           # Steigung auf die Kelly-Fraktion
   kelly_min_factor: 0.15      # Floor: proven Lossbringer schrumpfen (vorher 0.5)
   kelly_max_factor: 0.94      # Cap = base + scale (natuerliche Grenze bei kelly=1.0)
+  # feat/kelly-shrinkage (2026-08-24): Empirical-Bayes-Schrumpfung ersetzt die
+  # harte Schwelle. Bisher wurde die eigene Schaetzung ab kelly_min_trades zu
+  # 100 % geglaubt und darunter gar nicht — eine Klippe genau im Bereich der
+  # real vorkommenden Stichproben (n = 26..73). Jetzt stufenlos:
+  #   alpha = k0 / (n + k0);  k = (1-alpha) * eigene + alpha * naechste Ebene
+  # Hierarchie: exakte Combo -> Komponenten-Pool -> Gesamtmittel.
+  # 50 folgt der Praxisregel, dass Trefferquoten unter ~50 Trades noch rund
+  # +-10 Prozentpunkte streuen. Groesser = vorsichtiger (mehr Richtung Mittel),
+  # 0 = Schrumpfung aus (altes Verhalten).
+  kelly_shrink_k0: 50.0
 
 trailing:                     # Dynamic profit-taking (runs each risk_worker cycle on LIVE PnL)
   min_partial_close_usd: 10.0 # fix/min-partial-close (2026-08-12): Teilverkaeufe

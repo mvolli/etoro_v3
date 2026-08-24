@@ -92,6 +92,11 @@ class SizingConfig:
     kelly_scale: float = 0.45      # multiplier on the Kelly fraction
     kelly_min_factor: float = 0.15 # floor: negative-edge combos shrink to this
     kelly_max_factor: float = 0.94 # cap = base + scale (natuerliche Grenze bei kelly=1.0)
+    # feat/kelly-shrinkage (2026-08-24): Empirical-Bayes-Schrumpfung statt harter
+    # Schwelle. alpha = k0 / (n + k0); bei n = k0 zaehlt die eigene Schaetzung
+    # zur Haelfte. 50 orientiert sich an der Praxisregel, dass Trefferquoten
+    # unter ~50 Trades noch rund +-10 Prozentpunkte Streuung haben.
+    kelly_shrink_k0: float = 50.0
 
 
 @dataclass

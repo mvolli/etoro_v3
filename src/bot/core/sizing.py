@@ -67,6 +67,10 @@ DEFAULT_MIN_FACTOR = 0.15
 DEFAULT_MAX_FACTOR = 0.94
 
 
+# feat/kelly-shrinkage (2026-08-24): Schrumpfungskonstante. alpha = k0/(n+k0).
+DEFAULT_SHRINK_K0 = 50.0
+
+
 def _get_sizing_cfg() -> dict:
     """Read Kelly params from config.yaml (top-level ``sizing`` block).
 
@@ -82,6 +86,7 @@ def _get_sizing_cfg() -> dict:
             "kelly_scale": s.kelly_scale,
             "kelly_min_factor": s.kelly_min_factor,
             "kelly_max_factor": s.kelly_max_factor,
+            "kelly_shrink_k0": getattr(s, "kelly_shrink_k0", DEFAULT_SHRINK_K0),
         }
     except Exception:
         return {}
@@ -140,30 +145,86 @@ def _recent_trade_rows(db) -> list[tuple[str, float]]:
 
 
 def _kelly_for_signal(signal_type: str, rows: list[tuple[str, float]],
-                      min_trades: int) -> float | None:
-    """Kelly fraction for one signal type (combo-aware).
+                      min_trades: int,
+                      shrink_k0: float = DEFAULT_SHRINK_K0) -> float | None:
+    """Kelly fraction for one signal type (combo-aware, mit Schrumpfung).
 
-    1. Exact match on the full combo string.
-    2. Fallback: component pool — all trades whose combo shares at least
-       one component (fix/kelly-components: multiplies the sample size
-       while keeping the signal direction).
+    Hierarchie, von spezifisch nach allgemein:
+      1. Exakte Combo-Zeichenkette
+      2. Komponenten-Pool — alle Trades, deren Combo mindestens eine
+         Komponente teilt (fix/kelly-components)
+      3. Gesamtmittel ueber alle Trades im Fenster
+
+    feat/kelly-shrinkage (2026-08-24): Bis hierher entschied eine harte
+    Schwelle — ab ``min_trades`` wurde die eigene Schaetzung zu 100 %
+    geglaubt, darunter gar nicht. Das ist bei den real vorkommenden
+    Stichproben (n = 26..73) eine Klippe: eine Trefferquote aus 26 Trades
+    hat noch rund +-10 Prozentpunkte Streuung, wird aber wie eine
+    gesicherte Groesse behandelt.
+
+    Stattdessen jetzt Empirical-Bayes-Schrumpfung (James-Stein / Normal-
+    Normal): jede Ebene wird stufenlos zur naechsthoeheren gezogen,
+
+        alpha = shrink_k0 / (n + shrink_k0)
+        k     = (1 - alpha) * eigene_Schaetzung + alpha * naechste_Ebene
+
+    Bei n = shrink_k0 zaehlt die eigene Schaetzung zur Haelfte; mit
+    wachsendem n konvergiert sie gegen sich selbst. Wenig Daten heissen
+    damit "nahe am Durchschnitt" statt "voll vertrauen" oder "ignorieren".
+
+    ``min_trades`` bleibt als Mindest-Datengrundlage erhalten: reicht weder
+    die exakte Combo noch der Pool an ihn heran, wird gar nicht skaliert.
 
     Returns the Kelly fraction (negative for negative-edge samples),
     or None if insufficient data.
     """
-    exact = [p for st, p in rows if st == signal_type]
-    if len(exact) >= min_trades:
-        return _kelly_fraction(exact)
+    if not rows:
+        return None
 
     parts = {p.strip() for p in signal_type.split(",") if p.strip()}
+    exact = [p for st, p in rows if st == signal_type]
     pooled = [
         p for st, p in rows
         if parts & {q.strip() for q in (st or "").split(",") if q.strip()}
     ]
-    if len(pooled) >= min_trades:
-        return _kelly_fraction(pooled)
 
-    return None
+    # Unveraenderte Mindestanforderung an die Datengrundlage.
+    if len(exact) < min_trades and len(pooled) < min_trades:
+        return None
+
+    k0 = max(0.0, float(shrink_k0))
+    overall = _kelly_fraction([p for _, p in rows])
+
+    # Ebene 2: Komponenten-Pool -> Gesamtmittel
+    if pooled:
+        a_pool = k0 / (len(pooled) + k0) if k0 else 0.0
+        k_pool = (1.0 - a_pool) * _kelly_fraction(pooled) + a_pool * overall
+    else:
+        k_pool = overall
+
+    # Ebene 1: exakte Combo -> Pool
+    if len(exact) >= min_trades:
+        raw = _kelly_fraction(exact)
+        a_exact = k0 / (len(exact) + k0) if k0 else 0.0
+        shrunk = (1.0 - a_exact) * raw + a_exact * k_pool
+    else:
+        raw = _kelly_fraction(pooled) if pooled else overall
+        shrunk = k_pool
+
+    # Einseitig: die Schrumpfung darf die Position nur VERKLEINERN.
+    #
+    # Sie ist ein Sicherheitsabschlag gegen ueberschaetzte Edges — eine
+    # zufaellig gute Serie soll nicht zu viel Kapital bekommen. In die
+    # Gegenrichtung wirkt sie schaedlich: BB_LOWER+BB_EXTREME hat 1 Gewinner
+    # aus 37 Trades (WR 2.7 %), was durchaus aussagekraeftig ist — die
+    # Regression zum Mittel haette den Faktor von 0.150 auf 0.317 gehoben
+    # und die Position damit verdoppelt. Gemessene Verlustbringer bleiben
+    # unten; nur die optimistische Seite bekommt den Abschlag.
+    #
+    # Dieselbe Asymmetrie wie beim LLM-Einfluss im Projekt: nur daempfen,
+    # nie boosten. Fraktionales Kelly ist ohnehin genau das — ein
+    # einseitiger Abschlag auf die eigene Schaetzung.
+    return min(shrunk, raw)
 
 
 def kelly_size_factor(signal_type: str, db=None, min_trades: int | None = None,
@@ -201,7 +262,10 @@ def kelly_size_factor(signal_type: str, db=None, min_trades: int | None = None,
         from bot.db.connection import DB
         db = DB(load_config().db.abs_path)
 
-    kelly = _kelly_for_signal(signal_type, _recent_trade_rows(db), mt)
+    kelly = _kelly_for_signal(
+        signal_type, _recent_trade_rows(db), mt,
+        float(cfg.get("kelly_shrink_k0", DEFAULT_SHRINK_K0)),
+    )
     if kelly is None:
         logger.debug("Kelly: %s insufficient trades (need %d), base=%.3f",
                      signal_type, mt, base)
