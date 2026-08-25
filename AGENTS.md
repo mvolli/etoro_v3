@@ -461,6 +461,25 @@ Metriken `consecutive_down_days`/`roc_5d_pct` kommen aus `compute_indicators()`.
 - news_flags_worker flaggt zusaetzlich Analysten-Kursziele (Preis >5% ueber
   Konsens → CAUTION, >25% → AVOID, Quelle `analyst_target`).
 
+### Datenanalyse-Kontrakt: 26.07.-Zaesur (Pflicht)
+
+fix/combo-conviction-min (d0a07d7, 2026-07-26) aenderte die Combo-Conviction
+auf die SCHWAECHSTE Komponente. Davor machte eine einzige VERY_HIGH-Komponente
+die ganze Combo zu VERY_HIGH und damit zur groessten Position (Ø ~546 USD,
+WR 10.9%, n=55) — seither existieren KEINE VERY_HIGH-Trades mehr.
+
+REGEL: Jede Auswertung von Handelsdaten (WR, Conviction-Verteilung,
+Sizing-Evidenz, Kelly/Score-Entscheidungen) MUSS per SQL auf
+`trades.created_at >= '2026-07-26'` filtern (Phase 'nachher') ODER die Phase
+explizit trennen. Pre-Fix-Zahlen duerfen NIE als Evidenz fuer aktuelles
+Sizing/Conviction-Calibration zitiert werden; Vollverlauf nur mit klar
+gelabelter Phase (vorher→nachher WR: 19.1% → 34.4%).
+
+Kontext: Commit 56b6c04 (2026-08-24) flachte die Conviction-Leiter unter
+anderem mit 'VERY_HIGH n=55 WR 10.9%' — PRE-Fix-Daten (Ziffern korrekt,
+Kontext irrefuehrend). Korrektur-Note in `data/llm_trading_memory.json`
+(strategy_notes, 2026-08-25).
+
 ### Tote Tabelle: `ohlcv_daily`
 
 Wird seit Pausierung des Legacy-Jobs `scripts/discovery_cron.py` (2026-07-03)
