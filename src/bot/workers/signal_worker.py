@@ -996,12 +996,20 @@ def main() -> None:
         # werden Slots 4-5 AUSSCHLIESSLICH mit HIGH/VERY_HIGH aus dem Rest
         # befuellt — Qualitaet der Extra-Slots ist strukturell garantiert,
         # eine Mindestanzahl-Schwelle ist damit ueberfluessig.
-        # 2026-08-24: Basis-Slots konfigurierbar (war fest 3). Bei 82 % Cash
-        # liefen 97-99 % der erzeugten Signale ungenutzt in die 60-Minuten-TTL,
-        # weil pro 15-Minuten-Zyklus nur 3 Kandidaten geprueft wurden. Da die
-        # Signalqualitaet inzwischen gefiltert wird (Entry-Quality-Gates live,
-        # Kelly nach gemessenem Edge), ist der Durchsatz der bindende Engpass.
-        # Alle nachgelagerten Gates gelten unveraendert pro Kandidat.
+        # 2026-08-24: Basis-Slots konfigurierbar (war fest 3).
+        # KORREKTUR 2026-08-25: Die urspruengliche Begruendung war falsch. Sie
+        # lautete, 97-99 % der Signale liefen ungenutzt in die TTL, weil pro
+        # Zyklus nur 3 Kandidaten geprueft wuerden — der Durchsatz sei der
+        # bindende Engpass. Nachgemessen: von 930 Signalen in drei Tagen waren
+        # 897 VERKAUFSsignale (791x BB_UPPER_RSI_OVERBOUGHT). Der signal_worker
+        # ist der Kauf-Pfad und verwirft sie regulaer; nur 33 waren ueberhaupt
+        # kauffaehig. Ein Zyklus mit freien Slots protokollierte evaluated=1 —
+        # die Slots banden also nicht. Es gibt schlicht wenige Kaufgelegenheiten.
+        # Der Wert 5 steht damit OHNE belegte Grundlage; er ist vermutlich
+        # wirkungslos (alle nachgelagerten Gates gelten unveraendert pro
+        # Kandidat), aber niemand hat ihn nach der Widerlegung neu begruendet.
+        # Wer ihn anfasst: erst zaehlen, wie viele Kandidaten pro Zyklus
+        # tatsaechlich anstehen, dann entscheiden.
         _base_slots = int(cfg.get("trading", {}).get("candidate_slots", 5))
         candidates = unique_candidates[:max(1, _base_slots)]
         try:
