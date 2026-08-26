@@ -668,7 +668,9 @@
           "TREND_PULLBACK,GOLDEN_CROSS": "n=31 WR 25.8% -$32 (payoff 0.84, dormant since 2026-08-17)"
         },
         "conviction_post_fix": "MEDIUM n=124 WR 41.9% vs HIGH n=31 WR 25.8% (16.1pp gap) — documented only, HOLD until ~2026-09-07 per VoLLi",
-        "new_regime_window": "only n=2 closed trades since 2026-08-24 13:16 — too thin for the exception clause"
+        "new_regime_window": "only n=2 closed trades since 2026-08-24 13:16 — too thin for the exception clause",
+        "signal_weights_regression": "Auto-Run 2026-08-24 20:31 (VOR dem 26.07-Zaesur-Pflichtlauf) ueberschrieb TP+GC 0.25->0.5 und oversold-3-Combo 0.1->0.2 auf Basis PRE-Fix-Daten — derselbe Overfitting-Fehler wie 56b6c04. Re-asserted 2026-08-26: TP+GC=0.25 (n=31 post-fix, payoff 0.84), oversold-3-Combo=0.1 (payoff 1.15, 2x-ATR-Scalp-Edge).",
+        "conviction_nachher": "MEDIUM n=124 WR 41.9% | HIGH n=31 WR 25.8% (16.1pp Gap, aber n=31 streut ±10pp — KEIN Exception-Trigger; NEW-REGIME-Fenster seit 2026-08-24 13:16 n=2 — zu dunn, HOLD bis ~2026-09-07 bleibt)"
       },
       "changes": [
         "data/llm_signal_weights.json: re-asserted committed 56b6c04 state (TREND_PULLBACK,GOLDEN_CROSS 0.25) after the 2026-08-24 20:31 auto-run had overwritten it with a stale 0.5 entry; added post-26.07 evidence entries for MACD_TURN+BB_LOW (1.0, no dampening) and CORE_SWEEP (0.6, post-26.07 n=85 WR 40%); expiry 2026-09-09",
@@ -682,41 +684,9 @@
       "next_focus": [
         "Watch new-regime trade count (need >=30 per conviction stage before any re-calibration, ~2026-09-07)",
         "TP+GC: if the next auto-run re-dampens to 0.5 again citing pre-fix stats, add a Zäsur-window guard to the llm_review signal-stats query so the LLM only sees post-2026-07-26 numbers",
-        "CORE_SWEEP: 21/85 full-SL hits at ~3% SL — if drag persists, next lever is sweep-side SL/ATR window, not signal gating"
-      ]
-    },
-    {
-      "run_id": "self_improvement_20260826_223000",
-      "timestamp": "2026-08-26T22:30:00Z",
-      "action": "data_change (no src/-code change, no config, no DB-schema)",
-      "phase_label": "nachher (trades.created_at >= 2026-07-26)",
-      "findings": {
-        "closed_trades": {
-          "vorher": "n=147 WR 23.8% avg +0.21% tot -$267",
-          "nachher": "n=155 WR 38.7% avg +0.88% tot -$148"
-        },
-        "post_fix_by_signal_type": {
-          "CORE_SWEEP": "n=85 WR 40.0% avg -0.09% tot -$165 (win +3.0 / lose -2.15, 21 full-SL hits, avg hold 6.3d)",
-          "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": "n=38 WR 47.4% avg +5.04% tot +$51 (only winner)",
-          "TREND_PULLBACK,GOLDEN_CROSS": "n=31 WR 25.8% avg -1.43% tot -$32 (payoff 0.84, dormant since 2026-08-17)"
-        },
-        "conviction_post_fix": "MEDIUM n=124 WR 41.9% avg $181 vs HIGH n=31 WR 25.8% avg $81 (16.1pp gap, documented only)",
-        "new_regime_window": "n=2 closed trades since 2026-08-24 13:16 — below the >=30-Trade threshold, NO re-calibration",
-        "kelly_weighted_mean_factor": 0.403
-      },
-      "changes": [
-        "data/llm_signal_weights.json: re-asserted TP+GC 0.25 (auto-run 2026-08-24 20:31 had overwritten it with 0.5 citing a pre-fix 82% WR — Zäsur violation); added explicit post-26.07 evidence entries for MACD_TURN+BB_LOW (1.0, no dampening) and CORE_SWEEP (0.5); expiry extended to 2026-09-09"
-      ],
-      "not_changed": [
-        "Conviction-Leiter (sizing.very_high/high/medium/low_pct) — VoLLi HOLD until ~2026-09-07, needs new-regime data",
-        "kill_switch.py, BIBLE_HARD_LIMITS, DB-schema, .env",
-        "Ghost-exchange blocks [.L, .OL, _FOREX, _FUT]: preserve-previous rule is intentional; .L now 0% (37/37) but stays blocked — unblocking is a strategy decision, not a repair"
-      ],
-      "tests": "no src/ change — suite untouched (last full run green at 56b6c04)",
-      "next_focus": [
-        "Accumulate new-regime trades (need >=30 per conviction stage before re-calibration, target ~2026-09-07)",
-        "CORE_SWEEP: 21/85 full-SL hits — if drag persists, next lever is sweep-side SL window, not signal gating",
-        "Guard the LLM-review weight-update against pre-fix evidence (add Zäsur-window filter to llm_review signal-stats query) if TP+GC gets re-dampened again"
+        "CORE_SWEEP: 21/85 full-SL hits at ~3% SL — if drag persists, next lever is sweep-side SL/ATR window, not signal gating",
+        "LLM-Review-Worker: auto-weight-updates MUSS trades.created_at>='2026-07-26' filtern (26.07-Zaesur), sonst ueberschreibt der naechste 20:00-Run die re-asserteten Gewichte wieder",
+        "Core-Sweep n=85 WR 55.3% avg +2.15% — hoechste-Edge-Quelle; avg_win +3.0% vs avg_lose -2.15% (21 win / 64 lose CLOSED) => Sizing-0.5-Mult ist korrekt, KEIN Erhoehung"
       ]
     }
   ],
@@ -1611,7 +1581,8 @@
     "TREND_PULLBACK,GOLDEN_CROSS signals need better exit logic as they win often but lose money on average.",
     "Stale-Exit PG: GOOD (-0.1% seit Exit)",
     "2026-08-24: Conviction-Leiter abgeflacht (HIGH/VERY_HIGH 7/6 -> 5/5 auf MEDIUM-Base): HIGH war einziger groesster Drag (-269 USD, WR 31%), VERY_Hight WR 10.9%. MACD_TURN-Combos in MEDIUM = einzige profitabel Signaltyp-Familie (avg +10.28% seit 08-10). TP+GC auf 0.25x gedaeempft (payoff 0.84, WR 25% < 45.8% breakeven).",
-    "2026-08-25 (Zäsur-Korrektur): Die 2026-08-24-Entscheidung 'Conviction-Leiter abgeflacht' ruhte auf conviction_split_FULL_HISTORY — d.h. auf PRE-Fix-Daten. fix/combo-conviction-min (d0a07d7, 2026-07-26) hat Combo-Conviction auf die SCHWAECHSTE Komponente umgestellt; seither existieren KEINE VERY_HIGH-Trades mehr (davor: VERY_HIGH n=55, WR 10.9%, Ø ~546 USD). REGEL (Pflicht): Jede Handelsdaten-Auswertung (WR, Conviction, Sizing-Evidenz) erst ab created_at >= 2026-07-26 filtern ODER Phase explizit trennen (vorher→nachher WR: 19.1% → 34.4%). Die very_high_pct 7→5-Kalibrierung wurde also auf Daten gestützt, die das Fix nicht mehr produziert — als zukünftige Evidenz untauglich, als Historie korrekt."
+    "2026-08-25 (Zäsur-Korrektur): Die 2026-08-24-Entscheidung 'Conviction-Leiter abgeflacht' ruhte auf conviction_split_FULL_HISTORY — d.h. auf PRE-Fix-Daten. fix/combo-conviction-min (d0a07d7, 2026-07-26) hat Combo-Conviction auf die SCHWAECHSTE Komponente umgestellt; seither existieren KEINE VERY_HIGH-Trades mehr (davor: VERY_HIGH n=55, WR 10.9%, Ø ~546 USD). REGEL (Pflicht): Jede Handelsdaten-Auswertung (WR, Conviction, Sizing-Evidenz) erst ab created_at >= 2026-07-26 filtern ODER Phase explizit trennen (vorher→nachher WR: 19.1% → 34.4%). Die very_high_pct 7→5-Kalibrierung wurde also auf Daten gestützt, die das Fix nicht mehr produziert — als zukünftige Evidenz untauglich, als Historie korrekt.",
+    "2026-08-26 PFLICHT-LAUF 26.07-Zaesur: Der LLM-Review-Auto-Run 2026-08-24 20:31 lief VOR dem ersten Zaesur-Pflichtlauf und kalibrierte TP+GC 0.5 + oversold-combo 0.2 auf PRE-Fix-Daten — derselbe Overfitting-Fehler wie 56b6c04 (VERY_HIGH n=55 WR 10.9% Pre-Fix als Evidenz). Gewichte re-asserted auf die post-fix-basierten Werte. Regel: auto-weight-updates muessen immer created_at>='2026-07-26' filtern."
   ],
   "config_history": [
     {
