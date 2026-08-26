@@ -532,3 +532,49 @@ def test_non_experiment_param_still_allowed(monkeypatch, tmp_path):
     )
     assert any("high_pct" in a for a in applied)
     assert "high_pct: 6.5" in cfg.read_text(encoding="utf-8")
+
+
+# ── success_rate-Nenner (fix/success-rate-denominator, 2026-08-26) ───────────
+# Regression: REJECTED lag im Nenner, obwohl der Docstring "nur echte
+# Executions" versprach. CORE_SWEEP kam dadurch auf 24 % (797 abgelehnt gegen
+# 86 geschlossen) und wurde vom LLM als "underperforming" gedaempft, obwohl
+# Ablehnungen ueber den Ertrag nichts aussagen.
+
+
+def _perf_rows(stype, active=0, closed=0, failed=0, rejected=0):
+    return [
+        {"signal_type": stype, "status": st, "n": n}
+        for st, n in (("ACTIVE", active), ("CLOSED", closed),
+                      ("FAILED", failed), ("REJECTED", rejected))
+        if n
+    ]
+
+
+def test_success_rate_ignoriert_abgelehnte_orders():
+    from bot.workers.llm_review_worker import _compute_signal_perf
+
+    ohne = _compute_signal_perf(_perf_rows("X", active=4, closed=6, failed=10))
+    mit = _compute_signal_perf(
+        _perf_rows("X", active=4, closed=6, failed=10, rejected=500))
+
+    assert ohne["X"]["success_rate"] == 0.5
+    assert mit["X"]["success_rate"] == 0.5, (
+        "Abgelehnte Orders duerfen die Erfolgsrate nicht druecken — sie messen "
+        "Filter und Marktlage, nicht die Signalqualitaet"
+    )
+
+
+def test_reject_rate_wird_separat_ausgewiesen():
+    from bot.workers.llm_review_worker import _compute_signal_perf
+
+    perf = _compute_signal_perf(
+        _perf_rows("CORE_SWEEP", active=16, closed=86, failed=83, rejected=797))
+    entry = perf["CORE_SWEEP"]
+
+    assert entry["reject_rate"] > 0.8          # Ablehnungen bleiben sichtbar
+    assert entry["REJECTED"] == 797
+    assert entry["total"] == 185               # nur ausgefuehrte Orders
+    assert entry["success_rate"] > 0.3, (
+        "Mit korrektem Nenner faellt CORE_SWEEP nicht mehr unter die "
+        "underperforming-Schwelle von 0.3"
+    )

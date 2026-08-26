@@ -44,6 +44,12 @@ except Exception:
 LLM_URL = "http://127.0.0.1:8080/v1/chat/completions"
 LLM_TIMEOUT_S = 85  # < 120s cron budget
 ANALYSIS_WINDOW_DAYS = 14
+
+# 26.07-Zäsur (Kontrakt in AGENTS.md, Commit 1c3fe59): Vor diesem Datum galt
+# combo_conviction_min noch nicht. Trades davor stammen aus einer anderen
+# Strategie und duerfen nicht in die Gewichts-Kalibrierung einfliessen —
+# sonst kalibriert der Auto-Run auf einer Ära, die es nicht mehr gibt.
+ZAESUR_DATE = "2026-07-26"
 MIN_SAMPLES_FOR_BLACKLIST = 2   # mindestens 2 Trades für Exchange-Bewertung
 GHOST_RATE_THRESHOLD = 0.6
 SIGNAL_WEIGHTS_PATH = PROJECT_ROOT / "data" / "llm_signal_weights.json"
@@ -203,9 +209,10 @@ def _collect_trade_performance(db_path: Path) -> dict:
         LEFT JOIN position_state ps ON ps.position_id = t.api_position_id
         WHERE t.status = 'CLOSED' AND t.closed_at IS NOT NULL
           AND t.entry_price IS NOT NULL
+          AND t.created_at >= ?
         ORDER BY t.closed_at DESC
         LIMIT 100
-    """)
+    """, (ZAESUR_DATE,))
     trades_closed = [dict(r) for r in cur.fetchall()]
 
     # Signal-Performance-Aggregat aus allen gemessenen Trades
@@ -217,9 +224,10 @@ def _collect_trade_performance(db_path: Path) -> dict:
                SUM(CASE WHEN t.pnl_pct <= 0 THEN 1 ELSE 0 END) as losses
         FROM trades t JOIN signals s ON t.signal_id = s.id
         WHERE t.pnl_pct IS NOT NULL
+          AND t.created_at >= ?
         GROUP BY s.signal_type, s.conviction, t.status
         ORDER BY n DESC
-    """)
+    """, (ZAESUR_DATE,))
     signal_perf_with_pnl = [dict(r) for r in cur.fetchall()]
 
     con.close()
@@ -371,7 +379,15 @@ def _compute_ghost_rates(trades: list[dict]) -> dict:
 def _compute_signal_perf(signal_stats: list[dict], ghost_signal_stats: dict | None = None) -> dict:
     """Aggregiert Signal-Performance (Erfolgsrate nach Typ).
     Ghost-Order-Failures werden SEPARAT gezaehlt: sie spiegeln Exchange-Infrastruktur,
-    nicht Strategie-Qualitaet. success_rate basiert nur auf echten Executions."""
+    nicht Strategie-Qualitaet. success_rate basiert nur auf echten Executions.
+
+    fix/success-rate-denominator (2026-08-26): REJECTED gehoerte bis hierher in
+    den Nenner — im Widerspruch zum Satz darueber. Eine abgelehnte Order wurde
+    nie ausgefuehrt; ihre Haeufigkeit misst Filter und Marktlage, nicht die
+    Qualitaet des Signals. CORE_SWEEP kam so auf 24 % (797 REJECTED gegen 86
+    CLOSED) und wurde vom LLM als "underperforming" markiert und gedaempft,
+    obwohl die Ablehnungen ueber den Ertrag nichts aussagen. REJECTED wird
+    weiterhin ausgewiesen, zaehlt aber nur noch als reject_rate."""
     perf: dict[str, dict] = defaultdict(
         lambda: {"ACTIVE": 0, "CLOSED": 0, "FAILED": 0, "REJECTED": 0, "GHOST_FAILED": 0}
     )
@@ -390,18 +406,21 @@ def _compute_signal_perf(signal_stats: list[dict], ghost_signal_stats: dict | No
             perf[stype]["GHOST_FAILED"] += actual
     result = {}
     for stype, counts in perf.items():
-        real_total = counts["ACTIVE"] + counts["CLOSED"] + counts["FAILED"] + counts["REJECTED"]
+        executed = counts["ACTIVE"] + counts["CLOSED"] + counts["FAILED"]
+        rejected = counts["REJECTED"]
         ghost_n = counts["GHOST_FAILED"]
-        if real_total + ghost_n >= 2:
+        if executed + rejected + ghost_n >= 2:
             success = counts["ACTIVE"] + counts["CLOSED"]
             result[stype] = {
-                "total": real_total,
+                "total": executed,
                 "ghost_failed": ghost_n,
-                "success_rate": round(success / real_total, 2) if real_total > 0 else 0.0,
+                "success_rate": round(success / executed, 2) if executed > 0 else 0.0,
+                "reject_rate": (round(rejected / (executed + rejected), 2)
+                                if (executed + rejected) > 0 else 0.0),
                 "ACTIVE": counts["ACTIVE"],
                 "CLOSED": counts["CLOSED"],
                 "FAILED": counts["FAILED"],
-                "REJECTED": counts["REJECTED"],
+                "REJECTED": rejected,
             }
     return result
 
