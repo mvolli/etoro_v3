@@ -273,7 +273,16 @@ Root-Datei müssen hier nachgezogen werden.
 PYTHONPATH=src /usr/bin/python3 -m pytest           # volle Suite, alles grün
 sqlite3 -readonly data/trading.db "SELECT key,value FROM system_state WHERE key LIKE 'LAST_RUN_%'"
 bash scripts/etoro_kill_switch_watchdog.sh        # leer = gesund
+git diff HEAD -- data/llm_signal_weights.json     # leer = Bot liest exakt die committeten Gewichte
 ```
+
+**Weights-Drift-Check (Pflicht bei jeder Diagnostics/Review):** Ein sauberer
+Commit heißt NICHT, dass der Bot ihn benutzt — der Worker liest `data/llm_signal_weights.json`
+aus dem **Working Tree**, und `_update_signal_weights()` schreibt dort automatisch
+beim LLM-Review-Lauf (Cron `30 22 * * *` — der Ausdruck steht in **Lokalzeit**: 22:30 CEST = 20:30 UTC, empirisch bestätigt durch `last_run_at`. `name` und `schedule_display` des Jobs behaupteten bis 2026-08-27 „20:00 UTC“ und sind korrigiert; fix/success-rate-denominator, 1abadd7). Wenn
+`git diff HEAD -- data/llm_signal_weights.json` NICHT leer ist, ist die
+Live-Abweichung vom belegten Stand — das ist die eigentliche Evidenz für
+„aktive Gewichte ≠ committete Gewichte".
 
 **Interpreter-Regel:** die Suite IMMER mit `/usr/bin/python3` (System-Python,
 hat matplotlib 3.10.8) ausführen — die Cron-Worker laufen exakt darauf. Das bare
