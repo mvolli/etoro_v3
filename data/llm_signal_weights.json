@@ -1,33 +1,41 @@
 {
-  "updated_at": "2026-08-23T20:30:35.479830+00:00",
-  "auto_expires_at": "2026-09-06T20:30:35.479836+00:00",
+  "updated_at": "2026-08-26T22:30:00+00:00",
+  "auto_expires_at": "2026-09-09T22:30:00+00:00",
   "adjustments": {
-    "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD": {
-      "score_multiplier": 0.2,
-      "skip": false,
-      "reason": "Catastrophic 97% loss rate (1 win / 36 losses). Falling knife pattern without sufficient MACD confirmation."
-    },
-    "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD": {
-      "score_multiplier": 0.3,
-      "skip": false,
-      "reason": "90% loss rate (1 win / 9 losses). Extreme oversold without trend reversal is a high-risk entry."
-    },
-    "CORE_SWEEP": {
-      "score_multiplier": 0.6,
-      "skip": false,
-      "reason": "Low success rate (26%) and negative average PnL (-0.99%). Underperforming relative to other signals."
-    },
     "TREND_PULLBACK,GOLDEN_CROSS": {
       "score_multiplier": 0.25,
       "skip": false,
-      "reason": "n=56, payoff 0.84 (avg_win +2.03 vs avg_loss -2.41), WR 25% vs 45.8% breakeven. Structurally negative expectancy (-1.30%/trade, -145.9 USD). Was 0.8x - far too generous. Kelly independently shrinks size to ~0.20x; this dampens RANKING so it deprioritizes in the candidate pool."
+      "reason": "Post-26.07 (n=31, WR 25.8%, payoff 0.84, -$32): structurally negative expectancy. Dampened to 0.25 by 56b6c04 (2026-08-24); the 2026-08-24 20:31 auto-run had overwritten this with 0.5 citing a pre-fix 82% win-rate (Zäsur violation). Re-asserted 2026-08-26."
+    },
+    "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": {
+      "score_multiplier": 1.0,
+      "skip": false,
+      "reason": "Post-26.07 (n=38, WR 47.4%, avg +5.04%, +$51): the ONLY positive-expectancy signal type in the book. MACD-turn confirmation is the differentiator. No dampening."
+    },
+    "CORE_SWEEP": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "Post-26.07 (n=85, WR 40.0%, avg -0.09%, -$165): wins +3.0% / losses -2.15% (payoff >1) — thin positive edge, drag comes from size (avg $230, biggest in book) and 21 full-SL hits. Dampening 0.5 kept."
+    },
+    "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD": {
+      "score_multiplier": 0.1,
+      "skip": false,
+      "reason": "Falling-Knife combo (pre-fix n=37, WR 2.7%): near-skip retained. No post-26.07 trades — the Falling-Knife-Gate now blocks these at signal level; weight kept as backstop."
+    },
+    "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD": {
+      "score_multiplier": 0.2,
+      "skip": false,
+      "reason": "Oversold without MACD confirmation (pre-fix n=10, WR 10%): backstop under the Falling-Knife-Gate. No post-26.07 trades."
     }
   },
   "strategy_notes": [
-    "Oversold signals without MACD improvement are consistently losing money. The 'Falling Knife' hypothesis is confirmed by data: RSI extremes alone are not buy signals.",
-    "TREND_PULLBACK,GOLDEN_CROSS wins frequently but loses on average. This indicates a 'Win small, lose big' profile or failure to trail profits. Investigate trailing stop parameters for this specific signal type."
+    "Post-26.07 (Zäsur-Regel): MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING is the only positive-expectancy signal-type (n=38, WR 47.4%, +$51). TREND_PULLBACK,GOLDEN_CROSS is structurally negative (n=31, WR 25.8%, payoff 0.84) — kept at 0.25, dormant since 2026-08-17.",
+    "Conviction finding (documented, NOT acted on — VoLLi HOLD until ~2026-09-07 + new-regime basis only): post-26.07 MEDIUM n=124 WR 41.9% outperforms HIGH n=31 WR 25.8% by 16.1pp. New-regime window (>= 2026-08-24 13:16) has only n=2 closed trades, so no recalibration yet.",
+    "Ghost-Blacklist hygiene: .L now shows 0% ghost rate (37/37 clean) but stays blocked by the preserve-previous rule (intended); the sweep path intentionally bypasses the exchange blacklist (sweep buys .L/.PA titles while they are signal-path-blocked) — document, do not change.",
+    "Auto-run 2026-08-24 20:31 had silently overwritten committed 56b6c04 weights (TP+GC 0.25 -> 0.5, reason citing stale 82% WR). Re-asserted here; next 20:00-UTC review may overwrite again — if TP+GC reappears >0.25 without new post-26.07 evidence, restore this file.",
+    "2026-08-26: Re-asserted TP+GC 0.25 after auto-run overwrite. Post-26.07 evidence: MACD_TURN+BB_LOW n=38 WR 47.4% +$51 (best); CORE_SWEEP n=85 WR 40.0% -$165; TP+GC n=31 WR 25.8% -$32. Conviction: MEDIUM n=124 WR 41.9% vs HIGH n=31 WR 25.8% (documented only — HOLD until ~2026-09-07 per VoLLi; new-regime window n=2)."
   ],
   "conviction_issues": [
-    "VERY_HIGH conviction is currently associated with the worst performance (BB/RSI Oversold clusters). The conviction scoring model may be over-weighting 'extreme' indicators without sufficient trend confirmation."
+    "VERY_HIGH Conviction signals (specifically BB_LOWER_RSI_OVERSOLD combos) have a win rate < 10% and negative PnL. The conviction scoring for oversold conditions is inverted or too aggressive."
   ]
 }
