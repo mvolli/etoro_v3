@@ -1117,12 +1117,171 @@ def _update_trading_memory(llm_analysis: dict, trade_perf: dict,
     print(f"[llm_review] Trading-Memory aktualisiert: {len(new_notes)} neue Erkenntnisse")
 
 
-def _update_signal_weights(llm_analysis: dict) -> None:
-    """Schreibt LLM-Signal-Gewichtungen (autonome Anpassung des Scorings)."""
+def _load_signal_weights() -> dict:
+    """Laedt das aktuelle llm_signal_weights.json ({} wenn nicht vorhanden)."""
+    try:
+        if SIGNAL_WEIGHTS_PATH.exists():
+            return _json_mod.loads(SIGNAL_WEIGHTS_PATH.read_text()) or {}
+    except Exception:
+        pass
+    return {}
+
+
+def _collect_realized_signal_pnl(db_path: Path) -> dict:
+    """Realized (CLOSED) PnL pro Signal-Typ, Fenster ab ZAESUR_DATE.
+
+    NUR geschlossene Trades mit bekanntem PnL — das ist die bewusste
+    "realized-only" Basis des Ratchets. Offene Buchgewinne duerfen eine
+    Lockerung NICHT begruenden (Rueckkopplung: die Lockerung vergraessert
+    genau die Position, deren Tages-Buchwert sie sonst selbst treibt) und
+    wuerden das Gate taeglich flackern lassen. Das Fenster ist an ZAESUR_DATE
+    gebunden (Konstante, existiert seit 1abadd7), damit z.B. CORE_SWEEP die
+    -166.38 $ aus der alten Aera nicht mitschleppt und aus Versehen fuer
+    Monate eingefroren bleibt — ein Regimewechsel setzt das Konto bewusst
+    zurueck; ein dokumentierter Handgriff, kein Automatismus.
+    """
+    import sqlite3
+    try:
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        con.row_factory = sqlite3.Row
+        cur = con.cursor()
+        cur.execute(
+            """
+            SELECT s.signal_type,
+                   COUNT(*) AS n_closed,
+                   SUM(t.pnl_usd) AS sum_pnl_usd
+            FROM trades t
+            JOIN signals s ON t.signal_id = s.id
+            WHERE t.status = 'CLOSED'
+              AND t.created_at >= ?
+              AND t.pnl_usd IS NOT NULL
+            GROUP BY s.signal_type
+            """,
+            (ZAESUR_DATE,),
+        )
+        out = {
+            r["signal_type"]: {
+                "n_closed": int(r["n_closed"] or 0),
+                "sum_pnl_usd": float(r["sum_pnl_usd"] or 0.0),
+            }
+            for r in cur.fetchall()
+        }
+        con.close()
+        return out
+    except Exception:
+        return {}
+
+
+def _ratchet_signal_weights(adjustments: dict, db_path: Path | None = None) -> list[str]:
+    """Ratsche (fix/signal-weight-ratchet, 2026-08-27): ein Signal-Typ darf
+    seine Sizing-Gewichtung nur NACH OBEN rattern, wenn der Typ es nach
+    realized Daten post-Zaesur verdient hat:
+        n_closed >= min_n  AND  SUM(realized pnl_usd) > 0
+    Die Rueckstellrichtung (Daempfung / Skip) bleibt vollstaendig unan-
+    getastet. Eine nicht verdiente Lockerung wird am CURRENT-Wert einge-
+    froren (frozen) und NICHT angewendet: der Typ rattert nur in eine
+    Richtung — ein Verlustbringer bleibt eingefroren <=1.0 bis er nach-
+    weislich Geld macht. Die Entscheidung (Free/Freeze/Unchanged) wird in
+    das Decision-Log protokolliert; die Rueckgabe sind die eingefrorenen
+    Signaltypen (Logging). `adjustments` wird in-place gemutet.
+
+    Config: trading.signal_weight_ratchet.{enabled, min_closed_trades}
+    (Defaults: enabled=true, min_closed_trades=20).
+    """
+    if db_path is None:
+        db_path = PROJECT_ROOT / "data" / "trading.db"
+    ratchet_cfg = (CFG.get("trading", {}) or {}).get("signal_weight_ratchet", {}) or {}
+    enabled = bool(ratchet_cfg.get("enabled", True))
+    try:
+        min_n = int(ratchet_cfg.get("min_closed_trades", 20))
+    except (TypeError, ValueError):
+        min_n = 20
+
+    current_adj = _load_signal_weights().get("adjustments", {}) or {}
+    realized = _collect_realized_signal_pnl(db_path)
+    frozen: list[str] = []
+
+    if not enabled:
+        print("[llm_review] Ratchet DEAKTIVIERT — Lockerungen unangetastet")
+        return frozen
+
+    for sig, adj in adjustments.items():
+        if adj.get("skip"):
+            continue  # Sperrungen sind kein Sizing-Locker — unangetastet
+        try:
+            proposed = min(1.0, float(adj.get("score_multiplier", 1.0)))
+        except (TypeError, ValueError):
+            continue
+
+        cur_entry = current_adj.get(sig)
+        current_mult = 1.0
+        if cur_entry and not cur_entry.get("skip"):
+            try:
+                current_mult = min(1.0, float(cur_entry.get("score_multiplier", 1.0)))
+            except (TypeError, ValueError):
+                current_mult = 1.0
+
+        if proposed <= current_mult:
+            # Kein Locker in die obere Richtung (Daempfung < current, neutral
+            # == current) -> unangetastet. Nur proposed > current_mult ist eine
+            # Ratschen-Schritt, die verdient werden muss. (1.0 ist das Maximum
+            # durch den Never-Boost-Clamp — der haeufigste Locker-Fall.)
+            continue
+
+        stats = realized.get(sig) or {}
+        n_closed = int(stats.get("n_closed", 0) or 0)
+        realized_pnl = float(stats.get("sum_pnl_usd", 0.0) or 0.0)
+
+        if n_closed >= min_n and realized_pnl > 0:
+            # Verdiente Lockerung -> ratte nach oben (auf proposed).
+            # (Decision-Log: unten im einzigen Schreibpfad von _update_signal_weights)
+            adj["score_multiplier"] = proposed
+            adj["_ratchet_reason"] = (
+                f"RATCHET-FREE-LOCK: n_closed={n_closed} (>= {min_n}), "
+                f"realized_pnl=+{realized_pnl:.2f} USD > 0 post-Zaesur"
+            )
+            print(f"  RATCHET {sig}: {current_mult} -> {proposed} "
+                  f"(n_closed={n_closed} >= {min_n}, realized=+{realized_pnl:.2f} USD)")
+            continue
+
+        # Nicht verdient -> einfrieren am CURRENT-Wert (frozen, not rotated).
+        adj["score_multiplier"] = current_mult
+        adj["_ratchet_frozen"] = True
+        adj["_proposed"] = proposed
+        adj["_ratchet_reason"] = (
+            f"RATCHET-FROZEN: Lockerung {current_mult} -> {proposed} blockiert "
+            f"(n_closed={n_closed}/{min_n}, realized={realized_pnl:+.2f} USD)"
+        )
+        frozen.append(sig)
+        print(f"  RATCHET {sig}: FROZEN am {current_mult} "
+              f"(n_closed={n_closed}/{min_n}, realized={realized_pnl:+.2f} USD)")
+
+    if frozen:
+        print(f"[llm_review] Ratchet: {len(frozen)} Lockerung(en) eingefroren: {frozen}")
+    return frozen
+
+
+def _update_signal_weights(llm_analysis: dict, db_path: Path | None = None) -> None:
+    """Schreibt LLM-Signal-Gewichtungen (autonome Anpassung des Scorings).
+
+    Reihenfolge ist kritisch: erst die Ratsche gegen die CURRENT-Datei
+    pruefen, DANNS schreiben — sonst wuerde die ungecheckte Lockerung
+    persistiert und der Freeze verlorengangen.
+    """
     adjustments = (llm_analysis or {}).get("signal_weight_adjustments", {})
     if not adjustments:
         print("[llm_review] Keine Signal-Gewichtungsaenderungen")
         return
+
+    # fix/signal-weight-ratchet (2026-08-27): Lockerungen (score_multiplier
+    # > 1.0) nur rattern wenn der Typ es nach realized post-Zaesur Daten
+    # verdient (n_closed >= min_n AND SUM(pnl_usd) > 0). Dämpfungen bleiben
+    # unangetastet. Muetet `adjustments` in-place (Free/Freeze).
+    if db_path is None:
+        db_path = PROJECT_ROOT / "data" / "trading.db"
+    _ratchet_signal_weights(adjustments, db_path)
+
+    current_adj = _load_signal_weights().get("adjustments", {}) or {}
 
     weights = {
         "updated_at": datetime.now(timezone.utc).isoformat(),
@@ -1133,11 +1292,23 @@ def _update_signal_weights(llm_analysis: dict) -> None:
     }
     SIGNAL_WEIGHTS_PATH.parent.mkdir(parents=True, exist_ok=True)
     SIGNAL_WEIGHTS_PATH.write_text(_json_mod.dumps(weights, indent=2, ensure_ascii=False))
+
+    # Decision-Log: den tatsächlichen NEW-Wert (inkl. Ratchet-Freeze) loggen,
+    # old_value = vorheriger persistierter Multiplier (1.0 wenn neu).
     for sig, adj in adjustments.items():
-        _record_decision("signal_weight", sig, 1.0, adj, adj.get("reason", "")[:80])
+        cur_entry = current_adj.get(sig)
+        old_mult = 1.0
+        if cur_entry and not cur_entry.get("skip"):
+            try:
+                old_mult = min(1.0, float(cur_entry.get("score_multiplier", 1.0)))
+            except (TypeError, ValueError):
+                old_mult = 1.0
+        _record_decision("signal_weight", sig, old_mult, adj,
+                         adj.get("_ratchet_reason", adj.get("reason", ""))[:160])
 
     skipped = [k for k, v in adjustments.items() if v.get("skip")]
-    demoted = [k for k, v in adjustments.items() if v.get("score_multiplier", 1.0) < 1.0 and not v.get("skip")]
+    demoted = [k for k, v in adjustments.items()
+               if v.get("score_multiplier", 1.0) < 1.0 and not v.get("skip")]
     print(f"[llm_review] Signal-Weights: {len(skipped)} gesperrt, {len(demoted)} abgewertet")
 
 

@@ -153,6 +153,22 @@ trading:
         max_atr_pct: 7.0
         size_mult: 0.5
 
+  # Ratsche (fix/signal-weight-ratchet, 2026-08-27): Die LLM (llm_review_worker
+  # -> _ratchet_signal_weights) darf die score_multiplier eines Signaltyps
+  # nur NACH OBEN rattern, wenn der Typ es nach REALIZED (CLOSED) Daten
+  # post-Zaesur (ZAESUR_DATE) verdient hat: n_closed >= min_closed_trades
+  # AND SUM(pnl_usd) > 0. Dämpfungen (new < 1.0) bleiben unangetastet.
+  # Eine nicht verdiente Lockerung wird am CURRENT-Wert eingefroren (frozen,
+  # not rotated) — ein Verlustbringer bleibt <=1.0 bis er nachweislich Geld
+  # macht. Realized-only ist bewusst: offene Buchgewinne dürfen die Lockerung
+  # nicht begründen (Rückkopplung: die Lockerung vergrößert genau die Position
+  # deren Tages-Buchwert sie sonst selbst treibt + flackert taeglich).
+  # Das Fenster ist an ZAESUR_DATE gebunden, damit z.B. CORE_SWEEP die
+  # -166.38 $ aus der alten Aera nicht mitschleppt.
+  signal_weight_ratchet:
+    enabled: true
+    min_closed_trades: 20
+
 risk:
   daily_loss_limit_pct: 5.0   # Auto-kill-switch: intraday equity drop from day start (%; 0 = disabled)
   weekly_loss_limit_pct: 8.0  # Auto-kill-switch: max drawdown from 7-day equity high (%; 0 = disabled)
