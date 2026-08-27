@@ -150,3 +150,117 @@ def _market_always_open_for_tests(monkeypatch):
     deterministisch auf 'offen' gepatcht."""
     import bot.core.trailing_stop as _ts
     monkeypatch.setattr(_ts, "_action_market_open", lambda *a, **k: True)
+
+
+# ── feat/min-remaining (50%-Regel, 2026-08-27) ──────────────────────────────
+# Ein Teilverkauf, der die Position (nach vorherigen Teilverkaufen) unter
+# 50% der Oeffnungssumme druecken wuerde, wird zu einem Full Close. Die
+# Restmenge (position_state.remaining_frac) wird nach jedem verifizierten
+# Teilverkauf fortgeschrieben, damit Ladder-/Fade-/Sell-Exit-Logik gegen
+# den echten Stand prueft — und Earnings-Exits (execute_sell_exits mit db)
+# dieselbe Untergrenze respektieren.
+
+
+def _fake_db(remaining_frac: float | None = None):
+    """In-memory position_state (echtes SQLite, Bot-DB-Interface)."""
+    import sqlite3
+
+    import bot.core.trailing_stop as ts
+
+    class FakeDB:
+        def __init__(self):
+            self._c = sqlite3.connect(":memory:")
+
+        def execute(self, sql, params=None):
+            return self._c.execute(sql, params or [])
+
+        def fetchall(self, sql, params=None):
+            return self._c.execute(sql, params or []).fetchall()
+
+        def fetchone(self, sql, params=None):
+            return self._c.execute(sql, params or []).fetchone()
+
+        def commit(self):
+            self._c.commit()
+
+    db = FakeDB()
+    ts._ensure_position_state_table(db)
+    if remaining_frac is not None:
+        db.execute(
+            "INSERT INTO position_state (position_id, symbol, remaining_frac, "
+            "updated_at) VALUES (?, ?, ?, datetime('now'))",
+            ("p1", "NVDA", remaining_frac),
+        )
+    return db
+
+
+def test_sell_exit_breach_forces_full_close(monkeypatch):
+    """Rest 50% + 50% Partial wuerde 25% lassen → Full Close statt Partial."""
+    import bot.core.trailing_stop as ts
+    monkeypatch.setattr(ts, "verify_full_close",
+                        lambda *a, **k: (True, "confirmed", None))
+    monkeypatch.setattr(ts, "_post_closed_embed", lambda *a, **k: None)
+
+    db = _fake_db(remaining_frac=0.5)
+    client, repo = FakeClient(), FakeSignalRepo()
+    actions = evaluate_sell_exits([_signal()], [_pos(pnl_pct=12.0)])
+    stats = execute_sell_exits(client, repo, actions, db=db)
+
+    assert stats["closed"] == 1
+    assert stats["full_closes"] == 1
+    assert len(client.closed) == 1
+    assert client.closed[0][1] is None  # Full Close: UnitsToDeduct fehlt
+    assert (1, "CONSUMED") in repo.status_updates
+
+
+def test_sell_exit_partial_updates_remaining_frac(monkeypatch):
+    """Frische Position: 50% Partial bleibt Partial und setzt Rest auf 0.5."""
+    import bot.core.trailing_stop as ts
+    monkeypatch.setattr(ts, "_verify_partial_close", lambda *a, **k: (True, "ok"))
+    monkeypatch.setattr(ts, "_post_closed_embed", lambda *a, **k: None)
+
+    db = _fake_db()
+    client, repo = FakeClient(), FakeSignalRepo()
+    actions = evaluate_sell_exits([_signal()], [_pos(pnl_pct=12.0)])
+    stats = execute_sell_exits(client, repo, actions, db=db)
+
+    assert stats["closed"] == 1
+    assert stats["full_closes"] == 0
+    assert client.closed[0][1] == pytest.approx(5.0)
+    rows = db.fetchall(
+        "SELECT remaining_frac FROM position_state WHERE position_id = 'p1'"
+    )
+    assert rows[0][0] == pytest.approx(0.5)
+
+
+def test_second_partial_is_full_close(monkeypatch):
+    """Stacking: 1x 50% Partial, danach next 50% Partial → Full Close."""
+    import bot.core.trailing_stop as ts
+    monkeypatch.setattr(ts, "_verify_partial_close", lambda *a, **k: (True, "ok"))
+    monkeypatch.setattr(ts, "verify_full_close",
+                        lambda *a, **k: (True, "confirmed", None))
+    monkeypatch.setattr(ts, "_post_closed_embed", lambda *a, **k: None)
+
+    db = _fake_db()
+    client, repo = FakeClient(), FakeSignalRepo()
+    first = evaluate_sell_exits([_signal(sig_id=1)], [_pos(pnl_pct=12.0)])
+    execute_sell_exits(client, repo, first, db=db)
+    second = evaluate_sell_exits([_signal(sig_id=2)], [_pos(pnl_pct=12.0)])
+    stats = execute_sell_exits(client, repo, second, db=db)
+
+    assert stats["closed"] == 1
+    assert stats["full_closes"] == 1
+    assert client.closed[-1][1] is None
+
+
+def test_sell_exit_dry_run_breach_counts_full_close():
+    """Dry-Run: kein API-Call, aber Full-Close-Eskalation wird gezahlt."""
+    db = _fake_db(remaining_frac=0.5)
+    client, repo = FakeClient(), FakeSignalRepo()
+    actions = evaluate_sell_exits([_signal()], [_pos(pnl_pct=12.0)])
+    stats = execute_sell_exits(client, repo, actions, dry_run=True, db=db)
+
+    assert stats["closed"] == 1
+    assert stats["full_closes"] == 1
+    assert client.closed == []
+    assert repo.status_updates == []

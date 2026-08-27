@@ -206,12 +206,35 @@ def execute_sell_exits(
 
     from bot.core.trailing_stop import (
         TrailingAction,
+        MIN_REMAINING_PCT,
         _action_market_open,
         _post_closed_embed,
         _verify_partial_close,
+        load_position_dynamic,
+        apply_partial_to_remaining,
+        verify_full_close,
+        would_breach_min_remaining,
     )
 
-    stats = {"closed": 0, "errors": []}
+    stats = {"closed": 0, "full_closes": 0, "errors": []}
+
+    # feat/min-remaining (2026-08-27): SELL-/Earnings-Exits teilen sich mit
+    # der Profit-Leiter (trailing_stop.py) dieselbe Maecherei, pflegen aber
+    # position_state.remaining_frac NICHT selbst. Ohne Fortschreibung bliebe
+    # der Rest nach einem 50%-Exit in der DB 1.0 — spaetere Ladder-/Fade-
+    # Teilverkaeufe wuerden gegen den STALEN Stand pruefen und die Position
+    # trotzdem unter die 50%-Untergrenze zerfasern. Deshalb: vor der Order
+    # die aktuelle Restmenge laden, nach verifizierter Order-Applikation die
+    # neue Restmenge zurueckreiben. Fail-open: ohne DB-Handle (old-style
+    # calls) bleibt der Rest 1.0 (kein Breach moeglich).
+    _remaining_by_pos: dict[str, float] = {}
+    if db is not None:
+        _pids = [a.position_id for a in actions if a.position_id]
+        _dynamic = load_position_dynamic(db, _pids) if _pids else {}
+        _remaining_by_pos = {
+            pid: float(meta.get("remaining", 1.0))
+            for pid, meta in _dynamic.items()
+        }
 
     for action in actions:
         # fix/stale-price-trailing: SELL-Exits basieren auf Signalen, die
@@ -237,22 +260,42 @@ def execute_sell_exits(
         except Exception:
             pass
         total_units = _live_units or (action.amount_usd / action.open_rate)
-        units_to_deduct = round(total_units * (action.close_pct / 100.0), 8)
-        if units_to_deduct <= 0:
-            stats["errors"].append(f"{action.symbol}: units_to_deduct <= 0 — übersprungen")
-            continue
 
-        logger.info("[sell_exits] %s: %s (units=%.6f)", action.symbol, action.reason, units_to_deduct)
+        # feat/min-remaining (2026-08-27): 50%-Regel — ein Teilverkauf, der
+        # die Position (nach vorherigen Teilverkaeufen) unter
+        # MIN_REMAINING_PCT der Oeffnungssumme druecken wuerde, wird zu
+        # einem Full Close. Der Rest darf die Untergrenze nie verletzen.
+        remaining_frac = float(_remaining_by_pos.get(action.position_id, 1.0))
+        is_full = would_breach_min_remaining(remaining_frac, action.close_pct or 0.0)
+
+        units_to_deduct = None
+        if not is_full:
+            units_to_deduct = round(total_units * (action.close_pct / 100.0), 8)
+            if units_to_deduct <= 0:
+                stats["errors"].append(f"{action.symbol}: units_to_deduct <= 0 — übersprungen")
+                continue
+
+        if is_full:
+            logger.info(
+                "[sell_exits] %s: FULL CLOSE — Rest %.0f%% minus %.0f%% wuerde "
+                "die %.0f%%-Untergrenze verletzen — %s",
+                action.symbol, remaining_frac * 100, action.close_pct,
+                MIN_REMAINING_PCT, action.reason,
+            )
+        else:
+            logger.info("[sell_exits] %s: %s (units=%.6f)", action.symbol, action.reason, units_to_deduct)
 
         if dry_run:
             stats["closed"] += 1
+            if is_full:
+                stats["full_closes"] += 1
             continue
 
         try:
             result = client.close_position(
                 position_id=action.position_id,
                 instrument_id=action.instrument_id,
-                units_to_deduct=units_to_deduct,
+                units_to_deduct=None if is_full else units_to_deduct,
             )
             if not result:
                 stats["errors"].append(
@@ -272,37 +315,67 @@ def execute_sell_exits(
             # nächste 5-min-Zyklus dieselbe Position nicht erneut halbieren.
             mark_sell_exit(db, action.position_id, action.symbol)
 
-            # Verifikation über das bestehende Partial-Close-Polling
-            verify_action = TrailingAction(
-                action="PARTIAL_CLOSE",
-                symbol=action.symbol,
-                position_id=action.position_id,
-                pnl_pct=action.pnl_pct,
-                reason=action.reason,
-                close_pct=action.close_pct,
-                instrument_id=action.instrument_id,
-                amount_usd=action.amount_usd,
-                open_rate=action.open_rate,
-            )
-            verified, detail = _verify_partial_close(client, verify_action)
-            if verified:
-                logger.info("[sell_exits] %s", detail)
-                stats["closed"] += 1
+            if is_full:
+                verified, detail, _pnl_data = verify_full_close(
+                    client, action.instrument_id, action.position_id
+                )
+                if verified:
+                    logger.info("[sell_exits] %s", detail)
+                    stats["closed"] += 1
+                    stats["full_closes"] += 1
+                else:
+                    logger.warning("[sell_exits] %s", detail)
+                    stats["errors"].append(detail)
+                _post_closed_embed(
+                    action.symbol, action.position_id,
+                    action.reason + ("" if verified else " [UNVERIFIED — siehe Log]"),
+                    pnl_pct=action.pnl_pct,
+                    amount_usd=action.amount_usd,
+                    close_pct=100.0,
+                    client=client, db=db,
+                    instrument_id=action.instrument_id,
+                    units=total_units,
+                    source="sell_exit",
+                )
             else:
-                logger.warning("[sell_exits] %s", detail)
-                stats["errors"].append(detail)
-
-            _post_closed_embed(
-                action.symbol, action.position_id,
-                action.reason + ("" if verified else " [UNVERIFIED — siehe Log]"),
-                pnl_pct=action.pnl_pct,
-                amount_usd=action.amount_usd,
-                close_pct=action.close_pct,
-                client=client, db=db,
-                instrument_id=action.instrument_id,
-                units=units_to_deduct,
-                source="sell_exit",
-            )
+                # Verifikation über das bestehende Partial-Close-Polling
+                verify_action = TrailingAction(
+                    action="PARTIAL_CLOSE",
+                    symbol=action.symbol,
+                    position_id=action.position_id,
+                    pnl_pct=action.pnl_pct,
+                    reason=action.reason,
+                    close_pct=action.close_pct,
+                    instrument_id=action.instrument_id,
+                    amount_usd=action.amount_usd,
+                    open_rate=action.open_rate,
+                )
+                verified, detail = _verify_partial_close(client, verify_action)
+                if verified:
+                    logger.info("[sell_exits] %s", detail)
+                    # feat/min-remaining: die reduzierte Restmenge persistieren,
+                    # damit Ladder-/Fade-/Sell-Exit-Logik gegen den echten
+                    # Stand prueft (nicht gegen den STALEN 1.0).
+                    if db is not None:
+                        apply_partial_to_remaining(
+                            db, action.position_id, action.symbol,
+                            action.close_pct or 0.0,
+                        )
+                    stats["closed"] += 1
+                else:
+                    logger.warning("[sell_exits] %s", detail)
+                    stats["errors"].append(detail)
+                _post_closed_embed(
+                    action.symbol, action.position_id,
+                    action.reason + ("" if verified else " [UNVERIFIED — siehe Log]"),
+                    pnl_pct=action.pnl_pct,
+                    amount_usd=action.amount_usd,
+                    close_pct=action.close_pct,
+                    client=client, db=db,
+                    instrument_id=action.instrument_id,
+                    units=units_to_deduct,
+                    source="sell_exit",
+                )
             time.sleep(0.5)
         except Exception as exc:
             msg = f"{action.symbol}: SELL-Exit API call failed — {exc}"
