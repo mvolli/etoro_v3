@@ -43,6 +43,15 @@ class TestNormalize:
         assert normalize_symbol("") == ""
         assert normalize_symbol(None) == ""  # type: ignore[arg-type]
 
+    def test_asx_namespace_alias(self):
+        # fix/asx-namespace-alias: yfinance '.AX' == eToro '.ASX' (same listing)
+        assert normalize_symbol("CNU.AX") == normalize_symbol("CNU.ASX")
+        assert normalize_symbol("TLC.AX") == "TLC.ASX"
+        assert normalize_symbol("MAF.AX") == "MAF.ASX"
+        assert normalize_symbol("car.asx") == "CAR.ASX"
+        # Compound form: .ASX with quote currency still unifies with .AX
+        assert normalize_symbol("CNU.AX") == normalize_symbol("CNU.ASX-USD")
+
 
 class TestExtractLiveSymbol:
     def test_priority_symbolfull_first(self):
@@ -84,6 +93,20 @@ class TestIdentity:
     def test_fail_open_on_meta_without_symbol(self):
         ok, _ = check_identity("VALT.L", {"instrumentId": 1456})
         assert ok
+
+    def test_asx_alias_passes(self):
+        # fix/asx-namespace-alias regression: 2026-08-28, CNU.AX/TLC.AX/MAF.AX
+        # hard-rejected although instrument_ids were correct (eToro says .ASX).
+        for local, live in (("CNU.AX", "CNU.ASX"), ("TLC.AX", "TLC.ASX"),
+                            ("MAF.AX", "MAF.ASX")):
+            ok, reason = check_identity(local, {"symbolFull": live})
+            assert ok, f"{local} vs {live}: {reason}"
+
+    def test_genuine_mismatch_still_blocked(self):
+        # The alias must NOT let a truly different instrument through.
+        ok, reason = check_identity("CNU.AX", {"symbolFull": "CNF.ASX"})
+        assert not ok
+        assert "MISMATCH" in reason
 
 
 # ─── price consistency ────────────────────────────────────────────────────────
