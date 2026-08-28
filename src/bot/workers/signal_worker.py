@@ -413,8 +413,14 @@ def main() -> None:
             is_market_open, resolve_market_fields as _resolve_mf,
         )
         from bot.core.regime import get_regime_params
+        from bot.core.regime import apply_config as apply_regime_config
         from bot.core.risk import apply_config, check_buy_gate, get_score_boost
         apply_config(cfg)  # fix/risk-config-wiring: Limits/Schwellen aus config.yaml
+        # fix/regime-min-conviction-config (2026-08-28): regime.apply_config lief
+        # nur im risk_worker (Regime-ERKENNUNG). get_min_conviction() unten liest
+        # aber _REGIME_PARAMS in DIESEM Prozess — ohne diesen Aufruf haette der
+        # Config-Wert regime.min_conviction keinerlei Wirkung.
+        apply_regime_config(cfg)
         from bot.db.connection import DB
         from bot.db.repo import LogRepo, PortfolioRepo, SignalRepo, StateRepo, TradeRepo
     

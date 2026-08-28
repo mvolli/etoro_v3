@@ -49,12 +49,20 @@ def apply_config(cfg: dict) -> None:
     already fixed for risk.py's own constants). Keys map 1:1 to the 4-state
     model; the old drawdown_soft_cb_pct/normal_upper_pct keys were leftovers
     from the pre-V5 3-state model and mapped to nothing.
+
+    fix/regime-min-conviction-config (2026-08-28): auch `min_conviction` pro
+    Regime ist jetzt ueberschreibbar (`regime.min_conviction.<REGIME>`). Der
+    Wert stand hart in _REGIME_PARAMS, obwohl er das schaerfste Gate im System
+    ist: DEFENSIVE verlangte HIGH+, und seit dem Combo-Fix d0a07d7 (Conviction
+    = schwaechste Komponente) sind fast alle Signale MEDIUM — der Handel kam
+    dadurch drei Tage lang vollstaendig zum Erliegen.
     """
     global CAUTION_THRESHOLD, DEFENSIVE_THRESHOLD, CRITICAL_THRESHOLD
     global CAUTION_EXIT, DEFENSIVE_EXIT, CRITICAL_EXIT
     if not cfg:
         return
     rc = cfg.get("regime", {}) or {}
+    _apply_min_conviction(rc.get("min_conviction") or {})
     try:
         CAUTION_THRESHOLD = float(rc.get("caution_pct", CAUTION_THRESHOLD))
         DEFENSIVE_THRESHOLD = float(rc.get("defensive_pct", DEFENSIVE_THRESHOLD))
@@ -67,6 +75,32 @@ def apply_config(cfg: dict) -> None:
         logging.getLogger(__name__).error(
             "regime.apply_config: ungültiger Config-Wert — Defaults bleiben aktiv"
         )
+
+
+CONVICTIONS = ("LOW", "MEDIUM", "HIGH", "VERY_HIGH")
+
+
+def _apply_min_conviction(mc: dict) -> None:
+    """Setzt _REGIME_PARAMS[<REGIME>]["min_conviction"] aus der Config.
+
+    Fail-safe wie apply_config: unbekannte Regime oder Conviction-Stufen
+    werden protokolliert und ignoriert, der Default bleibt stehen.
+    """
+    if not isinstance(mc, dict):
+        return
+    import logging
+    log = logging.getLogger(__name__)
+    for regime, value in mc.items():
+        key = str(regime).upper()
+        val = str(value).upper()
+        if key not in REGIMES:
+            log.error("regime.min_conviction: unbekanntes Regime %r — ignoriert", regime)
+            continue
+        if val not in CONVICTIONS:
+            log.error("regime.min_conviction[%s]: ungültiger Wert %r — Default bleibt",
+                      key, value)
+            continue
+        _REGIME_PARAMS[key]["min_conviction"] = val
 
 # ─── Risk Scalars per Regime ─────────────────────────────────────────────────
 

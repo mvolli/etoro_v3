@@ -133,3 +133,78 @@ def test_apply_config_bad_value_keeps_defaults(_restore_regime_thresholds):
     before = _regime_mod.CRITICAL_THRESHOLD
     _regime_mod.apply_config({"regime": {"critical_pct": "not-a-number"}})
     assert _regime_mod.CRITICAL_THRESHOLD == before
+
+
+# ── min_conviction aus der Config (fix/regime-min-conviction-config) ─────────
+# Der Wert stand hart in _REGIME_PARAMS. Diese Tests sichern beides ab: dass
+# die Config wirklich durchschlaegt (die "config wiring lie", vor der
+# apply_config im Docstring warnt) und dass Unsinn die Defaults stehen laesst.
+
+import pytest as _pytest
+
+from bot.core import regime as _regime
+
+
+@_pytest.fixture(autouse=True)
+def _restore_min_conviction():
+    """Modul-Globals sind Prozess-Zustand — nach jedem Test zuruecksetzen."""
+    vorher = {r: p.get("min_conviction") for r, p in _regime._REGIME_PARAMS.items()}
+    yield
+    for r, v in vorher.items():
+        _regime._REGIME_PARAMS[r]["min_conviction"] = v
+
+
+def test_min_conviction_aus_config_schlaegt_durch():
+    assert _regime.get_min_conviction("DEFENSIVE") == "HIGH"   # Default
+    _regime.apply_config({"regime": {"min_conviction": {"DEFENSIVE": "MEDIUM"}}})
+    assert _regime.get_min_conviction("DEFENSIVE") == "MEDIUM"
+    # get_regime_params liest dieselbe Quelle
+    assert _regime.get_regime_params("DEFENSIVE")["min_conviction"] == "MEDIUM"
+
+
+def test_min_conviction_akzeptiert_kleinschreibung():
+    _regime.apply_config({"regime": {"min_conviction": {"defensive": "medium"}}})
+    assert _regime.get_min_conviction("DEFENSIVE") == "MEDIUM"
+
+
+def test_min_conviction_ignoriert_unsinn_und_laesst_default():
+    _regime.apply_config({"regime": {"min_conviction": {"DEFENSIVE": "SEHR_HOCH"}}})
+    assert _regime.get_min_conviction("DEFENSIVE") == "HIGH"
+    _regime.apply_config({"regime": {"min_conviction": {"GIBTS_NICHT": "LOW"}}})
+    assert _regime.get_min_conviction("DEFENSIVE") == "HIGH"
+
+
+def test_min_conviction_ohne_block_aendert_nichts():
+    _regime.apply_config({"regime": {"defensive_pct": 8.0}})
+    assert _regime.get_min_conviction("DEFENSIVE") == "HIGH"
+    assert _regime.get_min_conviction("CRITICAL") == "VERY_HIGH"
+
+
+def test_produktivconfig_setzt_defensive_auf_medium():
+    """Haelt fest, was live gilt — CRITICAL bleibt bewusst gesperrt."""
+    import pathlib, yaml
+    root = pathlib.Path(__file__).resolve().parents[2]
+    cfg = yaml.safe_load((root / "config" / "config.yaml").read_text(encoding="utf-8"))
+    mc = (cfg.get("regime") or {}).get("min_conviction") or {}
+    assert mc.get("DEFENSIVE") == "MEDIUM"
+    assert mc.get("CRITICAL") == "VERY_HIGH"
+
+
+def test_signal_worker_verdrahtet_regime_config():
+    """Wer get_min_conviction nutzt, muss regime.apply_config aufgerufen haben.
+
+    Jeder Worker ist ein eigener Prozess; _REGIME_PARAMS wird pro Prozess
+    ueberschrieben. Ein Config-Wert ohne passenden apply_config-Aufruf ist eine
+    Attrappe — genau das war fuer risk.py und die Regime-Schwellen schon
+    zweimal der Fall ("config wiring lie", siehe Docstring von apply_config).
+    Der Test liest die Quelle, weil sich der Import-Zeitpunkt sonst nicht
+    pruefen laesst, ohne den ganzen Worker zu starten.
+    """
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[2]
+           / "src" / "bot" / "workers" / "signal_worker.py").read_text(encoding="utf-8")
+    assert "get_min_conviction" in src
+    assert "apply_regime_config(cfg)" in src, (
+        "signal_worker nutzt get_min_conviction, ruft aber regime.apply_config "
+        "nicht auf — regime.min_conviction aus der config.yaml bliebe wirkungslos"
+    )

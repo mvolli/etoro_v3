@@ -190,6 +190,27 @@ regime:                       # Drawdown-from-rolling-peak → 4-state regime (r
   defensive_exit_pct: 7.0     # DD < 7.0% → back to CAUTION
   critical_exit_pct: 13.0     # DD < 13.0% → back to DEFENSIVE
 
+  # fix/regime-min-conviction-config (2026-08-28, Entscheid VoLLi):
+  # Mindest-Conviction pro Regime. Stand vorher hart in regime.py.
+  # DEFENSIVE HIGH -> MEDIUM. Grund ist eine Messung, keine Lockerung:
+  # Der HIGH-Bucket besteht post-Zaesur zu 100 % aus TREND_PULLBACK,
+  # GOLDEN_CROSS (n=31, WR 35.5%, -31.67 USD) — genau dem Typ, den der Bot
+  # selbst als strukturell negativ auf score_multiplier 0.25 gedaempft hat.
+  # MEDIUM enthaelt den einzigen profitablen Typ (MACD_TURN_BELOW_SMA20,
+  # BB_LOW_MACD_IMPROVING, n=38, WR 47.4%, +50.81 USD). Das HIGH+-Gate liess
+  # also ausschliesslich den schlechtesten Typ durch und sperrte den besten.
+  # Ursache: seit d0a07d7 (Combo-Conviction = schwaechste Komponente) ist
+  # HIGH selten geworden; das Gate wurde dadurch von einer Bremse zur Sperre
+  # (3 Tage ohne Eroeffnung bei 89,7 % Cash, 15 frischen MEDIUM-Kaufsignalen).
+  # Alle uebrigen DEFENSIVE-Schutzmassnahmen bleiben: risk_scalar 0.50,
+  # allow_pyramiding false, min_buy_usd 100, max_trade_pct 3.0.
+  # CRITICAL bleibt bewusst auf VERY_HIGH — dort ist der Stillstand gewollt.
+  min_conviction:
+    NORMAL:    LOW
+    CAUTION:   MEDIUM
+    DEFENSIVE: MEDIUM
+    CRITICAL:  VERY_HIGH
+
 sl:                           # Stop-loss configuration
   default_pct: 3.0            # Default stop-loss distance from entry (%) — AKTIVES Experiment (2.5->3.0, 14d seit 2026-07-19)
   emergency_pct: 4.0          # Widened SL used in high-volatility / emergency mode
