@@ -68,9 +68,20 @@ trading:
   liquidity_tiering: true     # feat/liquidity-tiering (2026-07-26): Market-Cap/ADV-Tier-Faktor im Kandidaten-Ranking (bot/core/liquidity.py)
   max_spread_pct_crypto: 3.0  # feat/crypto-247: Krypto-Spreads strukturell breiter
   deployment_boost: 1.25      # fix/cash-deployment (2026-07-15): boostet Positionsgroessen bei
-                              # Cash-Ueberschuss (Gates: NORMAL-Regime + Makro-Scalar 1.0 +
-                              # kein News-Flag; hart geclampt 1.5). SCHARF seit 2026-07-15
+                              # Cash-Ueberschuss (Gates: Regime-Whitelist unten + Makro-Scalar 1.0
+                              # + kein News-Flag; hart geclampt 1.5). SCHARF seit 2026-07-15
                               # zusammen mit stale_exit (User-Entscheid, engmaschige Beobachtung).
+  # fix/deployment-boost-regimes (2026-08-28, Entscheid VoLLi): vorher war der
+  # Boost hart auf NORMAL beschraenkt — der Mechanismus fuer brachliegendes
+  # Kapital war also genau dann aus, wenn am meisten Kapital brachlag (5 Tage
+  # DEFENSIVE bei 88 % Cash, Boost feuerte kein einziges Mal).
+  # Der Regime-risk_scalar multipliziert VOR dem Boost, deshalb bleibt das
+  # Risiko unter dem NORMAL-Normalfall:
+  #   NORMAL    1.00 x Kelly 1.5 x 1.25 = 1.88x  (das urspruenglich gemeinte Risiko)
+  #   CAUTION   0.75 x Kelly 1.5 x 1.25 = 1.41x
+  #   DEFENSIVE 0.50 x Kelly 1.5 x 1.25 = 0.94x
+  # CRITICAL wird im Code immer herausgefiltert — dort ist Stillstand gewollt.
+  deployment_boost_regimes: [NORMAL, CAUTION, DEFENSIVE]
 
   # ── feat/core-sweep (2026-07-22): liquides Cash-Deployment ──────────────────
   # Ueberschuessiges Cash (ueber reserve_target_pct) wird in einen kuratierten
@@ -210,6 +221,25 @@ regime:                       # Drawdown-from-rolling-peak → 4-state regime (r
     CAUTION:   MEDIUM
     DEFENSIVE: MEDIUM
     CRITICAL:  VERY_HIGH
+
+# ── Diversity-Gate (fix/diversity-mixed-cap 2026-08-28, Entscheid VoLLi) ─────
+# Kappe je Signal-Kategorie, gemessen als Anteil der OFFENEN Positionen.
+# 1.0 = keine Kappe.
+#
+# MIXED steht auf 1.0. Begruendung ist eine Messung, keine Lockerung:
+# MIXED ist keine Strategie, sondern der Rest-Topf fuer Gleichstaende in
+# _get_signal_category() ("eine Komponente Mean-Reversion, eine Trend").
+# Der beste Typ des Bots — MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING
+# (n=41, WR 51,2 %, +55,99 USD, 61 % aller Kaufsignale) — faellt genau in
+# diesen Gleichstand. Das Buch fuellte sich damit auf 10/14 = 71,4 % und
+# sperrte sich danach selbst: nachruecken konnte nur wieder MIXED.
+# Messung 2026-08-28: haeufigster Blocker in 36 von 96 Laeufen,
+# 102 Signale -> 20 Kandidaten -> 1 genehmigter Trade in 24 h bei 88 % Cash.
+# MEAN_REVERSION / TREND_FOLLOWING / CORE behalten die 45 %-Kappe.
+diversity:
+  max_category_fraction: 0.45
+  category_overrides:
+    MIXED: 1.0
 
 sl:                           # Stop-loss configuration
   default_pct: 3.0            # Default stop-loss distance from entry (%) — AKTIVES Experiment (2.5->3.0, 14d seit 2026-07-19)

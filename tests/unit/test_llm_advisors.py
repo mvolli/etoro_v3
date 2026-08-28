@@ -358,9 +358,97 @@ def test_deployment_boost_all_conditions_met():
 
 def test_deployment_boost_blocked_individually():
     assert _deployment_boost_applies(25.0, 30.0, 'NORMAL', 1.0, False) is False
-    assert _deployment_boost_applies(35.0, 30.0, 'CAUTION', 1.0, False) is False
     assert _deployment_boost_applies(35.0, 30.0, 'NORMAL', 0.85, False) is False
     assert _deployment_boost_applies(35.0, 30.0, 'NORMAL', 1.0, True) is False
+
+
+# ── fix/deployment-boost-regimes (2026-08-28) ────────────────────────────────
+# Vorher galt `regime == "NORMAL"`. Der Boost war damit genau dann aus, wenn
+# am meisten Cash brachlag (5 Tage DEFENSIVE bei 88 % Cash). Der
+# Regime-risk_scalar multipliziert VOR dem Boost, das Risiko bleibt unter dem
+# NORMAL-Normalfall (DEFENSIVE 0.50 x 1.5 x 1.25 = 0.94x).
+
+def test_deployment_boost_greift_in_caution_und_defensive():
+    assert _deployment_boost_applies(35.0, 30.0, 'CAUTION', 1.0, False) is True
+    assert _deployment_boost_applies(35.0, 30.0, 'DEFENSIVE', 1.0, False) is True
+
+
+def test_deployment_boost_bleibt_in_critical_aus():
+    assert _deployment_boost_applies(35.0, 30.0, 'CRITICAL', 1.0, False) is False
+
+
+def test_deployment_boost_regimes_konfigurierbar_critical_nie():
+    from bot.workers import signal_worker as _sw
+    _orig = _sw.DEPLOYMENT_BOOST_REGIMES
+    try:
+        _sw.apply_deployment_config({'trading': {
+            'deployment_boost_regimes': ['NORMAL', 'CRITICAL']}})
+        # CRITICAL wird immer herausgefiltert
+        assert _sw.DEPLOYMENT_BOOST_REGIMES == ('NORMAL',)
+        assert _sw._deployment_boost_applies(35.0, 30.0, 'CRITICAL', 1.0, False) is False
+        assert _sw._deployment_boost_applies(35.0, 30.0, 'DEFENSIVE', 1.0, False) is False
+        # Muell laesst den Default stehen (fail-safe)
+        _sw.apply_deployment_config({'trading': {'deployment_boost_regimes': 'NORMAL'}})
+        assert _sw.DEPLOYMENT_BOOST_REGIMES == ('NORMAL',)
+        # Nur-CRITICAL waere nach dem Filter leer -> Default bleibt
+        _sw.apply_deployment_config({'trading': {'deployment_boost_regimes': ['CRITICAL']}})
+        assert _sw.DEPLOYMENT_BOOST_REGIMES == ('NORMAL',)
+    finally:
+        _sw.DEPLOYMENT_BOOST_REGIMES = _orig
+
+
+# ── fix/diversity-mixed-cap (2026-08-28) ─────────────────────────────────────
+
+def test_mixed_hat_per_default_keine_kappe():
+    from bot.workers.signal_worker import _max_fraction_for
+    assert _max_fraction_for('MIXED') == 1.0
+    assert _max_fraction_for('MEAN_REVERSION') == 0.45
+    assert _max_fraction_for('TREND_FOLLOWING') == 0.45
+    assert _max_fraction_for('CORE') == 0.45
+
+
+def test_core_sweep_ist_kategorisiert():
+    # Vorher UNKNOWN -> Gate fail-open + Warnung in JEDEM Lauf
+    assert _get_signal_category('CORE_SWEEP') == 'CORE'
+
+
+def test_diversity_config_wird_angewandt_und_ist_fail_safe():
+    from bot.workers import signal_worker as _sw
+    _orig_max = _sw.MAX_CATEGORY_FRACTION
+    _orig_ov = dict(_sw.CATEGORY_FRACTION_OVERRIDES)
+    try:
+        _sw.apply_diversity_config({'diversity': {
+            'max_category_fraction': 0.6,
+            'category_overrides': {'MIXED': 0.8, 'mean_reversion': 0.3},
+        }})
+        assert _sw.MAX_CATEGORY_FRACTION == 0.6
+        assert _sw._max_fraction_for('MIXED') == 0.8
+        assert _sw._max_fraction_for('MEAN_REVERSION') == 0.3   # case-insensitiv
+        assert _sw._max_fraction_for('CORE') == 0.6             # faellt auf global zurueck
+        # Unbrauchbare Werte lassen den Stand unveraendert
+        _sw.apply_diversity_config({'diversity': {
+            'max_category_fraction': 5.0,
+            'category_overrides': {'MIXED': 'viel'},
+        }})
+        assert _sw.MAX_CATEGORY_FRACTION == 0.6
+        assert _sw._max_fraction_for('MIXED') == 0.8
+    finally:
+        _sw.MAX_CATEGORY_FRACTION = _orig_max
+        _sw.CATEGORY_FRACTION_OVERRIDES.clear()
+        _sw.CATEGORY_FRACTION_OVERRIDES.update(_orig_ov)
+
+
+def test_signal_worker_verdrahtet_diversity_und_deployment_config():
+    """Regressionsschutz gegen die "config wiring lie" (vgl. facfa5a).
+
+    Beide Konstanten werden in signal_worker gelesen; ohne die apply_*-Aufrufe
+    in main() waeren die Config-Werte wirkungslos.
+    """
+    import inspect
+    from bot.workers import signal_worker as _sw
+    _src = inspect.getsource(_sw.main)
+    assert 'apply_diversity_config(cfg)' in _src
+    assert 'apply_deployment_config(cfg)' in _src
 
 
 # ── Sizing-Ladder-Guard (fix/sizing-ladder-guard 2026-07-16) ─────────────────

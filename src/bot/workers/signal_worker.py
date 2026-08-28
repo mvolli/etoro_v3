@@ -288,8 +288,75 @@ SIGNAL_CATEGORY: dict[str, str] = {
     "MACD_TURN_BELOW_SMA20":   "TREND_FOLLOWING",
     "TREND_PULLBACK":          "TREND_FOLLOWING",
     "GOLDEN_CROSS":            "TREND_FOLLOWING",
+    # fix/diversity-mixed-cap (2026-08-28): CORE_SWEEP fehlte, das Gate lief
+    # dafuer fail-open und schrieb in JEDEM Lauf eine Warnung.
+    "CORE_SWEEP":              "CORE",
 }
 MAX_CATEGORY_FRACTION = 0.45
+
+# fix/diversity-mixed-cap (2026-08-28, Entscheid VoLLi): Kappe pro Kategorie
+# ueberschreibbar (`diversity.category_overrides.<KATEGORIE>`), 1.0 = aus.
+#
+# MIXED steht per Default auf 1.0 (keine Kappe). Grund: MIXED ist KEINE
+# Strategie, sondern der Rest-Topf fuer Gleichstaende in
+# _get_signal_category() — "eine Komponente MR, eine TF". Er bekam
+# dieselbe 45 %-Kappe wie die echten Strategien, obwohl ein halb-MR/halb-TF-
+# Setup eher diversifizierter als konzentrierter ist.
+#
+# Messung, die die Entscheidung traegt (2026-08-28, live):
+#   - MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING loest als 1 TF + 1 MR zu
+#     MIXED auf. Das ist der BESTE Typ des Bots (n=41, WR 51,2 %, +55,99 USD)
+#     und stellt 61 % aller Kaufsignale der letzten 7 Tage.
+#   - Das Buch fuellte sich damit auf 10/14 = 71,4 % > 45 %. Ab da wurde jedes
+#     neue MIXED-Signal im Precheck uebersprungen (bleibt FRESH, erzeugt keinen
+#     trades-Eintrag — deshalb null sichtbare Ablehnungen).
+#   - Raus kam der Bot nicht: nachruecken konnte nur wieder MIXED. Deadlock.
+#     Haeufigster Blocker in 36 von 96 Laeufen; 102 Signale -> 20 Kandidaten
+#     -> 1 genehmigter Trade in 24 h bei 88 % Cash.
+# MEAN_REVERSION/TREND_FOLLOWING/CORE behalten die 45 %-Kappe — dort schuetzt
+# sie gegen echte Strategie-Konzentration.
+CATEGORY_FRACTION_OVERRIDES: dict[str, float] = {"MIXED": 1.0}
+
+
+def apply_diversity_config(cfg: dict) -> None:
+    """Setzt MAX_CATEGORY_FRACTION und die Pro-Kategorie-Overrides aus der Config.
+
+    Fail-safe wie regime.apply_config: unbrauchbare Werte werden protokolliert
+    und ignoriert, der Default bleibt stehen.
+
+    ACHTUNG (dritte Auflage der "config wiring lie", vgl. facfa5a): Wer eine
+    Modul-Konstante liest, muss deren apply_config im EIGENEN Prozess
+    aufrufen. Hier ist es dasselbe Modul wie der Leser — der Aufruf steht
+    trotzdem explizit in main(), damit er beim Kopieren nicht verlorengeht.
+    """
+    global MAX_CATEGORY_FRACTION
+    dv = (cfg or {}).get("diversity", {}) or {}
+    try:
+        _f = float(dv.get("max_category_fraction", MAX_CATEGORY_FRACTION))
+        if 0.0 < _f <= 1.0:
+            MAX_CATEGORY_FRACTION = _f
+        else:
+            logger.error("diversity.max_category_fraction %r ausserhalb (0,1] — Default bleibt", _f)
+    except (TypeError, ValueError):
+        logger.error("diversity.max_category_fraction unlesbar — Default bleibt")
+    ov = dv.get("category_overrides") or {}
+    if not isinstance(ov, dict):
+        return
+    for key, value in ov.items():
+        try:
+            _v = float(value)
+        except (TypeError, ValueError):
+            logger.error("diversity.category_overrides[%s]=%r unlesbar — ignoriert", key, value)
+            continue
+        if not (0.0 < _v <= 1.0):
+            logger.error("diversity.category_overrides[%s]=%r ausserhalb (0,1] — ignoriert", key, value)
+            continue
+        CATEGORY_FRACTION_OVERRIDES[str(key).upper()] = _v
+
+
+def _max_fraction_for(category: str) -> float:
+    """Kappe fuer eine Kategorie; 1.0 bedeutet effektiv keine Kappe."""
+    return CATEGORY_FRACTION_OVERRIDES.get(str(category).upper(), MAX_CATEGORY_FRACTION)
 
 
 def _get_signal_category(signal_type: str) -> str:
@@ -337,17 +404,54 @@ def _get_signal_category(signal_type: str) -> str:
     return "MIXED"
 
 
+DEPLOYMENT_BOOST_REGIMES: tuple[str, ...] = ("NORMAL", "CAUTION", "DEFENSIVE")
+
+
+def apply_deployment_config(cfg: dict) -> None:
+    """Setzt DEPLOYMENT_BOOST_REGIMES aus `trading.deployment_boost_regimes`.
+
+    CRITICAL wird immer entfernt — dort ist der Stillstand gewollt.
+    """
+    global DEPLOYMENT_BOOST_REGIMES
+    raw = ((cfg or {}).get("trading", {}) or {}).get("deployment_boost_regimes")
+    if raw is None:
+        return
+    if not isinstance(raw, (list, tuple)):
+        logger.error("trading.deployment_boost_regimes %r ist keine Liste — Default bleibt", raw)
+        return
+    vals = tuple(str(r).upper() for r in raw if str(r).upper() != "CRITICAL")
+    if not vals:
+        logger.error("trading.deployment_boost_regimes leer (nach CRITICAL-Filter) — Default bleibt")
+        return
+    DEPLOYMENT_BOOST_REGIMES = vals
+
+
 def _deployment_boost_applies(cash_pct: float, cash_max_pct: float,
                               regime: str, macro_scalar: float,
                               has_news_flag: bool) -> bool:
-    """fix/cash-deployment (2026-07-15): Deployment-Boost NUR im
-    Schoenwetterfenster — Cash ueber Zielband, Regime NORMAL, Makro-Scalar
-    neutral (1.0) und kein News-Flag fuer das Symbol. Die Gates verhindern,
-    dass Deployment-Druck gegen die Daempfungs-Philosophie arbeitet
-    (Worst Case Kelly 1.5 x Boost 1.25 ~ 1.9x waere ohne sie inakzeptabel;
-    absolute Caps Instrument 10% / Exposure 75% bleiben nachgelagert)."""
+    """fix/cash-deployment (2026-07-15): Deployment-Boost nur bei Cash ueber
+    Zielband, neutralem Makro-Scalar und ohne News-Flag fuer das Symbol.
+
+    fix/deployment-boost-regimes (2026-08-28, Entscheid VoLLi): Die
+    Regime-Bedingung war `regime == "NORMAL"`. Damit war der Mechanismus, der
+    brachliegendes Kapital arbeiten lassen soll, genau dann aus, wenn am
+    meisten Kapital brachliegt — der Bot stand 5 Tage in DEFENSIVE bei 88 %
+    Cash, `deployment_boost: 1.25` hat in dieser Zeit kein einziges Mal
+    gefeuert.
+
+    Die urspruengliche Begruendung ("Worst Case Kelly 1.5 x Boost 1.25 ~ 1.9x
+    waere inakzeptabel") traegt ausserhalb NORMAL nicht, weil der
+    Regime-risk_scalar VOR dem Boost multipliziert wird:
+        NORMAL     1.00 x 1.5 x 1.25 = 1.88x   <- das gemeinte Risiko
+        CAUTION    0.75 x 1.5 x 1.25 = 1.41x
+        DEFENSIVE  0.50 x 1.5 x 1.25 = 0.94x   <- UNTER dem NORMAL-Normalfall
+    Der Boost hebt die Groesse in DEFENSIVE also hoechstens auf das Niveau,
+    das ohne Regime-Daempfung ohnehin gaelte. CRITICAL bleibt bewusst
+    ausgeschlossen (dort ist der Stillstand gewollt), ebenso bleiben die
+    absoluten Caps Instrument 10 % / Exposure 75 % nachgelagert wirksam.
+    """
     return (cash_pct > cash_max_pct
-            and regime == "NORMAL"
+            and str(regime).upper() in DEPLOYMENT_BOOST_REGIMES
             and macro_scalar >= 1.0
             and not has_news_flag)
 
@@ -421,6 +525,11 @@ def main() -> None:
         # aber _REGIME_PARAMS in DIESEM Prozess — ohne diesen Aufruf haette der
         # Config-Wert regime.min_conviction keinerlei Wirkung.
         apply_regime_config(cfg)
+        # fix/diversity-mixed-cap + fix/deployment-boost-regimes (2026-08-28):
+        # beide lesen Modul-Konstanten DIESES Moduls — ohne die Aufrufe waeren
+        # die Config-Werte wirkungslos (vgl. Kommentar zu apply_regime_config).
+        apply_diversity_config(cfg)
+        apply_deployment_config(cfg)
         from bot.db.connection import DB
         from bot.db.repo import LogRepo, PortfolioRepo, SignalRepo, StateRepo, TradeRepo
     
@@ -875,8 +984,9 @@ def main() -> None:
             # das Signal (TTL 24h) sofort wieder Kandidat.
             _pre_cat = _get_signal_category(signal.get("signal_type", ""))
             if (_pre_cat != "UNKNOWN" and position_count > 0
+                    and _max_fraction_for(_pre_cat) < 1.0
                     and _open_signal_cats.get(_pre_cat, 0) / position_count
-                        >= MAX_CATEGORY_FRACTION):
+                        >= _max_fraction_for(_pre_cat)):
                 skipped_diversity.append(f"{symbol}({_pre_cat})")
                 _skip["diversity_kappe"].append(symbol)
                 continue
@@ -1489,9 +1599,10 @@ def main() -> None:
 
                 # Diversity-Gate (Prio 4): max 45% offener Positionen in einer Kategorie
                 _sig_cat = _get_signal_category(signal.get("signal_type", ""))
-                if _sig_cat != "UNKNOWN" and position_count > 0:
+                _cat_cap = _max_fraction_for(_sig_cat)
+                if _sig_cat != "UNKNOWN" and position_count > 0 and _cat_cap < 1.0:
                     _cat_n = _open_signal_cats.get(_sig_cat, 0)
-                    if _cat_n / position_count >= MAX_CATEGORY_FRACTION:
+                    if _cat_n / position_count >= _cat_cap:
                         logger.info(
                             "SignalWorker: Diversity-Gate: %s (%s) %d/%d Pos. (%.0f%%>=%.0f%%) -- geblockt",
                             _sig_cat,
@@ -1499,7 +1610,7 @@ def main() -> None:
                             _cat_n,
                             position_count,
                             _cat_n / position_count * 100,
-                            MAX_CATEGORY_FRACTION * 100,
+                            _cat_cap * 100,
                         )
                         signal_repo.update_signal_status(signal_id, "REJECTED")
                         blocked_reasons.append(
