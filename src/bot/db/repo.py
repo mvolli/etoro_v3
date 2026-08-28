@@ -428,13 +428,24 @@ class SignalRepo:
         # ttl can never inject SQLite date-modifier syntax, even if a future
         # caller sources ttl_minutes from signal/API data instead of config.
         ttl_modifier = f"+{int(ttl_minutes)} minutes"
+        # fix/signals-generated-at-tz (2026-08-28): generated_at NICHT der
+        # Spalten-Vorgabe ueberlassen. Die Live-Tabelle traegt noch
+        # DEFAULT (datetime('now','utc')) aus der Zeit vor c9eabc8 — und
+        # datetime('now') ist in SQLite bereits UTC, der Zusatz 'utc' zieht
+        # den lokalen Offset ein ZWEITES Mal ab (im Sommer 2 h, im Winter 1 h).
+        # scripts/init_db.py ist korrigiert, die bestehende Tabelle wurde nie
+        # migriert; SQLite kann Spalten-Defaults nicht nachtraeglich aendern.
+        # Explizit gesetzt liegt generated_at auf derselben Zeitbasis wie
+        # expires_at, das schon immer korrekt per datetime('now', ttl) kam.
+        # Wirkung war moderat (Altersfaktor ~1 %, 36h-Fenster wurde zu 34h),
+        # aber jede zeitbasierte Diagnose las sich dadurch falsch.
         cur = self.db.execute(
             """
             INSERT INTO signals
                 (instrument_id, signal_type, conviction, score,
-                 rsi, macd_hist, bb_pct, price, expires_at, status)
+                 rsi, macd_hist, bb_pct, price, generated_at, expires_at, status)
             VALUES
-                (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', ?), 'FRESH')
+                (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now', ?), 'FRESH')
             """,
             (instrument_id, signal_type, conviction, score, rsi, macd_hist, bb_pct, price, ttl_modifier),
         )
