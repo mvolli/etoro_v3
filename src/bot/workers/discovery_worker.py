@@ -218,7 +218,10 @@ REGION_ROTATIONS: list[dict] = [
 
 # Maximale Evictions von veralteten discovered-Slots pro Run
 STALE_DISCOVERED_EVICTION_MAX = 15
-STALE_DISCOVERED_DAYS = 30
+# fix/rotation-usefulness (2026-08-28): 30 -> 21 Tage. Bei 30 Tagen waren nur
+# 9 von 230 Plaetzen raeumbar — die Rotation stand still, 73 % der Aktien auf
+# der Watchlist lieferten in einer Woche kein einziges Kaufsignal.
+STALE_DISCOVERED_DAYS = 21
 
 
 def _discovery_category_for_region(market_region: str | None) -> str:
@@ -314,7 +317,7 @@ def _evict_stale_discovered(db: Any) -> int:
         ).strftime("%Y-%m-%d %H:%M:%S")
         stale = db.fetchall(
             """
-            SELECT w.id, w.symbol, w.category, w.instrument_id
+            SELECT w.id, w.symbol, w.category, w.instrument_id, w.last_signal_at
             FROM watchlist w
             WHERE w.category LIKE '%.discovered'
               AND (w.last_signal_at IS NULL OR w.last_signal_at < ?)
@@ -322,6 +325,17 @@ def _evict_stale_discovered(db: Any) -> int:
                   SELECT 1 FROM signals s
                   WHERE s.instrument_id = w.instrument_id
                     AND s.generated_at > ?
+                    -- fix/rotation-usefulness (2026-08-28): nur KAUFfaehige
+                    -- Signale halten einen Platz am Leben. Vorher zaehlte
+                    -- jedes Signal, auch BB_UPPER_RSI_OVERBOUGHT — ein Titel,
+                    -- der wochenlang nur Verkaufssignale liefert, blockierte
+                    -- damit dauerhaft einen Platz, obwohl der signal_worker
+                    -- (der Kauf-Pfad) ihn nie verwenden kann. Gemessen: bei
+                    -- 30 Tagen waren 9 von 230 Plaetzen raeumbar, mit dieser
+                    -- Bedingung und 21 Tagen sind es 108.
+                    AND UPPER(s.signal_type) NOT LIKE '%SELL%'
+                    AND UPPER(s.signal_type) NOT LIKE '%OVERBOUGHT%'
+                    AND UPPER(s.signal_type) NOT LIKE '%KIPP%'
               )
             ORDER BY COALESCE(w.last_score, -1e9) ASC
             LIMIT ?
@@ -332,7 +346,14 @@ def _evict_stale_discovered(db: Any) -> int:
             db.execute("DELETE FROM watchlist WHERE id = ?", (row["id"],))
             logger.info(
                 "[%s] Evicted stale discovered slot: %s (%s, last_signal_at=%s)",
-                WORKER_NAME, row["symbol"], row["category"], row.get("last_signal_at"),
+                # fix/rotation-usefulness (2026-08-28): row.get() gibt es auf
+                # sqlite3.Row nicht (connection.py setzt row_factory = sqlite3.Row).
+                # Die Zeile warf bei JEDEM Treffer, nach der ersten Loeschung —
+                # der except-Zweig schluckte es und meldete 0 Raeumungen. In 21
+                # von 50 Discovery-Laeufen stand deshalb nur die Warnung im Log,
+                # und statt bis zu STALE_DISCOVERED_EVICTION_MAX wurde genau
+                # EIN Platz geraeumt.
+                WORKER_NAME, row["symbol"], row["category"], row["last_signal_at"],
             )
         return len(stale)
     except Exception as exc:
