@@ -2712,9 +2712,22 @@ def post_signal_worker_embed(
         # Die dritte Komponente wegzulassen verbarg genau diesen Unterschied.
         sig_parts = [p.strip().replace("_", " ").title() for p in sig.split(",")]
         sig_short = " + ".join(sig_parts)
+        _value = f"`BUY ${amt:,.0f}`{price_str} | {sig_short} | {conv} | Score `{score:.2f}`"
+        # feat/sizing-trace (2026-08-28): Herleitung der Groesse mit anzeigen.
+        # Vorher stand im Embed nur "BUY $60" — ohne erkennbare Herkunft. Die
+        # Faktoren lagen verstreut im Log, was das Nachvollziehen praktisch
+        # unmoeglich machte (min_buy $100 im Log, $60 im Embed).
+        # Discord deckelt einen Field-Value bei 1024 Zeichen; die Kette hat
+        # hoechstens 8 Glieder, wird aber sicherheitshalber gekuerzt.
+        _trace = t.get("sizing_trace") or []
+        if _trace:
+            _chain = " → ".join(str(s) for s in _trace)
+            if len(_chain) > 860:
+                _chain = _chain[:857] + "..."
+            _value += f"\n└ {_chain}"
         fields.append({
             "name":   f"\U0001f4c8 {t['symbol']}",
-            "value":  f"`BUY ${amt:,.0f}`{price_str} | {sig_short} | {conv} | Score `{score:.2f}`",
+            "value":  _value,
             "inline": False,
         })
 

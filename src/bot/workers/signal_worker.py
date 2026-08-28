@@ -1104,6 +1104,11 @@ def main() -> None:
             # b. Buy amount based on conviction × risk_scalar (V5)
             pct = conviction_pct.get(conviction.upper(), conviction_pct["MEDIUM"])
             buy_amount = round((pct / 100.0) * equity * buy_aggressiveness, 2)
+            # feat/sizing-trace (2026-08-28): Herleitung pro Trade mitschreiben.
+            # Der Embed zeigte nur den Endbetrag; die Faktoren lagen verstreut im
+            # Log. Reines Protokollieren — die Rechnung selbst bleibt unangetastet.
+            _trace = [f"Basis {conviction} {pct:.1f}% x ${equity:,.0f} "
+                      f"x {buy_aggressiveness:.2f} = ${buy_amount:,.2f}"]
 
             # Kelly: dynamische Groessenkorrektur basierend auf Signal-Performance (Prio 1)
             # Risk-neutral Scale (fix/kelly-risk-neutral 2026-08-22): gewichtetes
@@ -1124,6 +1129,7 @@ def main() -> None:
                         "SignalWorker: Kelly: signal_type=%s k=%.2f amount $%.2f->$%.2f",
                         signal.get("signal_type", ""), _k, _old_amt, buy_amount,
                     )
+                    _trace.append(f"Kelly x{_k:.2f} = ${buy_amount:,.2f}")
             except Exception as _ke:
                 logger.debug("SignalWorker: Kelly-Faktor uebersprungen: %s", _ke)
 
@@ -1135,6 +1141,7 @@ def main() -> None:
                     "SignalWorker: %s News-Flag CAUTION — Groesse halbiert auf $%.2f (%s)",
                     symbol, buy_amount, (_nf.get("reason") or "")[:60],
                 )
+                _trace.append(f"News CAUTION x0.50 = ${buy_amount:,.2f}")
 
             # Deployment-Boost (fix/cash-deployment 2026-07-15): brachliegendes
             # Kapital arbeiten lassen. Config-Default 1.0 = AUS — auf 1.25
@@ -1158,6 +1165,7 @@ def main() -> None:
                         "(Cash-Ueberschuss, NORMAL, Makro neutral)",
                         _boost, _old_amt, buy_amount,
                     )
+                    _trace.append(f"Deployment-Boost x{_boost:.2f} = ${buy_amount:,.2f}")
             except Exception as _db_exc:
                 logger.debug("SignalWorker: Deployment-Boost uebersprungen: %s", _db_exc)
 
@@ -1173,6 +1181,14 @@ def main() -> None:
             # Laeuft VOR der min_buy-Enforce, damit ein herunterskalierter
             # Betrag unter dem Minimum regulaer aussortiert wird.
             # Fail-open: bei jedem Fehler bleibt buy_amount unveraendert.
+            #
+            # Wichtig fuers Lesen der Logs: min_buy ist hier ein Boden fuer die
+            # BASISgroesse, nicht fuer den Endbetrag. Nach dieser Stelle skaliert
+            # die ATR-Risk-Parity (unten, Faktor-Floor 0.6) weiter nach unten —
+            # aus "auf min_buy 100 $ angehoben" koennen also 60 $ werden. Das ist
+            # beabsichtigt: hoher ATR heisst kleiner, nicht gar nicht. Gemessen
+            # ab 2026-07-26 sind genau diese kleinen Positionen die profitablen
+            # (< 100 $: n=65, WR 44.6 %, +29.23 USD), deshalb NICHT "reparieren".
             try:
                 from bot.core import entry_quality as _eq
                 _eq_mode = str(
@@ -1186,13 +1202,21 @@ def main() -> None:
                             buy_amount, _eq_sm,
                             float(regime_params.get("min_buy_usd", 50.0)),
                         )
+                        _mb = float(regime_params.get("min_buy_usd", 50.0))
                         logger.info(
                             "SignalWorker: ENTRY-QUALITY %s (live): size_mult=%.2f "
                             "$%.2f -> $%.2f%s",
                             symbol, _eq_sm, buy_amount, _eq_new_amt,
-                            " [auf min_buy angehoben]" if _eq_floored else "",
+                            (f" [Basisgroesse auf min_buy ${_mb:.0f} angehoben — "
+                             f"ATR-Risk-Parity kann noch darunter skalieren]")
+                            if _eq_floored else "",
                         )
                         buy_amount = _eq_new_amt
+                        _trace.append(
+                            f"Entry-Quality x{_eq_sm:.2f}"
+                            + (f" -> min_buy ${_mb:,.0f}" if _eq_floored else "")
+                            + f" = ${buy_amount:,.2f}"
+                        )
                         _eq.mark_applied(db, signal_id)
                     else:
                         logger.info(
@@ -1366,6 +1390,10 @@ def main() -> None:
                 if _sl_pct_final > _sl_default and buy_amount > 0:
                     _parity = max(_sl_default / _sl_pct_final, 0.6)
                     buy_amount = round(buy_amount * _parity, 2)
+                    _trace.append(
+                        f"ATR-Risk-Parity x{_parity:.2f} (SL {_sl_pct_final:.2f}% "
+                        f"statt {_sl_default:.2f}%) = ${buy_amount:,.2f}"
+                    )
                     logger.info(
                         "SignalWorker: %s ATR-SL %.2f%% (Default %.2f%%) — Sizing x%.2f (Risk-Parity)",
                         symbol, _sl_pct_final, _sl_default, _parity,
@@ -1414,6 +1442,7 @@ def main() -> None:
                         symbol, buy_amount, reduced, corr_reason,
                     )
                     buy_amount = reduced
+                    _trace.append(f"Korrelation x{corr_factor:.2f} = ${buy_amount:,.2f}")
                     if buy_amount < min_buy:
                         logger.info(
                             "SignalWorker: %s reduzierte Größe $%.2f < Regime-Min $%.2f — skipped",
@@ -1447,6 +1476,7 @@ def main() -> None:
                         if _rf < 1.0:
                             _before = buy_amount
                             buy_amount = round(buy_amount * _rf, 2)
+                            _trace.append(f"Region x{_rf:.2f} = ${buy_amount:,.2f}")
                             logger.info(
                                 "SignalWorker: %s Groesse $%.2f → $%.2f — %s",
                                 symbol, _before, buy_amount, _rreason,
@@ -1549,6 +1579,7 @@ def main() -> None:
                     "conviction":   conviction,
                     "score":        score,
                     "signal_price": signal_price,
+                    "sizing_trace": list(_trace),
                 })
     
                 # Update running totals so subsequent signals see projected state
