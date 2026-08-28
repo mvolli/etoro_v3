@@ -2606,6 +2606,8 @@ def post_discovery_embed(
     unverified: int = 0,
     elapsed_s: float = 0.0,
     dry_run: bool = False,
+    evicted: int = 0,
+    slots_used: int = 0,
 ) -> bool:
     """Discovery-Ranking — Top-Kandidaten mit vollem Kontext → #etoro-trading.
 
@@ -2658,6 +2660,22 @@ def post_discovery_embed(
         desc_parts.append(f"⚠️ Unverifiziert: **{unverified}**")
     if elapsed_s:
         desc_parts.append(f"Dauer: {elapsed_s:.0f}s")
+
+    # feat/rotation-embed (2026-08-28): Die Raeumung veralteter Plaetze lief
+    # bisher unsichtbar — der Embed meldete nur Funde. Ohne diese Zeile laesst
+    # sich nicht beurteilen, ob die Rotation ueberhaupt arbeitet (sie tat es
+    # monatelang nicht, siehe fix/rotation-usefulness).
+    if evicted or slots_used:
+        _rot = []
+        if evicted:
+            _rot.append(f"**{evicted}** Plätze geräumt")
+        if slots_used:
+            _rot.append(f"**{slots_used}** belegt")
+        fields.append({
+            "name": "🔄 Rotation",
+            "value": " · ".join(_rot),
+            "inline": False,
+        })
 
     embed = {
         "title":       f"🔍 Discovery — Top {len(top)} Kandidaten",

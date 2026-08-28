@@ -749,6 +749,8 @@ def _post_discord(
     stored: int = 0,
     unverified: int = 0,
     elapsed_s: float = 0.0,
+    evicted: int = 0,
+    slots_used: int = 0,
 ) -> None:
     """
     Post the top 5 candidates as a data-rich Discord embed
@@ -767,6 +769,8 @@ def _post_discord(
             stored=stored,
             unverified=unverified,
             elapsed_s=elapsed_s,
+            evicted=evicted,
+            slots_used=slots_used,
         )
         logger.info("[%s] Discovery embed posted (%d candidates)", WORKER_NAME, min(len(candidates), 5))
         return
@@ -919,6 +923,15 @@ def main() -> int:
         evicted = _evict_stale_discovered(db)
         if evicted:
             logger.info("[%s] Evicted %d stale discovered watchlist slots", WORKER_NAME, evicted)
+        # feat/rotation-embed (2026-08-28): Belegung fuer den Discord-Bericht.
+        # Fail-open — eine fehlende Zahl darf den Lauf nicht kosten.
+        try:
+            _row = db.fetchone(
+                "SELECT COUNT(*) AS n FROM watchlist WHERE category LIKE '%.discovered'"
+            )
+            slots_used = int(_row["n"]) if _row else 0
+        except Exception:
+            slots_used = 0
 
         # ── Market-Movers-Pass (feat/market-movers 2026-07-20) ────────────────
         # eToro-API-weit statt nur Watchlist: Bulk-Schlusskurse (1 Call) +
@@ -1390,6 +1403,8 @@ def main() -> int:
             stored=j_stored,
             unverified=len(unverified),
             elapsed_s=elapsed,
+            evicted=evicted,
+            slots_used=slots_used,
         )
     
         return 0
