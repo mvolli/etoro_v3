@@ -84,11 +84,37 @@ def currency_factor(symbol: str) -> float:
     return _FX_APPROX.get(suffix, 1.0)
 
 
-def compute_adv_usd(df: Any, symbol: str, price: Optional[float] = None) -> Optional[float]:
+def is_quote_currency_volume(yf_symbol: Optional[str]) -> bool:
+    """Meldet yfinance das Volumen fuer dieses Symbol bereits in der Quote-Waehrung?
+
+    Gilt fuer Krypto-Paare (BTC-USD, ADA-USD, ...). Dort ist "Volume" der
+    Dollar-Umsatz, nicht die Stueckzahl.
+    """
+    return bool(yf_symbol) and yf_symbol.upper().endswith("-USD")
+
+
+def compute_adv_usd(df: Any, symbol: str, price: Optional[float] = None,
+                    yf_symbol: Optional[str] = None) -> Optional[float]:
     """20d-Durchschnitts-Dollar-Volumen aus einem OHLCV-DataFrame (yfinance).
 
     Gibt None zurueck, wenn Volumen-Daten fehlen/kaputt sind — der Aufrufer
     entscheidet, ob unknown neutral behandelt wird (Ranking) oder blockt.
+
+    fix/crypto-adv-double-count (2026-08-28): Bei Krypto-Paaren (…-USD) meldet
+    yfinance das Volumen BEREITS in Dollar. Es mit dem Preis zu multiplizieren
+    zaehlt ihn doppelt. Nachgerechnet an den Rohdaten: BTC-USD hatte ein
+    avg_Volume von 31,5 Mrd bei einem Preis von 79.821 $ — als Stueckzahl
+    gelesen waeren das mehr Bitcoin pro Tag als je existieren werden.
+    adv_usd stand dadurch bei 2,5 Billiarden statt 31,5 Mrd.
+
+    Die Verzerrung ging in beide Richtungen: Preis > 1 blaeht auf, Preis < 1
+    drueckt herunter. Guenstige Altcoins (ADA bei 0,21 $ -> Faktor 4,8 zu
+    klein) fielen dadurch unter MIN_ADV_USD und ihre BUY-Signale wurden als
+    illiquide verworfen, obwohl sie es nicht sind.
+
+    *yf_symbol* ist das yfinance-Symbol; *symbol* bleibt das Boersen-/eToro-
+    Symbol fuer currency_factor. Fehlt yf_symbol, wird auf symbol
+    zurueckgegriffen — das deckt Aufrufer ab, die ohnehin yf-Namen uebergeben.
     """
     try:
         vol = df["Volume"].dropna()
@@ -100,7 +126,10 @@ def compute_adv_usd(df: Any, symbol: str, price: Optional[float] = None) -> Opti
             if len(closes) == 0:
                 return None
             price = float(closes.iloc[-1])
-        adv = avg_vol * float(price) * currency_factor(symbol)
+        if is_quote_currency_volume(yf_symbol or symbol):
+            adv = avg_vol
+        else:
+            adv = avg_vol * float(price) * currency_factor(symbol)
         if adv <= 0:
             return None
         return adv

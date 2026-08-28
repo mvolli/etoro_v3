@@ -853,7 +853,9 @@ def run(project_root: Path | None = None) -> dict:
             # und BUY-Signale unterhalb MIN_ADV_USD gar nicht erst speichern —
             # der data_worker-Pfad hatte als einziger Produzent KEINEN
             # Liquiditaetsfilter (Discovery filtert seit je bei 500k).
-            _adv_usd = _liq.compute_adv_usd(df, original_sym, result.price)
+            _adv_usd = _liq.compute_adv_usd(
+                df, original_sym, result.price, yf_symbol=yf_sym
+            )
             if instrument_id is not None and _adv_usd is not None:
                 _liq.update_adv(db, instrument_id, _adv_usd)
             if (

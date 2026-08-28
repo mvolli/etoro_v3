@@ -149,3 +149,55 @@ def test_load_liquidity_map_fails_open(fake_db):
             raise RuntimeError("boom")
 
     assert liq.load_liquidity_map(_BrokenDB(), [1, 2]) == {}
+
+
+# ── Krypto-ADV (fix/crypto-adv-double-count, 2026-08-28) ────────────────────
+# yfinance meldet bei …-USD-Paaren den Dollar-Umsatz, nicht die Stueckzahl.
+# Der Preis darf dann nicht noch einmal hineinmultipliziert werden.
+# Belegt an den Rohdaten: BTC-USD avg_Volume 31,5 Mrd bei Preis 79.821 $ —
+# als Stueckzahl waeren das mehr Bitcoin pro Tag als je existieren werden.
+
+
+def _df(volume, close):
+    return pd.DataFrame({"Close": [close] * 20, "Volume": [volume] * 20})
+
+
+def test_krypto_volumen_wird_nicht_mit_dem_preis_multipliziert():
+    df = _df(31_524_508_672.0, 79_821.93)
+    adv = liq.compute_adv_usd(df, "BTC", price=79_821.93, yf_symbol="BTC-USD")
+    assert adv == pytest.approx(31_524_508_672.0)
+
+
+def test_aktien_verhalten_bleibt_unveraendert():
+    df = _df(100_000.0, 20.0)
+    assert liq.compute_adv_usd(df, "AAPL", price=20.0,
+                               yf_symbol="AAPL") == pytest.approx(2_000_000.0)
+
+
+def test_guenstiger_altcoin_faellt_nicht_mehr_unter_die_schwelle():
+    """Der eigentliche Schaden: Preis < 1 DRUECKTE den Wert unter MIN_ADV_USD.
+
+    ADA bei 0,21 $ mit 436 Mio $ Umsatz landete bei 91 Mio (noch ueber der
+    Schwelle), aber ein Coin zu 0,01 $ mit 2 Mio $ Umsatz kam auf 20.000 und
+    seine BUY-Signale wurden als illiquide verworfen.
+    """
+    df = _df(2_000_000.0, 0.01)
+    alt = 2_000_000.0 * 0.01                      # so rechnete es vorher
+    neu = liq.compute_adv_usd(df, "TINY", price=0.01, yf_symbol="TINY-USD")
+    assert alt < liq.MIN_ADV_USD                  # waere verworfen worden
+    assert neu == pytest.approx(2_000_000.0)
+    assert neu > liq.MIN_ADV_USD                  # bleibt jetzt drin
+
+
+def test_ohne_yf_symbol_faellt_es_auf_symbol_zurueck():
+    df = _df(1_000.0, 5.0)
+    assert liq.compute_adv_usd(df, "ETH-USD", price=5.0) == pytest.approx(1_000.0)
+    assert liq.compute_adv_usd(df, "MSFT", price=5.0) == pytest.approx(5_000.0)
+
+
+def test_erkennung_der_quote_waehrung():
+    assert liq.is_quote_currency_volume("BTC-USD")
+    assert liq.is_quote_currency_volume("ada-usd")
+    assert not liq.is_quote_currency_volume("AAPL")
+    assert not liq.is_quote_currency_volume("7203.T")
+    assert not liq.is_quote_currency_volume(None)
