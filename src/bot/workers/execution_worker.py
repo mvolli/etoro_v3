@@ -690,8 +690,23 @@ def main() -> None:
                 # Normaler Flow POSTet frisch; alle Gates greifen wie gewohnt.
 
             # b. Double-safety regime check (V5: NORMAL / CAUTION / DEFENSIVE / CRITICAL)
+            #
+            # fix/execution-defensive-sizing-check (2026-08-28): Vorher wurden
+            # DEFENSIVE UND CRITICAL pauschal abgeworfen. Damit war jeder
+            # Parameter, den _REGIME_PARAMS fuer DEFENSIVE definiert
+            # (buy_aggressiveness 0.50, max_trade_pct 3.0, min_buy_usd 100,
+            # allow_pyramiding False), in DEFENSIVE toter Code — es kam dort
+            # nie ein Trade zur Ausfuehrung. Am 2026-08-28 verwarf der Worker
+            # so 26 genehmigte Trades in Folge, jeden Zyklus erneut.
+            #
+            # Der eigentliche Zweck war ein anderer: ein Trade, der unter einem
+            # LOCKEREREN Regime dimensioniert wurde, soll nicht in einem
+            # strengeren ausgefuehrt werden (Regime kann zwischen Freigabe und
+            # Ausfuehrung eskalieren). Genau das prueft jetzt max_trade_pct
+            # gegen die aktuelle Equity — statt pauschal alles abzuwerfen.
+            # CRITICAL (DD >= 15 %) bleibt ein harter Stopp.
             regime = state_repo.get_regime()
-            if regime in ("DEFENSIVE", "CRITICAL"):
+            if regime == "CRITICAL":
                 logger.warning(
                     "ExecutionWorker: %s regime at execution time — rejecting trade #%d (%s)",
                     regime, trade_id, symbol,
@@ -709,6 +724,40 @@ def main() -> None:
                 )
                 failed_count += 1
                 continue
+            if regime == "DEFENSIVE":
+                from bot.core.regime import get_regime_params as _grp
+                _rp = _grp(regime)
+                _eq = state_repo.get_equity()
+                _cap = _eq * float(_rp.get("max_trade_pct", 3.0)) / 100.0
+                # _eq <= 0 heisst: Equity noch nicht synchronisiert. Dann nicht
+                # blind durchlassen und nicht blind blocken — die Pruefung
+                # entfaellt, der Trade wurde vom signal_worker bereits gegen
+                # dasselbe Regime dimensioniert.
+                if _eq > 0 and amount_usd > _cap:
+                    logger.warning(
+                        "ExecutionWorker: Trade #%d (%s) $%.2f ueberschreitet das "
+                        "DEFENSIVE-Limit $%.2f (%.1f%% von $%.2f) — unter lockererem "
+                        "Regime dimensioniert, verworfen",
+                        trade_id, symbol, amount_usd, _cap,
+                        float(_rp.get("max_trade_pct", 3.0)), _eq,
+                    )
+                    trade_repo.update_status(
+                        trade_id,
+                        "REJECTED",
+                        rejection_reason=(
+                            f"DEFENSIVE: ${amount_usd:.2f} > max_trade_pct-Limit "
+                            f"${_cap:.2f} — unter lockererem Regime dimensioniert"
+                        ),
+                    )
+                    log_repo.write(
+                        "WARN",
+                        "execution_worker",
+                        f"Trade #{trade_id} REJECTED — DEFENSIVE-Groessenlimit "
+                        f"${_cap:.2f} ueberschritten",
+                        {"symbol": symbol, "amount_usd": amount_usd, "cap": _cap},
+                    )
+                    failed_count += 1
+                    continue
     
             # c. Market hours gate — statischer Check als Schnell-Skip ohne API-Call.
             #    Aktion: DEFER (bleibt APPROVED) statt FAILED — Execution-Worker
