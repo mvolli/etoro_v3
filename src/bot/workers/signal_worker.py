@@ -426,6 +426,51 @@ def apply_deployment_config(cfg: dict) -> None:
     DEPLOYMENT_BOOST_REGIMES = vals
 
 
+from bot.core.regime import (
+    SIZING_PARITY_FLOOR as _PARITY_FLOOR,
+    dust_floor_usd as _dust_floor_usd,
+)
+
+
+def _reject_below_floor(log_repo, signal_repo, blocked_reasons, *, symbol,
+                        signal_id, amount, floor, kind, stage, detail=""):
+    """Signal wegen Groessen-Untergrenze verwerfen — und es PERSISTIEREN.
+
+    Bis 2026-08-28 gingen diese Rejects ausschliesslich nach logger.info.
+    In system_log standen ueber 30 Tage 0 Treffer, in den Cron-Outputs
+    ebenfalls 0 — wie oft die Korrelations- und Regionen-Pruefungen einen
+    Trade verwarfen, war schlicht nicht feststellbar. Ein Filter, dessen
+    Wirkung man nicht messen kann, laesst sich auch nicht bewerten (dasselbe
+    Muster wie bei DRAWDOWN_REASON).
+
+    kind: SIGNAL_FLOOR (vor den Haircuts) | DUST_FLOOR (Endbetrag).
+    """
+    logger.info(
+        "SignalWorker: %s %s $%.2f < $%.2f (%s) — Signal REJECTED%s",
+        symbol, kind, amount, floor, stage, f" [{detail}]" if detail else "",
+    )
+    try:
+        signal_repo.update_signal_status(signal_id, "REJECTED")
+    except Exception:
+        logger.debug("update_signal_status fehlgeschlagen", exc_info=True)
+    blocked_reasons.append(
+        f"{symbol}: ${amount:.2f} < {kind} ${floor:.0f} ({stage})"
+    )
+    try:
+        log_repo.write(
+            "INFO", "signal_worker",
+            f"Signal BLOCKED: {symbol} unter {kind} (${amount:.2f} < ${floor:.2f})",
+            {
+                "symbol": symbol, "signal_id": signal_id,
+                "amount_usd": round(float(amount), 2),
+                "floor_usd": round(float(floor), 2),
+                "floor_kind": kind, "stage": stage, "detail": detail,
+            },
+        )
+    except Exception:
+        logger.debug("log_repo.write fehlgeschlagen (fail-open)", exc_info=True)
+
+
 def _deployment_boost_applies(cash_pct: float, cash_max_pct: float,
                               regime: str, macro_scalar: float,
                               has_news_flag: bool) -> bool:
@@ -1288,16 +1333,18 @@ def main() -> None:
             #                  keine Hard-Blocks — der Trade findet statt, nur
             #                  kleiner. Das haelt die Datensammlung am Laufen.
             #   mode=shadow -> nur would-be-Logging, keine Aenderung.
-            # Laeuft VOR der min_buy-Enforce, damit ein herunterskalierter
+            # Laeuft VOR dem Signal-Floor, damit ein herunterskalierter
             # Betrag unter dem Minimum regulaer aussortiert wird.
             # Fail-open: bei jedem Fehler bleibt buy_amount unveraendert.
             #
-            # Wichtig fuers Lesen der Logs: min_buy ist hier ein Boden fuer die
-            # BASISgroesse, nicht fuer den Endbetrag. Nach dieser Stelle skaliert
-            # die ATR-Risk-Parity (unten, Faktor-Floor 0.6) weiter nach unten —
-            # aus "auf min_buy 100 $ angehoben" koennen also 60 $ werden. Das ist
-            # beabsichtigt: hoher ATR heisst kleiner, nicht gar nicht. Gemessen
-            # ab 2026-07-26 sind genau diese kleinen Positionen die profitablen
+            # apply_sizing hebt auf den SIGNAL-Floor an (regimeabhaengig), nicht
+            # auf den Dust-Floor: das ist ein Boden fuer die BASISgroesse. Die
+            # ATR-Risk-Parity darf danach bis SIZING_PARITY_FLOOR weiter nach
+            # unten skalieren — aus "auf 100 $ angehoben" werden also 60 $, und
+            # das ist beabsichtigt: hoher ATR heisst kleiner, nicht gar nicht.
+            # Der Dust-Floor (e0) faengt den Endbetrag ab und ist genau so
+            # abgeleitet, dass er diesen Korridor nicht zuschnuert.
+            # Gemessen ab 2026-07-26 sind die kleinen Positionen die profitablen
             # (< 100 $: n=65, WR 44.6 %, +29.23 USD), deshalb NICHT "reparieren".
             try:
                 from bot.core import entry_quality as _eq
@@ -1310,21 +1357,22 @@ def main() -> None:
                     if _eq_mode == "live":
                         _eq_new_amt, _eq_floored = _eq.apply_sizing(
                             buy_amount, _eq_sm,
-                            float(regime_params.get("min_buy_usd", 50.0)),
+                            float(regime_params.get("signal_floor_usd", 50.0)),
                         )
-                        _mb = float(regime_params.get("min_buy_usd", 50.0))
+                        _mb = float(regime_params.get("signal_floor_usd", 50.0))
                         logger.info(
                             "SignalWorker: ENTRY-QUALITY %s (live): size_mult=%.2f "
                             "$%.2f -> $%.2f%s",
                             symbol, _eq_sm, buy_amount, _eq_new_amt,
-                            (f" [Basisgroesse auf min_buy ${_mb:.0f} angehoben — "
-                             f"ATR-Risk-Parity kann noch darunter skalieren]")
+                            (f" [Basisgroesse auf Signal-Floor ${_mb:.0f} "
+                             f"angehoben — ATR-Risk-Parity darf bis zum "
+                             f"Dust-Floor darunter skalieren]")
                             if _eq_floored else "",
                         )
                         buy_amount = _eq_new_amt
                         _trace.append(
                             f"Entry-Quality x{_eq_sm:.2f}"
-                            + (f" -> min_buy ${_mb:,.0f}" if _eq_floored else "")
+                            + (f" -> Signal-Floor ${_mb:,.0f}" if _eq_floored else "")
                             + f" = ${buy_amount:,.2f}"
                         )
                         _eq.mark_applied(db, signal_id)
@@ -1355,21 +1403,27 @@ def main() -> None:
                     )
                     buy_amount = _comm_amt
 
-            # Enforce minimum from regime params
-            min_buy = regime_params.get("min_buy_usd", 50.0)
-            if buy_amount < min_buy:
+            # SIGNAL-FLOOR (P1): "lohnt sich dieses Signal ueberhaupt?"
+            # Regimeabhaengig, geprueft VOR den situativen Haircuts
+            # (ATR-Risk-Parity, Korrelation, Region). Eine Groesse, die schon
+            # hier zu klein ist, traegt die These nicht — unabhaengig davon,
+            # was die Haircuts spaeter noch machen.
+            signal_floor = float(regime_params.get("signal_floor_usd", 50.0))
+            # DUST-FLOOR: Broker-Oekonomie, gilt fuer den ENDbetrag (siehe e0).
+            dust_floor = _dust_floor_usd(
+                regime, float(cfg.get("trading", {}).get("min_buy_usd", 50.0))
+            )
+            if buy_amount < signal_floor:
                 # fix/min-buy-slot-leak (2026-07-14): vorher nur `continue` ohne
                 # Status-Update — das Signal blieb FRESH und belegte JEDEN
                 # Zyklus erneut einen Kandidaten-Slot bis zum 24h-TTL (Kelly
                 # 0.3x oder CAUTION-Halbierung aendern sich innerhalb des TTL
                 # nicht). REJECT gibt den Slot frei.
-                logger.info(
-                    "SignalWorker: %s buy_amount $%.2f < regime min $%.2f — Signal REJECTED",
-                    symbol, buy_amount, min_buy,
-                )
-                signal_repo.update_signal_status(signal_id, "REJECTED")
-                blocked_reasons.append(
-                    f"{symbol}: Groesse ${buy_amount:.2f} < Min ${min_buy:.0f} (Kelly/CAUTION)"
+                _reject_below_floor(
+                    log_repo, signal_repo, blocked_reasons,
+                    symbol=symbol, signal_id=signal_id, amount=buy_amount,
+                    floor=signal_floor, kind="SIGNAL_FLOOR", stage="vor Haircuts",
+                    detail="Kelly/News/Regime",
                 )
                 continue
 
@@ -1498,7 +1552,7 @@ def main() -> None:
                 except Exception:
                     _sl_pct_final = _sl_default
                 if _sl_pct_final > _sl_default and buy_amount > 0:
-                    _parity = max(_sl_default / _sl_pct_final, 0.6)
+                    _parity = max(_sl_default / _sl_pct_final, _PARITY_FLOOR)
                     buy_amount = round(buy_amount * _parity, 2)
                     _trace.append(
                         f"ATR-Risk-Parity x{_parity:.2f} (SL {_sl_pct_final:.2f}% "
@@ -1553,13 +1607,20 @@ def main() -> None:
                     )
                     buy_amount = reduced
                     _trace.append(f"Korrelation x{corr_factor:.2f} = ${buy_amount:,.2f}")
-                    if buy_amount < min_buy:
-                        logger.info(
-                            "SignalWorker: %s reduzierte Größe $%.2f < Regime-Min $%.2f — skipped",
-                            symbol, buy_amount, min_buy,
+                    # Gegen den DUST-Floor, nicht gegen den Signal-Floor: der
+                    # Korrelations-Haircut ist als "halbieren statt blocken"
+                    # gemeint. Gegen den Regime-Floor geprueft wirkte er
+                    # faktisch als Block, und zwar haerter als die
+                    # ATR-Risk-Parity, die gar nicht geprueft wurde — derselbe
+                    # Endbetrag wurde also akzeptiert oder verworfen, je
+                    # nachdem WELCHER Daempfer ihn erzeugt hatte.
+                    if buy_amount < dust_floor:
+                        _reject_below_floor(
+                            log_repo, signal_repo, blocked_reasons,
+                            symbol=symbol, signal_id=signal_id, amount=buy_amount,
+                            floor=dust_floor, kind="DUST_FLOOR",
+                            stage="nach Korrelation", detail=corr_reason,
                         )
-                        signal_repo.update_signal_status(signal_id, "REJECTED")
-                        blocked_reasons.append(f'{symbol}: {corr_reason} → unter Min-Buy')
                         continue
 
                 # Regionen-Damper (feat/region-damper 2026-08-12): die reale
@@ -1591,10 +1652,14 @@ def main() -> None:
                                 "SignalWorker: %s Groesse $%.2f → $%.2f — %s",
                                 symbol, _before, buy_amount, _rreason,
                             )
-                            if buy_amount < min_buy:
-                                signal_repo.update_signal_status(signal_id, "REJECTED")
-                                blocked_reasons.append(
-                                    f"{symbol}: {_rreason} → unter Min-Buy")
+                            if buy_amount < dust_floor:
+                                _reject_below_floor(
+                                    log_repo, signal_repo, blocked_reasons,
+                                    symbol=symbol, signal_id=signal_id,
+                                    amount=buy_amount, floor=dust_floor,
+                                    kind="DUST_FLOOR", stage="nach Region",
+                                    detail=_rreason,
+                                )
                                 continue
 
                 # Diversity-Gate (Prio 4): max 45% offener Positionen in einer Kategorie
@@ -1663,6 +1728,25 @@ def main() -> None:
                     except Exception as _slip_exc:
                         # Fail-open: Preis nicht ermittelbar → execution-Gate entscheidet
                         logger.debug("SignalWorker: Pre-Check für %s übersprungen (%s)", symbol, _slip_exc)
+
+                # e0. DUST-FLOOR, letzte Instanz vor der Order.
+                # Bis 2026-08-28 endete die Kette ohne Pruefung des ENDbetrags
+                # gegen einen regimebewussten Boden: der Regime-Floor lief bei
+                # P1 (vor den Haircuts), danach griff nur noch das globale
+                # check_min_buy_gate (config trading.min_buy_usd, 50 $).
+                # Trade #1750 DOM.ST wurde so am 28.08. 12:33 mit 79.00 $ in
+                # DEFENSIVE genehmigt (Regime-Floor 100 $): Kelly 209->131.66,
+                # ATR-Risk-Parity x0.60 -> 79.00, und 79 > 50 passierte.
+                # Diese Pruefung steht bewusst NACH allen Multiplikatoren —
+                # jeder kuenftige Daempfer laeuft automatisch dagegen.
+                if buy_amount < dust_floor:
+                    _reject_below_floor(
+                        log_repo, signal_repo, blocked_reasons,
+                        symbol=symbol, signal_id=signal_id, amount=buy_amount,
+                        floor=dust_floor, kind="DUST_FLOOR",
+                        stage="Kettenende", detail="; ".join(_trace[-2:]),
+                    )
+                    continue
 
                 # e. Create trade PENDING_APPROVAL → immediately APPROVED
                 trade_id = trade_repo.create(
@@ -1905,13 +1989,13 @@ def main() -> None:
                     if _cs_kf < 1.0:
                         _cs_amt, _cs_floored = _cs_eq.apply_sizing(
                             _cs_amt, _cs_kf,
-                            float(regime_params.get("min_buy_usd", 50.0)),
+                            float(regime_params.get("signal_floor_usd", 50.0)),
                         )
                         logger.info(
                             "SignalWorker: CORE-SWEEP KELLY %s: factor=%.3f "
                             "$%.2f -> $%.2f%s",
                             _o.symbol, _cs_kf, _o.amount_usd, _cs_amt,
-                            " [auf min_buy angehoben]" if _cs_floored else "",
+                            " [auf Signal-Floor angehoben]" if _cs_floored else "",
                         )
                 except Exception:
                     logger.debug("core-sweep kelly fehlgeschlagen (fail-open)",
@@ -1937,14 +2021,14 @@ def main() -> None:
                         if _eq_cs_applied:
                             _cs_amt, _cs_floored = _eq.apply_sizing(
                                 _cs_amt, _eq_ev_cs.size_mult,
-                                float(regime_params.get("min_buy_usd", 50.0)),
+                                float(regime_params.get("signal_floor_usd", 50.0)),
                             )
                             logger.info(
                                 "SignalWorker: ENTRY-QUALITY CORE_SWEEP %s (live, %s): %s "
                                 "-> size_mult=%.2f $%.2f -> $%.2f%s",
                                 _o.symbol, regime, _eq_ev_cs.reasons,
                                 _eq_ev_cs.size_mult, _o.amount_usd, _cs_amt,
-                                " [auf min_buy angehoben]" if _cs_floored else "",
+                                " [auf Signal-Floor angehoben]" if _cs_floored else "",
                             )
                         else:
                             logger.info(

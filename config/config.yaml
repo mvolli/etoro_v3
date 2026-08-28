@@ -24,6 +24,13 @@ trading:
   # ihn trotzdem als Stellschraube gepflegt. Echte Grenzen: Exposure-Gate
   # (75%), cash_target_min_pct, per-Instrument (10%), Sektor- und Regionen-Caps.
   max_fragments_per_instrument: 3  # Maximum partial fills / DCA entries per ticker
+  # DUST-Floor: absolute Broker-Untergrenze fuer den FINALEN Ordersbetrag
+  # (Spread/Mindestvolumen). Regime-unabhaengig. Der regimeabhaengige
+  # SIGNAL-Floor ("lohnt sich dieses Signal?") steht in
+  # core/regime.py:_REGIME_PARAMS[...]["signal_floor_usd"] (50/75/100/150) und
+  # wird VOR den Haircuts geprueft; der wirksame Dust-Floor ist
+  # max(signal_floor * 0.6, diesem Wert) -> NORMAL/CAUTION 50, DEFENSIVE 60,
+  # CRITICAL 90. Beide hiessen bis 2026-08-28 min_buy_usd.
   min_buy_usd: 50.0           # Minimum order size in USD
   # 2026-08-24: Basis-Kandidaten-Slots pro signal_worker-Zyklus (war fest 3).
   # Bei Cash > cash_target_max_pct kommen bis zu 2 weitere hinzu, die

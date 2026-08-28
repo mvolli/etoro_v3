@@ -111,6 +111,49 @@ RISK_SCALARS: dict[str, float] = {
     "CRITICAL":  0.25,  # -75%: Quarter-Kelly, only VERY_HIGH signals
 }
 
+# ─── Sizing-Floors ───────────────────────────────────────────────────────────
+#
+# Im Wert min_buy_usd steckten bis 2026-08-28 ZWEI Bedeutungen, die
+# gegenlaeufig wirken — daher jetzt getrennt:
+#
+#   signal_floor_usd (hier, regimeabhaengig 50/75/100/150)
+#       "Lohnt sich dieses Signal ueberhaupt?" — eine Groesse, die schon vor
+#       den situativen Haircuts zu klein ist, traegt die These nicht. Wird
+#       EINMAL geprueft, VOR Risk-Parity/Korrelation/Region.
+#
+#   dust_floor_usd() (unten, regimekonstante Broker-Oekonomie, im strengen
+#       Regime angehoben)
+#       "Ist die Order noch wirtschaftlich?" — Spread und Mindestvolumen
+#       interessiert das Regime nicht. Wird am ENDE der Kette geprueft,
+#       nach jedem Multiplikator.
+#
+# Warum der Faktor SIZING_PARITY_FLOOR: die ATR-Risk-Parity im signal_worker
+# skaliert bewusst bis auf diesen Faktor herunter (hoher ATR heisst kleiner,
+# nicht gar nicht). Ein Dust-Floor oberhalb von signal_floor * SIZING_PARITY_FLOOR
+# wuerde genau diese Absicht wieder aufheben — gemessen ueber die 30 Tage bis
+# 2026-08-28 haette ein Dust-Floor auf Hoehe des Regime-Floors 54 von 222
+# Trades (24.3 %) verworfen, und zwar das einzige Segment mit positivem
+# Ergebnis (n=38, WR 39.5 %, +3.55 USD gegen -111.83 USD im Rest).
+# Die Ableitung koppelt beide Werte, statt sie unabhaengig driften zu lassen.
+
+SIZING_PARITY_FLOOR: float = 0.6   # == signal_worker ATR-Risk-Parity-Untergrenze
+
+
+def dust_floor_usd(regime: str, global_min_buy_usd: float = 50.0) -> float:
+    """Untergrenze fuer den FINALEN Ordersbetrag, nach allen Multiplikatoren.
+
+    max(signal_floor * SIZING_PARITY_FLOOR, global_min_buy_usd):
+    der Config-Wert trading.min_buy_usd ist die absolute Broker-Untergrenze,
+    strengere Regimes heben sie an.
+
+        NORMAL     50 -> 50.00      DEFENSIVE  100 -> 60.00
+        CAUTION    75 -> 50.00      CRITICAL   150 -> 90.00
+    """
+    params = _REGIME_PARAMS.get(regime) or _REGIME_PARAMS["NORMAL"]
+    derived = float(params["signal_floor_usd"]) * SIZING_PARITY_FLOOR
+    return round(max(derived, float(global_min_buy_usd)), 2)
+
+
 # ─── Regime Parameters ────────────────────────────────────────────────────────
 
 _REGIME_PARAMS: dict[str, dict] = {
@@ -118,7 +161,7 @@ _REGIME_PARAMS: dict[str, dict] = {
         "cash_min_pct":       15.0,
         "max_trade_pct":       5.0,
         "buy_aggressiveness":  1.0,
-        "min_buy_usd":        50.0,
+        "signal_floor_usd":        50.0,
         "allow_pyramiding":   True,
         "min_conviction":     "LOW",
         "description":        "Standard — alle Signale erlaubt",
@@ -127,7 +170,7 @@ _REGIME_PARAMS: dict[str, dict] = {
         "cash_min_pct":       20.0,   # Higher buffer
         "max_trade_pct":       4.0,   # Slightly smaller trades
         "buy_aggressiveness":  0.75,  # risk_scalar applied
-        "min_buy_usd":        75.0,
+        "signal_floor_usd":        75.0,
         "allow_pyramiding":   True,   # Still allowed but at reduced size
         "min_conviction":     "MEDIUM",  # No LOW signals
         "description":        "Erhöhte Vorsicht — nur MEDIUM+ Signale",
@@ -136,7 +179,7 @@ _REGIME_PARAMS: dict[str, dict] = {
         "cash_min_pct":       25.0,
         "max_trade_pct":       3.0,
         "buy_aggressiveness":  0.50,
-        "min_buy_usd":       100.0,
+        "signal_floor_usd":       100.0,
         "allow_pyramiding":   False,  # No adding to existing positions
         "min_conviction":     "HIGH",  # Only HIGH and VERY_HIGH
         "description":        "Defensiv — kein Pyramiding, nur HIGH+ Signale",
@@ -145,7 +188,7 @@ _REGIME_PARAMS: dict[str, dict] = {
         "cash_min_pct":       30.0,
         "max_trade_pct":       2.0,
         "buy_aggressiveness":  0.25,
-        "min_buy_usd":       150.0,
+        "signal_floor_usd":       150.0,
         "allow_pyramiding":   False,
         "min_conviction":     "VERY_HIGH",  # Only best signals
         "description":        "Kritisch — nur VERY_HIGH Signale, Quarter-Kelly",
@@ -157,7 +200,12 @@ def get_regime_params(regime: str) -> dict:
     """Get Trading Bible V5 parameters for a given regime."""
     if regime not in REGIMES:
         raise ValueError(f"Unknown regime {regime!r}. Must be one of {sorted(REGIMES)}")
-    return dict(_REGIME_PARAMS[regime])
+    params = dict(_REGIME_PARAMS[regime])
+    # Alias fuer Altleser (trade_veto_worker, externe Skripte). Neuer Code
+    # nimmt signal_floor_usd bzw. dust_floor_usd() — der alte Name sagte
+    # nicht, WELCHE der beiden Bedeutungen gemeint war.
+    params["min_buy_usd"] = params["signal_floor_usd"]
+    return params
 
 
 def get_risk_scalar(regime: str) -> float:
