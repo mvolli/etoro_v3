@@ -235,3 +235,74 @@ def test_write_happens_after_ratchet(env):
     # BEFORE the write (old code would have persisted 1.0).
     assert stored["score_multiplier"] == 0.5
     assert stored.get("_ratchet_frozen") is True
+
+
+# ---------------------------------------------------------------------------
+# fix/llm-weights-merge-keep (2026-08-28): LLM-unerwaehnte Eintraege ERHALTEN
+# ---------------------------------------------------------------------------
+
+def test_merge_keep_unmentioned_entries(env):
+    """P1-Regression (2026-08-27 20:31 UTC): die LLM nennt nur CORE_SWEEP +
+    TP+GC; die Falling-Knife-Backstops (0.1/0.2) und MACD+BB (1.0) sind in
+    der CURRENT-Datei aber NICHT im Vorschlag. Der alte loeschende Write hat
+    sie verschwinden lassen (fehlender Eintrag = implizites 1.0 = silent
+    Lockerung, die die Ratsche NICHT sieht). Der Merge behaelt sie."""
+    backstop_3 = "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD"
+    backstop_2 = "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD"
+    _write_current(env["weights"], {
+        "CORE_SWEEP": {"score_multiplier": 0.5},
+        "TREND_PULLBACK,GOLDEN_CROSS": {"score_multiplier": 0.25},
+        "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": {"score_multiplier": 1.0},
+        backstop_3: {"score_multiplier": 0.1},
+        backstop_2: {"score_multiplier": 0.2},
+    })
+    adj = {
+        "CORE_SWEEP": {"score_multiplier": 0.5, "reason": "daempfen"},
+        "TREND_PULLBACK,GOLDEN_CROSS": {"score_multiplier": 0.25, "reason": "daempfen"},
+    }
+    lrw._update_signal_weights({"signal_weight_adjustments": adj}, db_path=env["db"])
+    import json
+    stored = json.loads(env["weights"].read_text())["adjustments"]
+    # LLM-unerwaehnte Eintraege bleiben mit ihren Werten in der DATEI:
+    assert stored[backstop_3]["score_multiplier"] == 0.1
+    assert stored[backstop_2]["score_multiplier"] == 0.2
+    assert stored["MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING"]["score_multiplier"] == 1.0
+    # Und die genannten wurden normal geschrieben:
+    assert stored["CORE_SWEEP"]["score_multiplier"] == 0.5
+    assert stored["TREND_PULLBACK,GOLDEN_CROSS"]["score_multiplier"] == 0.25
+    # 5 Eintraege = alle erhalten, nichts verloren:
+    assert len(stored) == 5
+
+
+def test_merge_keep_empty_proposal_does_not_clear_file(env):
+    """LLM liefert KEIN signal_weight_adjustments: die Datei wird neu
+    geschrieben (frisches TTL), aber die CURRENT-Eintraege bleiben —
+    ein leerer Write duerft das File NICHT aehlen (implizite 1.0)."""
+    backstop_3 = "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD"
+    _write_current(env["weights"], {
+        "CORE_SWEEP": {"score_multiplier": 0.5},
+        backstop_3: {"score_multiplier": 0.1},
+    })
+    lrw._update_signal_weights({"signal_weight_adjustments": {}}, db_path=env["db"])
+    import json
+    stored = json.loads(env["weights"].read_text())["adjustments"]
+    assert stored["CORE_SWEEP"]["score_multiplier"] == 0.5
+    assert stored[backstop_3]["score_multiplier"] == 0.1
+    # TTL-Feld wurde frisch gesetzt (kein altes TTL):
+    data = json.loads(env["weights"].read_text())
+    assert data.get("updated_at")
+    assert data.get("auto_expires_at")
+
+
+def test_merge_keep_proposed_wins_over_current(env):
+    """Nannte die LLM einen Typ, gewinnt der Vorschlag (Ratchet-eingefrorenen
+    Wert inklusive) — der Merge loescht keinen bestehenden Eintrag."""
+    _write_current(env["weights"],
+                   {"CORE_SWEEP,LOSER": {"score_multiplier": 0.5}})
+    adj = {"CORE_SWEEP,LOSER": {"score_multiplier": 1.0, "reason": "locker"}}
+    lrw._update_signal_weights({"signal_weight_adjustments": adj}, db_path=env["db"])
+    import json
+    stored = json.loads(env["weights"].read_text())["adjustments"]
+    # FROZEN am CURRENT-Wert (Ratche), NICHT 1.0 — Merge + Ratsche koennen:
+    assert stored["CORE_SWEEP,LOSER"]["score_multiplier"] == 0.5
+    assert stored["CORE_SWEEP,LOSER"].get("_ratchet_frozen") is True

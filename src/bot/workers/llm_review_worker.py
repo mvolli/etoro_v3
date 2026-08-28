@@ -1270,8 +1270,11 @@ def _update_signal_weights(llm_analysis: dict, db_path: Path | None = None) -> N
     """
     adjustments = (llm_analysis or {}).get("signal_weight_adjustments", {})
     if not adjustments:
-        print("[llm_review] Keine Signal-Gewichtungsaenderungen")
-        return
+        # fix/llm-weights-merge-keep (2026-08-28): auch ohne LLM-Vorschlag
+        # wird die DATEI neu geschrieben (frisches updated_at/auto_expires_at
+        # gegen das 14d-TTL), aber NICHT geleert. Das leere Dict unten wird
+        # vom Merge gegen die CURRENT-Datei aufgefuellt.
+        adjustments = {}
 
     # fix/signal-weight-ratchet (2026-08-27): Lockerungen (score_multiplier
     # > 1.0) nur rattern wenn der Typ es nach realized post-Zaesur Daten
@@ -1283,10 +1286,24 @@ def _update_signal_weights(llm_analysis: dict, db_path: Path | None = None) -> N
 
     current_adj = _load_signal_weights().get("adjustments", {}) or {}
 
+    # fix/llm-weights-merge-keep (2026-08-28): LLM-unerwaehnte Einträge der
+    # CURRENT-Datei ERHALTEN — nicht loeschen. Die LLM nennt pro Run nur eine
+    # Teilmenge der Signaltypen; ein loeschender Write hat die Falling-Knife-
+    # Backstops (0.1/0.2) am 2026-08-27 20:31 UTC verschwinden lassen —
+    # fehlender Eintrag = impliziter Multiplier 1.0 = silent Lockerung, die
+    # die Ratsche NICHT sieht (sie gate nur typen, die die LLM Vorschlaegt).
+    # Der Merge ist ein No-Op, wenn die LLM alle Typen nennt.
+    merged_adj: dict = dict(current_adj)
+    merged_adj.update(adjustments)
+    kept = [sig for sig in current_adj if sig not in adjustments]
+    if kept:
+        print(f"[llm_review] Signal-Weights Merge: {len(kept)} LLM-unerwaehnte "
+              f"Eintraege behalten (implizite 1.0-Lockerung verhindert): {kept}")
+
     weights = {
         "updated_at": datetime.now(timezone.utc).isoformat(),
         "auto_expires_at": (datetime.now(timezone.utc) + timedelta(days=SIGNAL_WEIGHTS_EXPIRY_DAYS)).isoformat(),
-        "adjustments": adjustments,
+        "adjustments": merged_adj,
         "strategy_notes": (llm_analysis or {}).get("new_strategy_notes", []),
         "conviction_issues": (llm_analysis or {}).get("conviction_issues", []),
     }
@@ -1306,8 +1323,8 @@ def _update_signal_weights(llm_analysis: dict, db_path: Path | None = None) -> N
         _record_decision("signal_weight", sig, old_mult, adj,
                          adj.get("_ratchet_reason", adj.get("reason", ""))[:160])
 
-    skipped = [k for k, v in adjustments.items() if v.get("skip")]
-    demoted = [k for k, v in adjustments.items()
+    skipped = [k for k, v in merged_adj.items() if v.get("skip")]
+    demoted = [k for k, v in merged_adj.items()
                if v.get("score_multiplier", 1.0) < 1.0 and not v.get("skip")]
     print(f"[llm_review] Signal-Weights: {len(skipped)} gesperrt, {len(demoted)} abgewertet")
 
