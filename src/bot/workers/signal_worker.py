@@ -1093,10 +1093,19 @@ def main() -> None:
             )
 
         # Sort by boosted score descending — only among OPEN, non-blacklisted
-        # signals. The boost (get_score_boost) prioritizes stocks/ETFs over
-        # crypto/commodities/indices when raw scores are close, without
-        # changing the underlying exposure caps (ASSET_CLASS_LIMITS in
-        # risk.py still applies at the gate stage further down).
+        # signals. get_score_boost gewichtet nach Anlageklasse; die Deckel
+        # selbst bleiben davon unberuehrt (ASSET_CLASS_LIMITS in risk.py
+        # greift weiter unten am Gate).
+        #
+        # ACHTUNG (2026-08-29): Hier stand bis heute, der Boost bevorzuge
+        # Aktien/ETFs GEGENUEBER Krypto. Das stimmt seit dem 2026-08-24 nicht
+        # mehr — CRYPTO wurde von 0.85 auf 1.15 gehoben und liegt damit
+        # gleichauf mit Aktien (DEFAULT_STOCK_SCORE_BOOST 1.15). Der veraltete
+        # Kommentar hat die Ursachensuche zum Wochenend-Stillstand zunaechst in
+        # die falsche Richtung geschickt: die Vermutung "Krypto wird
+        # wegsortiert" war seit fuenf Tagen nicht mehr zutreffend. Gemessen
+        # entstehen am Wochenende 5.5 Krypto-Kaufsignale pro Tag gegen 4.9
+        # werktags — die Klasse laeuft, sie ist nur klein.
         #
         # feat/liquidity-tiering (2026-07-26): fuenfter Term im Sort-Key —
         # Market-Cap/ADV-Tier-Faktor [0.6..1.1] aus instruments. High-Runner
