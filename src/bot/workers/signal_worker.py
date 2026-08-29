@@ -432,6 +432,100 @@ from bot.core.regime import (
 )
 
 
+def _build_signal_report(db, all_signals, *, approved_syms=None,
+                         blocked_reasons=None, skip_map=None,
+                         candidate_ids=None) -> list:
+    """Eine Zeile je Signal fuer den Discord-Bericht.
+
+    Der Embed soll auf einen Blick zeigen, WELCHE Signale ein Lauf gesehen hat
+    und was daraus wurde. Die Richtung kommt aus dem signal_type — die
+    signals-Tabelle mischt Kauf und Verkauf, und genau diese Vermischung hat
+    am 2026-08-29 eine Diagnose fehlgeleitet (463 von 465 vermeintlich
+    "verfallenen" Kryptosignalen waren OVERBOUGHT, also SELL).
+
+    Das Ergebnis wird NACHTRAEGLICH aus den vorhandenen Sammlungen
+    zusammengesetzt statt an jedem der ~12 continue-Punkte mitgefuehrt: das
+    haelt die Schleife unveraendert und kann nichts kaputtmachen.
+    """
+    approved_syms = approved_syms or set()
+    skip_map = skip_map or {}
+    candidate_ids = candidate_ids if candidate_ids is not None else None
+
+    ids = [s.get("instrument_id") for s in all_signals if s.get("instrument_id")]
+    sym_by_id = {}
+    if ids:
+        try:
+            _ph = ",".join("?" * len(ids))
+            for r in (db.fetchall(
+                    f"SELECT instrument_id, symbol FROM instruments "
+                    f"WHERE instrument_id IN ({_ph})", list(ids)) or []):
+                sym_by_id[int(r["instrument_id"])] = str(r["symbol"])
+        except Exception:
+            pass
+
+    # "SYMBOL: Grund" -> Grund
+    by_sym = {}
+    for _br in (blocked_reasons or []):
+        if ":" in str(_br):
+            _s, _r = str(_br).split(":", 1)
+            by_sym.setdefault(_s.strip(), _r.strip())
+    # Filtername je Symbol (Eintraege koennen "SYM[kategorie]" sein)
+    skip_by_sym = {}
+    for _k, _v in skip_map.items():
+        for _e in _v:
+            skip_by_sym.setdefault(str(_e).split("[")[0].strip(), str(_k))
+
+    rows = []
+    for s in all_signals:
+        st = str(s.get("signal_type") or "?")
+        up = st.upper()
+        direction = "SELL" if ("SELL" in up or "OVERBOUGHT" in up) else "BUY"
+        sym = sym_by_id.get(s.get("instrument_id"), f"id{s.get('instrument_id')}")
+        if direction == "SELL":
+            outcome = "Verkaufssignal — kein Kaufkandidat"
+        elif sym in approved_syms:
+            outcome = "genehmigt"
+        elif sym in by_sym:
+            outcome = by_sym[sym]
+        elif sym in skip_by_sym:
+            outcome = skip_by_sym[sym]
+        elif candidate_ids is not None and s.get("id") not in candidate_ids:
+            outcome = "nicht bewertet (Slots belegt)"
+        else:
+            outcome = "bewertet, kein Trade"
+        rows.append({
+            "symbol":      sym,
+            "signal_type": st,
+            "conviction":  s.get("conviction") or "?",
+            "score":       s.get("score") or 0,
+            "direction":   direction,
+            "outcome":     outcome,
+        })
+    # Je (Symbol, Richtung) nur das staerkste Signal — ein Instrument kann
+    # mehrere frische Signale tragen (verschiedene Zyklen, gleiche Bedingung).
+    # Die Anzahl wird angehaengt, damit die Verdichtung sichtbar bleibt.
+    best = {}
+    for r in rows:
+        k = (r["symbol"], r["direction"])
+        prev = best.get(k)
+        if prev is None or float(r["score"] or 0) > float(prev["score"] or 0):
+            r = dict(r)
+            r["_n"] = (prev or {}).get("_n", 0) + 1
+            best[k] = r
+        else:
+            prev["_n"] = prev.get("_n", 1) + 1
+    rows = []
+    for r in best.values():
+        if r.get("_n", 1) > 1:
+            r["symbol"] = f"{r['symbol']} x{r['_n']}"
+        r.pop("_n", None)
+        rows.append(r)
+
+    # Kaufsignale zuerst, darin nach Score absteigend.
+    rows.sort(key=lambda r: (r["direction"] == "SELL", -float(r["score"] or 0)))
+    return rows
+
+
 def _reject_below_floor(log_repo, signal_repo, blocked_reasons, *, symbol,
                         signal_id, amount, floor, kind, stage, detail=""):
     """Signal wegen Groessen-Untergrenze verwerfen — und es PERSISTIEREN.
@@ -699,6 +793,25 @@ def main() -> None:
             logger.debug("SignalWorker: 0 signals evaluated, 0 trades approved")
             log_repo.write("INFO", "signal_worker",
                            f"No fresh BUY signals with {min_conviction_for_regime}+ conviction")
+            # Auch OHNE Kaufsignal posten (feat/signal-report 2026-08-29).
+            # Genau das ist der haeufigste Fall am Wochenende und nachts, und
+            # genau da will man sehen, dass der Lauf stattgefunden hat und was
+            # im Pool lag — bisher endete der Worker hier stumm.
+            try:
+                _post(
+                    'post_signal_worker_embed',
+                    approved_trades=[],
+                    regime=regime,
+                    risk_scalar=risk_scalar,
+                    evaluated_count=0,
+                    equity=state_repo.get_equity(),
+                    cash=state_repo.get_float("AVAILABLE_CASH", 0.0),
+                    total_exposure=portfolio_repo.get_total_exposure(),
+                    position_count=portfolio_repo.get_position_count(),
+                    signal_report=_build_signal_report(db, all_signals),
+                )
+            except Exception:
+                logger.debug("Signalbericht-Post fehlgeschlagen", exc_info=True)
             return
     
         # ── 4. Current portfolio state ────────────────────────────────────────────
@@ -2149,74 +2262,40 @@ def main() -> None:
             f"Run complete: evaluated={evaluated_count} approved={approved_count} regime={regime}",
         )
     
-        # ── 7. Discord summary ────────────────────────────────────────────────────
-        if approved_count > 0:
-            _post(
-                'post_signal_worker_embed',
-                approved_trades=approved_trades_info,
-                regime=regime,
-                risk_scalar=risk_scalar,
-                evaluated_count=evaluated_count,
-                equity=equity,
-                cash=cash_estimate,
-                total_exposure=total_exposure,
-                position_count=position_count,
+        # ── 7. Discord summary (immer, feat/signal-report 2026-08-29) ─────────
+        # Vorher gab es drei Zweige: Embed nur bei approved > 0, sonst
+        # gedrosselte Alert-Embeds ("All markets closed" 1x/6h, "All signals
+        # blocked" 1x/Std) — und bei 0 ausgewerteten Signalen gar nichts.
+        # Damit war die haeufigste Frage nicht zu beantworten: WELCHE Signale
+        # hat der Lauf gesehen und was ist daraus geworden? Jetzt geht immer
+        # ein Post raus, mit Kaufsignalen gruen und Verkaufssignalen rot.
+        # Die Drossel-Zustaende SIGNAL_CLOSED_POSTED_AT / SIGNAL_BLOCKED_POSTED_AT
+        # werden nicht mehr geschrieben; sie bleiben harmlos in system_state
+        # stehen (kein Leser mehr).
+        try:
+            _report = _build_signal_report(
+                db, all_signals,
+                approved_syms={t_["symbol"] for t_ in approved_trades_info},
+                blocked_reasons=blocked_reasons,
+                skip_map=_skip,
+                candidate_ids={s_.get("id") for s_, _ in candidates},
             )
-        elif evaluated_count == 0 and skipped_closed:
-            # All candidates had closed markets — Normalzustand nachts/Wochenende.
-            # Drossel 1x/6h (fix/market-hours-slot-guard: Pfad war vorher toter
-            # Code; ungebremst wuerde er alle 15 min posten).
-            try:
-                from datetime import datetime as _dt2, timezone as _tz2
-                _last = state_repo.get("SIGNAL_CLOSED_POSTED_AT") or ""
-                _post_now = True
-                if _last:
-                    _last_dt = _dt2.fromisoformat(_last)
-                    if _last_dt.tzinfo is None:
-                        _last_dt = _last_dt.replace(tzinfo=_tz2.utc)
-                    _post_now = (_dt2.now(_tz2.utc) - _last_dt).total_seconds() >= 6 * 3600
-                if _post_now:
-                    state_repo.set("SIGNAL_CLOSED_POSTED_AT", _dt2.now(_tz2.utc).isoformat())
-                    _post('post_alert_embed',
-                        title=f'🔴 Signal Worker: All markets closed ({regime})',
-                        description=(
-                            f'Regime: **{regime}** | scalar={risk_scalar:.2f}\n'
-                            f'Signals available: {len(buy_signals)} BUY signals\n'
-                            f'Markets closed: {", ".join(skipped_closed[:5])}\n'
-                            f'No trades — waiting for market open.'
-                        ),
-                        severity='INFO',
-                        dry_run=False
-                    )
-            except Exception:
-                pass
-        elif evaluated_count > 0 and approved_count == 0:
-            # Throttle auf 1x/Stunde -- bei dauerhaftem Exposure-Gate kein Spam
-            try:
-                from datetime import datetime as _dt, timezone as _tz
-                _last = state_repo.get("SIGNAL_BLOCKED_POSTED_AT") or ""
-                _post_now = True
-                if _last:
-                    _last_dt = _dt.fromisoformat(_last)
-                    if _last_dt.tzinfo is None:
-                        _last_dt = _last_dt.replace(tzinfo=_tz.utc)
-                    _post_now = (_dt.now(_tz.utc) - _last_dt).total_seconds() >= 3600
-                if _post_now:
-                    state_repo.set("SIGNAL_BLOCKED_POSTED_AT", _dt.now(_tz.utc).isoformat())
-                    _post('post_alert_embed',
-                        title=f'🟡 Signal Worker: All signals blocked ({regime})',
-                        description=(
-                            f'Regime: **{regime}** | scalar={risk_scalar:.2f}\n'
-                            f'Evaluated: {evaluated_count} | Approved: 0\n'
-                            f'Equity: ${equity:,.0f} | Cash: ${cash_estimate:,.0f} ({cash_estimate/equity*100:.1f}%)\n'
-                            f'Blocked reasons:\n' + "\n".join(f'• {r}' for r in blocked_reasons[:5])
-                        ),
-                        severity='INFO',
-                        dry_run=False
-                    )
-            except Exception:
-                pass
-        # (kein Post bei 0 ausgewerteten Signalen -- monitor_worker uebernimmt Routine)
+        except Exception:
+            logger.debug("Signalbericht fehlgeschlagen (fail-open)", exc_info=True)
+            _report = []
+
+        _post(
+            'post_signal_worker_embed',
+            approved_trades=approved_trades_info,
+            regime=regime,
+            risk_scalar=risk_scalar,
+            evaluated_count=evaluated_count,
+            equity=equity,
+            cash=cash_estimate,
+            total_exposure=total_exposure,
+            position_count=position_count,
+            signal_report=_report,
+        )
     
     
 if __name__ == "__main__":

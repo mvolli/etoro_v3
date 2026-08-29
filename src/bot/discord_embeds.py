@@ -2706,16 +2706,31 @@ def post_signal_worker_embed(
     cash: float,
     total_exposure: float,
     position_count: int,
+    signal_report: list | None = None,
     dry_run: bool = False,
 ) -> bool:
-    """Signal Worker Trade-Approval Summary -> #etoro-trades.
+    """Signal Worker Summary -> #etoro-trades. Wird IMMER gepostet.
 
-    approved_trades: list of dicts with keys:
-        symbol, amount_usd, signal_type, conviction, score, signal_price
+    approved_trades: dicts mit symbol, amount_usd, signal_type, conviction,
+                     score, signal_price, sizing_trace
+    signal_report:   dicts mit symbol, signal_type, conviction, score,
+                     direction ("BUY"/"SELL"), outcome (Klartext)
+
+    Bis 2026-08-29 wurde nur bei mindestens einem genehmigten Trade gepostet;
+    sonst gab es gedrosselte Alert-Embeds ("All markets closed", "All signals
+    blocked") oder gar nichts. Damit war die haeufigste Frage nicht zu
+    beantworten: WELCHE Signale hat der Lauf gesehen und was ist daraus
+    geworden? Jetzt steht das in jedem Post — Kaufsignale gruen,
+    Verkaufssignale rot.
     """
     n = len(approved_trades)
+    report = list(signal_report or [])
+    buys = [r for r in report if r.get("direction") != "SELL"]
+    sells = [r for r in report if r.get("direction") == "SELL"]
 
     fields = []
+
+    # ── Genehmigte Trades zuerst, mit voller Sizing-Herleitung ───────────────
     for t in approved_trades:
         sig   = t.get("signal_type") or "?"
         conv  = t.get("conviction") or "?"
@@ -2727,25 +2742,107 @@ def post_signal_worker_embed(
         # Kombo-Zusammensetzung ist die aussagekraeftigste Groesse ueberhaupt
         # — "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20" war profitabel,
         # dieselben Regeln OHNE MACD-Bestaetigung verloren 36 von 37 Trades.
-        # Die dritte Komponente wegzulassen verbarg genau diesen Unterschied.
         sig_parts = [p.strip().replace("_", " ").title() for p in sig.split(",")]
         sig_short = " + ".join(sig_parts)
         _value = f"`BUY ${amt:,.0f}`{price_str} | {sig_short} | {conv} | Score `{score:.2f}`"
         # feat/sizing-trace (2026-08-28): Herleitung der Groesse mit anzeigen.
-        # Vorher stand im Embed nur "BUY $60" — ohne erkennbare Herkunft. Die
-        # Faktoren lagen verstreut im Log, was das Nachvollziehen praktisch
-        # unmoeglich machte (min_buy $100 im Log, $60 im Embed).
-        # Discord deckelt einen Field-Value bei 1024 Zeichen; die Kette hat
-        # hoechstens 8 Glieder, wird aber sicherheitshalber gekuerzt.
         _trace = t.get("sizing_trace") or []
         if _trace:
-            _chain = " → ".join(str(s) for s in _trace)
+            _chain = " \u2192 ".join(str(s) for s in _trace)
             if len(_chain) > 860:
                 _chain = _chain[:857] + "..."
-            _value += f"\n└ {_chain}"
+            _value += f"\n\u2514 {_chain}"
         fields.append({
-            "name":   f"\U0001f4c8 {t['symbol']}",
+            "name":   f"\u2705 {t['symbol']} \u2014 genehmigt",
             "value":  _value,
+            "inline": False,
+        })
+
+    # ── Signalliste, farbig ──────────────────────────────────────────────────
+    # Discord faerbt nur den Embed-Rand, nicht einzelne Felder. Fuer "auf einen
+    # Blick" braucht es daher ANSI in einem Codeblock (Desktop faerbt, Mobil
+    # zeigt denselben Text ungefaerbt — degradiert also sauber) PLUS ein Emoji
+    # in der Feldueberschrift, das ueberall traegt.
+    # Discord bricht im Codeblock bei rund 50 Zeichen um — jede Spalte
+    # kostet also unmittelbar Lesbarkeit. Darum: Typ auf den fuehrenden
+    # Bestandteil gekuerzt (+n fuer weitere Komponenten), Conviction auf drei
+    # Buchstaben, Ergebnis auf ein Stichwort. Bei SELL entfaellt die
+    # Ergebnisspalte ganz — die rote Sektion sagt bereits alles.
+    _OUTCOME_KURZ = {
+        "genehmigt":                    "OK",
+        "markt_geschlossen":            "Markt zu",
+        "diversity_kappe":              "Diversity",
+        "news_avoid":                   "News",
+        "slippage_blacklist":           "Slippage",
+        "llm_exchange_blacklist":       "Exchange",
+        "nicht bewertet (Slots belegt)": "kein Slot",
+        "bewertet, kein Trade":         "kein Trade",
+    }
+
+    def _kurz_typ(st: str) -> str:
+        parts = [p.strip() for p in str(st or "?").split(",") if p.strip()]
+        if not parts:
+            return "?"
+        toks = parts[0].split("_")
+        lead = "_".join(toks[:2]) if len(toks) > 1 else parts[0]
+        lead = lead[:15]
+        return lead + (f"+{len(parts) - 1}" if len(parts) > 1 else "")
+
+    def _kurz_erg(o: str) -> str:
+        o = str(o or "")
+        if o in _OUTCOME_KURZ:
+            return _OUTCOME_KURZ[o]
+        if "FLOOR" in o.upper():
+            return "< Floor"
+        if "Min-Buy" in o or "DUST" in o.upper():
+            return "< Dust"
+        if "Korrelation" in o:
+            return "Korrel."
+        if "Region" in o:
+            return "Region"
+        if "Cooldown" in o:
+            return "Cooldown"
+        return o[:11]
+
+    def _lines(rows, ansi_code, mit_ergebnis=True, limit=8):
+        out = []
+        for r in rows[:limit]:
+            sym = str(r.get("symbol") or "?")[:11]
+            typ = _kurz_typ(r.get("signal_type"))
+            conv = str(r.get("conviction") or "?")[:3]
+            try:
+                score = f"{float(r.get('score') or 0):.0f}"
+            except (TypeError, ValueError):
+                score = "?"
+            zeile = f"{sym:<11} {typ:<16} {conv:<3} {score:>3}"
+            if mit_ergebnis:
+                zeile += f"  {_kurz_erg(r.get('outcome'))}"
+            out.append(f"\u001b[{ansi_code}m{zeile}\u001b[0m")
+        if len(rows) > limit:
+            out.append(f"\u001b[0;30m+{len(rows) - limit} weitere\u001b[0m")
+        body = "\n".join(out)
+        while len(body) > 960 and out:
+            out.pop()
+            body = "\n".join(out) + "\n\u001b[0;30m... gekuerzt\u001b[0m"
+        return "```ansi\n" + body + "\n```"
+
+    if buys:
+        fields.append({
+            "name":   f"\U0001f7e2 Kaufsignale ({len(buys)})",
+            "value":  _lines(buys, "0;32"),
+            "inline": False,
+        })
+    if sells:
+        fields.append({
+            "name":   f"\U0001f534 Verkaufssignale ({len(sells)})",
+            "value":  _lines(sells, "0;31", mit_ergebnis=False),
+            "inline": False,
+        })
+    if not report:
+        fields.append({
+            "name":   "\U0001f4ed Keine Signale",
+            "value":  "Der Pool war leer \u2014 kein frisches Signal mit "
+                      f"`{regime}`-Mindest-Conviction.",
             "inline": False,
         })
 
@@ -2761,19 +2858,40 @@ def post_signal_worker_embed(
         "inline": False,
     })
 
+    # Farbe des Rands: gruen bei Trades, gelb wenn Kaufsignale da waren aber
+    # keines durchkam, sonst grau — der Rand allein sagt schon, ob es was zu
+    # sehen gibt.
+    if n > 0:
+        color = COLOR_GREEN
+    elif buys:
+        color = globals().get("COLOR_YELLOW", 0xF1C40F)
+    else:
+        color = globals().get("COLOR_GREY", 0x95A5A6)
+
     embed = {
-        "title":       f"\U0001f4c8 Signal Worker \u2014 {n} Trade{'s' if n != 1 else ''} genehmigt",
+        "title": (
+            f"\U0001f4c8 Signal Worker \u2014 {len(buys)} Kauf / {len(sells)} Verkauf"
+            f" \u00b7 {n} genehmigt"
+        ),
         "description": (
             f"Regime: **{regime}** \u00b7 Scalar: `{risk_scalar:.2f}` \u00b7 "
             f"{evaluated_count} evaluiert \u2192 **{n} approved**"
         ),
-        "color":       COLOR_GREEN,
+        "color":       color,
         "fields":      fields,
         "footer":      {"text": "eToro RoBoCop \u00b7 Signal Worker"},
         "timestamp":   _ts(),
     }
-    ok = _post_embed(embed, DISCORD_TRADE_CHANNEL, dry_run)
+    # Zielkanal MAIN, nicht TRADES (VoLLi 2026-08-29): der Embed ist seit
+    # feat/signal-report ein Lagebericht ueber ALLE gesehenen Signale, kein
+    # Trade-Ereignis. In #trades stand er zwischen den Ausfuehrungsmeldungen
+    # und verdraengte sie.
+    ok = _post_embed(embed, DISCORD_MAIN_CHANNEL, dry_run)
     if ok:
-        syms = ", ".join(t["symbol"] for t in approved_trades)
-        insert_system_log("INFO", "discord_embeds", f"P17 Signal Worker: {n} approved ({syms})")
+        syms = ", ".join(t["symbol"] for t in approved_trades) or "-"
+        insert_system_log(
+            "INFO", "discord_embeds",
+            f"P17 Signal Worker: {n} approved ({syms}), "
+            f"{len(buys)} BUY / {len(sells)} SELL im Bericht",
+        )
     return ok
