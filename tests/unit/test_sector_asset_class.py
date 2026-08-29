@@ -127,7 +127,7 @@ def test_sektor_aequivalente_klasse_weicht_dem_db_sektor():
 
 
 def test_abweichende_limits_behalten_vorrang():
-    """US_TECH (40%) / BROAD_ETF (25%) / CRYPTO (10%) sind bewusste
+    """US_TECH (40%) / BROAD_ETF (25%) / CRYPTO (25%) sind bewusste
     Abweichungen vom Default — ein yfinance-Sektor bildet sie nicht ab."""
     assert resolve_asset_class("NVDA", {"NVDA": "Technology"}) == "US_TECH"
     assert resolve_asset_class("SPY", {"SPY": "Financial Services"}) == "BROAD_ETF"

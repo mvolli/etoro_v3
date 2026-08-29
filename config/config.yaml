@@ -390,7 +390,7 @@ instrument_limits:            # Maximum allocation per instrument as % of portfo
 
 sector_limits:
   # Fallback per-asset-class exposure cap for classes not explicitly listed
-  # in risk.ASSET_CLASS_LIMITS (US_TECH 40 / BROAD_ETF 25 / CRYPTO 10 / …).
+  # in risk.ASSET_CLASS_LIMITS (US_TECH 40 / BROAD_ETF 25 / CRYPTO 25 / …).
   # Wired via risk.apply_config → check_asset_class_gate.
   max_per_sector_pct: 20.0
   # feat/sector-backfill (2026-08-12): instruments.sector (yfinance) als

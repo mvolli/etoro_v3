@@ -32,7 +32,20 @@ ASSET_CLASS_LIMITS: dict[str, float] = {
     "US_TECH":      40.0,
     "BROAD_ETF":    25.0,
     "COMMODITY":    20.0,
-    "CRYPTO":       10.0,
+    # 2026-08-29 (Entscheid VoLLi): 10.0 -> 25.0. Krypto ist die einzige
+    # Klasse, die am Wochenende ueberhaupt handeln kann — Forex und Rohstoffe
+    # schliessen ebenfalls. Gemessen ueber 60 Tage entfielen auf Sa+So nur
+    # 20 von 528 Trades (3.8 %) bei 28.6 % der Tage; die Kaufsignale je Tag
+    # fallen von 73 (werktags) auf 21 (Wochenende), weil die Aktien wegfallen
+    # (52.3 -> 10.0), waehrend Krypto mit 5.5 stabil bleibt (werktags 4.9).
+    # Der alte Deckel war dabei nie die Bremse: die Krypto-Exposure lag bei
+    # 0.0 % von erlaubten 10 %. Er wird angehoben, damit die gleichzeitig
+    # erweiterte Watchlist nicht spaeter dagegen laeuft.
+    # Ergebnis je Klasse seit 2026-07-26: crypto n=9, +45.25 USD, WR 66.7 %
+    # gegen stock n=159, -185.71 USD, WR 42.1 %. ACHTUNG n=9 — das traegt
+    # keinen Edge-Nachweis; die Begruendung ist die 24/7-Handelbarkeit,
+    # nicht das Ergebnis.
+    "CRYPTO":       25.0,
     "BOND":         20.0,
     "INTL":         20.0,
     # fix/asset-class-limits-gap: FINANCIAL/CONSUMER/HEALTHCARE/ENERGY are
