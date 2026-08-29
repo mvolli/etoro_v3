@@ -1412,6 +1412,48 @@ def main() -> None:
                     )
                     buy_amount = _comm_amt
 
+            # max_trade_pct-Klammer (2026-08-29): der execution_worker
+            # verwirft in DEFENSIVE jeden Trade ueber max_trade_pct des Equity
+            # (regime.py; DEFENSIVE 3.0 %). Der signal_worker kannte diese
+            # Grenze bisher nicht und konnte Betraege genehmigen, die dort
+            # sicher sterben — verbrannter Kandidaten-Slot und ein Trade, der
+            # zweimal im Log auftaucht.
+            #
+            # Latent seit 076e661 (2026-08-28), das den Deployment-Boost auf
+            # CAUTION/DEFENSIVE ausweitete: 5.0 % x 0.5 x 1.25 = 261.15 USD
+            # gegen einen Deckel von 250.71 USD. Bisher 0 Faelle in trades,
+            # weil der Boost enge Bedingungen hat und der Bot kaum handelte.
+            # Mit der Basis auf 6.0 % liegt sie exakt AUF dem Deckel, jeder
+            # Boost reisst ihn also.
+            #
+            # Klammern statt verwerfen: die Groesse wird auf das Erlaubte
+            # gestutzt, der Trade findet statt.
+            #
+            # BEWUSST nur in DEFENSIVE — die Klammer spiegelt exakt den Guard
+            # im execution_worker (dort `if regime == "DEFENSIVE"`). In
+            # NORMAL/CAUTION ist max_trade_pct nicht durchgesetzt; sie auch
+            # dort anzuwenden waere keine Spiegelung, sondern eine neue
+            # Beschraenkung — und sie wuerde die 6-%-Basis (501.41 USD) sofort
+            # wieder auf 417.84 stutzen (NORMAL max_trade_pct 5.0 %), also
+            # genau das aufheben, wofuer sie eingefuehrt wurde.
+            #
+            # Dass conviction_pct 6.0 und NORMAL max_trade_pct 5.0 einander
+            # widersprechen, bleibt damit offen und ist eine eigene
+            # Entscheidung: entweder max_trade_pct nachziehen oder die Basis
+            # senken. Nicht hier nebenbei mitentscheiden.
+            _mt_pct = float(regime_params.get("max_trade_pct", 100.0))
+            if regime == "DEFENSIVE" and _mt_pct > 0 and equity > 0:
+                _mt_cap = round(equity * _mt_pct / 100.0, 2)
+                if buy_amount > _mt_cap:
+                    logger.info(
+                        "SignalWorker: %s auf max_trade_pct geklammert "
+                        "$%.2f -> $%.2f (%.1f%% von $%.2f, Regime %s)",
+                        symbol, buy_amount, _mt_cap, _mt_pct, equity, regime,
+                    )
+                    _trace.append(
+                        f"max_trade_pct {_mt_pct:.1f}% = ${_mt_cap:,.2f}")
+                    buy_amount = _mt_cap
+
             # SIGNAL-FLOOR (P1): "lohnt sich dieses Signal ueberhaupt?"
             # Regimeabhaengig, geprueft VOR den situativen Haircuts
             # (ATR-Risk-Parity, Korrelation, Region). Eine Groesse, die schon

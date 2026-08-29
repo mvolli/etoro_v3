@@ -268,16 +268,37 @@ exits:                        # feat/exit-monitor-1h (2026-07-16, OSS-Report P17
     close_pct: 50.0           # Teilverkauf ueber die sell_exits-Maschinerie
 
 sizing:                       # Position size as % of portfolio equity
-  very_high_pct: 5.0          # Conviction tier: VERY HIGH (self-improvement 2026-08-24: 7.0->5.0.
+  # 2026-08-29 (Entscheid VoLLi): 5.0 -> 6.0 fuer VERY_HIGH/HIGH/MEDIUM.
+  # Ziel ist eine Basisgroesse von rund 500 USD; bei 8.356.85 Equity ergibt
+  # 6.0 % genau 501.41 USD in NORMAL (aggressiveness 1.0) und 250.71 USD in
+  # DEFENSIVE (0.5). LOW bleibt bei 2.0 — die Leiter bleibt monoton
+  # (6.0 >= 6.0 >= 6.0 >= 2.0, User-Entscheid 2026-07-14).
+  #
+  # Motiv: das Konto kopiert mit 1:20, eine 70-USD-Position sind real 3.50 USD.
+  # Zu klein, um ueberhaupt etwas zu bewirken.
+  #
+  # GEGENLAEUFIGE MESSUNG, bewusst in Kauf genommen: geschlossene Trades seit
+  # 2026-07-26 ohne CORE_SWEEP zeigen 50-75 USD n=44 WR 45.5 % +15.12 und
+  # 75-100 USD n=15 WR 46.7 % +22.06, dagegen 100-150 USD n=12 WR 33.3 %
+  # -15.81. Jedes bisher gemessene Band ueber 100 USD steht in Summe im Minus.
+  # 500 USD liegt ausserhalb des gemessenen Bereichs — es gibt keinen einzigen
+  # Signalpfad-Trade dieser Groesse. Die Mediane sind allerdings in ALLEN
+  # Baendern negativ und das Gegenband hat n=12; die Daten belegen also weder
+  # "klein ist besser" noch das Gegenteil belastbar. Ab 2026-09-15 gegen die
+  # dann vorliegenden Groessenbaender nachrechnen.
+  #
+  # Positionszahl: das Exposure-Gate (75 %) deckelt bei 8.357 Equity auf
+  # 6.267 USD, also rund 12 Positionen zu 500 USD — nicht 40.
+  very_high_pct: 6.0          # Conviction tier: VERY HIGH (self-improvement 2026-08-24: 7.0->5.0.
                               # VERY_HIGH = schlaechteste Stufe (n=55, WR 10.9%, -42 USD) und stand
                               # als GROSSTE Stufe oben in der Leiter — genau die Stufen, die Kelly
                               # noch nicht voll erreicht (min_trades=25), waren ueberdimensioniert.
                               # 5.0 = auf MEDIUM-Base abgeflacht; Kelly differenziert ueber Basis.)
-  high_pct: 5.0               # Conviction tier: HIGH (self-improvement 2026-08-24: 6.0->5.0.
+  high_pct: 6.0               # Conviction tier: HIGH (self-improvement 2026-08-24: 6.0->5.0.
                               # HIGH = groesster einziger Drag (n=84, WR 31.0%, -269 USD), lief aber
                               # als 2-groesste Stufe. Auf MEDIUM-Base abgeflacht; Leiter bleibt
                               # monoton (User-Entscheid 2026-07-14: 5.0 >= 5.0 >= 5.0 >= 2.0).)
-  medium_pct: 5.0             # Conviction tier: MEDIUM (2026-08-24: UNVERAENDERT — beste Stufe,
+  medium_pct: 6.0             # Conviction tier: MEDIUM (2026-08-24: UNVERAENDERT — beste Stufe,
                               # n=122, WR 42.6%; MACD_TURN-Combos laufen hier avg +10%)
   low_pct: 2.0                # Conviction tier: LOW / speculative
   # Risk-neutral Kelly scale (fix/kelly-risk-neutral 2026-08-22, post
