@@ -75,3 +75,31 @@ def test_conviction_leiter_bleibt_monoton():
     """User-Entscheid 2026-07-14: VERY_HIGH >= HIGH >= MEDIUM >= LOW."""
     s = CFG["sizing"]
     assert s["very_high_pct"] >= s["high_pct"] >= s["medium_pct"] >= s["low_pct"]
+
+def test_kein_regime_dimensioniert_ueber_die_eigene_obergrenze():
+    """Die Widerspruchsklasse, nicht nur der Einzelfall.
+
+    Die Basis eines Regimes ist conviction_pct x buy_aggressiveness. Liegt sie
+    ueber max_trade_pct desselben Regimes, widerspricht ein Parameter seiner
+    eigenen Obergrenze. Folgenlos ist das nur, solange max_trade_pct ausserhalb
+    von DEFENSIVE nirgends durchgesetzt wird — eine Falle fuer den naechsten
+    Leser und fuer den LLM-Review-Worker, der diese Werte pflegt.
+
+    Aufgetreten am 2026-08-29 gleich zweimal: erst NORMAL (6.0 % Basis gegen
+    5.0 % Deckel), nach dessen Korrektur CAUTION (4.5 % gegen 4.0 %).
+    """
+    pct = CFG["sizing"]["medium_pct"]
+    for regime in ("NORMAL", "CAUTION", "DEFENSIVE", "CRITICAL"):
+        p = get_regime_params(regime)
+        basis_pct = pct * p["buy_aggressiveness"]
+        assert basis_pct <= p["max_trade_pct"] + 1e-9, (
+            f"{regime}: Basis {basis_pct:.2f} % > max_trade_pct "
+            f"{p['max_trade_pct']:.2f} %"
+        )
+
+
+def test_max_trade_pct_leiter_bleibt_monoton():
+    """Ein strengeres Regime darf nie mehr erlauben als ein milderes."""
+    werte = [get_regime_params(r)["max_trade_pct"]
+             for r in ("NORMAL", "CAUTION", "DEFENSIVE", "CRITICAL")]
+    assert werte == sorted(werte, reverse=True), werte

@@ -159,7 +159,16 @@ def dust_floor_usd(regime: str, global_min_buy_usd: float = 50.0) -> float:
 _REGIME_PARAMS: dict[str, dict] = {
     "NORMAL": {
         "cash_min_pct":       15.0,
-        "max_trade_pct":       5.0,
+        # 2026-08-29 (Entscheid VoLLi): 5.0 -> 6.0. Der Basisgroessen-Commit
+        # 710cd30 hob conviction_pct auf 6.0, womit die Basis in NORMAL
+        # (aggressiveness 1.0) genau 6.0 % des Equity betraegt — groesser als
+        # die eigene Obergrenze von 5.0 %. Folgenlos war das nur, weil
+        # max_trade_pct ausschliesslich im execution_worker und dort nur in
+        # DEFENSIVE geprueft wird; ein Parameter, der seiner eigenen
+        # Zielgroesse widerspricht, ist trotzdem eine Falle fuer den naechsten
+        # Leser (und fuer den LLM-Review-Worker, der ihn pflegt).
+        # Die Regime-Leiter bleibt monoton fallend: 6.0 > 4.0 > 3.0 > 2.0.
+        "max_trade_pct":       6.0,
         "buy_aggressiveness":  1.0,
         "signal_floor_usd":        50.0,
         "allow_pyramiding":   True,
@@ -168,7 +177,12 @@ _REGIME_PARAMS: dict[str, dict] = {
     },
     "CAUTION": {
         "cash_min_pct":       20.0,   # Higher buffer
-        "max_trade_pct":       4.0,   # Slightly smaller trades
+        # 2026-08-29: 4.0 -> 4.5, gleiche Ursache wie bei NORMAL oben. Mit
+        # conviction_pct 6.0 und aggressiveness 0.75 betraegt die Basis hier
+        # 4.5 % des Equity — der 4.0-Deckel widersprach ihr. 4.5 ist der
+        # kleinste Wert, der den Widerspruch aufloest; die Leiter bleibt
+        # monoton fallend (6.0 > 4.5 > 3.0 > 2.0).
+        "max_trade_pct":       4.5,   # Slightly smaller trades
         "buy_aggressiveness":  0.75,  # risk_scalar applied
         "signal_floor_usd":        75.0,
         "allow_pyramiding":   True,   # Still allowed but at reduced size
