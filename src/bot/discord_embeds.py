@@ -2785,7 +2785,7 @@ def post_signal_worker_embed(
             return "?"
         toks = parts[0].split("_")
         lead = "_".join(toks[:2]) if len(toks) > 1 else parts[0]
-        lead = lead[:15]
+        lead = lead[:18]
         return lead + (f"+{len(parts) - 1}" if len(parts) > 1 else "")
 
     def _kurz_erg(o: str) -> str:
@@ -2804,27 +2804,35 @@ def post_signal_worker_embed(
             return "Cooldown"
         return o[:11]
 
-    def _lines(rows, ansi_code, mit_ergebnis=True, limit=8):
+    def _lines(rows, ansi_code=None, mit_ergebnis=True, limit=10):
+        """Eine Zeile je Signal in normaler Embed-Schrift.
+
+        Kein Codeblock: der rendert in grosser Monospace und war der Grund,
+        warum drei Signale einen halben Bildschirm belegten. Ausrichtung per
+        Trennzeichen statt Padding, weil Proportionalschrift nicht spaltet.
+        """
         out = []
         for r in rows[:limit]:
-            sym = str(r.get("symbol") or "?")[:11]
+            sym = str(r.get("symbol") or "?")
             typ = _kurz_typ(r.get("signal_type"))
             conv = str(r.get("conviction") or "?")[:3]
             try:
                 score = f"{float(r.get('score') or 0):.0f}"
             except (TypeError, ValueError):
                 score = "?"
-            zeile = f"{sym:<11} {typ:<16} {conv:<3} {score:>3}"
+            zeile = f"`{sym}` {typ} \u00b7 {conv} {score}"
             if mit_ergebnis:
-                zeile += f"  {_kurz_erg(r.get('outcome'))}"
-            out.append(f"\u001b[{ansi_code}m{zeile}\u001b[0m")
+                erg = _kurz_erg(r.get("outcome"))
+                if erg:
+                    zeile += f" \u00b7 {erg}"
+            out.append(zeile)
         if len(rows) > limit:
-            out.append(f"\u001b[0;30m+{len(rows) - limit} weitere\u001b[0m")
+            out.append(f"_+{len(rows) - limit} weitere_")
         body = "\n".join(out)
-        while len(body) > 960 and out:
+        while len(body) > 1000 and out:
             out.pop()
-            body = "\n".join(out) + "\n\u001b[0;30m... gekuerzt\u001b[0m"
-        return "```ansi\n" + body + "\n```"
+            body = "\n".join(out) + "\n_... gekuerzt_"
+        return body
 
     if buys:
         fields.append({
