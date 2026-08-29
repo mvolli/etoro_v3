@@ -432,6 +432,82 @@ from bot.core.regime import (
 )
 
 
+def _report_fingerprint(regime, approved_trades, signal_report) -> str:
+    """Fingerabdruck des SICHTBAREN Inhalts.
+
+    Bewusst OHNE equity/cash/exposure: die bewegen sich mit dem Markt in jedem
+    Zyklus, damit waere jeder Lauf "veraendert" und die Drossel wirkungslos.
+    Verglichen wird, was tatsaechlich im Embed steht.
+    """
+    import hashlib
+    import json
+    kern = {
+        "regime": str(regime),
+        "approved": sorted(
+            (str(t.get("symbol")), round(float(t.get("amount_usd") or 0), 2))
+            for t in (approved_trades or [])
+        ),
+        "signale": sorted(
+            (str(r.get("symbol")), str(r.get("signal_type")),
+             str(r.get("conviction")), str(r.get("score")),
+             str(r.get("direction")), str(r.get("outcome")))
+            for r in (signal_report or [])
+        ),
+    }
+    roh = json.dumps(kern, sort_keys=True, default=str).encode("utf-8")
+    return hashlib.sha256(roh).hexdigest()[:16]
+
+
+def _post_report_if_changed(state_repo, *, max_silence_h: float = 6.0, **kw) -> bool:
+    """Postet den Signalbericht nur, wenn sich sein Inhalt geaendert hat.
+
+    Bei 15-Minuten-Takt waeren "immer posten" 96 Meldungen taeglich, und
+    nachts wie am Wochenende aendert sich zwischen den Laeufen meist nichts.
+    Identische Wiederholungen sind reines Rauschen.
+
+    max_silence_h ist die Rueckfallebene: nach dieser Zeit wird auch ein
+    unveraenderter Bericht gepostet, damit "keine Meldung" nicht mit "Worker
+    tot" verwechselt werden kann. Ohne sie waere Stille zweideutig.
+
+    Fail-open: kippt der Zustandsspeicher, wird gepostet statt geschwiegen.
+    """
+    from datetime import datetime, timezone
+    fp = _report_fingerprint(kw.get("regime"), kw.get("approved_trades"),
+                             kw.get("signal_report"))
+    posten, grund = True, "geaendert"
+    try:
+        alt = state_repo.get("SIGNAL_REPORT_FP") or ""
+        seit_s = None
+        _last = state_repo.get("SIGNAL_REPORT_POSTED_AT") or ""
+        if _last:
+            _dt = datetime.fromisoformat(_last)
+            if _dt.tzinfo is None:
+                _dt = _dt.replace(tzinfo=timezone.utc)
+            seit_s = (datetime.now(timezone.utc) - _dt).total_seconds()
+        if fp == alt:
+            if seit_s is not None and seit_s < max_silence_h * 3600:
+                posten, grund = False, "unveraendert"
+            else:
+                grund = "Lebenszeichen"
+    except Exception:
+        logger.debug("Fingerabdruck-Pruefung fehlgeschlagen — poste", exc_info=True)
+
+    if not posten:
+        logger.info(
+            "SignalWorker: Bericht unveraendert (fp=%s) — kein Discord-Post", fp)
+        return False
+
+    _post('post_signal_worker_embed', **kw)
+    try:
+        state_repo.set("SIGNAL_REPORT_FP", fp)
+        state_repo.set("SIGNAL_REPORT_POSTED_AT",
+                       datetime.now(timezone.utc).isoformat())
+    except Exception:
+        logger.debug("Fingerabdruck nicht speicherbar", exc_info=True)
+    logger.info("SignalWorker: Discord-Bericht gepostet (%s, fp=%s)", grund, fp)
+    return True
+
+
 def _build_signal_report(db, all_signals, *, approved_syms=None,
                          blocked_reasons=None, skip_map=None,
                          candidate_ids=None) -> list:
@@ -798,8 +874,8 @@ def main() -> None:
             # genau da will man sehen, dass der Lauf stattgefunden hat und was
             # im Pool lag — bisher endete der Worker hier stumm.
             try:
-                _post(
-                    'post_signal_worker_embed',
+                _post_report_if_changed(
+                    state_repo,
                     approved_trades=[],
                     regime=regime,
                     risk_scalar=risk_scalar,
@@ -2284,8 +2360,8 @@ def main() -> None:
             logger.debug("Signalbericht fehlgeschlagen (fail-open)", exc_info=True)
             _report = []
 
-        _post(
-            'post_signal_worker_embed',
+        _post_report_if_changed(
+            state_repo,
             approved_trades=approved_trades_info,
             regime=regime,
             risk_scalar=risk_scalar,
