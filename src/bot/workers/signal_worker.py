@@ -430,6 +430,10 @@ from bot.core.regime import (
     SIZING_PARITY_FLOOR as _PARITY_FLOOR,
     dust_floor_usd as _dust_floor_usd,
 )
+from bot.core.deploy_idle_cash import (
+    bumped_amount as _deploy_bumped_amount,
+    deploy_bump_active as _deploy_bump_active,
+)
 
 
 def _report_fingerprint(regime, approved_trades, signal_report) -> str:
@@ -615,6 +619,16 @@ def _reject_below_floor(log_repo, signal_repo, blocked_reasons, *, symbol,
 
     kind: SIGNAL_FLOOR (vor den Haircuts) | DUST_FLOOR (Endbetrag).
     """
+    return _reject_below_floor_impl(
+        log_repo, signal_repo, blocked_reasons,
+        symbol=symbol, signal_id=signal_id, amount=amount,
+        floor=floor, kind=kind, stage=stage, detail=detail,
+    )
+
+
+def _reject_below_floor_impl(log_repo, signal_repo, blocked_reasons, *,
+                             symbol, signal_id, amount, floor, kind, stage,
+                             detail=""):
     logger.info(
         "SignalWorker: %s %s $%.2f < $%.2f (%s) — Signal REJECTED%s",
         symbol, kind, amount, floor, stage, f" [{detail}]" if detail else "",
@@ -639,6 +653,67 @@ def _reject_below_floor(log_repo, signal_repo, blocked_reasons, *, symbol,
         )
     except Exception:
         logger.debug("log_repo.write fehlgeschlagen (fail-open)", exc_info=True)
+
+
+def _deploy_bump_or_reject(log_repo, signal_repo, blocked_reasons, *,
+                           symbol, signal_id, buy_amount, floor, cap,
+                           deploy_active, cfg_pct, cash_estimate, equity,
+                           kind, stage, detail=""):
+    """feat/deploy-idle-cash (2026-08-29): Sub-Floor-Betrag BUMPEN statt REJECT.
+
+    Rueckgabe: ``(new_amount, bump_active)`` — ``new_amount`` ist der neue
+    Orderwert (>= floor, ggf. auf ``cap`` geklammert), ``bump_active`` True
+    wenn der Bump stattgefunden hat. Bei ``bump_active == False`` wurde das
+    Signal bereits als REJECTED persistiert (derselbe Pfad wie ohne Bump)
+    und der Aufrufer muss ``continue``.
+
+    Invariant aus AGENTS.md: der Bump darf das Ergebnis der Kette NICHT
+    verkleinern — ist der Cap unter dem aktuellen Betrag (Klammer + Guard
+    entkoppelt), wird REJECTED statt durchgelassen.
+
+    ``cap`` ist die max_trade_pct-Klammer in USD (DEFENSIVE); ``None`` =
+    keine Klammer. ``cfg_pct <= 0`` deaktiviert den Modus (Config-Semantik).
+    """
+    if cap is not None and floor > cap:
+        # Regime-Floor uebersteigt die max_trade_pct-Klammer: der Bump wuerde
+        # einen Trade erzeugen, den der execution_worker-Guard in DEFENSIVE
+        # verwerfen wuerde (verbrannter Slot). Nicht bumpen — REJECT.
+        _reject_below_floor_impl(
+            log_repo, signal_repo, blocked_reasons,
+            symbol=symbol, signal_id=signal_id, amount=buy_amount,
+            floor=floor, kind=kind, stage=stage,
+            detail=f"Deploy-Bump inaktiv (Floor ${floor:.0f} > Cap ${cap:.2f})",
+        )
+        return buy_amount, False
+    if deploy_active and cap is not None and buy_amount > cap:
+        # Defensive: praktisch unerreichbar, weil die Klammer oben den
+        # Betrag bereits auf ``cap`` gestutzt hat. Fuer den Fall, dass sich
+        # Klammer und Guard entkoppeln (AGENTS.md: IMMER gemeinsam): REJECT
+        # statt einen Trade durchlassen, der in DEFENSIVE sterben wuerde.
+        _reject_below_floor_impl(
+            log_repo, signal_repo, blocked_reasons,
+            symbol=symbol, signal_id=signal_id, amount=buy_amount,
+            floor=floor, kind=kind, stage=stage,
+            detail=f"Deploy-Bump Cap unter Betrag (${buy_amount:.2f} > ${cap:.2f})",
+        )
+        return buy_amount, False
+    if deploy_active:
+        new_amt = _deploy_bumped_amount(buy_amount, floor, cap)
+        logger.info(
+            "SignalWorker: %s DEPLOY-BUMP $%.2f -> $%.2f (%s $%.0f, Cash "
+            "$%.2f = %.1f%% von Equity $%.2f >= %.0f%%)",
+            symbol, buy_amount, new_amt, kind, floor,
+            cash_estimate,
+            cash_estimate / equity * 100.0 if equity else 0.0,
+            equity, cfg_pct,
+        )
+        return new_amt, True
+    _reject_below_floor_impl(
+        log_repo, signal_repo, blocked_reasons,
+        symbol=symbol, signal_id=signal_id, amount=buy_amount,
+        floor=floor, kind=kind, stage=stage, detail=detail,
+    )
+    return buy_amount, False
 
 
 def _deployment_boost_applies(cash_pct: float, cash_max_pct: float,
@@ -1631,6 +1706,7 @@ def main() -> None:
             # Entscheidung: entweder max_trade_pct nachziehen oder die Basis
             # senken. Nicht hier nebenbei mitentscheiden.
             _mt_pct = float(regime_params.get("max_trade_pct", 100.0))
+            _mt_cap = None  # nur in DEFENSIVE gesetzt (Guard-Spiegelung)
             if regime == "DEFENSIVE" and _mt_pct > 0 and equity > 0:
                 _mt_cap = round(equity * _mt_pct / 100.0, 2)
                 if buy_amount > _mt_cap:
@@ -1653,19 +1729,47 @@ def main() -> None:
             dust_floor = _dust_floor_usd(
                 regime, float(cfg.get("trading", {}).get("min_buy_usd", 50.0))
             )
+            # feat/deploy-idle-cash (2026-08-29, VoLLi-Direktive): Einmal pro
+            # Zyklus berechnen, ob der Idle-Cash-Pool deployed wird (Free
+            # Cash >= deploy_idle_cash_min_free_cash_pct des Equity). Dann
+            # werden Signal- und Dust-Floor-Verletzungen NICHT rejected,
+            # sondern der Orderwert AUF den Floor angehoben — bis Free Cash
+            # unter den Schwellwert faellt (dann normales Reject-Verhalten).
+            # Config-Leser hier, da cash_estimate/equity zyklenweise gelten;
+            # die Klammer+Guard-Mathematik lebt in deploy_idle_cash +
+            # _deploy_bump_or_reject (Klammer und Guard IMMER gemeinsam).
+            _deploy_cfg_pct = float(cfg.get("trading", {}).get(
+                "deploy_idle_cash_min_free_cash_pct", 0.0))
+            _deploy_bump_on = (
+                _deploy_cfg_pct > 0
+                and _deploy_bump_active(cash_estimate, equity, _deploy_cfg_pct)
+            )
             if buy_amount < signal_floor:
-                # fix/min-buy-slot-leak (2026-07-14): vorher nur `continue` ohne
-                # Status-Update — das Signal blieb FRESH und belegte JEDEN
-                # Zyklus erneut einen Kandidaten-Slot bis zum 24h-TTL (Kelly
-                # 0.3x oder CAUTION-Halbierung aendern sich innerhalb des TTL
-                # nicht). REJECT gibt den Slot frei.
-                _reject_below_floor(
+                # feat/deploy-idle-cash (2026-08-29, VoLLi-Direktive): Free
+                # Cash >= deploy_idle_cash_min_free_cash_pct des Equity und
+                # das Signal waere NUR wegen des Regime-Floors zu klein →
+                # den Orderwert AUF den Floor ANHEBEN und den Trade
+                # genehmigen lassen, statt REJECT. Damit wird der
+                # Idle-Cash-Pool aktiv deployed, bis Free Cash unter den
+                # Schwellwert faellt (dann greift wieder das normale
+                # Reject-Verhalten). Floor bleibt der Regime-Wert — und die
+                # max_trade_pct-Klammer (DEFENSIVE, Spiegelung des
+                # execution_worker-Guards) bleibt in Kraft: Klammer + Guard
+                # IMMER gemeinsam.
+                _dep_cap = _mt_cap if regime == "DEFENSIVE" else None
+                _dep_amt, _dep_bumped = _deploy_bump_or_reject(
                     log_repo, signal_repo, blocked_reasons,
-                    symbol=symbol, signal_id=signal_id, amount=buy_amount,
-                    floor=signal_floor, kind="SIGNAL_FLOOR", stage="vor Haircuts",
-                    detail="Kelly/News/Regime",
+                    symbol=symbol, signal_id=signal_id, buy_amount=buy_amount,
+                    floor=signal_floor, cap=_dep_cap,
+                    deploy_active=_deploy_bump_on,
+                    cfg_pct=_deploy_cfg_pct, cash_estimate=cash_estimate,
+                    equity=equity, kind="SIGNAL_FLOOR",
+                    stage="vor Haircuts", detail="Kelly/News/Regime",
                 )
-                continue
+                if not _dep_bumped:
+                    continue
+                _trace.append(f"Deploy-Bump auf Signal-Floor = ${_dep_amt:,.2f}")
+                buy_amount = _dep_amt
 
             # Broker-Minimum (fix/order-error-learning 2026-07-16): eToro-Fehler
             # 720 nennt pro Instrument ein Mindest-Positionsvolumen (NATGAS:
@@ -1683,13 +1787,19 @@ def main() -> None:
             except Exception:
                 _broker_min = None  # Spalte fehlt (aeltere Test-DBs) -> fail-open
             if _broker_min and buy_amount < _broker_min:
+                # Broker-Minimum (eToro 720) ist ein HARD-Reject: der
+                # Deploy-Bump laeuft VOR diesem Gate und darf es nicht
+                # ueberspielen (Groesse wird NIE hochskaliert).
                 logger.info(
                     "SignalWorker: %s buy_amount $%.2f < Broker-Minimum $%.0f — Signal REJECTED",
                     symbol, buy_amount, _broker_min,
                 )
-                signal_repo.update_signal_status(signal_id, "REJECTED")
-                blocked_reasons.append(
-                    f"{symbol}: ${buy_amount:.2f} < Broker-Min ${_broker_min:.0f} (eToro 720)"
+                _reject_below_floor_impl(
+                    log_repo, signal_repo, blocked_reasons,
+                    symbol=symbol, signal_id=signal_id,
+                    amount=buy_amount, floor=_broker_min,
+                    kind="BROKER_MIN", stage="Broker-Minimum",
+                    detail=f"eToro 720 (min_position_amount ${_broker_min:.2f})",
                 )
                 continue
 
@@ -1855,13 +1965,21 @@ def main() -> None:
                     # Endbetrag wurde also akzeptiert oder verworfen, je
                     # nachdem WELCHER Daempfer ihn erzeugt hatte.
                     if buy_amount < dust_floor:
-                        _reject_below_floor(
+                        # Korrelations-Haircut bringt den Endbetrag unter den
+                        # DUST-Floor → Bump (Deploy-Modus) statt Reject (e0).
+                        _dep_amt, _dep_bumped = _deploy_bump_or_reject(
                             log_repo, signal_repo, blocked_reasons,
-                            symbol=symbol, signal_id=signal_id, amount=buy_amount,
-                            floor=dust_floor, kind="DUST_FLOOR",
-                            stage="nach Korrelation", detail=corr_reason,
+                            symbol=symbol, signal_id=signal_id,
+                            buy_amount=buy_amount, floor=dust_floor,
+                            cap=_mt_cap, deploy_active=_deploy_bump_on,
+                            cfg_pct=_deploy_cfg_pct,
+                            cash_estimate=cash_estimate, equity=equity,
+                            kind="DUST_FLOOR", stage="nach Korrelation",
+                            detail=corr_reason,
                         )
-                        continue
+                        if not _dep_bumped:
+                            continue
+                        buy_amount = _dep_amt
 
                 # Regionen-Damper (feat/region-damper 2026-08-12): die reale
                 # Klumpenlage des Buchs ist geografisch (EU 34.8%, ASIA_CN
@@ -1893,14 +2011,22 @@ def main() -> None:
                                 symbol, _before, buy_amount, _rreason,
                             )
                             if buy_amount < dust_floor:
-                                _reject_below_floor(
+                                # Region-Damper bringt den Endbetrag unter
+                                # den DUST-Floor → Bump (Deploy-Modus)
+                                # statt Reject (e0).
+                                _dep_amt, _dep_bumped = _deploy_bump_or_reject(
                                     log_repo, signal_repo, blocked_reasons,
                                     symbol=symbol, signal_id=signal_id,
-                                    amount=buy_amount, floor=dust_floor,
+                                    buy_amount=buy_amount, floor=dust_floor,
+                                    cap=_mt_cap, deploy_active=_deploy_bump_on,
+                                    cfg_pct=_deploy_cfg_pct,
+                                    cash_estimate=cash_estimate, equity=equity,
                                     kind="DUST_FLOOR", stage="nach Region",
                                     detail=_rreason,
                                 )
-                                continue
+                                if not _dep_bumped:
+                                    continue
+                                buy_amount = _dep_amt
 
                 # Diversity-Gate (Prio 4): max 45% offener Positionen in einer Kategorie
                 _sig_cat = _get_signal_category(signal.get("signal_type", ""))
@@ -1980,13 +2106,20 @@ def main() -> None:
                 # Diese Pruefung steht bewusst NACH allen Multiplikatoren —
                 # jeder kuenftige Daempfer laeuft automatisch dagegen.
                 if buy_amount < dust_floor:
-                    _reject_below_floor(
+                    # DUST-Floor verletzt → Bump (Deploy-Modus) statt Reject.
+                    _dep_amt, _dep_bumped = _deploy_bump_or_reject(
                         log_repo, signal_repo, blocked_reasons,
-                        symbol=symbol, signal_id=signal_id, amount=buy_amount,
-                        floor=dust_floor, kind="DUST_FLOOR",
-                        stage="Kettenende", detail="; ".join(_trace[-2:]),
+                        symbol=symbol, signal_id=signal_id,
+                        buy_amount=buy_amount, floor=dust_floor,
+                        cap=_mt_cap, deploy_active=_deploy_bump_on,
+                        cfg_pct=_deploy_cfg_pct,
+                        cash_estimate=cash_estimate, equity=equity,
+                        kind="DUST_FLOOR", stage="Kettenende",
+                        detail="; ".join(_trace[-2:]),
                     )
-                    continue
+                    if not _dep_bumped:
+                        continue
+                    buy_amount = _dep_amt
 
                 # e. Create trade PENDING_APPROVAL → immediately APPROVED
                 trade_id = trade_repo.create(

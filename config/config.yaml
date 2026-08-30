@@ -32,6 +32,17 @@ trading:
   # max(signal_floor * 0.6, diesem Wert) -> NORMAL/CAUTION 50, DEFENSIVE 60,
   # CRITICAL 90. Beide hiessen bis 2026-08-28 min_buy_usd.
   min_buy_usd: 50.0           # Minimum order size in USD
+
+  # feat/deploy-idle-cash (2026-08-29, VoLLi directive): Wenn der Bot viel
+  # Free Cash haeft (>= deploy_min_free_cash_pct of Equity) und ein Signal
+  # nur wegen des Regime-Floors (signal_floor_usd) zu klein waere, BUMPEN
+  # wir die Order auf den Floor und APPROVIEREN statt REJECT. Damit wird
+  # das Idle-Cash-Pool aktiv deployed, bis Free Cash falls unter der
+  # Schwellwert. Floor bleibt der Regime-Wert (DEFENSIVE=100, CRITICAL=150,
+  # …) — keine Umgehung der Broker-Minimum-Regel (720), nur der
+  # Sizing-Haircut-Rejection wird aufgeweicht. Set
+  # deploy_idle_cash_min_free_cash_pct to 0 to disable.
+  deploy_idle_cash_min_free_cash_pct: 50.0
   # 2026-08-24: Basis-Kandidaten-Slots pro signal_worker-Zyklus (war fest 3).
   # Bei Cash > cash_target_max_pct kommen bis zu 2 weitere hinzu, die
   # ausschliesslich mit HIGH/VERY_HIGH befuellt werden.

@@ -109,16 +109,25 @@ SW_SRC = (Path(__file__).resolve().parents[2]
 def test_dust_floor_pruefung_steht_vor_dem_order_create():
     """Der Sinn von "am Ende der Kette" ist, dass KEIN Multiplikator folgt.
 
-    Bricht, sobald jemand einen Daempfer hinter die Pruefung schiebt oder die
-    Pruefung nach oben verschiebt.
+    feat/deploy-idle-cash (2026-08-29): die Pruefung laeuft jetzt durch
+    _deploy_bump_or_reject (Bump statt Reject). Die Invariante bleibt:
+    nach der LETZTEN DUST-Floor-Entscheidung darf bis zur DB-Insertion
+    kein Multiplikator/Clamp/Reduktion mehr greifen — der Bump-Writeback
+    (buy_amount = _dep_amt) ist die letzte Groessenentscheidung.
     """
-    pruefung = SW_SRC.index("if buy_amount < dust_floor:\n                    _reject_below_floor")
+    pruefung = SW_SRC.rindex("if buy_amount < dust_floor:")
     create = SW_SRC.index("trade_id = trade_repo.create(")
     assert pruefung < create, "Dust-Floor-Pruefung liegt nicht mehr vor der Order"
     dazwischen = SW_SRC[pruefung:create]
-    assert "buy_amount =" not in dazwischen, (
-        "zwischen Dust-Floor-Pruefung und Order wird buy_amount noch veraendert"
-    )
+    # Alle buy_amount-Zuweisungen (Statements) zwischen Pruefung und Order
+    # muessen der Bump-Writeback sein — kein *=, round, min, max, Daempfer.
+    # (Keyword-Args `buy_amount=...` in Calls haben kein Whitespace nach `=`.)
+    zuweisungen = re.findall(r"^\s*buy_amount\s*=\s+(\S+)", dazwischen, re.M)
+    for z in zuweisungen:
+        assert z.strip() == "_dep_amt", (
+            f"buy_amount wird NACH der DUST-Floor-Pruefung anders als "
+            f"Bump-Writeback veraendert: 'buy_amount = {z.strip()}' — "
+            "die Pruefung muss am Ende der Sizing-Kette bleiben")
 
 
 def test_parity_faktor_nicht_hartkodiert():
