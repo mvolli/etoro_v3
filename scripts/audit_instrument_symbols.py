@@ -167,7 +167,9 @@ def main() -> int:
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--chunk-size", type=int, default=CHUNK_SIZE)
     parser.add_argument("--no-placeholder-filter", action="store_true",
-                         help="Platzhalter-Vorfilter deaktivieren (nicht empfohlen - fuehrt zu massiver Bisektion)")
+                        help="Platzhalter-Vorfilter deaktivieren (prueft ALLE Instrumente per API - sehr teuer)")
+    parser.add_argument("--strict-placeholders", action="store_true",
+                        help="Exit 2 wenn danach noch AKTIVE Platzhalter-Symbole offen sind (CI-Guard)")
     args = parser.parse_args()
 
     cfg_path = PROJECT_ROOT / "config" / "config.yaml"
@@ -327,6 +329,32 @@ def main() -> int:
     if not mismatches:
         print("\nKeine weiteren Fehler gefunden.")
         return 0
+
+    # ── Placeholder-Guard (2026-09-01) ───────────────────────────────────────
+    # v5's Vorfilter nahm Platzhalter als 'delisted/ungueltig' an und pruefte
+    # sie nie - dadurch blieben 5,691 Platzhalter-Symbole (inkl. SC_1578)
+    # unbemerkt und trippen das Pre-Flight-Identity-Gate. Die Batch-Metadaten-
+    # API loest VIELE davon (212 aktive am 01.09.). Warnen, wenn danach noch
+    # aktive Platzhalter offen sind; mit --strict-placeholders als CI-Guard
+    # hart abbrechen (Exit 2).
+    remaining_ph = db.fetchall(
+        "SELECT instrument_id, symbol FROM instruments "
+        "WHERE is_active = 1 AND symbol GLOB '[A-Z]*_[0-9]*' "
+        "ORDER BY instrument_id"
+    )
+    if remaining_ph:
+        print(f"\nWARNUNG: {len(remaining_ph)} AKTIVE Platzhalter-Symbole bleiben offen - "
+              f"diese blockieren das Pre-Flight-Identity-Gate, sobald sie gehandelt werden:")
+        for row in remaining_ph[:15]:
+            rid = row["instrument_id"] if isinstance(row, dict) else row[0]
+            rsym = row["symbol"] if isinstance(row, dict) else row[1]
+            print(f"  id={rid}  '{rsym}'")
+        if len(remaining_ph) > 15:
+            print(f"  ... und {len(remaining_ph) - 15} weitere")
+        print("Repair: python scripts/fix_placeholder_symbols.py --apply --yes-to-all")
+        if args.strict_placeholders:
+            print("FATAL (--strict-placeholders): active placeholders remain.")
+            return 2
 
     if not args.apply:
         print(f"\nDry-Run beendet - keine Aenderungen vorgenommen. "
