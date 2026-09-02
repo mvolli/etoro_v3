@@ -49,11 +49,32 @@ def blocks_on_entry_orders(elig: dict, is_crypto: bool) -> bool:
     24/7 offen, allowEntryOrders=False ist strukturell (eToro erlaubt keine
     Krypto-Limit-Entries). Krypto wurde dadurch seit Aktivierung NIE
     ausgefuehrt. Fuer Krypto daher NICHT auf allowEntryOrders blocken;
-    fuer Aktien bleibt es der Marktzeit-Proxy (Boerse zu -> false).
+    fuer Aktien bleibt es the Marktzeit-Proxy (Boerse zu -> false).
+
+    fix/entry-orders-market-proxy (2026-09-02): allowEntryOrders turned out
+    to be an ORDER-TYPE flag (whether eToro accepts PENDING/LIMIT entry
+    orders for that instrument), NOT a market-open/closed signal.  Live
+    verification 2026-09-02 13:30 AEST (ASX fully open):
+      MAD.ASX:  allowOpenPosition=True  allowEntryOrders=False
+      IFT.ASX:  allowOpenPosition=True  allowEntryOrders=False
+      AAPL:     allowOpenPosition=True  allowEntryOrders=True
+      BTC:      allowOpenPosition=True  allowEntryOrders=False
+    i.e. allowEntryOrders=False is structural for some ASX equities (and
+    all crypto), not a market-close.  Blocking on it silently deferred
+    every approved .ASX trade forever (MAD #1793, IFT #1794 stuck in
+    APPROVED since 2026-09-02 00:03 CEST).  The real market-close signal
+    is allowOpenPosition=false (step 1 in open_position already gates on
+    it), so the block should now ONLY fire when allowOpenPosition is
+    explicitly false.  This is strictly more permissive than before:
+    any instrument that used to open still opens; previously-deferred
+    ones (structural allowEntryOrders=False) now execute when the
+    exchange is actually open.
     """
     if is_crypto:
         return False
-    return not elig.get("allowEntryOrders", True)
+    if not elig.get("allowOpenPosition", True):
+        return True
+    return False
 
 _TRANSIENT_ERRORS = (Timeout, ConnectionError)
 
