@@ -75,6 +75,29 @@ def test_fetch_survives_api_error():
     assert idx.row_count == 0
 
 
+def test_fetch_retries_page_before_giving_up(monkeypatch):
+    # fix/history-fetch-retry: Seite 1 timeout x2, dann ok -> Index ist voll,
+    # NICHT leer (alter Break-behavior). time.sleep gestubbt (keine 4.5s Wartezeit).
+    monkeypatch.setattr("bot.core.pnl_backfill.time.sleep", lambda _s: None)
+    calls = {"n": 0}
+
+    class Flaky:
+        def get_trade_history(self, **k):
+            calls["n"] += 1
+            if calls["n"] <= 2:
+                raise TimeoutError("Read timed out. (read timeout=10)")
+            return [
+                {"positionId": 77, "orderId": 7701,
+                 "closeTimestamp": "2026-09-01T10:00:00Z",
+                 "netProfit": 1.0, "investment": 100.0, "units": 1.0},
+            ]
+
+    idx = fetch_history_index(Flaky(), None, per_page_retries=2)
+    assert calls["n"] == 3           # 2 Fehlversuche + 1 Erfolg
+    assert idx.row_count == 1
+    assert idx.by_position[77]
+
+
 def test_match_close_returns_last_row(index):
     row = match_close(index, 111)
     assert row["closeTimestamp"] == "2026-07-26T09:00:00Z"

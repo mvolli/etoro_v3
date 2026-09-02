@@ -8,10 +8,19 @@ def test_crypto_never_blocks_on_entry_orders():
     assert blocks_on_entry_orders(elig, is_crypto=True) is False
 
 
-def test_stock_blocks_when_entry_orders_false():
-    # Aktie bei geschlossener Boerse: allowEntryOrders=false -> blocken (Marktzeit-Proxy)
-    elig = {"allowOpenPosition": True, "allowEntryOrders": False}
+def test_stock_blocks_when_open_position_false():
+    # fix/entry-orders-market-proxy (2026-09-02): allowEntryOrders=false is
+    # an ORDER-TYPE flag (no PENDING/LIMIT entries), NOT a market-close.
+    # The only live gate left is allowOpenPosition=false.
+    elig = {"allowOpenPosition": False, "allowEntryOrders": False}
     assert blocks_on_entry_orders(elig, is_crypto=False) is True
+
+
+def test_stock_not_blocked_when_entry_orders_false_but_open():
+    # ASX real shares at open exchange: allowOpenPosition=True,
+    # allowEntryOrders=False -> must NOT block (MAD.ASX / IFT.ASX class).
+    elig = {"allowOpenPosition": True, "allowEntryOrders": False}
+    assert blocks_on_entry_orders(elig, is_crypto=False) is False
 
 
 def test_stock_open_market_not_blocked():

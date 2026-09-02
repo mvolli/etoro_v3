@@ -12,11 +12,22 @@ eine Zeile PRO Partial Close — by_position haelt deshalb LISTEN,
 chronologisch nach closeTimestamp sortiert; die letzte Zeile ist der
 finale Full-Close.
 
-Pure Matching-Logik ohne DB-Zugriff — testbar mit Fixture-Rows.
+fix/history-fetch-retry (2026-09-02): eToro's history endpoint is
+intermittently slow — the 10 s read timeout fired on PAGE 1 with
+"Read timed out", and the old code ``break``ed, so the whole index came
+back empty and every pending close was blocked from PnL-finalisation.
+The tenacity wrapper inside the client already retries the single
+requests call (3x, 2-10 s backoff); on top of that fetch_history_index
+now retries the PAGE ITSELF (per_page_retries, 1.5 s * attempt backoff)
+before giving up, and a failed page logs at warning level but is a
+soft-failure: the partial index is still returned (documented
+behaviour) so a single flaky page degrades PnL confidence instead of
+blocking close-verification entirely.
 """
 from __future__ import annotations
 
 import logging
+import time
 from datetime import datetime, timezone
 from typing import Any
 
@@ -70,21 +81,51 @@ def fetch_history_index(
     min_date_iso: str | None = None,
     max_pages: int = 10,
     page_size: int = 100,
+    per_page_retries: int = 2,
 ) -> HistoryIndex:
     """History paginieren (bis kurze Seite oder max_pages) und indizieren.
 
     max_pages=10 × 100 Rows begrenzt die API-Last pro Lauf; fuer den
     Einmal-Backfill kann der Aufrufer max_pages hochsetzen.
+
+    fix/history-fetch-retry (2026-09-02): eToro's History-Endpoint ist
+    intermittierend langsam. Alte Logik: eine Read-Timeout auf SEITE 1
+    (read timeout=10) -> ``break`` -> leerer Index -> alle PENDING-Closes
+    konnten nicht finalisiert werden. Jetzt wird jede Seite
+    ``per_page_retries``-mal neu geholt (1.5 s * attempt Backoff); erst
+    dann wird sie aufgegeben. Der Index bleibt dabei immer PARTIAL (nicht
+    leer) — ein einzelner flaky-Seiten-Fehler degradiert die PnL-Qualitaet,
+    blockiert aber nicht die Close-Verifizierung komplett.
     """
     idx = HistoryIndex()
     for page in range(1, max_pages + 1):
-        try:
-            rows = client.get_trade_history(
-                min_date=min_date_iso, page=page, page_size=page_size
+        rows: list[dict] | None = None
+        last_exc: Exception | None = None
+        for attempt in range(per_page_retries + 1):
+            try:
+                rows = client.get_trade_history(
+                    min_date=min_date_iso, page=page, page_size=page_size
+                )
+                break
+            except Exception as exc:  # noqa: BLE001 - logged, retried below
+                last_exc = exc
+                if attempt < per_page_retries:
+                    backoff = 1.5 * (attempt + 1)
+                    logger.warning(
+                        "[pnl_backfill] History-Fetch Seite %d fehlgeschlagen "
+                        "(Versuch %d/%d), Retry in %.1fs: %s",
+                        page, attempt + 1, per_page_retries + 1, backoff, exc,
+                    )
+                    time.sleep(backoff)
+        if rows is None:
+            # Alle Versuche verbrannt: abbrechen, partial Index liefern.
+            logger.error(
+                "[pnl_backfill] History-Fetch Seite %d endgueltig fehlgeschlagen "
+                "nach %d Verauchen — partial Index (%d Rows, %d Positionen) "
+                "wird verwendet: %s",
+                page, per_page_retries + 1, idx.row_count,
+                len(idx.by_position), last_exc,
             )
-        except Exception as exc:
-            logger.warning("[pnl_backfill] History-Fetch Seite %d fehlgeschlagen: %s",
-                           page, exc)
             break
         if not rows:
             break

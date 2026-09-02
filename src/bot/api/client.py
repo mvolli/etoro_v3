@@ -298,7 +298,12 @@ class EToroClient:
     # Public low-level HTTP interface
     # ------------------------------------------------------------------
 
-    def get(self, endpoint: str, params: dict | None = None) -> Any:
+    def get(
+        self,
+        endpoint: str,
+        params: dict | None = None,
+        timeout: float | None = None,
+    ) -> Any:
         """Issue a GET against a v1 endpoint and return parsed JSON.
 
         Parameters
@@ -307,6 +312,12 @@ class EToroClient:
             Path relative to ``BASE_URL_V1`` (leading slash optional).
         params : dict | None
             Query-string parameters.
+        timeout : float | None
+            Optional override for the *read* timeout (connect timeout stays
+            at ``config.timeout_connect``). Used for slow endpoints such as
+            the trade-history fetch, where the default 10 s read budget is
+            too tight. The underlying tenacity wrapper still retries
+            transient Timeout/ConnectionError.
 
         Returns
         -------
@@ -319,7 +330,12 @@ class EToroClient:
             On non-2xx responses.
         """
         url = self._v1_url(endpoint)
-        resp = self._get_raw(url, params=params)
+        if timeout is not None:
+            self._timeout = (self.config.timeout_connect, float(timeout))
+        try:
+            resp = self._get_raw(url, params=params)
+        finally:
+            self._timeout = (self.config.timeout_connect, self.config.timeout_read)
         self._raise_for_status(resp, endpoint)
         return resp.json()
 
@@ -371,6 +387,7 @@ class EToroClient:
         min_date: str | None = None,
         page: int = 1,
         page_size: int = 50,
+        timeout: float | None = 30.0,
     ) -> list[dict]:
         """Return closed trades from eToro history.
 
@@ -385,6 +402,12 @@ class EToroClient:
             Page number for pagination (default: 1).
         page_size : int
             Number of trades per page (default: 50, max: 100).
+        timeout : float | None
+            Read-timeout override in seconds (default 30). The history
+            endpoint is slow on eToro's side — the old 10 s default caused
+            ``Read timed out`` on page 1, which made the whole PnL backfill
+            index come back empty. 30 s + the tenacity retry wrapper makes a
+            single slow page non-fatal.
 
         Returns
         -------
@@ -411,6 +434,7 @@ class EToroClient:
                 "page": page,
                 "pageSize": min(page_size, 100),
             },
+            timeout=timeout,
         )
         # API returns a list directly
         if isinstance(resp, list):
@@ -1041,21 +1065,68 @@ class EToroClient:
                 pass
             take_profit_rate = round(float(current_price) * (1.0 + _tp_pct / 100.0), 6)
 
-        body = {
-            "transaction": "Buy",
-            "instrumentId": instrument_id,
-            "amount": amount_usd,          # = MARGIN, Exposure ist amount x leverage
-            "leverage": _lev,
-            "isNoStopLoss": False,
-            "stopLossRate": stop_loss_rate,
-        }
-        if take_profit_rate:
-            body["isNoTakeProfit"] = False
-            body["takeProfitRate"] = take_profit_rate
+        # fix/order-type-units (2026-09-02): BY_AMOUNT (amount) vs BY_UNITS (units).
+        # eToro classifies the order by the SIZE FIELD: "amount" -> BY_AMOUNT
+        # (internal type 17), "units" -> BY_UNITS (internal type 18). Some
+        # real-share instruments (live: MAD.ASX / IFT.ASX) return
+        # allowedOrderQuantityType="unitsOnly" and REJECT BY_AMOUNT with:
+        #   eToro 2021: Order type validation failure, requested order type: 17,
+        #   allowed OrderType ORDER_FOR_EXECUTION_BY_UNITS (18)
+        # Those real-share instruments also disallow broker-side SL/TP
+        # (allowEditStopLoss=false), so the crash-safety-net SL/TP is dropped
+        # for them — the bot's own trailing/ladder stays the exit mechanism.
+        _units_only = (
+            (elig_data or {}).get("allowedOrderQuantityType") == "unitsOnly"
+        )
+        if _units_only:
+            # Real shares: leverage resolves to 1 (leverageValues=[1]), so
+            # exposure == margin == amount_usd and units = amount / price,
+            # whole number (unitsQuantityType="whole").
+            _units = float(amount_usd) / float(current_price)
+            _units = max(0.0, float(int(_units)))  # floor to whole units
+            if _units < 1:
+                logger.warning(
+                    "open_position BLOCKED: %s unitsOnly requires whole shares, "
+                    "amount $%.2f / price %.6f = %.4f (< 1 share)",
+                    _symbol, amount_usd, current_price, float(amount_usd) / float(current_price),
+                )
+                return {
+                    "success": False,
+                    "error": (
+                        f"UnitsOnlyMinShare: {float(amount_usd):.2f} buys "
+                        f"{'%.4f' % (float(amount_usd) / float(current_price))} share(s) "
+                        f"(< 1) of {_symbol} at {float(current_price):.6f} — "
+                        f"increase size to at least one whole share"
+                    ),
+                }
+            body = {
+                "transaction": "Buy",
+                "instrumentId": instrument_id,
+                "units": _units,                 # BY_UNITS -> internal type 18
+                "leverage": _lev,
+                "isNoStopLoss": True,            # real shares: allowEditStopLoss=false
+            }
+            logger.info(
+                "open_position %s: unitsOnly -> BY_UNITS order units=%.0f "
+                "(exposure ~$%.2f), broker SL/TP dropped (not editable)",
+                _symbol, _units, _units * float(current_price),
+            )
+        else:
+            body = {
+                "transaction": "Buy",
+                "instrumentId": instrument_id,
+                "amount": amount_usd,          # = MARGIN, Exposure ist amount x leverage
+                "leverage": _lev,
+                "isNoStopLoss": False,
+                "stopLossRate": stop_loss_rate,
+            }
+            if take_profit_rate:
+                body["isNoTakeProfit"] = False
+                body["takeProfitRate"] = take_profit_rate
 
         logger.debug(
             "open_position instrument=%s symbol=%s amount=%.2f lev=%d "
-            "exposure=%.2f sl_pct=%.1f sl_rate=%.6f",
+            "exposure=%.2f sl_pct=%.1f sl_rate=%.6f units_only=%s",
             instrument_id,
             _symbol,
             amount_usd,
@@ -1063,19 +1134,48 @@ class EToroClient:
             amount_usd * _lev,
             stop_loss_pct,
             stop_loss_rate,
+            _units_only,
         )
         try:
             return self.post("/trading/execution/orders", body, v2=True)
         except APIError as exc:
             # Retry-ohne-TP (OSS-Muster): manche Instrumente lehnen TP im
             # POST ab — daran darf die Order nicht scheitern.
-            if take_profit_rate and getattr(exc, "status_code", 0) == 400:
+            if take_profit_rate and not _units_only \
+                    and getattr(exc, "status_code", 0) == 400:
                 logger.warning(
                     "open_position: TakeProfit abgelehnt (%s) — Retry ohne TP", exc
                 )
                 body.pop("takeProfitRate", None)
                 body.pop("isNoTakeProfit", None)
                 return self.post("/trading/execution/orders", body, v2=True)
+            # fix/order-type-units: fallback for the fail-open path where
+            # eligibility was unavailable (so _units_only stayed False) and
+            # eToro still rejects the BY_AMOUNT (17) sizing for a
+            # unitsOnly instrument. Rebuild as BY_UNITS and retry once.
+            _msg = str(exc)
+            if (
+                not _units_only
+                and getattr(exc, "status_code", 0) == 400
+                and ("Order type validation" in _msg
+                     or "ORDER_FOR_EXECUTION_BY_UNITS" in _msg
+                     or "2021" in _msg)
+                and current_price and float(current_price) > 0
+            ):
+                _units = max(0.0, float(int(float(amount_usd) / float(current_price))))
+                if _units >= 1:
+                    logger.warning(
+                        "open_position %s: eToro 2021 (order type 17 rejected) — "
+                        "retrying as BY_UNITS units=%.0f", _symbol, _units
+                    )
+                    body = {
+                        "transaction": "Buy",
+                        "instrumentId": instrument_id,
+                        "units": _units,
+                        "leverage": _lev,
+                        "isNoStopLoss": True,
+                    }
+                    return self.post("/trading/execution/orders", body, v2=True)
             raise
 
     def get_position_units(self, position_id: str | int) -> float | None:
