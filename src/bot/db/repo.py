@@ -732,6 +732,20 @@ class TradeEventRepo:
                     created_at         TEXT NOT NULL DEFAULT (datetime('now'))
                 )
             """)
+            # feat/fill-costs (2026-09-05): Der Spread wird beim Einstieg
+            # laengst gemessen (check_spread_gate) und danach WEGGEWORFEN —
+            # er diente nur der Gate-Entscheidung. Damit war die einzige
+            # bekannte Kostengroesse des Systems nirgends gebucht, und rund
+            # 2.363 $ Kontoverlust liessen sich keinem Trade zuordnen.
+            # Jede Spalte einzeln in try/except (AGENTS.md-Konvention).
+            for _stmt in (
+                "ALTER TABLE trade_events ADD COLUMN spread_pct REAL",
+                "ALTER TABLE trade_events ADD COLUMN cost_usd REAL",
+            ):
+                try:
+                    self.db.execute(_stmt)
+                except Exception:
+                    pass  # Spalte existiert bereits
             self.db.execute(
                 "CREATE INDEX IF NOT EXISTS idx_tev_pos ON trade_events(position_id)"
             )
@@ -763,6 +777,8 @@ class TradeEventRepo:
         reason: str | None = None,
         chart_posted: bool = False,
         reported_final: bool = False,
+        spread_pct: float | None = None,
+        cost_usd: float | None = None,
     ) -> int | None:
         """Persist ein Trade-Event. Returns event id oder None (fail-open)."""
         try:
@@ -774,8 +790,8 @@ class TradeEventRepo:
                     (trade_id, position_id, order_id, instrument_id, symbol,
                      event_type, source, event_at, close_pct, units, price,
                      amount_usd, pnl_usd, pnl_pct, pnl_source, reason,
-                     chart_posted, reported_final)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     chart_posted, reported_final, spread_pct, cost_usd)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     trade_id,
@@ -796,6 +812,8 @@ class TradeEventRepo:
                     reason,
                     1 if chart_posted else 0,
                     1 if reported_final else 0,
+                    float(spread_pct) if spread_pct is not None else None,
+                    float(cost_usd) if cost_usd is not None else None,
                 ),
             )
             return cur.lastrowid

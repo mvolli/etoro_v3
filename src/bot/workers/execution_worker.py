@@ -114,10 +114,26 @@ def _canonical_symbol(db, instrument_id, fallback: str) -> str:
     return fallback
 
 
+def _fill_cost(amount_usd, spread_pct):
+    """Geschaetzte Reibung eines Fills — None, wenn der Spread fehlt."""
+    try:
+        from bot.core.trade_pnl import estimate_fill_cost
+        return estimate_fill_cost(amount_usd, spread_pct)
+    except Exception:
+        return None
+
+
 def _record_open(db, trade_id, symbol, instrument_id, position_id,
                  order_id=None, amount_usd=None, price=None,
-                 post_result=None) -> None:
+                 post_result=None, spread_pct=None) -> None:
     """OPEN-Event in trade_events persistieren (feat/pnl-nachreport).
+
+    feat/fill-costs (2026-09-05): `spread_pct` kommt aus dem Spread-Gate,
+    das den Wert ohnehin misst und ihn bisher nach der Gate-Entscheidung
+    verworfen hat. Damit war die einzige bekannte Kostengroesse des Systems
+    nirgends gebucht — rund 2.363 $ Kontoverlust liessen sich keinem Trade
+    zuordnen. `cost_usd` ist eine SCHAETZUNG (halber Spread je Fill), keine
+    Abrechnung; ohne gemessenen Spread bleibt sie NULL statt 0.
 
     Fail-open — Buchhaltung darf den Fill-Pfad nie brechen.
     """
@@ -132,6 +148,8 @@ def _record_open(db, trade_id, symbol, instrument_id, position_id,
             instrument_id=instrument_id, amount_usd=amount_usd,
             price=(float(price) if price else None),
             reported_final=True,  # OPEN hat keinen PnL nachzutragen
+            spread_pct=spread_pct,
+            cost_usd=_fill_cost(amount_usd, spread_pct),
         )
     except Exception:
         pass
@@ -541,6 +559,11 @@ def main() -> None:
     
         # ── 3. Process each APPROVED trade ────────────────────────────────────────
         for trade in approved_trades:
+            # feat/fill-costs (2026-09-05): pro Iteration zuruecksetzen. Das
+            # Spread-Gate weiter unten kann uebersprungen werden (DEFER,
+            # aufgeloeste Vor-Order); ohne Reset truege der naechste Trade
+            # den Spread des vorigen Instruments in seine Kostenzeile.
+            _spread_pct = None
             trade_id = trade["id"]
             instrument_id = trade["instrument_id"]
             symbol = trade.get("symbol", str(instrument_id))
@@ -1162,7 +1185,8 @@ def main() -> None:
                             )
                             _record_open(db, trade_id, symbol, instrument_id,
                                          api_position_id, order_id=_order_ref,
-                                         amount_usd=amount_usd, post_result=_fill_ok)
+                                         amount_usd=amount_usd, post_result=_fill_ok,
+                                         spread_pct=_spread_pct)
                             # Strategy-tagging (scalp vs swing)
                             try:
                                 _signal_id = trade.get("signal_id")
@@ -1232,7 +1256,8 @@ def main() -> None:
                                     )
                                     _record_open(db, trade_id, symbol, instrument_id,
                                                  api_position_id, order_id=_order_ref,
-                                                 amount_usd=amount_usd, post_result=_fill_ok)
+                                                 amount_usd=amount_usd, post_result=_fill_ok,
+                                                 spread_pct=_spread_pct)
                                     ghost_confirmed = True
                                     break
                     
@@ -1497,7 +1522,7 @@ def main() -> None:
                 _record_open(db, trade_id, symbol, instrument_id,
                              api_position_id, order_id=api_position_id,
                              amount_usd=amount_usd, price=entry_price,
-                             post_result=_fill_ok)
+                             post_result=_fill_ok, spread_pct=_spread_pct)
     
                 log_repo.write(
                     "INFO",
