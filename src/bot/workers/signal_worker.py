@@ -1549,6 +1549,9 @@ def main() -> None:
                 _k = kelly_size_factor(
                     signal.get("signal_type", ""),
                     db,
+                    # feat/kelly-asset-class-split: nur wirksam, wenn
+                    # sizing.kelly_asset_class_split aktiv ist (Default AUS).
+                    instrument_id=instrument_id,
                 )
                 if _k != 1.0:
                     _old_amt = buy_amount

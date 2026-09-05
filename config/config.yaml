@@ -323,6 +323,13 @@ sizing:                       # Position size as % of portfolio equity
   kelly_scale: 0.45           # Steigung auf die Kelly-Fraktion
   kelly_min_factor: 0.15      # Floor: proven Lossbringer schrumpfen (vorher 0.5)
   kelly_max_factor: 0.94      # Cap = base + scale (natuerliche Grenze bei kelly=1.0)
+  # feat/kelly-asset-class-split (2026-09-05): Krypto-Trades duerfen nicht
+  # die Groesse fuer Aktien-Trades desselben Signal-Clusters setzen.
+  # Gemessen am Dip-Cluster MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING:
+  #   Krypto n=9 Ø +16.52% | Aktien n=72 Ø +0.08%  -> Faktor 0.573 (hoechster)
+  # Die 9 Krypto-Trades lagen im Fenster XRP +45.2% / BTC +24.3% = Beta.
+  # Default AUS (Blue/Green) — erst nach Auswertung scharfschalten.
+  kelly_asset_class_split: false
   # feat/kelly-shrinkage (2026-08-24): Empirical-Bayes-Schrumpfung ersetzt die
   # harte Schwelle. Bisher wurde die eigene Schaetzung ab kelly_min_trades zu
   # 100 % geglaubt und darunter gar nicht — eine Klippe genau im Bereich der

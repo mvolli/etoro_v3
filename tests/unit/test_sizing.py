@@ -190,3 +190,120 @@ class TestKellySizeFactor:
         db = _make_db(pool + exact)
         factor = kelly_size_factor("A,B", db, min_trades=25)
         assert factor == pytest.approx(DEFAULT_MIN_FACTOR)
+
+
+# ── feat/kelly-asset-class-split (2026-09-05) ────────────────────────────────
+# Krypto-Trades duerfen nicht die Groesse fuer Aktien-Trades DESSELBEN
+# Signal-Clusters setzen. Gemessen am Dip-Cluster (90d, trading.db):
+#   Krypto n= 9  Ø +16.52%  6/9 Wins   <- Fenster XRP +45.2% / BTC +24.3%
+#   Aktien n=72  Ø  +0.08% 20/72 Wins
+# Der Cluster trug 0.573 — den hoechsten Faktor ueberhaupt — obwohl 89 % der
+# Stichprobe bei null liegt. Der Schalter ist per Default AUS (Blue/Green).
+
+class _BucketDB:
+    """Fake-DB, die den asset_class-Filter der SQL tatsaechlich beachtet.
+
+    Der echte Loader haengt den Filter als SQL-Fragment an; hier wird das
+    Fragment gelesen und auf die kanonischen Zeilen angewandt — sonst
+    wuerde der Test den Filter gar nicht pruefen (nur dass er nicht knallt).
+    """
+
+    def __init__(self, rows):
+        self._rows = rows          # (signal_type, pnl_pct, asset_class)
+
+    def fetchall(self, sql, params=()):
+        rows = self._rows
+        if "<> 'crypto'" in sql:
+            rows = [r for r in rows if r[2] != "crypto"]
+        elif "= 'crypto'" in sql:
+            rows = [r for r in rows if r[2] == "crypto"]
+        return [{"st": st, "pnl_pct": p} for st, p, _ in rows]
+
+    def fetchone(self, sql, params=()):
+        return {"asset_class": "crypto"} if params and params[0] == 999 else \
+               {"asset_class": "stock"}
+
+
+def _mixed_pool():
+    """40 flache Aktien-Trades + 10 starke Krypto-Trades, EIN Cluster."""
+    flat = [("DIP", 0.05, "stock")] * 20 + [("DIP", -0.05, "stock")] * 20
+    hot = [("DIP", 18.0, "crypto")] * 10
+    return flat + hot
+
+
+class TestAssetClassSplit:
+
+    def test_bucket_mapping(self):
+        assert sizing_mod._asset_bucket("crypto") == "crypto"
+        assert sizing_mod._asset_bucket("CRYPTO ") == "crypto"
+        assert sizing_mod._asset_bucket("stock") == "other"
+        assert sizing_mod._asset_bucket("etf") == "other"
+        assert sizing_mod._asset_bucket("") is None
+        assert sizing_mod._asset_bucket(None) is None
+
+    def test_default_is_off_behaviour_unchanged(self):
+        """Ohne Flag zaehlen Krypto-Trades weiter mit — bisheriges Verhalten."""
+        db = _BucketDB(_mixed_pool())
+        mit = kelly_size_factor("DIP", db, kelly_cfg={"kelly_min_trades": 25})
+        ohne_krypto = kelly_size_factor(
+            "DIP", _BucketDB([r for r in _mixed_pool() if r[2] != "crypto"]),
+            kelly_cfg={"kelly_min_trades": 25})
+        assert mit > ohne_krypto, "Krypto muss den Faktor ohne Flag anheben"
+
+    def test_split_removes_crypto_from_equity_factor(self):
+        """Der Kern: mit Flag setzt Krypto die Aktien-Groesse nicht mehr."""
+        cfg = {"kelly_min_trades": 25, "kelly_asset_class_split": True}
+        db = _BucketDB(_mixed_pool())
+        f_stock = kelly_size_factor("DIP", db, kelly_cfg=cfg, asset_class="stock")
+        f_ohne = kelly_size_factor(
+            "DIP", _BucketDB([r for r in _mixed_pool() if r[2] != "crypto"]),
+            kelly_cfg={"kelly_min_trades": 25})
+        assert f_stock == pytest.approx(f_ohne), (
+            "mit Split muss der Aktien-Faktor dem reinen Aktien-Pool entsprechen"
+        )
+
+    def test_split_lowers_the_contaminated_cluster(self):
+        db = _BucketDB(_mixed_pool())
+        aus = kelly_size_factor("DIP", db, kelly_cfg={"kelly_min_trades": 25})
+        an = kelly_size_factor("DIP", db, asset_class="stock",
+                               kelly_cfg={"kelly_min_trades": 25,
+                                          "kelly_asset_class_split": True})
+        assert an < aus
+
+    def test_crypto_candidate_sees_only_crypto(self):
+        cfg = {"kelly_min_trades": 5, "kelly_asset_class_split": True}
+        db = _BucketDB(_mixed_pool())
+        f = kelly_size_factor("DIP", db, kelly_cfg=cfg, asset_class="crypto")
+        assert f > DEFAULT_BASE, "reiner Krypto-Pool ist stark positiv"
+
+    def test_instrument_id_resolves_asset_class(self):
+        cfg = {"kelly_min_trades": 25, "kelly_asset_class_split": True}
+        db = _BucketDB(_mixed_pool())
+        via_id = kelly_size_factor("DIP", db, kelly_cfg=cfg, instrument_id=1)
+        via_ac = kelly_size_factor("DIP", db, kelly_cfg=cfg, asset_class="stock")
+        assert via_id == pytest.approx(via_ac)
+
+    def test_asset_class_wins_over_instrument_id(self):
+        cfg = {"kelly_min_trades": 5, "kelly_asset_class_split": True}
+        db = _BucketDB(_mixed_pool())
+        f = kelly_size_factor("DIP", db, kelly_cfg=cfg,
+                              asset_class="crypto", instrument_id=1)
+        f_crypto = kelly_size_factor("DIP", db, kelly_cfg=cfg, asset_class="crypto")
+        assert f == pytest.approx(f_crypto)
+
+    def test_unknown_asset_class_falls_open(self):
+        """Kein Bucket -> ungefilterter Pool, kein Absturz (fail-open)."""
+        cfg = {"kelly_min_trades": 25, "kelly_asset_class_split": True}
+        db = _BucketDB(_mixed_pool())
+        f = kelly_size_factor("DIP", db, kelly_cfg=cfg, asset_class=None)
+        aus = kelly_size_factor("DIP", db, kelly_cfg={"kelly_min_trades": 25})
+        assert f == pytest.approx(aus)
+
+    def test_instrument_lookup_failure_is_safe(self):
+        class _Broken(_BucketDB):
+            def fetchone(self, *a, **k):
+                raise RuntimeError("db weg")
+        cfg = {"kelly_min_trades": 25, "kelly_asset_class_split": True}
+        f = kelly_size_factor("DIP", _Broken(_mixed_pool()), kelly_cfg=cfg,
+                              instrument_id=1)
+        assert DEFAULT_MIN_FACTOR <= f <= DEFAULT_MAX_FACTOR

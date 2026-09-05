@@ -121,27 +121,74 @@ def _kelly_fraction(pnls: list[float]) -> float:
     return max(-1.0, min(1.0, f))
 
 
-def _recent_trade_rows(db) -> list[tuple[str, float]]:
+def _recent_trade_rows(db, bucket: str | None = None) -> list[tuple[str, float]]:
     """(signal_type, pnl_pct) for all CLOSED trades in the lookback window.
 
     Same query as before the risk-neutral change (fix/kelly-components,
     2026-07-26): exact combo strings live in signals.signal_type and are
     joined via trades.signal_id.
     """
-    try:
-        rows = db.fetchall(
-            """
+    sql = """
             SELECT s.signal_type AS st, t.pnl_pct
             FROM trades t
             JOIN signals s ON s.id = t.signal_id
             WHERE t.status = 'CLOSED'
               AND t.pnl_pct IS NOT NULL
               AND t.created_at > datetime('now', '-90 days')
-            """,
-        )
+    """
+    if bucket in ("crypto", "other"):
+        # feat/kelly-asset-class-split (2026-09-05): Krypto-Trades duerfen
+        # nicht die Groesse fuer Aktien-Trades DESSELBEN Signal-Clusters
+        # setzen. Messung 2026-09-05 am Dip-Cluster
+        # MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING (81 Trades, 90d):
+        #     Krypto n= 9  Ø +16.52%   6/9 Wins
+        #     Aktien n=72  Ø  +0.08%  20/72 Wins
+        # Der Cluster trug damit 0.573 — den hoechsten Faktor ueberhaupt —
+        # obwohl 89% der Stichprobe bei null liegt. Die 9 Krypto-Trades
+        # fielen in ein Fenster mit XRP +45.2% / BTC +24.3%: das ist Beta,
+        # kein Edge, und es hat die Aktien-Seite mitgehoben.
+        op = "=" if bucket == "crypto" else "<>"
+        sql += (f"      AND LOWER(COALESCE((SELECT i.asset_class FROM instruments i"
+                f" WHERE i.instrument_id = t.instrument_id), '')) {op} 'crypto'\n")
+    try:
+        rows = db.fetchall(sql)
     except Exception:
         return []
     return [(r["st"], float(r["pnl_pct"])) for r in rows]
+
+
+def _asset_bucket(asset_class: str | None) -> str | None:
+    """'crypto' | 'other' — bewusst grob.
+
+    Feiner aufzuteilen (stock/etf/commodity/index/forex) wuerde die
+    Stichproben zerlegen: gemessen 2026-09-05 auf 90 Tagen stehen 321
+    stock-Trades 18 crypto-, 14 etf-, 6 commodity-, 4 index- und 1
+    forex-Trade gegenueber. Die Evidenz betrifft ausschliesslich Krypto
+    (Ø +10.84% gegen Ø +0.08% bei Aktien), also trennt der Schnitt genau
+    dort und nirgends sonst.
+    """
+    if not asset_class:
+        return None
+    return "crypto" if asset_class.strip().lower() == "crypto" else "other"
+
+
+def _instrument_asset_class(db, instrument_id) -> str | None:
+    """asset_class eines Instruments; None bei jedem Fehler (fail-open)."""
+    if db is None or instrument_id is None:
+        return None
+    try:
+        row = db.fetchone(
+            "SELECT asset_class FROM instruments WHERE instrument_id = ?",
+            (int(instrument_id),),
+        )
+    except Exception:
+        return None
+    if not row:
+        return None
+    try:
+        return row["asset_class"]
+    except Exception:
+        return None
 
 
 def _kelly_for_signal(signal_type: str, rows: list[tuple[str, float]],
@@ -228,7 +275,9 @@ def _kelly_for_signal(signal_type: str, rows: list[tuple[str, float]],
 
 
 def kelly_size_factor(signal_type: str, db=None, min_trades: int | None = None,
-                      kelly_cfg: dict | None = None) -> float:
+                      kelly_cfg: dict | None = None,
+                      asset_class: str | None = None,
+                      instrument_id=None) -> float:
     """Risk-neutral Kelly position-size factor from realized performance.
 
     Strategy (combo-aware):
@@ -244,11 +293,24 @@ def kelly_size_factor(signal_type: str, db=None, min_trades: int | None = None,
             Defaults to config kelly_min_trades or DEFAULT_MIN_TRADES.
         kelly_cfg: Override dict with kelly_min_trades / kelly_base /
             kelly_scale / kelly_min_factor / kelly_max_factor (for tests).
+        asset_class: Anlageklasse des Kandidaten. Nur wirksam, wenn
+            sizing.kelly_asset_class_split aktiv ist — dann zaehlen fuer den
+            Faktor NUR Trades derselben Klasse (crypto | other).
+        instrument_id: Alternative zu asset_class — wird bei Bedarf
+            nachgeschlagen. asset_class hat Vorrang.
 
     Returns:
         Sizing factor in [min_factor, max_factor]; base when no data.
     """
     cfg = kelly_cfg if kelly_cfg is not None else _get_sizing_cfg()
+    # feat/kelly-asset-class-split: Default AUS (Blue/Green) — erst nach
+    # Auswertung scharfschalten. Ohne Flag exakt das bisherige Verhalten.
+    bucket = None
+    if bool(cfg.get("kelly_asset_class_split", False)):
+        _ac = asset_class
+        if _ac is None and instrument_id is not None:
+            _ac = _instrument_asset_class(db, instrument_id)
+        bucket = _asset_bucket(_ac)
 
     mt = int(min_trades if min_trades is not None else cfg.get("kelly_min_trades", DEFAULT_MIN_TRADES))
     base = float(cfg.get("kelly_base", DEFAULT_BASE))
@@ -263,7 +325,7 @@ def kelly_size_factor(signal_type: str, db=None, min_trades: int | None = None,
         db = DB(load_config().db.abs_path)
 
     kelly = _kelly_for_signal(
-        signal_type, _recent_trade_rows(db), mt,
+        signal_type, _recent_trade_rows(db, bucket), mt,
         float(cfg.get("kelly_shrink_k0", DEFAULT_SHRINK_K0)),
     )
     if kelly is None:
