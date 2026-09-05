@@ -246,9 +246,56 @@ def execute_llm_recommendations(
                     stats["tighten_count"] += 1
                 continue
 
+            # fix/llm-tighten-remaining (2026-09-05): Dieser Pfad hat die
+            # 50%-Untergrenze BISHER NICHT geprueft und die Restmenge NICHT
+            # fortgeschrieben — anders als sell_exits.py, das beides tut.
+            # Folge: `position_state.remaining_frac` blieb fuer LLM-getriebene
+            # Teilverkaeufe dauerhaft auf 1.0, der Schutz konnte nie greifen,
+            # und dieselbe TIGHTEN-Empfehlung wurde Zyklus fuer Zyklus erneut
+            # als echte Order ausgefuehrt.
+            #
+            # Gemessen 2026-09-05 auf trading.db: 610 der 910 Teilschliessungen
+            # stammen aus llm_tighten (sell_exit, mit Schutz: 184). CAR.AX
+            # (trade 682) sammelte 52 Rungs — kumuliert $1.374 "geschlossen"
+            # auf einer $360-Position (3,81x), mehrfach zum IDENTISCHEN Preis
+            # (26,43 dreimal, 26,10 sechsmal). 47 von 153 Trades mit
+            # Teilschliessungen haben mehr als 4 Rungs.
+            #
+            # Jede dieser Tranchen zahlt Spread. Der Fix spiegelt exakt das
+            # Vorgehen aus sell_exits.py: Restmenge lesen, bei drohender
+            # Unterschreitung auf Vollverkauf hochstufen, nach Erfolg
+            # fortschreiben.
+            _remaining_frac = 1.0
+            if db is not None and position_id:
+                try:
+                    from bot.core.trailing_stop import load_position_dynamic
+                    _dyn = load_position_dynamic(db, [str(position_id)])
+                    _remaining_frac = float(
+                        (_dyn.get(str(position_id)) or {}).get("remaining", 1.0)
+                    )
+                except Exception:
+                    _remaining_frac = 1.0  # fail-open wie im Rest des Moduls
+
+            if rec_close_pct < 100.0:
+                try:
+                    from bot.core.trailing_stop import (
+                        MIN_REMAINING_PCT, would_breach_min_remaining,
+                    )
+                    if would_breach_min_remaining(_remaining_frac, rec_close_pct):
+                        logger.info(
+                            "[llm_execution] %s: FULL CLOSE — Rest %.0f%% minus "
+                            "%.0f%% wuerde die %.0f%%-Untergrenze verletzen (%s)",
+                            symbol, _remaining_frac * 100, rec_close_pct,
+                            MIN_REMAINING_PCT, reason,
+                        )
+                        rec_close_pct = 100.0
+                except Exception:
+                    pass  # ohne Guard weiter wie bisher (fail-open)
+
             # Direkter Teilverkauf (TIGHTEN mit close_pct ODER EXIT)
-            logger.info("[llm_execution] %s %s %.0f%% (position=%s) %s",
+            logger.info("[llm_execution] %s %s %.0f%% (position=%s, Rest %.0f%%) %s",
                         recommendation, symbol, rec_close_pct, position_id,
+                        _remaining_frac * 100,
                         "[DRY-RUN]" if dry_run else "ausfuehren...")
 
             if not dry_run:
@@ -297,6 +344,20 @@ def execute_llm_recommendations(
                     )
                     if not result:
                         raise RuntimeError("close_position() gab leeres Ergebnis zurueck")
+
+                    # fix/llm-tighten-remaining: die reduzierte Restmenge
+                    # persistieren. OHNE diese Zeile bleibt remaining_frac auf
+                    # 1.0 und der Guard oben ist wirkungslos — genau das war
+                    # die Ursache der 52 Rungs auf CAR.AX.
+                    if rec_close_pct < 100.0 and db is not None and position_id:
+                        try:
+                            from bot.core.trailing_stop import apply_partial_to_remaining
+                            apply_partial_to_remaining(
+                                db, str(position_id), symbol, rec_close_pct,
+                            )
+                        except Exception as _rf_exc:
+                            logger.debug("[llm_execution] remaining_frac nicht "
+                                         "fortgeschrieben: %s", _rf_exc)
 
                     rec["executed"]        = True
                     rec["executed_at"]     = now.isoformat()[:19]
