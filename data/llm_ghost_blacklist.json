@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-07-27T20:30:34.743877+00:00",
-  "auto_expires_at": "2026-08-03T20:30:34.743891+00:00",
+  "updated_at": "2026-09-06T20:30:27.534958+00:00",
+  "auto_expires_at": "2026-09-13T20:30:27.534967+00:00",
   "exchanges": [
     ".L",
     ".OL",
@@ -10,71 +10,51 @@
   "caution_exchanges": [],
   "symbols": [],
   "stats": {
-    ".SW": {
-      "total": 20,
+    "_OTHER": {
+      "total": 68,
       "ghost": 0,
       "rate": 0.0
     },
     ".L": {
-      "total": 51,
-      "ghost": 2,
-      "rate": 0.04
+      "total": 7,
+      "ghost": 0,
+      "rate": 0.0
     },
-    ".AX": {
-      "total": 16,
+    ".MI": {
+      "total": 11,
       "ghost": 0,
       "rate": 0.0
     },
     ".PA": {
-      "total": 14,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    "_OTHER": {
-      "total": 51,
-      "ghost": 2,
-      "rate": 0.04
-    },
-    ".MI": {
-      "total": 4,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    ".DE": {
       "total": 12,
       "ghost": 0,
       "rate": 0.0
     },
-    "_CRYPTO": {
-      "total": 37,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    "_ASIA": {
-      "total": 8,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    ".ZU": {
-      "total": 2,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    ".ST": {
+    ".DE": {
       "total": 9,
       "ghost": 0,
       "rate": 0.0
     },
     ".MC": {
-      "total": 7,
+      "total": 8,
       "ghost": 0,
       "rate": 0.0
     },
-    ".RTH": {
-      "total": 2,
+    "_ASIA": {
+      "total": 53,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    ".ASX": {
+      "total": 8,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    ".ST": {
+      "total": 12,
       "ghost": 0,
       "rate": 0.0
     }
   },
-  "reason": "Regime CAUTION: Portfolio bei 9027 USD. Ghost-Raten sind aktuell niedrig, aber die Signal-Qualitaet leidet. HIGH Conviction Trades verlieren durchschnittlich, besonders bei Trend-Pullbacks. Exit-Management bei FHZN.ZU und 1797.HK war schlecht (Peak nicht gesichert). Slippage bei .L/.DE Instrumenten bleibt ein Faktor."
+  "reason": "Portfolio ist im CAUTION-Regime stabil. Keine strukturellen Ghost-Order-Probleme bei tradbaren Instrumenten. TREND_PULLBACK,GOLDEN_CROSS signalisiert Verluste trotz hoher Erfolgsquote, daher wird die Gewichtung gedämpft."
 }

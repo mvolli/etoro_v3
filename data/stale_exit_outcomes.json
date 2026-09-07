@@ -1,0 +1,83 @@
+{
+ "entries": [
+  {
+   "ts": "2026-08-03T13:32:36",
+   "symbol": "3000",
+   "yf_symbol": "SPY",
+   "position_id": "3520791477",
+   "instrument_id": 3000,
+   "exit_pnl_pct": 0.14,
+   "outcome": "GOOD",
+   "outcome_delta_pct": 1.44
+  },
+  {
+   "ts": "2026-08-10T13:32:54",
+   "symbol": "2088",
+   "yf_symbol": "TATE.L",
+   "position_id": "3525974507",
+   "instrument_id": 2088,
+   "exit_pnl_pct": 0.73,
+   "outcome": "GOOD",
+   "outcome_delta_pct": 0.09
+  },
+  {
+   "ts": "2026-08-10T13:50:45",
+   "symbol": "1022",
+   "yf_symbol": "JNJ",
+   "position_id": "3527092194",
+   "instrument_id": 1022,
+   "exit_pnl_pct": 1.28,
+   "outcome": "GOOD",
+   "outcome_delta_pct": 0.1
+  },
+  {
+   "ts": "2026-08-13T01:32:39",
+   "symbol": "00006.HK",
+   "yf_symbol": "0006.HK",
+   "position_id": "3529050570",
+   "instrument_id": 2353,
+   "exit_pnl_pct": -1.33,
+   "outcome": "GOOD",
+   "outcome_delta_pct": 1.02
+  },
+  {
+   "ts": "2026-08-14T07:08:00",
+   "symbol": "NG.L",
+   "yf_symbol": "NG.L",
+   "position_id": "3532730393",
+   "instrument_id": 2057,
+   "exit_pnl_pct": 0.83,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.34
+  },
+  {
+   "ts": "2026-08-17T13:32:27",
+   "symbol": "PG",
+   "yf_symbol": "PG",
+   "position_id": "3534980335",
+   "instrument_id": 1029,
+   "exit_pnl_pct": -1.01,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.1
+  },
+  {
+   "ts": "2026-09-03T14:37:18",
+   "symbol": "V",
+   "yf_symbol": "V",
+   "position_id": "3554953697",
+   "instrument_id": 1046,
+   "exit_pnl_pct": -0.63,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.97
+  },
+  {
+   "ts": "2026-09-04T07:38:04",
+   "symbol": "IBE.MC",
+   "yf_symbol": "IBE.MC",
+   "position_id": "3554927456",
+   "instrument_id": 1330,
+   "exit_pnl_pct": -1.4,
+   "outcome": null
+  }
+ ]
+}

@@ -1,11 +1,14 @@
 {
-  "updated_at": "2026-08-26T22:30:00+00:00",
-  "auto_expires_at": "2026-09-09T22:30:00+00:00",
+  "updated_at": "2026-09-06T20:30:27.539620+00:00",
+  "auto_expires_at": "2026-09-20T20:30:27.539627+00:00",
   "adjustments": {
     "TREND_PULLBACK,GOLDEN_CROSS": {
       "score_multiplier": 0.25,
       "skip": false,
-      "reason": "Post-26.07 (n=31, WR 25.8%, payoff 0.84, -$32): structurally negative expectancy. Dampened to 0.25 by 56b6c04 (2026-08-24); the 2026-08-24 20:31 auto-run had overwritten this with 0.5 citing a pre-fix 82% win-rate (Zäsur violation). Re-asserted 2026-08-26."
+      "reason": "Negative average PnL (-1.43%) and low win rate (25.8%) indicate poor edge despite high execution success.",
+      "_ratchet_frozen": true,
+      "_proposed": 0.5,
+      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.25 -> 0.5 blockiert (n_closed=44/20, realized=-35.62 USD)"
     },
     "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": {
       "score_multiplier": 1.0,
@@ -26,16 +29,18 @@
       "score_multiplier": 0.2,
       "skip": false,
       "reason": "Oversold without MACD confirmation (pre-fix n=10, WR 10%): backstop under the Falling-Knife-Gate. No post-26.07 trades."
+    },
+    "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "Small sample size but negative PnL (-3.03%); aligning with strategy basis that deep RSI without strong trend confirmation is risky."
     }
   },
   "strategy_notes": [
-    "Post-26.07 (Zäsur-Regel): MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING is the only positive-expectancy signal-type (n=38, WR 47.4%, +$51). TREND_PULLBACK,GOLDEN_CROSS is structurally negative (n=31, WR 25.8%, payoff 0.84) — kept at 0.25, dormant since 2026-08-17.",
-    "Conviction finding (documented, NOT acted on — VoLLi HOLD until ~2026-09-07 + new-regime basis only): post-26.07 MEDIUM n=124 WR 41.9% outperforms HIGH n=31 WR 25.8% by 16.1pp. New-regime window (>= 2026-08-24 13:16) has only n=2 closed trades, so no recalibration yet.",
-    "Ghost-Blacklist hygiene: .L now shows 0% ghost rate (37/37 clean) but stays blocked by the preserve-previous rule (intended); the sweep path intentionally bypasses the exchange blacklist (sweep buys .L/.PA titles while they are signal-path-blocked) — document, do not change.",
-    "Auto-run 2026-08-24 20:31 had silently overwritten committed 56b6c04 weights (TP+GC 0.25 -> 0.5, reason citing stale 82% WR). Re-asserted here; next 20:00-UTC review may overwrite again — if TP+GC reappears >0.25 without new post-26.07 evidence, restore this file.",
-    "2026-08-26: Re-asserted TP+GC 0.25 after auto-run overwrite. Post-26.07 evidence: MACD_TURN+BB_LOW n=38 WR 47.4% +$51 (best); CORE_SWEEP n=85 WR 40.0% -$165; TP+GC n=31 WR 25.8% -$32. Conviction: MEDIUM n=124 WR 41.9% vs HIGH n=31 WR 25.8% (documented only — HOLD until ~2026-09-07 per VoLLi; new-regime window n=2)."
+    "TREND_PULLBACK,GOLDEN_CROSS entries often hit stop-loss quickly (hold_d < 1 day in recent losses), suggesting entry timing or volatility mismatch.",
+    "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING remains the strongest performer with positive avg PnL and high success rate."
   ],
   "conviction_issues": [
-    "VERY_HIGH Conviction signals (specifically BB_LOWER_RSI_OVERSOLD combos) have a win rate < 10% and negative PnL. The conviction scoring for oversold conditions is inverted or too aggressive."
+    "HIGH conviction trades for TREND_PULLBACK,GOLDEN_CROSS have a 25.8% win rate, significantly lower than MEDIUM conviction (45.7%), suggesting conviction scoring may be misaligned for this signal type."
   ]
 }

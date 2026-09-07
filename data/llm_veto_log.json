@@ -1,2704 +1,2871 @@
 {
  "entries": [
   {
-   "ts": "2026-07-27T15:04:08.685907+00:00",
-   "trade_id": 588,
-   "symbol": "NVDA",
-   "yf_symbol": "NVDA",
+   "ts": "2026-08-04T12:04:20.549891+00:00",
+   "trade_id": 1376,
+   "symbol": "TRMD-A.CO",
+   "yf_symbol": "TRMD-A.CO",
    "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie + NEWS-FLAG CAUTION (Chips sinken) + RSI neutral (48) ohne MACD-Wende. Risiko zu hoch.",
-   "signal_price": null
+   "reason": "CORE_SWEEP hat schlechte WR (9.1%). Ohne MACD-Komponente ist das Risiko hoch. Position verkleinern.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
   },
   {
-   "ts": "2026-07-27T15:34:14.789619+00:00",
-   "trade_id": 594,
-   "symbol": "ZM=F",
-   "yf_symbol": "ZM=F",
+   "ts": "2026-08-04T12:04:20.549891+00:00",
+   "trade_id": 1377,
+   "symbol": "OPC_13635",
+   "yf_symbol": "OXY",
    "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie, QQQ stark im Minus (-2%), Risiko zu hoch.",
-   "signal_price": null
+   "reason": "CORE_SWEEP hat schlechte WR (9.1%). Ohne MACD-Komponente ist das Risiko hoch. Position verkleinern.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
   },
   {
-   "ts": "2026-07-27T15:34:14.789619+00:00",
-   "trade_id": 595,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
+   "ts": "2026-08-04T12:34:23.318768+00:00",
+   "trade_id": 1378,
+   "symbol": "TLT",
+   "yf_symbol": "I2Y",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% bei n=11; Veto bei schlechter Performance ohne MACD-Wende.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-04T12:34:23.318768+00:00",
+   "trade_id": 1379,
+   "symbol": "TRMD-A.CO",
+   "yf_symbol": "TRMD-A.CO",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% bei n=11; Veto bei schlechter Performance ohne MACD-Wende.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-04T12:49:25.909791+00:00",
+   "trade_id": 1380,
+   "symbol": "TLT",
+   "yf_symbol": "I2Y",
    "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, konservative Reduzierung bei schwachem Tech-Sektor.",
+   "reason": "CORE_SWEEP hat schlechte WR (9.1%). Ohne MACD-Komponente ist das Risiko hoch. Verringerung zur Risikokontrolle.",
    "signal_price": null
   },
   {
-   "ts": "2026-07-27T15:49:16.554830+00:00",
-   "trade_id": 595,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
+   "ts": "2026-08-04T12:49:25.909791+00:00",
+   "trade_id": 1381,
+   "symbol": "TRMD-A.CO",
+   "yf_symbol": "TRMD-A.CO",
    "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne 30d-Historie bei schwachem QQQ (-2.09%); konservativ handeln.",
+   "reason": "CORE_SWEEP hat schlechte WR (9.1%). Ohne MACD-Komponente ist das Risiko hoch. Verringerung zur Risikokontrolle.",
    "signal_price": null
   },
   {
-   "ts": "2026-07-27T15:49:16.554830+00:00",
-   "trade_id": 596,
-   "symbol": "ZM=F",
-   "yf_symbol": "ZM=F",
-   "decision": "VETO",
-   "reason": "ZM=F ist illiquide/OTC; CORE_SWEEP ohne Historie in volatiler Tech-Umgebung zu riskant.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T15:49:16.554830+00:00",
-   "trade_id": 597,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
+   "ts": "2026-08-04T13:04:28.777405+00:00",
+   "trade_id": 1380,
+   "symbol": "TLT",
+   "yf_symbol": "I2Y",
    "decision": "REDUCE",
-   "reason": "Duplikat von 595 (GIVN.SW); Gesamtexposure wird reduziert, um Risiko zu streuen.",
+   "reason": "CORE_SWEEP WR 9.1% sehr schlecht; Veto bei fehlendem MACD-Kombo.",
    "signal_price": null
   },
   {
-   "ts": "2026-07-27T16:04:10.324684+00:00",
-   "trade_id": 595,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne 30d-Historie, konservativ pruefen; QQQ faellt stark (-1.74%), Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T16:19:12.191950+00:00",
-   "trade_id": 598,
-   "symbol": "ZM=F",
-   "yf_symbol": "ZM=F",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie in schwachem QQQ-Umfeld; Risiko zu hoch.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T16:19:12.191950+00:00",
-   "trade_id": 599,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
+   "ts": "2026-08-04T13:04:28.777405+00:00",
+   "trade_id": 1381,
+   "symbol": "TRMD-A.CO",
+   "yf_symbol": "TRMD-A.CO",
    "decision": "REDUCE",
-   "reason": "Konservative Reduktion bei fehlender 30d-Historie und MEDIUM-Score.",
+   "reason": "CORE_SWEEP WR 9.1% sehr schlecht; Veto bei fehlendem MACD-Kombo.",
    "signal_price": null
   },
   {
-   "ts": "2026-07-27T16:19:12.191950+00:00",
-   "trade_id": 600,
-   "symbol": "CAR.AX",
+   "ts": "2026-08-04T13:04:28.777405+00:00",
+   "trade_id": 1382,
+   "symbol": "OPC_13635",
+   "yf_symbol": "OXY",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 9.1% sehr schlecht; Veto bei fehlendem MACD-Kombo.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-04T13:04:28.777405+00:00",
+   "trade_id": 1383,
+   "symbol": "DIS.MI",
+   "yf_symbol": "DIS.MI",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 9.1% sehr schlecht; Veto bei fehlendem MACD-Kombo.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-04T13:19:31.309792+00:00",
+   "trade_id": 1380,
+   "symbol": "TLT",
+   "yf_symbol": "I2Y",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% ist kritisch niedrig; Veto bei fehlendem MACD-Wende-Signal.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-04T13:19:31.309792+00:00",
+   "trade_id": 1381,
+   "symbol": "TRMD-A.CO",
+   "yf_symbol": "TRMD-A.CO",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% ist kritisch niedrig; Veto bei fehlendem MACD-Wende-Signal.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-04T13:19:31.309792+00:00",
+   "trade_id": 1382,
+   "symbol": "OPC_13635",
+   "yf_symbol": "OXY",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 9.1% ist kritisch niedrig; Veto bei fehlendem MACD-Wende-Signal.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-04T13:19:31.309792+00:00",
+   "trade_id": 1383,
+   "symbol": "DIS.MI",
+   "yf_symbol": "DIS.MI",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 9.1% ist kritisch niedrig; Veto bei fehlendem MACD-Wende-Signal.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-04T13:34:32.417789+00:00",
+   "trade_id": 1382,
+   "symbol": "OPC_13635",
+   "yf_symbol": "OXY",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP hat schlechte WR (9.1%). Ohne MACD-Komponente hohes Risiko.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-04T13:34:32.417789+00:00",
+   "trade_id": 1383,
+   "symbol": "DIS.MI",
+   "yf_symbol": "DIS.MI",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP hat schlechte WR (9.1%). Ohne MACD-Komponente hohes Risiko.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-04T13:34:32.417789+00:00",
+   "trade_id": 1384,
+   "symbol": "TLT",
+   "yf_symbol": "I2Y",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat schlechte WR (9.1%). Ohne MACD-Komponente hohes Risiko.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-04T13:34:32.417789+00:00",
+   "trade_id": 1385,
+   "symbol": "TRMD-A.CO",
+   "yf_symbol": "TRMD-A.CO",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat schlechte WR (9.1%). Ohne MACD-Komponente hohes Risiko.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-04T13:49:31.834374+00:00",
+   "trade_id": 1386,
+   "symbol": "PG",
+   "yf_symbol": "PG",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP mit extrem schlechter WR (9.1%) und Score 0. RSI ~49 ist neutral, kein klarer Momentum-Shift. Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-04T14:04:34.549350+00:00",
+   "trade_id": 1387,
+   "symbol": "WMT",
+   "yf_symbol": "WMT",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP mit sehr schlechter WR (9.1%) und RSI ~41 (nicht klar oversold). Risiko-Management durch Positionsverkleinerung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T00:04:24.467543+00:00",
+   "trade_id": 1388,
+   "symbol": "MAIRE.MI",
+   "yf_symbol": "MAIRE.MI",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 9.1% bei n=11; ohne MACD-Komponente hohes Ausfallrisiko (Messer-Szenario).",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T00:19:25.562881+00:00",
+   "trade_id": 1388,
+   "symbol": "MAIRE.MI",
+   "yf_symbol": "MAIRE.MI",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% bei n=11; Score 0 und RSI unbekannt deuten auf fehlende MACD-Komponente/Upside hin.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T00:34:27.429678+00:00",
+   "trade_id": 1389,
+   "symbol": "MAIRE.MI",
+   "yf_symbol": "MAIRE.MI",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% (n=11) kritisch niedrig. Kein MACD-Komponente vorhanden, um das Risiko zu stützen.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T01:04:30.213993+00:00",
+   "trade_id": 1390,
+   "symbol": "MAIRE.MI",
+   "yf_symbol": "MAIRE.MI",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% bei n=11; Score 0 deutet auf fehlende MACD-Komponente hin, was laut Merksatz 'Oversold ohne MACD-Wende ist ein Messer' bedeutet.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T01:34:32.510274+00:00",
+   "trade_id": 1391,
+   "symbol": "MAIRE.MI",
+   "yf_symbol": "MAIRE.MI",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% bei n=11. RSI unbekannt, kein MACD-Komponente vorhanden (WR OHNE MACD nur 17.6%). Risiko zu hoch fuer mechanisches Gate.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T02:04:33.983760+00:00",
+   "trade_id": 1392,
+   "symbol": "MAIRE.MI",
+   "yf_symbol": "MAIRE.MI",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% bei n=11; Score 0 deutet auf fehlende MACD-Komponente hin -> 'Messer im freien Fall'.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T02:34:36.230147+00:00",
+   "trade_id": 1393,
+   "symbol": "6185.HK",
+   "yf_symbol": "6185.HK",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% bei n=11. Kein MACD-Komponente angegeben, daher hohes Risiko eines 'Messer-Falls' laut Merksatz.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T03:04:38.838335+00:00",
+   "trade_id": 1394,
+   "symbol": "6185.HK",
+   "yf_symbol": "6185.HK",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% bei n=11. Score 0 deutet auf fehlende MACD-Komponente hin (WR OHNE MACD: 17.6%). Im Zweifel: VETO bei schlechter Kombi-Performance.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T04:04:44.350687+00:00",
+   "trade_id": 1395,
+   "symbol": "6185.HK",
+   "yf_symbol": "6185.HK",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% bei n=11; Score 0 deutet auf fehlende MACD-Komponente hin (WR 17.6% OHNE MACD). Im Zweifel bei so schlechter historischer Performance veto.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T04:19:45.589030+00:00",
+   "trade_id": 1396,
+   "symbol": "6185.HK",
+   "yf_symbol": "6185.HK",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% bei n=11. Score 0 deutet auf fehlende MACD-Komponente hin (WR OHNE MACD: 17.6%). Im Zweifel bei schlechter Kombi-Performance vetoen.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T04:34:46.438863+00:00",
+   "trade_id": 1397,
+   "symbol": "6185.HK",
+   "yf_symbol": "6185.HK",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% bei n=11. Kein MACD-Komponente angegeben, daher hohes Risiko eines 'Messer'-Fehlsignals. Asymmetrisches Recht genutzt.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T04:49:47.249119+00:00",
+   "trade_id": 1398,
+   "symbol": "MAIRE.MI",
+   "yf_symbol": "MAIRE.MI",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% bei n=11; Score 0 deutet auf fehlende MACD-Komponente hin -> 'Messer im Oversold'.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T05:04:48.566457+00:00",
+   "trade_id": 1399,
+   "symbol": "6185.HK",
+   "yf_symbol": "6185.HK",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% bei n=11. Score 0 deutet auf fehlende MACD-Komponente hin; Oversold ohne MACD-Wende ist ein Messer.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T06:19:55.993916+00:00",
+   "trade_id": 1400,
+   "symbol": "6185.HK",
+   "yf_symbol": "6185.HK",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% bei n=11. Score 0 deutet auf fehlende MACD-Komponente hin; Oversold ohne MACD-Wende ist ein Messer.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T06:34:56.632297+00:00",
+   "trade_id": 1401,
+   "symbol": "6185.HK",
+   "yf_symbol": "6185.HK",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% bei n=11; Score 0 deutet auf fehlende MACD-Komponente hin -> 'Messer im Fall'.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T06:49:58.066249+00:00",
+   "trade_id": 1402,
+   "symbol": "6185.HK",
+   "yf_symbol": "6185.HK",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 9.1% bei n=11 ist statistisch schlecht; Reduktion zum Risikoschutz.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T07:05:02.662396+00:00",
+   "trade_id": 1403,
+   "symbol": "SIX2.DE",
+   "yf_symbol": "SIX2.DE",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat schlechte WR (9.1%). Ohne MACD-Komponente ist das Risiko hoch. Reduzierung zur Risikostreuung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T07:05:02.662396+00:00",
+   "trade_id": 1404,
+   "symbol": "MAIRE.MI",
+   "yf_symbol": "MAIRE.MI",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat schlechte WR (9.1%). Ohne MACD-Komponente ist das Risiko hoch. Reduzierung zur Risikostreuung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T07:20:00.966169+00:00",
+   "trade_id": 1405,
+   "symbol": "OXY",
+   "yf_symbol": "OXY",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP hat mit 9.1% WR eine extrem schlechte Trefferquote. Ohne MACD-Komponente (Score 0) liegt das Risiko hoch, da Oversold-Situationen ohne Trendwende-Konfirmation oft in Fal",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T07:35:01.790844+00:00",
+   "trade_id": 1406,
+   "symbol": "OXY",
+   "yf_symbol": "OXY",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP hat historisch nur 9.1% WR (n=11). Ohne MACD-Komponente ist das Signal laut Merksatz ein 'Messer'. Im Zweifel bei schlechter Kombi-Performance VETO.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T08:19:04.142870+00:00",
+   "trade_id": 1407,
+   "symbol": "OXY",
+   "yf_symbol": "OXY",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte WR (9.1%). Ohne MACD-Komponente ist das Risiko hoch. Reduktion zur Risikostreuung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T08:34:06.091568+00:00",
+   "trade_id": 1407,
+   "symbol": "OXY",
+   "yf_symbol": "OXY",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte WR (9.1%) und hohe SL-Rate. Im Zweifel verkleinern statt riskantes Full-Size.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T08:34:06.091568+00:00",
+   "trade_id": 1408,
+   "symbol": "SLP.L",
+   "yf_symbol": "SLP.L",
+   "decision": "REDUCE",
+   "reason": "Selbes Signal CORE_SWEEP mit schlechter Historie. RSI unbekannt, daher konservativ reduzieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T08:49:07.734329+00:00",
+   "trade_id": 1407,
+   "symbol": "OXY",
+   "yf_symbol": "OXY",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP hat extrem schlechte WR (9.1%) und hohe SL-Rate. Ohne MACD-Komponente ist das Risiko hoch. Position halbiert, um Drawdown zu begrenzen.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T08:49:07.734329+00:00",
+   "trade_id": 1409,
+   "symbol": "SLP.L",
+   "yf_symbol": "SLP.L",
+   "decision": "REDUCE",
+   "reason": "Selbes Signal CORE_SWEEP mit schlechter Historie. Da keine spezifischen News-Flags vorliegen, wird die Position verkleinert statt ganz vetoed, um das Risiko zu streuen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T09:19:08.634399+00:00",
+   "trade_id": 1410,
+   "symbol": "OXY",
+   "yf_symbol": "OXY",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte WR (9.1%). Ohne MACD-Komponente ist das Risiko hoch. Reduktion zur Risikokontrolle.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T09:34:10.575785+00:00",
+   "trade_id": 1410,
+   "symbol": "OXY",
+   "yf_symbol": "OXY",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% bei n=11. Ohne MACD-Komponente (Score 0) ist das Risiko zu hoch (Messer-Szenario).",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T09:34:10.575785+00:00",
+   "trade_id": 1411,
+   "symbol": "SLP.L",
+   "yf_symbol": "SLP.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% bei n=11. Ohne MACD-Komponente (Score 0) ist das Risiko zu hoch (Messer-Szenario).",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T09:49:10.703846+00:00",
+   "trade_id": 1412,
+   "symbol": "OXY",
+   "yf_symbol": "OXY",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte WR (9.1%). Ohne MACD-Komponente ist das Risiko hoch. Reduzierung zur Risikokontrolle.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T10:04:11.843504+00:00",
+   "trade_id": 1412,
+   "symbol": "OXY",
+   "yf_symbol": "OXY",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat historisch schlechtes WR (9.1%). Ohne MACD-Komponente ist das Risiko hoch. Im Zweifel reduziert statt verworfen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T10:19:14.001412+00:00",
+   "trade_id": 1412,
+   "symbol": "OXY",
+   "yf_symbol": "OXY",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% bei n=11. Ohne MACD-Komponente (Score 0) ist das Risiko zu hoch (Messer-Szenario).",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T10:19:14.001412+00:00",
+   "trade_id": 1413,
+   "symbol": "SLP.L",
+   "yf_symbol": "SLP.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% bei n=11. Ohne MACD-Komponente (Score 0) ist das Risiko zu hoch (Messer-Szenario).",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T10:34:14.221380+00:00",
+   "trade_id": 1414,
+   "symbol": "DEZ.DE",
+   "yf_symbol": "DEZ.DE",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte WR (9.1%). Ohne MACD-Komponente ist das Risiko hoch. Reduzierung zur Risikostreuung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T10:49:15.147230+00:00",
+   "trade_id": 1415,
+   "symbol": "OXY",
+   "yf_symbol": "OXY",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte Historie (WR 9.1%). Ohne MACD-Komponente ist das Risiko hoch. Reduzierung zur Risikokontrolle.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T11:04:16.045731+00:00",
+   "trade_id": 1415,
+   "symbol": "OXY",
+   "yf_symbol": "OXY",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% bei n=11. Score 0 deutet auf fehlende MACD-Komponente hin (WR OHNE MACD: 17.6%). Im Zweifel bei diesem schwachen Signal-Setup.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T12:19:20.493640+00:00",
+   "trade_id": 1416,
+   "symbol": "OXY",
+   "yf_symbol": "OXY",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP hat mit WR 9.1% eine extrem schlechte Trefferquote. Ohne MACD-Komponente (Score 0) liegt das Risiko bei einem 'fallenden Messer'.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T12:34:22.123396+00:00",
+   "trade_id": 1417,
+   "symbol": "GRE.MC",
+   "yf_symbol": "GRE.MC",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP hat mit WR 9.1% eine extrem schlechte Trefferquote. Ohne MACD-Komponente (Score 0) liegt das Risiko eines 'fallenden Messers' hoch. Asymmetrisches Recht genutzt.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T12:49:23.090821+00:00",
+   "trade_id": 1418,
+   "symbol": "GRE.MC",
+   "yf_symbol": "GRE.MC",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte WR (9.1%) und viele SL-Kills. Ohne MACD-Komponente ist das Signal schwach. Risiko wird durch Reduzierung halbiert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T13:49:29.959693+00:00",
+   "trade_id": 1419,
+   "symbol": "HI_1512",
+   "yf_symbol": "HUM",
+   "decision": "VETO",
+   "reason": "Signal CORE_SWEEP hat WR 9.1% (schlecht). MACD-Kombo WR 14.3% liegt unter 25%-Schwelle. RSI ~40 ist nicht extrem oversold, Risiko hoch.",
+   "signal_price": 359.5400085449219,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 1.19
+  },
+  {
+   "ts": "2026-08-05T13:49:29.959693+00:00",
+   "trade_id": 1420,
+   "symbol": "OXY",
+   "yf_symbol": "OXY",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% (n=11). Letzter Veto bei HI_1512 (gleicher Trade) war erfolgreich. Kein spezifischer Grund fuer eine Abweichung von der Strategie.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T13:49:29.959693+00:00",
+   "trade_id": 1421,
+   "symbol": "SLP.L",
+   "yf_symbol": "SLP.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% (n=11). Gleicher schlechter Signal-Score wie bei 1420. Im Zweifel bei WR < 25% Veto, da kein konkreter Gegenbeweis vorliegt.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T14:04:30.110224+00:00",
+   "trade_id": 1422,
+   "symbol": "HI_1512",
+   "yf_symbol": "HUM",
+   "decision": "VETO",
+   "reason": "Signal CORE_SWEEP hat schlechte WR (9.1%). MACD-Kombo ist besser (38.9%), aber RSI ~41 ist nicht extrem oversold. Risiko minimieren.",
+   "signal_price": 360.3500061035156,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 7.03
+  },
+  {
+   "ts": "2026-08-05T14:04:30.110224+00:00",
+   "trade_id": 1423,
+   "symbol": "OXY",
+   "yf_symbol": "OXY",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP allein hat WR 9.1% (n=11). Ohne MACD-Wende-Komponente ist es ein 'Messer'. Asymmetrisches Risiko spricht gegen Entry.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T14:04:30.110224+00:00",
+   "trade_id": 1424,
+   "symbol": "SLP.L",
+   "yf_symbol": "SLP.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP allein hat WR 9.1%. Gleicher Grund wie bei OXY. Kein konkreter Grund für APPROVE vorhanden.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T14:19:30.754337+00:00",
+   "trade_id": 1425,
+   "symbol": "OXY",
+   "yf_symbol": "OXY",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat historisch schlechte WR (9.1%). Ohne MACD-Komponente ist das Risiko hoch.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T14:19:30.754337+00:00",
+   "trade_id": 1426,
+   "symbol": "SLP.L",
+   "yf_symbol": "SLP.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat historisch schlechte WR (9.1%). Ohne MACD-Komponente ist das Risiko hoch.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T14:34:31.297103+00:00",
+   "trade_id": 1427,
+   "symbol": "MDLZ",
+   "yf_symbol": "MDLZ",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% (n=11) unterkritisch; kein MACD-Kombo.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T14:34:31.297103+00:00",
+   "trade_id": 1428,
+   "symbol": "CWC.DE",
+   "yf_symbol": "CWC.DE",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% (n=11) unterkritisch; kein MACD-Kombo.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T14:49:33.210851+00:00",
+   "trade_id": 1430,
+   "symbol": "MDLZ",
+   "yf_symbol": "MDLZ",
+   "decision": "REDUCE",
+   "reason": "Signal CORE_SWEEP hat sehr schlechte WR (9.1%) und Score 0. Hohe Trefferquote an SL-Kills. Risiko wird reduziert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T14:49:33.210851+00:00",
+   "trade_id": 1431,
+   "symbol": "CWC.DE",
+   "yf_symbol": "CWC.DE",
+   "decision": "REDUCE",
+   "reason": "Signal CORE_SWEEP hat sehr schlechte WR (9.1%) und Score 0. Gleicher Grund wie bei MDLZ.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T15:04:33.076616+00:00",
+   "trade_id": 1432,
+   "symbol": "6198.HK",
+   "yf_symbol": "6198.HK",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP hat mit WR 9.1% eine extrem schlechte Trefferquote. Ohne MACD-Komponente (Score 0) liegt das Risiko bei einem 'Messer-Fall'.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T15:19:34.508185+00:00",
+   "trade_id": 1433,
+   "symbol": "6198.HK",
+   "yf_symbol": "6198.HK",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 9.1% bei n=11 ist statistisch schlecht. Ohne MACD-Komponente (Score 0) liegt die WR nur bei 17.6%. Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T15:34:35.840853+00:00",
+   "trade_id": 1433,
+   "symbol": "6198.HK",
+   "yf_symbol": "6198.HK",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% bei n=11; Score 0 deutet auf fehlende MACD-Komponente hin (WR OHNE MACD 17.6%).",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T18:34:52.846974+00:00",
+   "trade_id": 1435,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP hat historisch nur 9.1% WR (n=11). Ohne MACD-Komponente ist das Risiko zu hoch (Messer-Falle).",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T18:49:51.063745+00:00",
+   "trade_id": 1436,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% bei n=11. Kein MACD-Komponente vorhanden, daher hohes Risiko eines 'Messer-Falls'.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T19:05:15.836213+00:00",
+   "trade_id": 1437,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP hat historisch schlechtes WR (9.1%) und Score 0. Kein MACD-Komponente vorhanden, um das Risiko zu decken.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T19:19:53.291398+00:00",
+   "trade_id": 1438,
+   "symbol": "LRE.L",
+   "yf_symbol": "LRE.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 9.1% bei n=11; ohne MACD-Komponente hohes Ausfallrisiko (Messer-Szenario).",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T19:34:55.544316+00:00",
+   "trade_id": 1438,
+   "symbol": "LRE.L",
+   "yf_symbol": "LRE.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 9.1% ist kritisch niedrig. Ohne MACD-Komponente (Score 0) hohes Risiko eines 'Messer-Falls'. Position halbiert, um SL-Kills zu minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T19:34:55.544316+00:00",
+   "trade_id": 1439,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "REDUCE",
+   "reason": "Selbes Signal CORE_SWEEP mit WR 9.1% und Score 0. Asymmetrisches Recht genutzt, um Risiko zu verkleinern, da kein konkreter Grund fuer volle Groesse vorliegt.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T19:49:57.218021+00:00",
+   "trade_id": 1438,
+   "symbol": "LRE.L",
+   "yf_symbol": "LRE.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% sehr schlecht; ohne MACD-Komponente hohes Risiko.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T19:49:57.218021+00:00",
+   "trade_id": 1439,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 9.1% sehr schlecht; ohne MACD-Komponente hohes Risiko.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T19:49:57.218021+00:00",
+   "trade_id": 1440,
+   "symbol": "6198.HK",
+   "yf_symbol": "6198.HK",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 9.1% sehr schlecht; ohne MACD-Komponente hohes Risiko.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T20:04:59.102185+00:00",
+   "trade_id": 1439,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% bei MEDIUM Score. QQQ -0.9% ist feindlich fuer Sweep-Longs ohne MACD-Wende.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T20:04:59.102185+00:00",
+   "trade_id": 1440,
+   "symbol": "6198.HK",
+   "yf_symbol": "6198.HK",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 9.1% bei MEDIUM Score. QQQ -0.9% ist feindlich fuer Sweep-Longs ohne MACD-Wende.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T21:05:03.368630+00:00",
+   "trade_id": 1441,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP hat historisch nur 7.1% WR bei 14 Trades. Ohne MACD-Komponente (Score 0) ist das Risiko zu hoch, besonders im aktuellen Marktumfeld.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T22:04:07.766338+00:00",
+   "trade_id": 1442,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte WR (7.1%) und viele SL-Kills. Ohne MACD-Komponente ist das Risiko hoch. Im Zweifel reduziert statt approved.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T22:19:08.364154+00:00",
+   "trade_id": 1442,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte Historie (WR 7.1%, viele SL-Kills). Ohne MACD-Komponente ist das Risiko hoch. Im Zweifel reduziert statt verworfen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T22:34:10.097941+00:00",
+   "trade_id": 1442,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; VIX normal aber QQQ schwach, Risiko minimieren.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T22:34:10.097941+00:00",
+   "trade_id": 1443,
+   "symbol": "LRE.L",
+   "yf_symbol": "LRE.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; VIX normal aber QQQ schwach, Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T22:49:10.826356+00:00",
+   "trade_id": 1443,
+   "symbol": "LRE.L",
+   "yf_symbol": "LRE.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht, RSI unbekannt, Risiko minimieren",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T22:49:10.826356+00:00",
+   "trade_id": 1444,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht, RSI unbekannt, Risiko minimieren",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T23:04:12.741202+00:00",
+   "trade_id": 1443,
+   "symbol": "LRE.L",
+   "yf_symbol": "LRE.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; VIX normal aber QQQ schwach, Risiko minimieren.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T23:04:12.741202+00:00",
+   "trade_id": 1444,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; VIX normal aber QQQ schwach, Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T23:04:12.741202+00:00",
+   "trade_id": 1445,
+   "symbol": "6198.HK",
+   "yf_symbol": "6198.HK",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; VIX normal aber QQQ schwach, Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T23:19:14.968592+00:00",
+   "trade_id": 1444,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% bei MEDIUM Score; VIX normal aber QQQ schwach, Risiko minimieren.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T23:19:14.968592+00:00",
+   "trade_id": 1445,
+   "symbol": "6198.HK",
+   "yf_symbol": "6198.HK",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% bei MEDIUM Score; HK-Markt unter Druck, Position verkleinern.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T23:19:14.968592+00:00",
+   "trade_id": 1446,
+   "symbol": "LRE.L",
+   "yf_symbol": "LRE.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% bei MEDIUM Score; LSE-Liquidität nutzen, Risiko halbieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T23:34:16.632070+00:00",
+   "trade_id": 1445,
+   "symbol": "6198.HK",
+   "yf_symbol": "6198.HK",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; RSI unbekannt, aber ohne MACD-Wende hohes Risiko.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T23:34:16.632070+00:00",
+   "trade_id": 1446,
+   "symbol": "LRE.L",
+   "yf_symbol": "LRE.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; RSI unbekannt, aber ohne MACD-Wende hohes Risiko.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T23:34:16.632070+00:00",
+   "trade_id": 1447,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; RSI unbekannt, aber ohne MACD-Wende hohes Risiko.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-05T23:49:18.105855+00:00",
+   "trade_id": 1446,
+   "symbol": "LRE.L",
+   "yf_symbol": "LRE.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% bei MEDIUM Score. Historisch schlechte Performance, kein MACD-Kombo.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T23:49:18.105855+00:00",
+   "trade_id": 1447,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% bei MEDIUM Score. Historisch schlechte Performance, kein MACD-Kombo.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-05T23:49:18.105855+00:00",
+   "trade_id": 1448,
+   "symbol": "6198.HK",
+   "yf_symbol": "6198.HK",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% bei MEDIUM Score. Historisch schlechte Performance, kein MACD-Kombo.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T00:04:17.942826+00:00",
+   "trade_id": 1449,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% bei MEDIUM Signal ohne MACD-Komponente; Marktumfeld (QQQ -0.9%) feindlich fuer Mean-Reversion.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T00:19:18.889324+00:00",
+   "trade_id": 1450,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% bei n=14 ist statistisch schlecht; Reduktion zur Risikominimierung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T00:34:19.743612+00:00",
+   "trade_id": 1450,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte Historie (WR 7.1%, viele SL-Kills). Ohne MACD-Komponente ist das Signal schwach. Risikoreduktion empfohlen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T00:49:21.194470+00:00",
+   "trade_id": 1450,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP hat extrem schlechte WR (7.1%) und hohe Kill-Rate. Ohne MACD-Komponente ist das Signal laut Merksatz 'ein Messer'. Im Zweifel bei Kombos mit WR < 25% veten.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T01:04:21.717186+00:00",
+   "trade_id": 1451,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% bei n=14. Kein MACD-Komponente angegeben, daher hohes Risiko eines 'Messer'-Fehlsignals.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T01:19:22.519315+00:00",
+   "trade_id": 1452,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte WR (7.1%) und viele SL-Kills. Ohne MACD-Komponente ist das Risiko hoch. Reduktion zur Risikominimierung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T01:34:24.380477+00:00",
+   "trade_id": 1452,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte WR (7.1%) und viele SL-Kills. Ohne MACD-Komponente ist das Risiko hoch. Im Zweifel reduziert statt verworfen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T01:49:25.900330+00:00",
+   "trade_id": 1452,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; VIX normal aber QQQ schwach, Risiko minimieren.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T01:49:25.900330+00:00",
+   "trade_id": 1453,
+   "symbol": "LRE.L",
+   "yf_symbol": "LRE.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; Veto nur bei konkretem Grund, daher Reduce statt Veto.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T01:49:25.900330+00:00",
+   "trade_id": 1454,
+   "symbol": "6198.HK",
+   "yf_symbol": "6198.HK",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; Veto nur bei konkretem Grund, daher Reduce statt Veto.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T02:04:27.463633+00:00",
+   "trade_id": 1453,
+   "symbol": "LRE.L",
+   "yf_symbol": "LRE.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht, kein MACD-Kombo, Veto gemaeß Merksatz.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T02:04:27.463633+00:00",
+   "trade_id": 1455,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% schlecht, aber Markt stabil. Risiko halbiert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T02:04:27.463633+00:00",
+   "trade_id": 1456,
+   "symbol": "5201.T",
+   "yf_symbol": "5201.T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% schlecht, aber Markt stabil. Risiko halbiert.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T02:19:27.266236+00:00",
+   "trade_id": 1455,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% bei MEDIUM Score. Markt QQQ -0.9% feindlich. Kein MACD-Komponente-Flag genannt, daher hohes Ausfallrisiko.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T02:19:27.266236+00:00",
+   "trade_id": 1457,
+   "symbol": "LRE.L",
+   "yf_symbol": "LRE.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1%. Im Zweifel reduziert statt vetoed, da LRE.L weniger korreliert mit QQQ als Tech-Cores, aber WR ist kritisch niedrig.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T02:34:28.050617+00:00",
+   "trade_id": 1457,
+   "symbol": "LRE.L",
+   "yf_symbol": "LRE.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% bei n=14. Ohne MACD-Komponente (Score 0) ist das Risiko zu hoch (Messer-Strategie).",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T02:34:28.050617+00:00",
+   "trade_id": 1458,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1%. Gleicher Mechanismus wie 1457, aber Positionshoeher. Halbe Position reduziert Risiko bei schlechter Historie.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T02:49:28.656173+00:00",
+   "trade_id": 1458,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% bei n=14; ohne MACD-Komponente hohes Ausfallrisiko (Messer-Szenario).",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T03:04:30.088325+00:00",
+   "trade_id": 1459,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP hat historisch nur 7.1% WR (n=14). Ohne MACD-Komponente ist das Signal schwach. VIX ist normal, aber der Markt (QQQ -0.9%) zeigt leichte Schwäche. Im Zweifel gegen das s",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T03:19:31.961454+00:00",
+   "trade_id": 1460,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP hat historisch nur 7.1% WR (n=14). Ohne MACD-Komponente ist das Risiko hoch ('Messer fangen').",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T04:04:36.577931+00:00",
+   "trade_id": 1461,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% bei MEDIUM Score; VIX normal, aber Signal schwach. Kein MACD-Komponente erwähnt.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T04:04:36.577931+00:00",
+   "trade_id": 1462,
+   "symbol": "2601.HK",
+   "yf_symbol": "2601.HK",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% bei MEDIUM Score; VIX normal, aber Signal schwach. Kein MACD-Komponente erwähnt.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T04:19:39.252690+00:00",
+   "trade_id": 1463,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% bei n=14; Score 0 und RSI unbekannt deuten auf fehlende MACD-Komponente (WR 16.7% ohne MACD). Im Zweifel bei schlechter Kombi-Performance.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T04:19:39.252690+00:00",
+   "trade_id": 1464,
+   "symbol": "2601.HK",
+   "yf_symbol": "2601.HK",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% bei n=14; Score 0 und RSI unbekannt deuten auf fehlende MACD-Komponente. OPC_13635 Veto war erfolgreich.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T04:34:39.212256+00:00",
+   "trade_id": 1465,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% bei MEDIUM Score. VIX normal, aber Signal historisch schwach (-67$). Kein MACD-Komponente erwähnt -> Messer-Gefahr.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T04:34:39.212256+00:00",
+   "trade_id": 1466,
+   "symbol": "2601.HK",
+   "yf_symbol": "2601.HK",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% bei MEDIUM Score. Gleicher schwacher Mechanismus wie 1465. Im Zweifel VETO bei schlechter WR.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T04:49:40.910307+00:00",
+   "trade_id": 1467,
+   "symbol": "0914.HK",
+   "yf_symbol": "0914.HK",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% bei n=14. Ohne MACD-Komponente (Score 0) ist das Risiko zu hoch (Messer-Strategie).",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T04:49:40.910307+00:00",
+   "trade_id": 1468,
+   "symbol": "LRE.L",
+   "yf_symbol": "LRE.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% bei n=14. Ohne MACD-Komponente (Score 0) ist das Risiko zu hoch (Messer-Strategie).",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T05:04:42.013382+00:00",
+   "trade_id": 1469,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% bei Score 0 (kein MACD-Kombo). Historisch schlechte Performance, VIX normal aber QQQ schwach.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T05:04:42.013382+00:00",
+   "trade_id": 1470,
+   "symbol": "2601.HK",
+   "yf_symbol": "2601.HK",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1%. Im Zweifel reduziert, da kein MACD-Confirm vorliegt und Markt leicht negativ.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T05:19:42.863142+00:00",
+   "trade_id": 1471,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% (n=14) kritisch niedrig; Score 0 und RSI unbekannt deuten auf fehlende MACD-Komponente, was laut Merksatz 'Oversold ohne MACD-Wende ist ein Messer' bedeutet.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T05:34:43.477676+00:00",
+   "trade_id": 1472,
+   "symbol": "0914.HK",
+   "yf_symbol": "0914.HK",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% bei n=14; kein MACD-Komponente vorhanden, um das Messer-Risiko zu minimieren.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T05:49:45.157277+00:00",
+   "trade_id": 1473,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte Historie (WR 7.1%, 10 SL-Kills). Ohne MACD-Komponente ist das Risiko hoch. Im Zweifel reduziert statt verworfen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T06:04:47.868236+00:00",
+   "trade_id": 1473,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% bei n=14. Ohne MACD-Komponente (Score 0) ist das Risiko zu hoch (Messer-Logik).",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T06:04:47.868236+00:00",
+   "trade_id": 1474,
+   "symbol": "0914.HK",
+   "yf_symbol": "0914.HK",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% bei n=14. Ohne MACD-Komponente (Score 0) ist das Risiko zu hoch (Messer-Logik).",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T06:19:47.644702+00:00",
+   "trade_id": 1475,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP hat historisch nur 7.1% WR (n=14). Ohne MACD-Komponente ist das Signal schwach. Im feindlichen QQQ-Umfeld (-0.9%) ist das Risiko zu hoch.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T06:34:49.325242+00:00",
+   "trade_id": 1476,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP hat historisch nur 7.1% WR (n=14) und 10 SL-Kills. Ohne MACD-Komponente ist das Signal laut Merksatz 'ein Messer'.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T06:49:52.604648+00:00",
+   "trade_id": 1477,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% bei MEDIUM Score. Ohne MACD-Komponente ist das Risiko zu hoch (Messer-Szenario).",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T06:49:52.604648+00:00",
+   "trade_id": 1478,
+   "symbol": "0914.HK",
+   "yf_symbol": "0914.HK",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% bei MEDIUM Score. Gleicher Mechanismus wie 1477, hohes Ausfallrisiko.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T07:04:54.288298+00:00",
+   "trade_id": 1480,
+   "symbol": "6198.HK",
+   "yf_symbol": "6198.HK",
+   "decision": "REDUCE",
+   "reason": "Signal TREND_PULLBACK,GOLDEN_Cross hat WR 20.7% (n=29). Kein MACD-Komponente, hohes Risiko bei schwachem Markt.",
+   "signal_price": 6.960000038146973
+  },
+  {
+   "ts": "2026-08-06T07:04:54.288298+00:00",
+   "trade_id": 1481,
+   "symbol": "0914.HK",
+   "yf_symbol": "0914.HK",
+   "decision": "VETO",
+   "reason": "Signal CORE_SWEEP hat WR 7.1% (n=14). Extrem schlechte Performance, 10 SL-Kills. Kein konkreter Grund fuer APPROVE.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T07:04:54.288298+00:00",
+   "trade_id": 1482,
+   "symbol": "LRE.L",
+   "yf_symbol": "LRE.L",
+   "decision": "VETO",
+   "reason": "Signal CORE_SWEEP hat WR 7.1% (n=14). Extrem schlechte Performance, 10 SL-Kills. Kein konkreter Grund fuer APPROVE.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T07:19:56.345530+00:00",
+   "trade_id": 1484,
+   "symbol": "TTE.PA",
+   "yf_symbol": "TTE.PA",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte WR von 7.1% (n=14). Reduzierung des Risikos aufgrund historischer Ineffektivität.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T07:19:56.345530+00:00",
+   "trade_id": 1485,
+   "symbol": "0914.HK",
+   "yf_symbol": "0914.HK",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte WR von 7.1% (n=14). Reduzierung des Risikos aufgrund historischer Ineffektivität.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T07:19:56.345530+00:00",
+   "trade_id": 1486,
+   "symbol": "LRE.L",
+   "yf_symbol": "LRE.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte WR von 7.1% (n=14). Reduzierung des Risikos aufgrund historischer Ineffektivität.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T07:34:55.499246+00:00",
+   "trade_id": 1487,
+   "symbol": "MAIRE.MI",
+   "yf_symbol": "MAIRE.MI",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP hat extrem schlechte WR von 7.1% (n=14). Ohne MACD-Komponente ist das Signal laut Merksatz 'ein Messer'. Im aktuellen feindlichen QQQ-Umfeld (-0.9%) ist das Risiko zu ho",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T08:04:57.694334+00:00",
+   "trade_id": 1488,
+   "symbol": "MAIRE.MI",
+   "yf_symbol": "MAIRE.MI",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% (n=14) ist kritisch schlecht. Ohne MACD-Komponente (Score 0) liegt die WR bei 16.7%. Im feindlichen QQQ-Umfeld (-0.9%) ist dies ein 'fallendes Messer'.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T08:19:59.295675+00:00",
+   "trade_id": 1489,
+   "symbol": "MAIRE.MI",
+   "yf_symbol": "MAIRE.MI",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP hat extrem schlechte WR von 7.1% (n=14). Ohne MACD-Komponente ist das Risiko zu hoch (Messer-Szenario).",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T09:05:03.540867+00:00",
+   "trade_id": 1490,
+   "symbol": "MAIRE.MI",
+   "yf_symbol": "MAIRE.MI",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte Historie (WR 7.1%, viele SL-Kills). Ohne MACD-Komponente ist das Risiko hoch. Im Zweifel reduziert, nicht veto.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T09:19:04.847063+00:00",
+   "trade_id": 1491,
+   "symbol": "GRE.MC",
+   "yf_symbol": "GRE.MC",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% bei n=14. Ohne MACD-Komponente (Score 0) ist das Risiko zu hoch (Messer im Fall).",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T10:19:08.790018+00:00",
+   "trade_id": 1492,
+   "symbol": "GRE.MC",
+   "yf_symbol": "GRE.MC",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte Historie (WR 7.1%, viele SL-Kills). Ohne MACD-Komponente ist das Risiko hoch. Im Zweifel reduziert statt verworfen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T11:19:12.549046+00:00",
+   "trade_id": 1493,
+   "symbol": "SBRE.L",
+   "yf_symbol": "SBRE.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP hat extrem schlechte WR von 7.1% mit 10 SL-Kills. Ohne MACD-Komponente (Score 0) ist das Signal laut Merksatz 'ein Messer'. Im Zweifel bei diesem spezifischen, schwachen",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T11:34:13.725338+00:00",
+   "trade_id": 1494,
+   "symbol": "SBRE.L",
+   "yf_symbol": "SBRE.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP hat mit 7.1% WR und 10 SL-Kills extrem schlechte Performance. Ohne MACD-Komponente (Score 0) liegt die WR bei nur 16.7%. Im aktuellen feindlichen Markt (QQQ -0.9%) ist d",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T12:19:16.775860+00:00",
+   "trade_id": 1495,
+   "symbol": "SBRE.L",
+   "yf_symbol": "SBRE.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte Historie (WR 7.1%, viele SL-Kills). Ohne MACD-Komponente ist das Signal schwach. Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T12:34:18.571600+00:00",
+   "trade_id": 1495,
+   "symbol": "SBRE.L",
+   "yf_symbol": "SBRE.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; Veto nur bei konkretem Grund, daher Reduktion statt Veto.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T12:34:18.571600+00:00",
+   "trade_id": 1496,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; Veto nur bei konkretem Grund, daher Reduktion statt Veto.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T12:49:27.929893+00:00",
+   "trade_id": 1495,
+   "symbol": "SBRE.L",
+   "yf_symbol": "SBRE.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; Veto nur bei konkretem Grund, daher Reduktion statt Veto.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T12:49:27.929893+00:00",
+   "trade_id": 1496,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; Veto nur bei konkretem Grund, daher Reduktion statt Veto.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T12:49:27.929893+00:00",
+   "trade_id": 1497,
+   "symbol": "MAIRE.MI",
+   "yf_symbol": "MAIRE.MI",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; Veto nur bei konkretem Grund, daher Reduktion statt Veto.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T13:04:19.731668+00:00",
+   "trade_id": 1496,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; RSI unbekannt, Risiko zu hoch bei MEDIUM Signal.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T14:19:26.424432+00:00",
+   "trade_id": 1498,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte Historie (WR 7.1%, viele SL-Kills). Ohne MACD-Komponente ist das Risiko hoch. Reduzierung zur Risikokontrolle.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T14:34:27.340746+00:00",
+   "trade_id": 1499,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte WR (7.1%) und viele SL-Kills. Ohne MACD-Komponente ist das Risiko hoch. Im Zweifel reduziert statt ganz vetoed.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T15:04:30.231436+00:00",
+   "trade_id": 1500,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat historisch schlechtes WR (7.1%) und hohe Kill-Rate. Bei VIX 15.85 und QQQ -0.9% ist das Risiko hoch; Reduktion minimiert Drawdown bei gleichzeitigem Upside-Potenzial",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T15:19:30.489775+00:00",
+   "trade_id": 1501,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat historisch schlechte WR (7.1%) und hohe Kill-Rate. Bei Score 0 und unbekanntem RSI ist Risiko hoch; Reduktion minimiert Drawdown bei gleichzeitiger Teilnahme.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T15:34:31.920901+00:00",
+   "trade_id": 1502,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte WR (7.1%) und hohe Kill-Rate. Ohne MACD-Komponente ist das Risiko hoch. Im Zweifel reduziert statt verworfen.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T15:49:32.754777+00:00",
+   "trade_id": 1503,
+   "symbol": "3958.HK",
+   "yf_symbol": "3958.HK",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% bei n=14 ist statistisch schlecht. Ohne MACD-Komponente (Score 0) besteht hohes Risiko eines 'Messer'-Falls. Reduktion zur Risikostreuung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T16:04:36.297130+00:00",
+   "trade_id": 1503,
+   "symbol": "3958.HK",
+   "yf_symbol": "3958.HK",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; RSI unbekannt, Risiko zu hoch fuer Vollexposure.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T16:04:36.297130+00:00",
+   "trade_id": 1504,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; RSI unbekannt, Risiko zu hoch fuer Vollexposure.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T16:19:36.740906+00:00",
+   "trade_id": 1503,
+   "symbol": "3958.HK",
+   "yf_symbol": "3958.HK",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% ist katastrophal; ohne MACD-Komponente hohes Risiko.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T16:19:36.740906+00:00",
+   "trade_id": 1505,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "Hoher Positionswert ($351) bei schlechtem Signal-WR (7.1%); Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T16:34:37.209496+00:00",
+   "trade_id": 1506,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte WR (7.1%) und viele SL-Kills. Ohne MACD-Komponente ist das Risiko hoch. Reduzierung zur Risikostreuung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T16:49:39.488481+00:00",
+   "trade_id": 1506,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% ist kritisch niedrig; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T16:49:39.488481+00:00",
+   "trade_id": 1507,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% ist kritisch niedrig; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T16:49:39.488481+00:00",
+   "trade_id": 1508,
+   "symbol": "RRC",
+   "yf_symbol": "RRC",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% ist kritisch niedrig; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T17:04:40.911056+00:00",
+   "trade_id": 1506,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht, nur mit MACD-Komponente besser (38.9%). RSI unbekannt, daher Risikoreduktion.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T17:04:40.911056+00:00",
+   "trade_id": 1509,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "Hoher Dollarbetrag ($351) bei schlechtem Signal-WR (7.1%). RSI unbekannt, Vorsicht geboten.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T17:19:42.335333+00:00",
+   "trade_id": 1510,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte WR (7.1%) und viele SL-Kills. Ohne MACD-Komponente ist das Risiko hoch.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T17:34:43.168500+00:00",
+   "trade_id": 1510,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% sehr schlecht, RSI unbekannt -> Risiko minimieren",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T17:34:43.168500+00:00",
+   "trade_id": 1511,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% sehr schlecht, RSI unbekannt -> Risiko minimieren",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T17:49:45.391899+00:00",
+   "trade_id": 1510,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; Veto-Outcome 1812.T zeigt gute Diskriminierungsfähigkeit.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T18:04:46.856696+00:00",
+   "trade_id": 1513,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat historisch schlechte WR (7.1%) und hohe Kill-Rate. Ohne MACD-Komponente ist das Signal schwach. Reduziert das Risiko bei asymmetrischer Entscheidungsmacht.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T18:19:47.520001+00:00",
+   "trade_id": 1513,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; Veto nur im Zweifel, daher Reduktion.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T18:19:47.520001+00:00",
+   "trade_id": 1514,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; Veto nur im Zweifel, daher Reduktion.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T18:34:48.715113+00:00",
+   "trade_id": 1513,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; ohne MACD-Komponente hohes Risiko.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T18:34:48.715113+00:00",
+   "trade_id": 1515,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "Hoher Dollar-Betrag ($351) bei schwachem Signal (WR 7.1%); Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T18:49:48.886490+00:00",
+   "trade_id": 1516,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte Historie (WR 7.1%, viele SL-Kills). Bei Score 0 und unbekanntem RSI ist das Risiko hoch; Reduktion minimiert Verlustpotenzial.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T19:04:50.908690+00:00",
+   "trade_id": 1516,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; ohne MACD-Komponente hohes Risiko.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T19:04:50.908690+00:00",
+   "trade_id": 1517,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; ohne MACD-Komponente hohes Risiko.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T19:19:51.846487+00:00",
+   "trade_id": 1516,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP mit WR 7.1% und 10 SL-Kills; hohes Ausfallrisiko bei MEDIUM-Signal.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T19:19:51.846487+00:00",
+   "trade_id": 1518,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "Hoher Dollar-Betrag ($351) bei schwachem Signal (Score 0) und historisch schlechter WR (7.1%).",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T19:34:53.193302+00:00",
+   "trade_id": 1519,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht, Score 0, Veto bei klar feindlichem Umfeld oder schlechter Statistik.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T19:34:53.193302+00:00",
+   "trade_id": 1520,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht, Score 0, Asymmetrie nutzt Reduktion.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T19:49:55.694031+00:00",
+   "trade_id": 1519,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; ohne MACD-Komponente hohes Risiko.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T19:49:55.694031+00:00",
+   "trade_id": 1521,
+   "symbol": "3958.HK",
+   "yf_symbol": "3958.HK",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; ohne MACD-Komponente hohes Risiko.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T19:49:55.694031+00:00",
+   "trade_id": 1522,
+   "symbol": "9896.HK",
+   "yf_symbol": "9896.HK",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; ohne MACD-Komponente hohes Risiko.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T21:49:05.530327+00:00",
+   "trade_id": 1521,
+   "symbol": "3958.HK",
+   "yf_symbol": "3958.HK",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% extrem schlecht; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T21:49:05.530327+00:00",
+   "trade_id": 1522,
+   "symbol": "9896.HK",
+   "yf_symbol": "9896.HK",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% extrem schlecht; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T21:49:05.530327+00:00",
+   "trade_id": 1523,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% extrem schlecht; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T21:49:05.530327+00:00",
+   "trade_id": 1524,
+   "symbol": "4519.T",
+   "yf_symbol": "4519.T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% extrem schlecht; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T21:49:05.530327+00:00",
+   "trade_id": 1525,
+   "symbol": "8802.T",
+   "yf_symbol": "8802.T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% extrem schlecht; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T22:04:06.862157+00:00",
+   "trade_id": 1523,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% extrem schlecht; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T22:04:06.862157+00:00",
+   "trade_id": 1524,
+   "symbol": "4519.T",
+   "yf_symbol": "4519.T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% extrem schlecht; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T22:04:06.862157+00:00",
+   "trade_id": 1525,
+   "symbol": "8802.T",
+   "yf_symbol": "8802.T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% extrem schlecht; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T22:19:05.447787+00:00",
+   "trade_id": 1525,
+   "symbol": "8802.T",
+   "yf_symbol": "8802.T",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 5.9% extrem schlecht; Risiko minimieren.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T23:04:10.560836+00:00",
+   "trade_id": 1526,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% extrem schlecht; VIX normal, aber Signal schwach.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T23:04:10.560836+00:00",
+   "trade_id": 1527,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% extrem schlecht; VIX normal, aber Signal schwach.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T23:19:11.399505+00:00",
+   "trade_id": 1526,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% extrem schlecht, Risiko minimieren",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T23:19:11.399505+00:00",
+   "trade_id": 1527,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% extrem schlecht, Risiko minimieren",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-06T23:34:13.223122+00:00",
+   "trade_id": 1526,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 5.9% extrem schlecht; Veto riskiert Upside (HI_1512), daher nur Reduktion",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-06T23:34:13.223122+00:00",
+   "trade_id": 1527,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 5.9% extrem schlecht; Veto riskiert Upside (HI_1512), daher nur Reduktion",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-07T00:19:18.999205+00:00",
+   "trade_id": 1528,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat schlechte WR (5.9%), Markt leicht negativ.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T00:19:18.999205+00:00",
+   "trade_id": 1529,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat schlechte WR (5.9%), Markt leicht negativ.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T00:19:18.999205+00:00",
+   "trade_id": 1530,
+   "symbol": "3958.HK",
+   "yf_symbol": "3958.HK",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat schlechte WR (5.9%), Markt leicht negativ.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T00:19:18.999205+00:00",
+   "trade_id": 1531,
+   "symbol": "9896.HK",
+   "yf_symbol": "9896.HK",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat schlechte WR (5.9%), Markt leicht negativ.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T00:19:18.999205+00:00",
+   "trade_id": 1533,
+   "symbol": "4519.T",
+   "yf_symbol": "4519.T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat schlechte WR (5.9%), Markt leicht negativ.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T00:34:18.929151+00:00",
+   "trade_id": 1528,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% extrem schlecht; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T00:34:18.929151+00:00",
+   "trade_id": 1529,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% extrem schlecht; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T00:34:18.929151+00:00",
+   "trade_id": 1530,
+   "symbol": "3958.HK",
+   "yf_symbol": "3958.HK",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% extrem schlecht; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T00:34:18.929151+00:00",
+   "trade_id": 1531,
+   "symbol": "9896.HK",
+   "yf_symbol": "9896.HK",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% extrem schlecht; Risiko minimieren.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T00:49:22.673418+00:00",
+   "trade_id": 1528,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 5.9% bei n=17 ist statistisch signifikant schlecht; kein MACD-Komponente zur Absicherung.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-07T00:49:22.673418+00:00",
+   "trade_id": 1529,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 5.9% bei n=17 ist statistisch signifikant schlecht; kein MACD-Komponente zur Absicherung.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-07T00:49:22.673418+00:00",
+   "trade_id": 1530,
+   "symbol": "3958.HK",
+   "yf_symbol": "3958.HK",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 5.9% bei n=17 ist statistisch signifikant schlecht; kein MACD-Komponente zur Absicherung.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-07T00:49:22.673418+00:00",
+   "trade_id": 1531,
+   "symbol": "9896.HK",
+   "yf_symbol": "9896.HK",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP WR 5.9% bei n=17 ist statistisch signifikant schlecht; kein MACD-Komponente zur Absicherung.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-07T01:04:23.505231+00:00",
+   "trade_id": 1536,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat schlechte WR (5.9%). Asymmetrische Risikoreduktion im Zweifel.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T01:04:23.505231+00:00",
+   "trade_id": 1537,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat schlechte WR (5.9%). Asymmetrische Risikoreduktion im Zweifel.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T01:04:23.505231+00:00",
+   "trade_id": 1538,
+   "symbol": "3958.HK",
+   "yf_symbol": "3958.HK",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat schlechte WR (5.9%). Asymmetrische Risikoreduktion im Zweifel.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T01:04:23.505231+00:00",
+   "trade_id": 1539,
+   "symbol": "9896.HK",
+   "yf_symbol": "9896.HK",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat schlechte WR (5.9%). Asymmetrische Risikoreduktion im Zweifel.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T01:49:23.816214+00:00",
+   "trade_id": 1536,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% bei n=17; ohne MACD-Komponente hohes Ausfallrisiko",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T01:49:23.816214+00:00",
+   "trade_id": 1537,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% bei n=17; ohne MACD-Komponente hohes Ausfallrisiko",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T02:19:27.331980+00:00",
+   "trade_id": 1536,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP hat extrem schlechte WR (5.9%) und hohe Kill-Rate. Ohne MACD-Komponente ist das Risiko hoch. Reduziere Exposure.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-07T02:19:27.331980+00:00",
+   "trade_id": 1537,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "VETO",
+   "reason": "Selbes Signal wie 1536 mit identischem schlechten WR. Im Zweifel APPROVE, aber wegen der Asymmetrie und historischen Performance wird die Position halbiert.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-07T02:34:28.332017+00:00",
+   "trade_id": 1540,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% bei MEDIUM Score; Risiko minimieren",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T02:34:28.332017+00:00",
+   "trade_id": 1541,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% bei MEDIUM Score; Risiko minimieren",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T02:49:29.687196+00:00",
+   "trade_id": 1540,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% extrem schlecht, RSI unbekannt -> Risiko minimieren",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T02:49:29.687196+00:00",
+   "trade_id": 1541,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% extrem schlecht, RSI unbekannt -> Risiko minimieren",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T03:04:31.893656+00:00",
+   "trade_id": 1540,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP hat extrem schlechte WR (5.9%). Ohne MACD-Komponente ist das Risiko hoch. Reduzierung zur Risikokontrolle.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-07T03:04:31.893656+00:00",
+   "trade_id": 1541,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP hat extrem schlechte WR (5.9%). Ohne MACD-Komponente ist das Risiko hoch. Reduzierung zur Risikokontrolle.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-07T03:19:33.590527+00:00",
+   "trade_id": 1542,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte Historie (WR 5.9%). Ohne MACD-Komponente (Score 0) ist das Risiko hoch. Reduktion zur Risikokontrolle.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T03:19:33.590527+00:00",
+   "trade_id": 1543,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "Selbes Signal CORE_SWEEP mit Score 0. Hohe Trefferquote nur mit MACD. Reduktion zur Absicherung.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T03:34:33.588781+00:00",
+   "trade_id": 1542,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% extrem schlecht; ohne MACD-Komponente hohes Risiko.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T03:34:33.588781+00:00",
+   "trade_id": 1543,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% extrem schlecht; ohne MACD-Komponente hohes Risiko.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T03:49:34.958307+00:00",
+   "trade_id": 1542,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "VETO",
+   "reason": "CORE_SWEEP hat extrem schlechte WR (5.9%) und hohe SL-Rate. Im feindlichen Markt (QQQ -0.37%) Risiko minimieren.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-07T03:49:34.958307+00:00",
+   "trade_id": 1543,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "VETO",
+   "reason": "Selbes Signal wie 1542 mit schlechter Historie. Reduktion zur Risikokontrolle, da kein MACD-Kombo vorliegt.",
+   "signal_price": null,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-08-07T06:49:50.827588+00:00",
+   "trade_id": 1547,
+   "symbol": "SPIE.PA",
+   "yf_symbol": "SPIE.PA",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% extrem schlecht; Veto riskiert Upside, daher nur Reduktion.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T06:49:50.827588+00:00",
+   "trade_id": 1550,
+   "symbol": "ADS.DE",
+   "yf_symbol": "ADS.DE",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% extrem schlecht; Veto riskiert Upside, daher nur Reduktion.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T06:49:50.827588+00:00",
+   "trade_id": 1551,
+   "symbol": "GAW.L",
+   "yf_symbol": "GAW.L",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP WR 5.9% extrem schlecht; Veto riskiert Upside, daher nur Reduktion.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T07:19:52.227896+00:00",
+   "trade_id": 1552,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte Historie (WR 5.9%, viele SL-Kills). Bei Score 0 und VIX im Normalbereich ist das Risiko hoch; Reduktion minimiert Drawdown bei gleichzeitiger Teilna",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-07T07:34:53.650767+00:00",
+   "trade_id": 1552,
+   "symbol": "AI_2878",
+   "yf_symbol": "T",
+   "decision": "REDUCE",
+   "reason": "CORE_SWEEP hat extrem schlechte Historie (WR 5.9%). Ohne MACD-Komponente (Score 0) ist das Risiko hoch. Reduzierung zur Risikokontrolle.",
+   "signal_price": null
+  },
+  {
+   "ts": "2026-08-10T00:34:10.938281+00:00",
+   "trade_id": 1559,
+   "symbol": "8830.T",
+   "yf_symbol": "8830.T",
+   "decision": "VETO",
+   "reason": "WR 18.8% bei n=16; MACD-Kombo unter 25% ohne konkreten Gegenbeweis.",
+   "signal_price": 3468.0,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -1.53
+  },
+  {
+   "ts": "2026-08-10T00:49:14.093276+00:00",
+   "trade_id": 1561,
+   "symbol": "8830.T",
+   "yf_symbol": "8830.T",
+   "decision": "VETO",
+   "reason": "WR 18.8% bei n=16 ist kritisch niedrig; 8 SL-Kills deuten auf schlechte Performance. Reduzierung zur Risikokontrolle, da Veto zu streng (HI_1512) und Score 35 nicht hoch genug fuer",
+   "signal_price": 3463.0,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -1.39
+  },
+  {
+   "ts": "2026-08-10T01:34:19.475766+00:00",
+   "trade_id": 1563,
+   "symbol": "9961.HK",
+   "yf_symbol": "9961.HK",
+   "decision": "VETO",
+   "reason": "WR 19.4% ohne MACD-Komponente; RSI ~53 nicht oversold, Risiko hoch.",
+   "signal_price": 357.20001220703125,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 3.81
+  },
+  {
+   "ts": "2026-08-10T06:34:45.798670+00:00",
+   "trade_id": 1567,
+   "symbol": "1024.HK",
+   "yf_symbol": "1024.HK",
+   "decision": "VETO",
+   "reason": "WR 19.4% bei Kombi ohne MACD-Komponente; RSI ~51 deutet auf fehlende Oversold-Wende hin.",
+   "signal_price": 44.2400016784668,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -7.73
+  },
+  {
+   "ts": "2026-08-10T06:49:46.593941+00:00",
+   "trade_id": 1569,
+   "symbol": "1024.HK",
+   "yf_symbol": "1024.HK",
+   "decision": "VETO",
+   "reason": "WR 19.4% bei Kombi ohne MACD-Komponente; RSI ~50 deutet auf fehlenden Oversold-MACD-Wende hin.",
+   "signal_price": 44.15999984741211,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -7.56
+  },
+  {
+   "ts": "2026-08-10T07:04:48.739496+00:00",
+   "trade_id": 1571,
+   "symbol": "1024.HK",
+   "yf_symbol": "1024.HK",
+   "decision": "VETO",
+   "reason": "Signal TREND_PULLBACK,GOLDEN_CROSS hat WR 19.4% (n=31) und fehlt MACD-Komponente. Ohne MACD-Wende ist das Risiko hoch (Messersymbolik).",
+   "signal_price": 44.08000183105469,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -7.4
+  },
+  {
+   "ts": "2026-08-12T14:34:22.390253+00:00",
+   "trade_id": 1594,
+   "symbol": "HTRO.ST",
+   "yf_symbol": "HTRO.ST",
+   "decision": "VETO",
+   "reason": "WR 17.6% ohne MACD-Komponente; Veto-Historie zeigt hohe Fehlschlagsquote bei Pullbacks.",
+   "signal_price": 41.18000030517578,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.46
+  },
+  {
+   "ts": "2026-08-12T14:49:23.371442+00:00",
+   "trade_id": 1595,
+   "symbol": "HTRO.ST",
+   "yf_symbol": "HTRO.ST",
+   "decision": "VETO",
+   "reason": "WR 17.6% ohne MACD-Komponente; RSI 54.58 nicht oversold, hohes Risiko eines 'falling knife'.",
+   "signal_price": 41.13999938964844,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.9
+  },
+  {
+   "ts": "2026-08-12T15:04:25.011444+00:00",
+   "trade_id": 1596,
+   "symbol": "HTRO.ST",
+   "yf_symbol": "HTRO.ST",
+   "decision": "VETO",
+   "reason": "WR 17.6% ohne MACD-Komponente; RSI 54.56 nicht oversold, hohes Risiko eines 'fallenden Messers'.",
+   "signal_price": 41.130001068115234,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.88
+  },
+  {
+   "ts": "2026-08-13T00:19:18.319308+00:00",
+   "trade_id": 1598,
+   "symbol": "1802.T",
+   "yf_symbol": "1802.T",
+   "decision": "VETO",
+   "reason": "WR 22.2% unterhalb der kritischen 25%-Grenze bei n>=5. Signal ist mittelmäßig (Score 35). Reduktion minimiert das Risiko eines weiteren SL-Kills, behält aber die Chance auf die MAC",
+   "signal_price": 3027.0,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.46
+  },
+  {
+   "ts": "2026-08-13T00:49:21.127312+00:00",
+   "trade_id": 1599,
+   "symbol": "1812.T",
+   "yf_symbol": "1812.T",
+   "decision": "VETO",
+   "reason": "WR 22.2% unterhalb der 25%-Grenze bei n>=5; MACD-Kombo ist schwach, aber Veto riskiert Upside-Miss (wie bei HI_1512). Reduktion minimiert SL-Risiko bei akzeptablem Rest-Exposure.",
+   "signal_price": 4932.0,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.61
+  },
+  {
+   "ts": "2026-08-13T01:04:21.239015+00:00",
+   "trade_id": 1600,
+   "symbol": "1812.T",
+   "yf_symbol": "1812.T",
+   "decision": "VETO",
+   "reason": "WR 22.2% unterhalb der 25%-Grenze bei n>=5; Veto-Risiko wegen verpasster Upside-Events in der Historie, daher Reduktion statt Veto.",
+   "signal_price": 4921.0,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.83
+  },
+  {
+   "ts": "2026-08-13T01:19:22.449413+00:00",
+   "trade_id": 1601,
+   "symbol": "1812.T",
+   "yf_symbol": "1812.T",
+   "decision": "VETO",
+   "reason": "WR 22.2% unterhalb der kritischen 25%-Grenze bei n>=5. Signal ist mittelmäßig (Score 35). Reduktion minimiert das Risiko eines weiteren SL-Kills, behält aber Upside bei.",
+   "signal_price": 4932.0,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.61
+  },
+  {
+   "ts": "2026-08-13T01:34:23.925993+00:00",
+   "trade_id": 1602,
+   "symbol": "1802.T",
+   "yf_symbol": "1802.T",
+   "decision": "VETO",
+   "reason": "WR 22.2% unterhalb der kritischen 25%-Grenze bei n>=5. Signal ist mittelmäßig (Score 35). Reduktion minimiert das statistische Risiko, ohne den Upside komplett zu verpassen (im Geg",
+   "signal_price": 3026.0,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.93
+  },
+  {
+   "ts": "2026-08-13T01:49:24.309907+00:00",
+   "trade_id": 1603,
+   "symbol": "1802.T",
+   "yf_symbol": "1802.T",
+   "decision": "VETO",
+   "reason": "WR 22.2% unterhalb der 25%-Grenze bei n>=5; MACD-Kombo-Scorecard zeigt schlechte Performance, Risiko minimieren.",
+   "signal_price": 3029.0,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.2
+  },
+  {
+   "ts": "2026-08-13T02:04:26.128931+00:00",
+   "trade_id": 1606,
+   "symbol": "1802.T",
+   "yf_symbol": "1802.T",
+   "decision": "VETO",
+   "reason": "WR 22.2% unter 25%-Schwelle; Veto-Risiko wegen verpasstem Upside (HI_1512) zu hoch, daher Reduktion statt Veto.",
+   "signal_price": 3022.0,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.43
+  },
+  {
+   "ts": "2026-08-13T02:19:26.447961+00:00",
+   "trade_id": 1607,
+   "symbol": "1802.T",
+   "yf_symbol": "1802.T",
+   "decision": "VETO",
+   "reason": "WR 22.2% bei MACD-Kombo unter 25%. Risiko minimieren, da Signal historisch schwach.",
+   "signal_price": 3019.0,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.53
+  },
+  {
+   "ts": "2026-08-16T04:34:44.763970+00:00",
+   "trade_id": 1615,
+   "symbol": "ETC",
+   "yf_symbol": "ETC-USD",
+   "decision": "VETO",
+   "reason": "WR 24% unter 25% Schranke; Veto riskiert Upside (historisch), daher Reduktion statt Veto.",
+   "signal_price": 6.179999828338623,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.49
+  },
+  {
+   "ts": "2026-08-17T08:34:47.608000+00:00",
+   "trade_id": 1667,
+   "symbol": "MEKO.ST",
+   "yf_symbol": "MEKO.ST",
+   "decision": "VETO",
+   "reason": "WR 24% unterhalb der Schwelle, hohes Verlustrisiko trotz Signal",
+   "signal_price": 74.25,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -1.41
+  },
+  {
+   "ts": "2026-08-17T14:34:27.282519+00:00",
+   "trade_id": 1681,
+   "symbol": "MEKO.ST",
+   "yf_symbol": "MEKO.ST",
+   "decision": "VETO",
+   "reason": "WR 24% unterhalb der 25%-Schwelle bei n=25; Risiko minimieren",
+   "signal_price": 74.19999694824219,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -1.35
+  },
+  {
+   "ts": "2026-08-24T15:05:24.493827+00:00",
+   "trade_id": 1706,
+   "symbol": "IBE.MC",
+   "yf_symbol": "IBE.MC",
+   "decision": "VETO",
+   "reason": "Haeufung: 2 offene IBE.MC Positionen. Signal-Kombo hat 7 SL-Kills in 32 trades (22% failure rate). Halve size to manage risk.",
+   "signal_price": 19.96500015258789,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.93
+  },
+  {
+   "ts": "2026-08-24T15:05:24.493827+00:00",
+   "trade_id": 1707,
+   "symbol": "AAPL",
+   "yf_symbol": "AAPL",
+   "decision": "VETO",
+   "reason": "Signal-Kombo MACD_TURN_BELOW_SMA20,TREND_PULLBACK has 0% Win Rate (n=1, 1 SL-Kill). No concrete reason to override poor historical performance.",
+   "signal_price": 312.614990234375,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -1.13
+  },
+  {
+   "ts": "2026-08-24T15:19:22.218761+00:00",
+   "trade_id": 1708,
+   "symbol": "IBE.MC",
+   "yf_symbol": "IBE.MC",
+   "decision": "VETO",
+   "reason": "Haeufung: 2 offene IBE.MC Positionen. Signal-Score 35 (MEDIUM) und WR 50% (n=32) rechtfertigen keine volle Groesse bei bestehendem Exposure.",
+   "signal_price": 19.979999542236328,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -1.05
+  },
+  {
+   "ts": "2026-09-01T12:35:17.922734+00:00",
+   "trade_id": 1780,
+   "symbol": "AQ.ST",
+   "yf_symbol": "AQ.ST",
+   "decision": "VETO",
+   "reason": "Signal ohne MACD-Komponente (WR 39.4%, negative PnL), Merksatz warnt vor Messer-Catch ohne MACD-Wende.",
+   "signal_price": 214.1999969482422,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 1.87
+  },
+  {
+   "ts": "2026-09-01T12:35:17.922734+00:00",
+   "trade_id": 1781,
+   "symbol": "IF.MI",
+   "yf_symbol": "IF.MI",
+   "decision": "VETO",
+   "reason": "Signal ohne MACD-Komponente (WR 39.4%, negative PnL), Merksatz warnt vor Messer-Catch ohne MACD-Wende.",
+   "signal_price": 14.90999984741211,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.8
+  },
+  {
+   "ts": "2026-09-01T13:35:41.981091+00:00",
+   "trade_id": 1783,
+   "symbol": "IF.MI",
+   "yf_symbol": "IF.MI",
+   "decision": "VETO",
+   "reason": "Kombo ohne MACD (niedrigere WR), Markt schwach (QQQ -1.36%), Vorsicht geboten.",
+   "signal_price": 14.9399995803833,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -1.07
+  },
+  {
+   "ts": "2026-09-01T13:35:41.981091+00:00",
+   "trade_id": 1784,
+   "symbol": "AQ.ST",
+   "yf_symbol": "AQ.ST",
+   "decision": "VETO",
+   "reason": "Kombo ohne MACD (niedrigere WR), Markt schwach (QQQ -1.36%), Vorsicht geboten.",
+   "signal_price": 216.0,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.09
+  },
+  {
+   "ts": "2026-09-04T16:34:17.998353+00:00",
+   "trade_id": 1844,
+   "symbol": "MS",
+   "yf_symbol": "MS",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat negative Erwartungswert (-35$) und hohe SL-Rate; Position wird halbiert zur Risikominimierung.",
+   "signal_price": 216.97000122070312
+  },
+  {
+   "ts": "2026-09-07T00:34:39.764466+00:00",
+   "trade_id": 1902,
+   "symbol": "CAR.ASX",
    "yf_symbol": "CAR.AX",
-   "decision": "REDUCE",
-   "reason": "Konservative Reduktion bei fehlender 30d-Historie und MEDIUM-Score.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T16:34:17.505593+00:00",
-   "trade_id": 599,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie und kein MACD-Signal bei QQQ-Verfall; konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T16:34:17.505593+00:00",
-   "trade_id": 600,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie; Asymmetrie nutzt Reduktion bei Unsicherheit.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T16:34:17.505593+00:00",
-   "trade_id": 601,
-   "symbol": "ZM=F",
-   "yf_symbol": "ZM=F",
-   "decision": "REDUCE",
-   "reason": "Höheres Volumen ($362) bei unbekannter Performance; Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T16:34:17.505593+00:00",
-   "trade_id": 602,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Doppeltes Signal GIVN.SW; Reduktion statt Veto wegen fehlendem konkreten News-Flag.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T16:34:17.505593+00:00",
-   "trade_id": 603,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "REDUCE",
-   "reason": "Doppeltes Signal CAR.AX; Reduktion statt Veto wegen fehlendem konkreten News-Flag.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T16:49:15.225199+00:00",
-   "trade_id": 599,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "VETO",
-   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T16:49:15.225199+00:00",
-   "trade_id": 600,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "VETO",
-   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T16:49:15.225199+00:00",
-   "trade_id": 605,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T16:49:15.225199+00:00",
-   "trade_id": 606,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "REDUCE",
-   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T17:04:15.577946+00:00",
-   "trade_id": 605,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie in volatiler QQQ-Umgebung; Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T17:04:15.577946+00:00",
-   "trade_id": 606,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "REDUCE",
-   "reason": "Keine 30d-Historie bei CORE_SWEEP; konservativ handeln.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T17:04:15.577946+00:00",
-   "trade_id": 607,
-   "symbol": "ZM=F",
-   "yf_symbol": "ZM=F",
-   "decision": "REDUCE",
-   "reason": "Hoher Betrag ($362) bei unsicherem Signal; Exposure begrenzen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T17:04:15.577946+00:00",
-   "trade_id": 608,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Doppeltes Signal GIVN.SW; Gesamtrisiko im Auge behalten.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T17:04:15.577946+00:00",
-   "trade_id": 609,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "REDUCE",
-   "reason": "Keine 30d-Historie bei CORE_SWEEP; konservativ handeln.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T17:19:16.572612+00:00",
-   "trade_id": 605,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie in volatiler Tech-Umgebung (QQQ -2.13%); Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T17:19:16.572612+00:00",
-   "trade_id": 606,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "VETO",
-   "reason": "Keine 30d-Historie bei CORE_SWEEP; QQQ-Trend negativ, konservativ handeln.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T17:19:16.572612+00:00",
-   "trade_id": 610,
-   "symbol": "ZM=F",
-   "yf_symbol": "ZM=F",
-   "decision": "REDUCE",
-   "reason": "Hoher Betrag ($361) bei unbekannter Signal-Historie; VIX normal, aber Tech schwach.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T17:19:16.572612+00:00",
-   "trade_id": 611,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Doppeltes Signal GIVN.SW; Gesamtexposure kontrollieren bei fehlender 30d-Validierung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T17:19:16.572612+00:00",
-   "trade_id": 612,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "REDUCE",
-   "reason": "Doppeltes Signal CAR.AX; Reduktion zur Diversifikation im unsicheren Markt.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T17:34:17.172694+00:00",
-   "trade_id": 611,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie und QQQ stark negativ (-1.92%). Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T17:34:17.172694+00:00",
-   "trade_id": 612,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "REDUCE",
-   "reason": "Keine 30d-Historie bei CORE_SWEEP. Im feindlichen Markt konservativ handeln.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T17:34:17.172694+00:00",
-   "trade_id": 613,
-   "symbol": "ZM=F",
-   "yf_symbol": "ZM=F",
-   "decision": "REDUCE",
-   "reason": "Hoher Positionswert ($361) bei unbekannter Signal-Historie. Exposure begrenzen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T17:34:17.172694+00:00",
-   "trade_id": 614,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Doppeltes Signal auf GIVN.SW. Gesamtexposure kontrollieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T17:34:17.172694+00:00",
-   "trade_id": 615,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "REDUCE",
-   "reason": "Doppeltes Signal auf CAR.AX. Gesamtexposure kontrollieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T17:49:18.775842+00:00",
-   "trade_id": 611,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "VETO",
-   "reason": "Keine 30d-Historie, RSI unbekannt, konservativ.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T17:49:18.775842+00:00",
-   "trade_id": 612,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "VETO",
-   "reason": "Keine 30d-Historie, RSI unbekannt, konservativ.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T17:49:18.775842+00:00",
-   "trade_id": 617,
-   "symbol": "ZM=F",
-   "yf_symbol": "ZM=F",
-   "decision": "VETO",
-   "reason": "Keine 30d-Historie, RSI unbekannt, konservativ.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T17:49:18.775842+00:00",
-   "trade_id": 618,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "VETO",
-   "reason": "Keine 30d-Historie, RSI unbekannt, konservativ.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T17:49:18.775842+00:00",
-   "trade_id": 619,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "VETO",
-   "reason": "Keine 30d-Historie, RSI unbekannt, konservativ.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T18:04:19.122187+00:00",
-   "trade_id": 620,
-   "symbol": "ZM=F",
-   "yf_symbol": "ZM=F",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie in volatiler QQQ-Umgebung (-1.74%); Risiko zu hoch.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T18:04:19.122187+00:00",
-   "trade_id": 621,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Keine 30d-Historie für CORE_SWEEP; Reduzierung zur Risikokontrolle.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T18:04:19.122187+00:00",
-   "trade_id": 622,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "REDUCE",
-   "reason": "Keine 30d-Historie für CORE_SWEEP; Reduzierung zur Risikokontrolle.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T18:04:19.122187+00:00",
-   "trade_id": 623,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "REDUCE",
-   "reason": "Keine 30d-Historie für CORE_SWEEP; Reduzierung zur Risikokontrolle.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T18:19:21.806770+00:00",
-   "trade_id": 621,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne 30d-Historie; VIX normal, aber QQQ stark negativ. RSI unbekannt, daher konservativ.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T18:19:21.806770+00:00",
-   "trade_id": 622,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "REDUCE",
-   "reason": "Keine Historie, asymmetrisches Risiko. Im Zweifel verkleinern statt volles Risiko.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T18:19:21.806770+00:00",
-   "trade_id": 623,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "REDUCE",
-   "reason": "Keine Historie, asymmetrisches Risiko. Im Zweifel verkleinern statt volles Risiko.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T18:19:21.806770+00:00",
-   "trade_id": 624,
-   "symbol": "ZM=F",
-   "yf_symbol": "ZM=F",
-   "decision": "REDUCE",
-   "reason": "Höheres Volumen ($361) bei unbekanntem RSI und keiner Historie. Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T18:19:21.806770+00:00",
-   "trade_id": 625,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "GIVN.SW bereits in 621 geprüft. Doppeltes Exposure bei fehlender Historie reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T18:19:21.806770+00:00",
-   "trade_id": 626,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "REDUCE",
-   "reason": "CAR.AX bereits in 622 geprüft. Doppeltes Exposure bei fehlender Historie reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T18:19:21.806770+00:00",
-   "trade_id": 627,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "REDUCE",
-   "reason": "CDI.PA bereits in 623 geprüft. Doppeltes Exposure bei fehlender Historie reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T18:34:26.402149+00:00",
-   "trade_id": 621,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie in volatiler QQQ-Umgebung; konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T18:34:26.402149+00:00",
-   "trade_id": 622,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "VETO",
-   "reason": "Keine 30d-Historie, Markt unsicher; Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T18:34:26.402149+00:00",
-   "trade_id": 623,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "VETO",
-   "reason": "Neues Signal ohne Backtest-Validierung bei QQQ-Schwäche.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T18:34:26.402149+00:00",
-   "trade_id": 628,
-   "symbol": "ZM=F",
-   "yf_symbol": "ZM=F",
-   "decision": "REDUCE",
-   "reason": "Hoher Betrag ($362) bei unbekannter Signal-Qualität; Exposure begrenzen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T18:34:26.402149+00:00",
-   "trade_id": 629,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Doppeltes Signal GIVN.SW, aber keine Historie; Konsolidierung des Risikos.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T18:34:26.402149+00:00",
-   "trade_id": 630,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Unbekanntes Instrument (MNKS.L) mit CORE_SWEEP; Vorsicht bei fehlender Historie.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T18:34:26.402149+00:00",
-   "trade_id": 631,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "REDUCE",
-   "reason": "CAR.AX bereits in Liste 622 geprüft, hier höheres Volumen; Reduktion zur Diversifikation.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T18:49:27.521803+00:00",
-   "trade_id": 629,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.79%), konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T18:49:27.521803+00:00",
-   "trade_id": 630,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.79%), konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T18:49:27.521803+00:00",
-   "trade_id": 631,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.79%), konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T18:49:27.521803+00:00",
-   "trade_id": 632,
-   "symbol": "ZM=F",
-   "yf_symbol": "ZM=F",
-   "decision": "REDUCE",
-   "reason": "Höheres Volumen ($362) bei unsicherem Signal (keine Historie), Risiko begrenzen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T18:49:27.521803+00:00",
-   "trade_id": 633,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.79%), konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T18:49:27.521803+00:00",
-   "trade_id": 634,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.79%), konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T18:49:27.521803+00:00",
-   "trade_id": 635,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.79%), konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:04:38.291299+00:00",
-   "trade_id": 629,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie, konservativ bei QQQ-Dip.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:04:38.291299+00:00",
-   "trade_id": 630,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "VETO",
-   "reason": "Keine 30d-Historie, Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:04:38.291299+00:00",
-   "trade_id": 631,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "VETO",
-   "reason": "Keine 30d-Historie, konservativ handeln.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:04:38.291299+00:00",
-   "trade_id": 636,
-   "symbol": "ZM=F",
-   "yf_symbol": "ZM=F",
-   "decision": "REDUCE",
-   "reason": "Hoher Betrag ($362), CORE_SWEEP ohne Historie.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:04:38.291299+00:00",
-   "trade_id": 637,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Hoher Betrag, keine Historie, asymmetrisches Risiko.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:04:38.291299+00:00",
-   "trade_id": 638,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Hoher Betrag, keine Historie.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:04:38.291299+00:00",
-   "trade_id": 639,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "REDUCE",
-   "reason": "Hoher Betrag, keine Historie.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:19:35.015926+00:00",
-   "trade_id": 637,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Bestätigung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:19:35.015926+00:00",
-   "trade_id": 638,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Keine 30d-Historie für Signal; Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:19:35.015926+00:00",
-   "trade_id": 639,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "REDUCE",
-   "reason": "Signal CORE_SWEEP mit Score 0; Unsicherheit bei fehlender Historie.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:19:35.015926+00:00",
-   "trade_id": 640,
-   "symbol": "ZM=F",
-   "yf_symbol": "ZM=F",
-   "decision": "REDUCE",
-   "reason": "Höheres Volumen ($361) bei Score 0; Reduktion zur Risikokontrolle.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:19:35.015926+00:00",
-   "trade_id": 641,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Duplikat von 637 mit höherem Volumen; konsistente Reduktion.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:19:35.015926+00:00",
-   "trade_id": 642,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Duplikat von 638 mit höherem Volumen; konsistente Reduktion.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:19:35.015926+00:00",
-   "trade_id": 643,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "REDUCE",
-   "reason": "Duplikat von 639 mit höherem Volumen; konsistente Reduktion.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:34:27.364355+00:00",
-   "trade_id": 637,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie, konservativ wegen QQQ-Drag.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:34:27.364355+00:00",
-   "trade_id": 638,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie, konservativ wegen QQQ-Drag.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:34:27.364355+00:00",
-   "trade_id": 639,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie, konservativ wegen QQQ-Drag.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:34:27.364355+00:00",
-   "trade_id": 644,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Höheres Volumen ($361), CORE_SWEEP ohne Historie, Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:34:27.364355+00:00",
-   "trade_id": 645,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Höheres Volumen ($361), CORE_SWEEP ohne Historie, Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:34:27.364355+00:00",
-   "trade_id": 646,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "REDUCE",
-   "reason": "Höheres Volumen ($361), CORE_SWEEP ohne Historie, Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:34:27.364355+00:00",
-   "trade_id": 647,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "REDUCE",
-   "reason": "Höheres Volumen ($361), CORE_SWEEP ohne Historie, Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:49:27.983758+00:00",
-   "trade_id": 644,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:49:27.983758+00:00",
-   "trade_id": 645,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:49:27.983758+00:00",
-   "trade_id": 646,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:49:27.983758+00:00",
-   "trade_id": 647,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:49:27.983758+00:00",
-   "trade_id": 648,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Kernposition verkleinert, Restgröße reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:49:27.983758+00:00",
-   "trade_id": 649,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Kernposition verkleinert, Restgröße reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:49:27.983758+00:00",
-   "trade_id": 650,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "REDUCE",
-   "reason": "Kernposition verkleinert, Restgröße reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T19:49:27.983758+00:00",
-   "trade_id": 651,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "REDUCE",
-   "reason": "Kernposition verkleinert, Restgröße reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T20:04:28.429409+00:00",
-   "trade_id": 644,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T20:04:28.429409+00:00",
-   "trade_id": 645,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T20:04:28.429409+00:00",
-   "trade_id": 646,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T20:04:28.429409+00:00",
-   "trade_id": 647,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T20:04:28.429409+00:00",
-   "trade_id": 652,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Kernposition CORE_SWEEP ohne Historie; Risiko begrenzen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T20:04:28.429409+00:00",
-   "trade_id": 653,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Kernposition CORE_SWEEP ohne Historie; Risiko begrenzen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T20:04:28.429409+00:00",
-   "trade_id": 654,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "REDUCE",
-   "reason": "Kernposition CORE_SWEEP ohne Historie; Risiko begrenzen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T20:04:28.429409+00:00",
-   "trade_id": 655,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "REDUCE",
-   "reason": "Kernposition CORE_SWEEP ohne Historie; Risiko begrenzen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T21:19:31.610418+00:00",
-   "trade_id": 652,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.42%), Risiko zu hoch.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T21:19:31.610418+00:00",
-   "trade_id": 653,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Keine 30d-Historie, konservative Reduktion bei unsicherem Marktumfeld.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T21:19:31.610418+00:00",
-   "trade_id": 654,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "REDUCE",
-   "reason": "Keine 30d-Historie, asymmetrisches Risiko favorisiert Reduktion.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T21:19:31.610418+00:00",
-   "trade_id": 655,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "REDUCE",
-   "reason": "Keine 30d-Historie, konservative Reduktion bei unsicherem Marktumfeld.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T21:34:32.185506+00:00",
-   "trade_id": 653,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne 30d-Historie; QQQ stark negativ (-1.42%), Risiko zu hoch.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T21:34:32.185506+00:00",
-   "trade_id": 654,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne 30d-Historie; QQQ stark negativ (-1.42%), Risiko zu hoch.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T21:34:32.185506+00:00",
-   "trade_id": 655,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne 30d-Historie; QQQ stark negativ (-1.42%), Risiko zu hoch.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T23:49:40.856615+00:00",
-   "trade_id": 656,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.42%), Risiko zu hoch.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T23:49:40.856615+00:00",
-   "trade_id": 657,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.42%), Risiko zu hoch.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T23:49:40.856615+00:00",
-   "trade_id": 658,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.42%), Risiko zu hoch.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-27T23:49:40.856615+00:00",
-   "trade_id": 659,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.42%), Risiko zu hoch.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T00:34:54.159144+00:00",
-   "trade_id": 660,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "VETO",
-   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ pruefen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T00:34:54.159144+00:00",
-   "trade_id": 661,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "VETO",
-   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ pruefen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T00:34:54.159144+00:00",
-   "trade_id": 663,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "VETO",
-   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ pruefen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T00:34:54.159144+00:00",
-   "trade_id": 668,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "VETO",
-   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ pruefen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T00:34:54.159144+00:00",
-   "trade_id": 669,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "VETO",
-   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ pruefen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T00:34:54.159144+00:00",
-   "trade_id": 670,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "VETO",
-   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ pruefen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T00:34:54.159144+00:00",
-   "trade_id": 671,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "VETO",
-   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ pruefen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T00:49:47.629888+00:00",
-   "trade_id": 672,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie in volatiler QQQ-Umgebung; Risiko zu hoch.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T00:49:47.629888+00:00",
-   "trade_id": 673,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "VETO",
-   "reason": "Keine 30d-Historie für Signal; VIX normal, aber kein klarer Trend.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T00:49:47.629888+00:00",
-   "trade_id": 674,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "VETO",
-   "reason": "Keine 30d-Historie für Signal; konservativ wegen unbekannter Volatilität.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T00:49:47.629888+00:00",
-   "trade_id": 675,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "VETO",
-   "reason": "Keine 30d-Historie für Signal; Veto-Strategie bei neuen Signals beibehalten.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T01:04:48.743854+00:00",
-   "trade_id": 676,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.42%), Risiko zu hoch.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T01:04:48.743854+00:00",
-   "trade_id": 677,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.42%), Risiko zu hoch.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T01:04:48.743854+00:00",
-   "trade_id": 678,
-   "symbol": "CAR.AX",
-   "yf_symbol": "CAR.AX",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.42%), Risiko zu hoch.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T01:04:48.743854+00:00",
-   "trade_id": 679,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie, QQQ stark negativ (-1.42%), Risiko zu hoch.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T01:49:53.541028+00:00",
-   "trade_id": 680,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, konservativ handeln.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T01:49:53.541028+00:00",
-   "trade_id": 681,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, konservativ handeln.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T01:49:53.541028+00:00",
-   "trade_id": 683,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, konservativ handeln.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T01:49:53.541028+00:00",
-   "trade_id": 688,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, konservativ handeln.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T01:49:53.541028+00:00",
-   "trade_id": 689,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, konservativ handeln.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T01:49:53.541028+00:00",
-   "trade_id": 690,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, konservativ handeln.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T02:04:54.495131+00:00",
-   "trade_id": 680,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T02:04:54.495131+00:00",
-   "trade_id": 681,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T02:04:54.495131+00:00",
-   "trade_id": 683,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T02:04:54.495131+00:00",
-   "trade_id": 691,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Kumuliertes Risiko bei GIVN.SW; Score 0 erfordert Vorsicht.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T02:04:54.495131+00:00",
-   "trade_id": 692,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Kumuliertes Risiko bei MNKS.L; Score 0 erfordert Vorsicht.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T02:04:54.495131+00:00",
-   "trade_id": 693,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "REDUCE",
-   "reason": "Kumuliertes Risiko bei CDI.PA; Score 0 erfordert Vorsicht.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T02:19:55.273997+00:00",
-   "trade_id": 680,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T02:19:55.273997+00:00",
-   "trade_id": 681,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T02:19:55.273997+00:00",
-   "trade_id": 683,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T02:19:55.273997+00:00",
-   "trade_id": 694,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Höheres Volumen ($361) bei unsicherem Signal; Risiko begrenzen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T02:19:55.273997+00:00",
-   "trade_id": 695,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Höheres Volumen ($361) bei unsicherem Signal; Risiko begrenzen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T02:19:55.273997+00:00",
-   "trade_id": 696,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "REDUCE",
-   "reason": "Höheres Volumen ($361) bei unsicherem Signal; Risiko begrenzen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T02:34:56.277168+00:00",
-   "trade_id": 697,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Grössere Position ($360) bei unbekanntem RSI und neuer Signal-Historie (CORE_SWEEP).",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T02:34:56.277168+00:00",
-   "trade_id": 698,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Grössere Position ($360) bei unbekanntem RSI und neuer Signal-Historie (CORE_SWEEP).",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T02:34:56.277168+00:00",
-   "trade_id": 699,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "REDUCE",
-   "reason": "Grössere Position ($360) bei unbekanntem RSI und neuer Signal-Historie (CORE_SWEEP).",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T02:49:57.318853+00:00",
-   "trade_id": 700,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Doppelte Groesse ($360) bei neuem Signal CORE_SWEEP ohne Historie -> Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T02:49:57.318853+00:00",
-   "trade_id": 701,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Doppelte Groesse ($360) bei neuem Signal CORE_SWEEP ohne Historie -> Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T02:49:57.318853+00:00",
-   "trade_id": 702,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "REDUCE",
-   "reason": "Doppelte Groesse ($360) bei neuem Signal CORE_SWEEP ohne Historie -> Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T03:04:58.190876+00:00",
-   "trade_id": 703,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Doppeltes Signal GIVN.SW, Risiko streuen",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T03:04:58.190876+00:00",
-   "trade_id": 704,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Doppeltes Signal MNKS.L, Risiko streuen",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T03:04:58.190876+00:00",
-   "trade_id": 705,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "REDUCE",
-   "reason": "Doppeltes Signal CDI.PA, Risiko streuen",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T03:19:59.468341+00:00",
-   "trade_id": 694,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T03:19:59.468341+00:00",
-   "trade_id": 695,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T03:19:59.468341+00:00",
-   "trade_id": 696,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T03:19:59.468341+00:00",
-   "trade_id": 706,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Hoher Betrag ($361) bei unsicherem Signal (Score 0); Halbeingangsrisiko.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T03:19:59.468341+00:00",
-   "trade_id": 707,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Hoher Betrag ($361) bei unsicherem Signal (Score 0); Halbeingangsrisiko.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T03:19:59.468341+00:00",
-   "trade_id": 708,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "REDUCE",
-   "reason": "Hoher Betrag ($361) bei unsicherem Signal (Score 0); Halbeingangsrisiko.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T03:35:01.657782+00:00",
-   "trade_id": 694,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie, konservativ reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T03:35:01.657782+00:00",
-   "trade_id": 695,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie, konservativ reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T03:35:01.657782+00:00",
-   "trade_id": 696,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie, konservativ reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T03:35:01.657782+00:00",
-   "trade_id": 710,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, konservativ reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T03:35:01.657782+00:00",
-   "trade_id": 711,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, konservativ reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T03:35:01.657782+00:00",
-   "trade_id": 712,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, konservativ reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T03:50:03.025598+00:00",
-   "trade_id": 710,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, konservativ reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T03:50:03.025598+00:00",
-   "trade_id": 711,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, konservativ reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T03:50:03.025598+00:00",
-   "trade_id": 712,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, konservativ reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T03:50:03.025598+00:00",
-   "trade_id": 714,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Höheres Volumen bei unbekanntem CORE_SWEEP, Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T03:50:03.025598+00:00",
-   "trade_id": 715,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Höheres Volumen bei unbekanntem CORE_SWEEP, Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T03:50:03.025598+00:00",
-   "trade_id": 716,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "REDUCE",
-   "reason": "Höheres Volumen bei unbekanntem CORE_SWEEP, Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T04:05:03.942631+00:00",
-   "trade_id": 710,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie, konservativ reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T04:05:03.942631+00:00",
-   "trade_id": 711,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie, konservativ reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T04:05:03.942631+00:00",
-   "trade_id": 712,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie, konservativ reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T04:05:03.942631+00:00",
-   "trade_id": 717,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Hoher Betrag ($361), CORE_SWEEP ohne Historie, Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T04:05:03.942631+00:00",
-   "trade_id": 718,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Hoher Betrag ($361), CORE_SWEEP ohne Historie, Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T04:05:03.942631+00:00",
-   "trade_id": 719,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "REDUCE",
-   "reason": "Hoher Betrag ($361), CORE_SWEEP ohne Historie, Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T04:20:04.971309+00:00",
-   "trade_id": 717,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T04:20:04.971309+00:00",
-   "trade_id": 718,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T04:20:04.971309+00:00",
-   "trade_id": 719,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T04:20:04.971309+00:00",
-   "trade_id": 720,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Kombination aus CORE_SWEEP (Score 0) und hohem Volumen ($361); Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T04:20:04.971309+00:00",
-   "trade_id": 721,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Kombination aus CORE_SWEEP (Score 0) und hohem Volumen ($361); Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T04:20:04.971309+00:00",
-   "trade_id": 722,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "REDUCE",
-   "reason": "Kombination aus CORE_SWEEP (Score 0) und hohem Volumen ($361); Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T04:34:05.874604+00:00",
-   "trade_id": 717,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T04:34:05.874604+00:00",
-   "trade_id": 718,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T04:34:05.874604+00:00",
-   "trade_id": 719,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T04:34:05.874604+00:00",
-   "trade_id": 723,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "REDUCE",
-   "reason": "Hoher Betrag ($361) bei unsicherem Signal (Score 0); Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T04:34:05.874604+00:00",
-   "trade_id": 724,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Hoher Betrag ($361) bei unsicherem Signal (Score 0); Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T04:34:05.874604+00:00",
-   "trade_id": 725,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Hoher Betrag ($361) bei unsicherem Signal (Score 0); Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T04:49:06.894406+00:00",
-   "trade_id": 723,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Validierung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T04:49:06.894406+00:00",
-   "trade_id": 724,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Validierung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T04:49:06.894406+00:00",
-   "trade_id": 725,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Validierung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T04:49:06.894406+00:00",
-   "trade_id": 726,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "REDUCE",
-   "reason": "Kernposition verkleinert, Restbetrag folgt gleicher Logik.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T04:49:06.894406+00:00",
-   "trade_id": 727,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Kernposition verkleinert, Restbetrag folgt gleicher Logik.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T04:49:06.894406+00:00",
-   "trade_id": 728,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Kernposition verkleinert, Restbetrag folgt gleicher Logik.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T05:04:08.082273+00:00",
-   "trade_id": 723,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Bestätigung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T05:04:08.082273+00:00",
-   "trade_id": 724,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Bestätigung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T05:04:08.082273+00:00",
-   "trade_id": 725,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Bestätigung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T05:04:08.082273+00:00",
-   "trade_id": 729,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "REDUCE",
-   "reason": "Kernposition CORE_SWEEP, Risiko durch fehlende 30d-Historie begrenzen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T05:04:08.082273+00:00",
-   "trade_id": 730,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Kernposition CORE_SWEEP, Risiko durch fehlende 30d-Historie begrenzen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T05:04:08.082273+00:00",
-   "trade_id": 731,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Kernposition CORE_SWEEP, Risiko durch fehlende 30d-Historie begrenzen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T05:19:08.858453+00:00",
-   "trade_id": 732,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "REDUCE",
-   "reason": "Doppeltes UBER-Signal, Risikoakkumulation.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T05:19:08.858453+00:00",
-   "trade_id": 733,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Doppeltes GIVN.SW-Signal, Risikoakkumulation.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T05:19:08.858453+00:00",
-   "trade_id": 734,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Doppeltes MNKS.L-Signal, Risikoakkumulation.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T05:34:10.404476+00:00",
-   "trade_id": 729,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Validierung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T05:34:10.404476+00:00",
-   "trade_id": 730,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Validierung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T05:34:10.404476+00:00",
-   "trade_id": 731,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Validierung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T05:34:10.404476+00:00",
-   "trade_id": 735,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "REDUCE",
-   "reason": "Kumuliertes Risiko bei UBER (ID 729+735); CORE_SWEEP ohne Historie.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T05:34:10.404476+00:00",
-   "trade_id": 736,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Kumuliertes Risiko bei GIVN.SW (ID 730+736); CORE_SWEEP ohne Historie.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T05:34:10.404476+00:00",
-   "trade_id": 737,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Kumuliertes Risiko bei MNKS.L (ID 731+737); CORE_SWEEP ohne Historie.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T05:49:11.187116+00:00",
-   "trade_id": 729,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Bestätigung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T05:49:11.187116+00:00",
-   "trade_id": 730,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Bestätigung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T05:49:11.187116+00:00",
-   "trade_id": 731,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Bestätigung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T05:49:11.187116+00:00",
-   "trade_id": 738,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "REDUCE",
-   "reason": "Kernposition UBER; CORE_SWEEP ohne Historie und Score 0; Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T05:49:11.187116+00:00",
-   "trade_id": 739,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Kernposition GIVN.SW; CORE_SWEEP ohne Historie und Score 0; Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T05:49:11.187116+00:00",
-   "trade_id": 740,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Kernposition MNKS.L; CORE_SWEEP ohne Historie und Score 0; Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T06:04:12.570099+00:00",
-   "trade_id": 738,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Bestätigung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T06:04:12.570099+00:00",
-   "trade_id": 739,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Bestätigung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T06:04:12.570099+00:00",
-   "trade_id": 740,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Bestätigung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T06:04:12.570099+00:00",
-   "trade_id": 741,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "REDUCE",
-   "reason": "Kombination aus CORE_SWEEP (Score 0) und höherem Volumen ($361); Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T06:04:12.570099+00:00",
-   "trade_id": 742,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Kombination aus CORE_SWEEP (Score 0) und höherem Volumen ($361); Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T06:04:12.570099+00:00",
-   "trade_id": 743,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Kombination aus CORE_SWEEP (Score 0) und höherem Volumen ($361); Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T06:19:12.816844+00:00",
-   "trade_id": 738,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Bestätigung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T06:19:12.816844+00:00",
-   "trade_id": 739,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Bestätigung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T06:19:12.816844+00:00",
-   "trade_id": 740,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Bestätigung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T06:19:12.816844+00:00",
-   "trade_id": 744,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "REDUCE",
-   "reason": "Kernposition CORE_SWEEP ohne Historie; Risiko durch fehlenden MACD-Signal-Check minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T06:19:12.816844+00:00",
-   "trade_id": 745,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Kernposition CORE_SWEEP ohne Historie; Risiko durch fehlenden MACD-Signal-Check minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T06:19:12.816844+00:00",
-   "trade_id": 746,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Kernposition CORE_SWEEP ohne Historie; Risiko durch fehlenden MACD-Signal-Check minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T06:34:14.050577+00:00",
-   "trade_id": 744,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne 30d-Historie; konservativ wegen fehlender MACD-Validierung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T06:34:14.050577+00:00",
-   "trade_id": 745,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne 30d-Historie; konservativ wegen fehlender MACD-Validierung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T06:34:14.050577+00:00",
-   "trade_id": 746,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne 30d-Historie; konservativ wegen fehlender MACD-Validierung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T06:34:14.050577+00:00",
-   "trade_id": 747,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "REDUCE",
-   "reason": "Höheres Volumen ($361) bei unbekannter Historie; Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T06:34:14.050577+00:00",
-   "trade_id": 748,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Höheres Volumen ($361) bei unbekannter Historie; Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T06:34:14.050577+00:00",
-   "trade_id": 749,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Höheres Volumen ($361) bei unbekannter Historie; Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T06:49:16.343191+00:00",
-   "trade_id": 744,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T06:49:16.343191+00:00",
-   "trade_id": 745,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
    "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
-   "signal_price": null
+   "reason": "Signal-Kombo hat niedrige WR (35.7%) und viele SL-Kills; CAR.ASX bereits offen, Haeufung-Risiko.",
+   "signal_price": 25.8700008392334
   },
   {
-   "ts": "2026-07-28T06:49:16.343191+00:00",
-   "trade_id": 746,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T06:49:16.343191+00:00",
-   "trade_id": 750,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "REDUCE",
-   "reason": "Kernposition CORE_SWEEP, Score 0; Risiko durch fehlende Historie begrenzen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T06:49:16.343191+00:00",
-   "trade_id": 751,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Kernposition CORE_SWEEP, Score 0; Risiko durch fehlende Historie begrenzen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T06:49:16.343191+00:00",
-   "trade_id": 752,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Kernposition CORE_SWEEP, Score 0; Risiko durch fehlende Historie begrenzen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T06:49:16.343191+00:00",
-   "trade_id": 753,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "REDUCE",
-   "reason": "Kernposition CORE_SWEEP, Score 0; Risiko durch fehlende Historie begrenzen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T07:04:18.091341+00:00",
-   "trade_id": 754,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "REDUCE",
-   "reason": "Höheres Volumen ($361) bei neuem Signal CORE_SWEEP ohne Historie -> Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T07:04:18.091341+00:00",
-   "trade_id": 755,
-   "symbol": "GIVN.SW",
-   "yf_symbol": "GIVN.SW",
-   "decision": "REDUCE",
-   "reason": "Höheres Volumen ($361) bei neuem Signal CORE_SWEEP ohne Historie -> Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T07:04:18.091341+00:00",
-   "trade_id": 756,
-   "symbol": "MNKS.L",
-   "yf_symbol": "MNKS.L",
-   "decision": "REDUCE",
-   "reason": "Höheres Volumen ($361) bei neuem Signal CORE_SWEEP ohne Historie -> Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T07:04:18.091341+00:00",
-   "trade_id": 757,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
+   "ts": "2026-09-07T04:34:57.147448+00:00",
+   "trade_id": 1930,
+   "symbol": "DOW.ASX",
+   "yf_symbol": "DOW.AX",
    "decision": "REDUCE",
-   "reason": "Höheres Volumen ($361) bei neuem Signal CORE_SWEEP ohne Historie -> Risiko minimieren.",
-   "signal_price": null
+   "reason": "Kombo mit MACD-Komponente hat historisch niedrige WR (37.7%) und n=2 ist statistisch schwach. Halbe Position zur Risikominimierung.",
+   "signal_price": 6.409999847412109
   },
   {
-   "ts": "2026-07-28T07:19:15.896222+00:00",
-   "trade_id": 750,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
+   "ts": "2026-09-07T07:04:09.927137+00:00",
+   "trade_id": 1945,
+   "symbol": "EQT.ST",
+   "yf_symbol": "EQT.ST",
    "decision": "REDUCE",
-   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ wegen fehlender Bestaetigung.",
-   "signal_price": null
+   "reason": "EQT.ST bereits offen (-2.0%), Signal-Haeufung und MACD-Komponente (WR 35.7%) rechtfertigen nur halbe Groesse.",
+   "signal_price": 318.29998779296875
   },
   {
-   "ts": "2026-07-28T07:19:15.896222+00:00",
-   "trade_id": 758,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
+   "ts": "2026-09-07T07:34:12.911081+00:00",
+   "trade_id": 1949,
+   "symbol": "ELIS.PA",
+   "yf_symbol": "ELIS.PA",
    "decision": "REDUCE",
-   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ wegen fehlender Bestaetigung.",
-   "signal_price": null
+   "reason": "Signal-Kombo hat nur 35.7% WR (n=56) und 17 SL-Kills. RSI ~30 ist oversold, aber MACD-Wende ist laut Merksatz kritisch. Halbe Position als Vorsicht.",
+   "signal_price": 23.34000015258789
   },
   {
-   "ts": "2026-07-28T07:19:15.896222+00:00",
-   "trade_id": 759,
-   "symbol": "VTS.AX",
-   "yf_symbol": "VTS.AX",
-   "decision": "REDUCE",
-   "reason": "Keine 30d-Historie fuer CORE_SWEEP; konservativ wegen fehlender Bestaetigung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T07:34:17.393451+00:00",
-   "trade_id": 750,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
+   "ts": "2026-09-07T07:34:12.911081+00:00",
+   "trade_id": 1950,
+   "symbol": "VU.PA",
+   "yf_symbol": "VU.PA",
    "decision": "VETO",
-   "reason": "CORE_SWEEP ohne 30d-Historie; konservativ wegen fehlender MACD-Validierung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T07:34:17.393451+00:00",
-   "trade_id": 759,
-   "symbol": "VTS.AX",
-   "yf_symbol": "VTS.AX",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne 30d-Historie; konservativ wegen fehlender MACD-Validierung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T07:34:17.393451+00:00",
-   "trade_id": 760,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne 30d-Historie; konservativ wegen fehlender MACD-Validierung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T07:34:17.393451+00:00",
-   "trade_id": 761,
-   "symbol": "VTS.AX",
-   "yf_symbol": "VTS.AX",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne 30d-Historie; konservativ wegen fehlender MACD-Validierung.",
-   "signal_price": null
+   "reason": "Gleiche schwache Signal-Statistik (35.7% WR). RSI 42 ist nicht extrem oversold, was die 'Messer'-Risiko erhöht. Halbe Position.",
+   "signal_price": 123.19999694824219
   },
   {
-   "ts": "2026-07-28T07:49:18.790707+00:00",
-   "trade_id": 759,
-   "symbol": "VTS.AX",
-   "yf_symbol": "VTS.AX",
+   "ts": "2026-09-07T09:49:21.689964+00:00",
+   "trade_id": 1963,
+   "symbol": "VU.PA",
+   "yf_symbol": "VU.PA",
    "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T07:49:18.790707+00:00",
-   "trade_id": 760,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T07:49:18.790707+00:00",
-   "trade_id": 762,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T07:49:18.790707+00:00",
-   "trade_id": 763,
-   "symbol": "CDI.PA",
-   "yf_symbol": "CDI.PA",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung",
-   "signal_price": null
+   "reason": "Signal-Kombo hat nur 35.7% WR (n=56) und VU.PA ist bereits offen (-1.2%). Haeufung und statistische Schwaeche rechtfertigen Position-Reduktion statt Voll-Veto.",
+   "signal_price": 123.0
   },
   {
-   "ts": "2026-07-28T07:49:18.790707+00:00",
-   "trade_id": 764,
-   "symbol": "VTS.AX",
-   "yf_symbol": "VTS.AX",
+   "ts": "2026-09-07T13:34:41.439155+00:00",
+   "trade_id": 1982,
+   "symbol": "SPG",
+   "yf_symbol": "SPG",
    "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung",
-   "signal_price": null
+   "reason": "Signal-Kombo hat niedrige WR (35.7%) und hohe SL-Rate; Position bereits offen (SPG -1.3%), daher Haeufung/Risiko-Mitigation.",
+   "signal_price": 209.44000244140625
   },
   {
-   "ts": "2026-07-28T08:04:20.185774+00:00",
-   "trade_id": 760,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
+   "ts": "2026-09-07T13:34:41.439155+00:00",
+   "trade_id": 1984,
+   "symbol": "MS",
+   "yf_symbol": "MS",
    "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Validierung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T08:04:20.185774+00:00",
-   "trade_id": 764,
-   "symbol": "VTS.AX",
-   "yf_symbol": "VTS.AX",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; Risiko bei fehlender MACD-Komponente.",
-   "signal_price": null
+   "reason": "Signal-Kombo (TREND_PULLBACK,GOLDEN_CROSS) hat negative Expectancy (-27$) und hohe SL-Rate; Position bereits offen (MS +0.2%), daher Haeufung/Risiko-Mitigation.",
+   "signal_price": 217.72000122070312
   },
   {
-   "ts": "2026-07-28T08:04:20.185774+00:00",
-   "trade_id": 765,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
+   "ts": "2026-09-07T13:49:39.877785+00:00",
+   "trade_id": 1982,
+   "symbol": "SPG",
+   "yf_symbol": "SPG",
    "decision": "REDUCE",
-   "reason": "Kombination aus CORE_SWEEP (Score 0) und hohem Volumen ($361); Unsicherheit bei RSI.",
-   "signal_price": null
+   "reason": "SPG bereits offen (-1.3%), Signal-Kombo hat niedrige WR (35.7%) und MACD-Komponente; Haeufung vermeiden.",
+   "signal_price": 209.44000244140625
   },
   {
-   "ts": "2026-07-28T08:04:20.185774+00:00",
-   "trade_id": 766,
-   "symbol": "VTS.AX",
-   "yf_symbol": "VTS.AX",
-   "decision": "REDUCE",
-   "reason": "Kombination aus CORE_SWEEP (Score 0) und hohem Volumen ($361); Unsicherheit bei RSI.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T08:04:20.185774+00:00",
-   "trade_id": 767,
-   "symbol": "PNI.AX",
-   "yf_symbol": "PNI.AX",
-   "decision": "REDUCE",
-   "reason": "Kombination aus CORE_SWEEP (Score 0) und hohem Volumen ($361); Unsicherheit bei RSI.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T08:19:21.531682+00:00",
-   "trade_id": 764,
-   "symbol": "VTS.AX",
-   "yf_symbol": "VTS.AX",
+   "ts": "2026-09-07T14:04:41.330864+00:00",
+   "trade_id": 1982,
+   "symbol": "SPG",
+   "yf_symbol": "SPG",
    "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T08:19:21.531682+00:00",
-   "trade_id": 765,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T08:19:21.531682+00:00",
-   "trade_id": 767,
-   "symbol": "PNI.AX",
-   "yf_symbol": "PNI.AX",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T08:19:21.531682+00:00",
-   "trade_id": 768,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T08:19:21.531682+00:00",
-   "trade_id": 769,
-   "symbol": "VTS.AX",
-   "yf_symbol": "VTS.AX",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung",
-   "signal_price": null
+   "reason": "Signal-Kombo hat nur 35.7% WR (n=56) und 17 SL-Kills. MACD-Komponente senkt WR deutlich. Halbe Position als Vorsicht.",
+   "signal_price": 209.44000244140625
   },
   {
-   "ts": "2026-07-28T08:19:21.531682+00:00",
-   "trade_id": 770,
-   "symbol": "PNI.AX",
-   "yf_symbol": "PNI.AX",
+   "ts": "2026-09-07T14:49:47.310822+00:00",
+   "trade_id": 1988,
+   "symbol": "SPG",
+   "yf_symbol": "SPG",
    "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie, konservativ wegen fehlender MACD-Validierung",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T08:34:22.906866+00:00",
-   "trade_id": 765,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Bestätigung.",
-   "signal_price": null
+   "reason": "Signal-Kombo hat niedrige WR (35.7%) und hohe SL-Rate; RSI 31.7 zeigt Schwäche, kein klarer MACD-Wende-Bestätigung im Kontext der Merksatz-Warnung.",
+   "signal_price": 209.44000244140625
   },
   {
-   "ts": "2026-07-28T08:34:22.906866+00:00",
-   "trade_id": 767,
-   "symbol": "PNI.AX",
-   "yf_symbol": "PNI.AX",
+   "ts": "2026-09-07T15:04:47.973494+00:00",
+   "trade_id": 1989,
+   "symbol": "MS",
+   "yf_symbol": "MS",
    "decision": "VETO",
-   "reason": "Keine 30d-Historie für Signal; Risiko minimieren bei Score 0.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T08:34:22.906866+00:00",
-   "trade_id": 769,
-   "symbol": "VTS.AX",
-   "yf_symbol": "VTS.AX",
-   "decision": "REDUCE",
-   "reason": "Höheres Volumen ($181) bei unbekannter Signal-Qualität; Halbe Position.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T08:34:22.906866+00:00",
-   "trade_id": 771,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "REDUCE",
-   "reason": "Uber bereits im Portfolio; CORE_SWEEP ohne MACD-Wende ist riskant.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T08:34:22.906866+00:00",
-   "trade_id": 772,
-   "symbol": "VTS.AX",
-   "yf_symbol": "VTS.AX",
-   "decision": "REDUCE",
-   "reason": "VTS.AX doppelt; Score 0 erfordert Vorsicht.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T08:34:22.906866+00:00",
-   "trade_id": 773,
-   "symbol": "PNI.AX",
-   "yf_symbol": "PNI.AX",
-   "decision": "REDUCE",
-   "reason": "PNI.AX doppelt; keine Historie für CORE_SWEEP.",
-   "signal_price": null
+   "reason": "Kombo WR 33.3% (n=33) nahe Schwelle, negative PnL-Historie.",
+   "signal_price": 217.72000122070312
   },
   {
-   "ts": "2026-07-28T08:49:23.810336+00:00",
-   "trade_id": 769,
-   "symbol": "VTS.AX",
-   "yf_symbol": "VTS.AX",
+   "ts": "2026-09-07T15:04:47.973494+00:00",
+   "trade_id": 1990,
+   "symbol": "TMUS",
+   "yf_symbol": "TMUS",
    "decision": "VETO",
-   "reason": "CORE_SWEEP ohne 30d-Historie, konservativ reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T08:49:23.810336+00:00",
-   "trade_id": 773,
-   "symbol": "PNI.AX",
-   "yf_symbol": "PNI.AX",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne 30d-Historie, konservativ reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T08:49:23.810336+00:00",
-   "trade_id": 775,
-   "symbol": "VTS.AX",
-   "yf_symbol": "VTS.AX",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne 30d-Historie, konservativ reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T08:49:23.810336+00:00",
-   "trade_id": 776,
-   "symbol": "PNI.AX",
-   "yf_symbol": "PNI.AX",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne 30d-Historie, konservativ reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T09:19:24.017392+00:00",
-   "trade_id": 771,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie und Score 0; konservativ wegen fehlender MACD-Validierung.",
-   "signal_price": null
+   "reason": "Kombo WR 33.3% (n=33) nahe Schwelle, negative PnL-Historie.",
+   "signal_price": 181.52000427246094
   },
   {
-   "ts": "2026-07-28T09:19:24.017392+00:00",
-   "trade_id": 773,
-   "symbol": "PNI.AX",
-   "yf_symbol": "PNI.AX",
+   "ts": "2026-09-07T15:34:47.625261+00:00",
+   "trade_id": 1988,
+   "symbol": "SPG",
+   "yf_symbol": "SPG",
    "decision": "VETO",
-   "reason": "Keine 30d-Historie für CORE_SWEEP; Risiko bei Score 0 minimieren.",
-   "signal_price": null
+   "reason": "SPG bereits offen (-1.3%), Signal-Kombo hat niedrige WR (35.7%) und MACD-Komponente; Haeufung vermeiden.",
+   "signal_price": 209.44000244140625
   },
   {
-   "ts": "2026-07-28T09:19:24.017392+00:00",
-   "trade_id": 775,
-   "symbol": "VTS.AX",
-   "yf_symbol": "VTS.AX",
+   "ts": "2026-09-07T15:49:50.111427+00:00",
+   "trade_id": 1992,
+   "symbol": "SPG",
+   "yf_symbol": "SPG",
    "decision": "REDUCE",
-   "reason": "Keine 30d-Historie für CORE_SWEEP; konservativ wegen fehlender MACD-Validierung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T09:34:23.907787+00:00",
-   "trade_id": 771,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP ohne 30d-Historie, konservativ reduziert.",
-   "signal_price": null
+   "reason": "SPG bereits offen (-1.3%), Signal-Kombo WR nur 35.7% mit 17 SL-Kills, MACD-Komponente riskant.",
+   "signal_price": 209.44000244140625
   },
   {
-   "ts": "2026-07-28T09:34:23.907787+00:00",
-   "trade_id": 775,
-   "symbol": "VTS.AX",
-   "yf_symbol": "VTS.AX",
+   "ts": "2026-09-07T15:49:50.111427+00:00",
+   "trade_id": 1993,
+   "symbol": "MS",
+   "yf_symbol": "MS",
    "decision": "VETO",
-   "reason": "CORE_SWEEP ohne 30d-Historie, konservativ reduziert.",
-   "signal_price": null
+   "reason": "MS bereits offen (+0.2%), Signal-Kombo WR nur 33.3% mit 14 SL-Kills, negative P&L history.",
+   "signal_price": 217.72000122070312
   },
   {
-   "ts": "2026-07-28T10:34:28.643945+00:00",
-   "trade_id": 777,
-   "symbol": "DNR.MI",
-   "yf_symbol": "DNR.MI",
+   "ts": "2026-09-07T16:04:50.229017+00:00",
+   "trade_id": 1992,
+   "symbol": "SPG",
+   "yf_symbol": "SPG",
    "decision": "VETO",
-   "reason": "Signal MACD_TURN_BELOW_SMA20 hat historisch schlechte WR (11.1%). Veto-Verluste waren gut, aber hier ist das Risiko eines fallenden Messers zu hoch bei Score 35.",
-   "signal_price": 5.989999771118164
+   "reason": "Signal-Kombo hat nur 35.7% WR (n=56) und MACD-Komponenten sind historisch schwächer (37.7% vs 48.0%). Halbe Position zur Risikominimierung.",
+   "signal_price": 209.44000244140625
   },
   {
-   "ts": "2026-07-28T10:34:28.643945+00:00",
-   "trade_id": 778,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
+   "ts": "2026-09-07T16:49:55.228380+00:00",
+   "trade_id": 1994,
+   "symbol": "SPG",
+   "yf_symbol": "SPG",
    "decision": "REDUCE",
-   "reason": "CORE_SWEEP hat keine Historie. Konservativ reduzieren, da kein historischer Vorteil bekannt.",
-   "signal_price": null
+   "reason": "Signal-Kombo hat nur 35.7% WR und 17 SL-Kills; SPG ist bereits offen (-1.3%), daher Haeufung/Risiko-Minderung.",
+   "signal_price": 209.44000244140625
   },
   {
-   "ts": "2026-07-28T10:34:28.643945+00:00",
-   "trade_id": 779,
-   "symbol": "DNR.MI",
-   "yf_symbol": "DNR.MI",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP hat keine Historie. Konservativ reduzieren, da kein historischer Vorteil bekannt.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T10:49:28.570483+00:00",
-   "trade_id": 778,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne 30d-Historie, konservativ pruefen; Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T11:04:29.788774+00:00",
-   "trade_id": 778,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
+   "ts": "2026-09-07T17:04:55.955266+00:00",
+   "trade_id": 1994,
+   "symbol": "SPG",
+   "yf_symbol": "SPG",
    "decision": "VETO",
-   "reason": "CORE_SWEEP ohne 30d-Historie, Score 0 (MEDIUM). Bei Unsicherheit und asymmetrischen Rechten Position verkleinern statt voll approve.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T12:34:37.468805+00:00",
-   "trade_id": 780,
-   "symbol": "BOL.ST",
-   "yf_symbol": "BOL.ST",
-   "decision": "REDUCE",
-   "reason": "Signal MACD_TURN_BELOW_SMA20 hat historisch schlechte WR (11.1%) bei n=9. Im Zweifel aber APPROVE, daher nur Reduktion.",
-   "signal_price": 470.29998779296875
-  },
-  {
-   "ts": "2026-07-28T12:49:36.179445+00:00",
-   "trade_id": 781,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne 30d-Historie, konservativ pruefen; Risiko minimieren.",
-   "signal_price": null
+   "reason": "Signal-Kombo hat nur 35.7% WR und SPG ist bereits offen (-1.3%). Halbe Groesse zur Risikominimierung.",
+   "signal_price": 209.44000244140625
   },
   {
-   "ts": "2026-07-28T13:04:37.527081+00:00",
-   "trade_id": 781,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
+   "ts": "2026-09-07T17:49:59.567565+00:00",
+   "trade_id": 1996,
+   "symbol": "SPG",
+   "yf_symbol": "SPG",
    "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne 30d-Historie, Score 0. Bei fehlender MACD-Bestätigung ist das Risiko hoch (WR 8.1%). Konservative Reduzierung statt Veto, da kein klares feindliches Umfeld.",
-   "signal_price": null
+   "reason": "SPG bereits offen (-1.3%), Signal-Kombo WR nur 35.7% mit 17 SL-Kills, MACD-Komponente senkt Edge.",
+   "signal_price": 209.44000244140625
   },
   {
-   "ts": "2026-07-28T13:19:38.193746+00:00",
-   "trade_id": 781,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
+   "ts": "2026-09-07T18:05:01.600885+00:00",
+   "trade_id": 1996,
+   "symbol": "SPG",
+   "yf_symbol": "SPG",
    "decision": "VETO",
-   "reason": "CORE_SWEEP ohne 30d-Historie, konservativ pruefen; Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T14:04:44.222075+00:00",
-   "trade_id": 783,
-   "symbol": "UBER",
-   "yf_symbol": "UBER",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP ohne Historie in volatilen QQQ-Umfeld (-1.75%) konservativ handeln.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T14:04:44.222075+00:00",
-   "trade_id": 784,
-   "symbol": "VTS.AX",
-   "yf_symbol": "VTS.AX",
-   "decision": "REDUCE",
-   "reason": "Keine 30d-Historie, Marktunsicherheit (VIX 19.14) erfordert Positionsverkleinerung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T14:04:44.222075+00:00",
-   "trade_id": 785,
-   "symbol": "PNI.AX",
-   "yf_symbol": "PNI.AX",
-   "decision": "REDUCE",
-   "reason": "Neues Signal ohne Backtest-Validierung bei schwachem Tech-Sektor.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T14:04:44.222075+00:00",
-   "trade_id": 786,
-   "symbol": "9626.HK",
-   "yf_symbol": "9626.HK",
-   "decision": "REDUCE",
-   "reason": "Konservative Anpassung bei fehlender Historie und genereller Marktschwäche.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T14:19:44.463034+00:00",
-   "trade_id": 784,
-   "symbol": "VTS.AX",
-   "yf_symbol": "VTS.AX",
-   "decision": "REDUCE",
-   "reason": "Keine 30d-Historie fuer CORE_SWEEP bei VTS.AX; konservativ reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T14:19:44.463034+00:00",
-   "trade_id": 785,
-   "symbol": "PNI.AX",
-   "yf_symbol": "PNI.AX",
-   "decision": "REDUCE",
-   "reason": "Keine 30d-Historie fuer CORE_SWEEP bei PNI.AX; konservativ reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-07-28T14:19:44.463034+00:00",
-   "trade_id": 786,
-   "symbol": "9626.HK",
-   "yf_symbol": "9626.HK",
-   "decision": "REDUCE",
-   "reason": "Keine 30d-Historie fuer CORE_SWEEP bei 9626.HK; konservativ reduziert.",
-   "signal_price": null
+   "reason": "Signal-Kombo hat nur 35.7% WR und 17 SL-Kills; RSI 31.7 zeigt 'Messer' (Oversold ohne MACD-Wende). Position halbiert.",
+   "signal_price": 209.44000244140625
   }
  ]
 }

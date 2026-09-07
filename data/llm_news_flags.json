@@ -1,50 +1,7 @@
 {
-  "generated_at": "2026-07-28T15:15:54.499351+00:00",
-  "auto_expires_at": "2026-07-29T03:15:54.499351+00:00",
-  "symbols_scanned": 46,
-  "headlines_seen": 36,
-  "flags": {
-    "AAPL": {
-      "flag": "AVOID",
-      "severity": "HIGH",
-      "reason": "Earnings am 2026-07-30",
-      "source": "earnings_calendar"
-    },
-    "AMZN": {
-      "flag": "AVOID",
-      "severity": "HIGH",
-      "reason": "Earnings am 2026-07-30",
-      "source": "earnings_calendar"
-    },
-    "COA.L": {
-      "flag": "AVOID",
-      "severity": "HIGH",
-      "reason": "Earnings am 2026-07-28",
-      "source": "earnings_calendar"
-    },
-    "DNR.MI": {
-      "flag": "AVOID",
-      "severity": "HIGH",
-      "reason": "Earnings am 2026-07-30",
-      "source": "earnings_calendar"
-    },
-    "CDI.PA": {
-      "flag": "CAUTION",
-      "severity": "MEDIUM",
-      "reason": "Aktienkurs fällt trotz Wachstum, da Ergebnisse die Schätzungen verfehlen",
-      "source": "news_llm"
-    },
-    "JNJ": {
-      "flag": "CAUTION",
-      "severity": "MEDIUM",
-      "reason": "Hoher Vergleichszahlungsanspruch von 5,5 Mrd. USD zur Beilegung von Talc-Klagen",
-      "source": "news_llm"
-    },
-    "JPM": {
-      "flag": "CAUTION",
-      "severity": "MEDIUM",
-      "reason": "CEO warnt vor größeren Marktrisiken als angenommen und kauft keine Aktien",
-      "source": "news_llm"
-    }
-  }
+  "generated_at": "2026-09-07T18:16:30.544304+00:00",
+  "auto_expires_at": "2026-09-08T06:16:30.544304+00:00",
+  "symbols_scanned": 65,
+  "headlines_seen": 16,
+  "flags": {}
 }
