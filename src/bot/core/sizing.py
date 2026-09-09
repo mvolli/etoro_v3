@@ -337,3 +337,84 @@ def kelly_size_factor(signal_type: str, db=None, min_trades: int | None = None,
     logger.debug("Kelly sizing: %s factor=%.3f (kelly=%.3f)",
                  signal_type, factor, kelly)
     return factor
+
+
+# ── feat/sizing-drift-guard (2026-09-09) ─────────────────────────────────────
+# Uebernommen aus dem Karpathy-Autoresearch-Loop:
+#
+#   "Bigger bets raises return and sharpe on the exact same trades.
+#    That is a leverage dial, not an idea. So a try only counts if the
+#    vol barely moved."
+#
+# Genau dieser Fall ist uns passiert: `kelly_base = 0.49` wurde am 2026-08-22
+# so kalibriert, dass das TRADE-GEWICHTETE MITTEL bei 0.3011 lag — dem
+# Risikoniveau, auf dem das Konto getestet war. Der Signalmix hat sich
+# seither verschoben, das Mittel ist auf 0.463 gewandert: **+54 %
+# durchschnittliche Positionsgroesse, ohne dass jemand eine Idee geaendert
+# hatte.** Zwei Wochen lang hat es niemand bemerkt, weil die Zahl nirgends
+# ueberwacht wurde.
+#
+# `kelly_base` ist ein Punkt-in-der-Zeit-Wert, keine strukturelle
+# Eigenschaft. Diese Funktionen machen die Drift sichtbar.
+
+DEFAULT_TARGET_MEAN = 0.30    # Risikoniveau, auf dem das Konto getestet ist
+DEFAULT_DRIFT_BAND_PCT = 15.0  # erlaubte Abweichung, bevor gemeldet wird
+
+
+def kelly_weighted_mean(db, kelly_cfg: dict | None = None) -> float | None:
+    """Trade-gewichtetes Mittel der Kelly-Faktoren ueber das Kelly-Fenster.
+
+    Gewichtet nach HAEUFIGKEIT, nicht nach Signaltyp: ein Cluster, der
+    hundertmal feuert, praegt das Risikoniveau staerker als einer mit drei
+    Trades. Genau so wurde `kelly_base` am 2026-08-22 kalibriert, also misst
+    der Guard dasselbe.
+
+    None, wenn keine Trades im Fenster liegen (dann gibt es nichts zu
+    ueberwachen).
+    """
+    rows = _recent_trade_rows(db)
+    if not rows:
+        return None
+    faktoren = [kelly_size_factor(st, db, kelly_cfg=kelly_cfg) for st, _ in rows]
+    faktoren = [f for f in faktoren if f is not None]
+    if not faktoren:
+        return None
+    return sum(faktoren) / len(faktoren)
+
+
+def check_sizing_drift(db, target_mean: float | None = None,
+                       band_pct: float | None = None,
+                       kelly_cfg: dict | None = None) -> dict:
+    """Meldet, wenn das mittlere Sizing vom freigegebenen Niveau abweicht.
+
+    Gibt immer ein Dict zurueck (fail-open): `ok=True` heisst "im Band ODER
+    nicht messbar" — der Guard darf nie ein Blocker sein, er ist ein Melder.
+    """
+    cfg = kelly_cfg if kelly_cfg is not None else _get_sizing_cfg()
+    ziel = float(target_mean if target_mean is not None
+                 else cfg.get("kelly_target_mean", DEFAULT_TARGET_MEAN))
+    band = float(band_pct if band_pct is not None
+                 else cfg.get("kelly_drift_band_pct", DEFAULT_DRIFT_BAND_PCT))
+
+    out = {"ok": True, "current": None, "target": ziel, "band_pct": band,
+           "drift_pct": None, "reason": None}
+    try:
+        aktuell = kelly_weighted_mean(db, kelly_cfg=kelly_cfg)
+    except Exception as exc:
+        logger.debug("Sizing-Drift nicht messbar: %s", exc)
+        return out
+    if aktuell is None or ziel <= 0:
+        return out
+
+    out["current"] = round(aktuell, 4)
+    drift = (aktuell - ziel) / ziel * 100.0
+    out["drift_pct"] = round(drift, 1)
+    if abs(drift) > band:
+        out["ok"] = False
+        richtung = "ueber" if drift > 0 else "unter"
+        out["reason"] = (
+            f"mittleres Sizing {aktuell:.4f} liegt {abs(drift):.0f}% {richtung} "
+            f"dem freigegebenen Niveau {ziel:.4f} (Band {band:.0f}%) — "
+            f"Hebel-Regler, keine Idee"
+        )
+    return out

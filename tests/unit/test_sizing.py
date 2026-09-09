@@ -307,3 +307,76 @@ class TestAssetClassSplit:
         f = kelly_size_factor("DIP", _Broken(_mixed_pool()), kelly_cfg=cfg,
                               instrument_id=1)
         assert DEFAULT_MIN_FACTOR <= f <= DEFAULT_MAX_FACTOR
+
+
+# ── feat/sizing-drift-guard (2026-09-09) ─────────────────────────────────────
+# Vol-Guard aus dem Karpathy-Loop: "Bigger bets raises return and sharpe on
+# the exact same trades. That is a leverage dial, not an idea."
+# Realer Fall: kelly_base wurde am 2026-08-22 so kalibriert, dass das
+# trade-gewichtete Mittel bei 0.3011 lag. Am 2026-09-09 stand es bei 0.463 —
+# +54 % Positionsgroesse, ohne dass jemand eine Idee geaendert hatte.
+
+from bot.core.sizing import check_sizing_drift, kelly_weighted_mean
+
+
+class _MixDB:
+    """Liefert eine Trade-Mischung; der Kelly-Faktor folgt daraus."""
+
+    def __init__(self, rows):
+        self._rows = rows
+
+    def fetchall(self, sql, params=()):
+        return [{"st": st, "pnl_pct": p} for st, p in self._rows]
+
+
+def _pool(gute=0, schlechte=0):
+    return ([("EDGE", 4.0)] * gute) + ([("SCHWACH", -3.0)] * schlechte)
+
+
+class TestSizingDrift:
+
+    def test_mittel_ist_haeufigkeitsgewichtet(self):
+        """Ein Cluster, der oft feuert, praegt das Niveau staerker."""
+        db = _MixDB(_pool(gute=60, schlechte=0))
+        m = kelly_weighted_mean(db, kelly_cfg={"kelly_min_trades": 25})
+        assert m is not None and m > DEFAULT_BASE
+
+    def test_leeres_fenster_ist_nicht_messbar(self):
+        assert kelly_weighted_mean(_MixDB([])) is None
+
+    def test_drift_wird_gemeldet(self):
+        """Der reale Fall: Mittel deutlich ueber dem freigegebenen Niveau."""
+        db = _MixDB(_pool(gute=60))
+        g = check_sizing_drift(db, target_mean=0.30, band_pct=15.0,
+                               kelly_cfg={"kelly_min_trades": 25})
+        assert g["ok"] is False
+        assert g["drift_pct"] > 15.0
+        assert "Hebel-Regler" in g["reason"]
+
+    def test_im_band_ist_still(self):
+        db = _MixDB(_pool(gute=60))
+        m = kelly_weighted_mean(db, kelly_cfg={"kelly_min_trades": 25})
+        g = check_sizing_drift(db, target_mean=m, band_pct=15.0,
+                               kelly_cfg={"kelly_min_trades": 25})
+        assert g["ok"] is True and g["reason"] is None
+
+    def test_drift_nach_unten_meldet_auch(self):
+        """Zu klein ist ebenfalls eine Abweichung vom getesteten Niveau."""
+        db = _MixDB(_pool(schlechte=60))
+        g = check_sizing_drift(db, target_mean=0.90, band_pct=15.0,
+                               kelly_cfg={"kelly_min_trades": 25})
+        assert g["ok"] is False and g["drift_pct"] < 0
+
+    def test_guard_ist_melder_kein_blocker(self):
+        """Defekte DB -> ok=True, damit nie ein Live-Pfad haengt."""
+        class _Broken:
+            def fetchall(self, *a, **k):
+                raise RuntimeError("db weg")
+        g = check_sizing_drift(_Broken())
+        assert g["ok"] is True and g["current"] is None
+
+    def test_ungueltiges_ziel_meldet_nicht(self):
+        db = _MixDB(_pool(gute=60))
+        g = check_sizing_drift(db, target_mean=0.0,
+                               kelly_cfg={"kelly_min_trades": 25})
+        assert g["ok"] is True

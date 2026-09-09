@@ -95,6 +95,9 @@ class SizingConfig:
     # feat/kelly-asset-class-split (2026-09-05): getrennte Kelly-Pools fuer
     # crypto vs. alles andere. Default AUS = bisheriges Verhalten.
     kelly_asset_class_split: bool = False
+    # feat/sizing-drift-guard (2026-09-09): Melder, kein Blocker.
+    kelly_target_mean: float = 0.30
+    kelly_drift_band_pct: float = 15.0
     # feat/kelly-shrinkage (2026-08-24): Empirical-Bayes-Schrumpfung statt harter
     # Schwelle. alpha = k0 / (n + k0); bei n = k0 zaehlt die eigene Schaetzung
     # zur Haelfte. 50 orientiert sich an der Praxisregel, dass Trefferquoten

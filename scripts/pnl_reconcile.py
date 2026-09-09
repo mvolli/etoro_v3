@@ -116,6 +116,25 @@ def main() -> int:
     with DB(DB_PATH) as db:
         _bericht(db)
 
+        # feat/sizing-drift-guard (2026-09-09): der Vol-Guard aus dem
+        # Karpathy-Loop. Gehoert hierher, weil dieser Bericht der eine Ort
+        # ist, an dem unsichtbare Groessen sichtbar werden — die Drift von
+        # 0.30 auf 0.46 lief zwei Wochen, weil sie nirgends stand.
+        try:
+            from bot.core.sizing import check_sizing_drift
+            g = check_sizing_drift(db)
+            print("\n── Sizing-Drift " + "─" * 47)
+            if g["current"] is None:
+                print("  nicht messbar (keine Trades im Kelly-Fenster)")
+            else:
+                print(f"  mittleres Sizing heute:   {g['current']:.4f}")
+                print(f"  freigegebenes Niveau:     {g['target']:.4f}"
+                      f"   (Band ±{g['band_pct']:.0f}%)")
+                print(f"  Drift:                    {g['drift_pct']:+.1f} %")
+                print(f"  {'✓ im Band' if g['ok'] else '⚠ ' + g['reason']}")
+        except Exception as exc:
+            logger.debug("Sizing-Drift uebersprungen: %s", exc)
+
         luecken = _luecken(db)
         print(f"\n── Fehlende pnl_usd " + "─" * 43)
         print(f"  Ereignisse ohne Dollar-Betrag: {len(luecken)}")
