@@ -585,6 +585,11 @@ def _process_symbol(args):
     return trades
 
 
+from autoresearch import (  # feat/lock-window (2026-09-09)
+    check_guards, degradation_pct, k_score, split_trades,
+)
+
+
 def main() -> int:
     global _variant_ref, _sim_params
     ap = argparse.ArgumentParser()
@@ -600,6 +605,12 @@ def main() -> int:
     ap.add_argument("--cost-pct", type=float, default=0.0,
                     help="round-trip cost %% per trade (0.2 = 20 bps each way)")
     ap.add_argument("--out", default=None, help="output JSON tag (default: study name)")
+    # feat/lock-window (2026-09-09, Karpathy-Autoresearch-Loop): "1,000 tries
+    # on one window is 1,000 chances to curve fit." Trades ab diesem Datum
+    # zaehlen als OUT-OF-SAMPLE und werden getrennt ausgewiesen. Ohne das
+    # Flag verhaelt sich alles wie bisher (alles In-Sample).
+    ap.add_argument("--oos-start", default=None,
+                    help="ISO-Datum: ab hier Out-of-Sample (Lock-Window)")
     args = ap.parse_args()
 
     st = dict(STUDIES[args.study])
@@ -674,11 +685,34 @@ def main() -> int:
         summary[v.key] = {"name": v.name, "overall": overall,
                           **{f"sig_{s}": m for s, m in by_sig.items()}}
 
+        # feat/lock-window: dieselben Regeln, getrennt nach In-Sample und
+        # dem zurueckgehaltenen Fenster. Geteilt wird am EINSTIEGSDATUM —
+        # ein Trade gehoert dorthin, wo die Entscheidung fiel.
+        if args.oos_start:
+            _is, _oos = split_trades(tw, args.oos_start)
+            _cal_is = [d for d in all_dates if d < args.oos_start]
+            _cal_oos = [d for d in all_dates if d >= args.oos_start]
+            m_is = metrics(_is, calendar=_cal_is, mark_closes=mark_closes)
+            m_oos = metrics(_oos, calendar=_cal_oos, mark_closes=mark_closes)
+            summary[v.key]["in_sample"] = m_is
+            summary[v.key]["out_of_sample"] = m_oos
+            summary[v.key]["k_in_sample"] = k_score(
+                m_is.get("pct_on_bound_capital"), m_is.get("sharpe"))
+            summary[v.key]["k_out_of_sample"] = k_score(
+                m_oos.get("pct_on_bound_capital"), m_oos.get("sharpe"))
+            summary[v.key]["degradation_pct"] = degradation_pct(
+                m_is.get("pct_on_bound_capital"),
+                m_oos.get("pct_on_bound_capital"))
+            _ok, _gruende = check_guards(m_oos.get("n"), None)
+            summary[v.key]["guards_ok"] = _ok
+            summary[v.key]["guard_reasons"] = _gruende
+
     out_path = ROOT / "backtest" / "results" / f"exit_variant_results_{tag}.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {"generated": pd.Timestamp.now(tz="UTC").isoformat(),
                "study": tag, "data_start": start, "sim_start": sim_start,
-               "sim_end": end, "knife_atr": args.knife_atr, "cost_pct": args.cost_pct,
+               "sim_end": end, "oos_start": args.oos_start,
+               "knife_atr": args.knife_atr, "cost_pct": args.cost_pct,
                "benchmark": benchmark(data, sim_start, end),
                "symbols": list(data.keys()), "n_symbols": len(data),
                "trades_per_variant": {k: len(in_win(vv)) for k, vv in results.items()},
