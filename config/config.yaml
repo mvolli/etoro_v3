@@ -118,7 +118,6 @@ trading:
     per_position_pct: 4.0     # Zielgroesse je Core-Position (% Equity)
     max_position_pct: 6.0     # Harter Deckel je Core-Titel (% Equity)
     max_sweeps_per_run: 4     # "Zuegig" (User-Entscheid): bis N Core-Trades/Lauf
-    max_days: 60              # Laengerer Stale-Horizont als Small-Caps (dort 20)
     rsi_overbought: 75.0      # Kein Sweep in einen Titel mit RSI darueber (nicht extended kaufen)
     reject_cooldown_after: 3  # Ab N REJECTED/FAILED Core-Sweep-Trades im Fenster -> Cooldown
     reject_cooldown_hours: 3.0  # Cooldown-Fenster in Stunden (0 = Check deaktivieren via cooldown_after)
