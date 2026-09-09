@@ -1325,7 +1325,14 @@ def main() -> int:
                 # Core-Sweep auch Instrumente ausserhalb der statischen Config,
                 # die gerade ein starkes Signal liefern (signal-agnostische
                 # Discovery, Option B aus dem Design-Review).
-                _cs_auto_discovery(db, symbol, instrument_id, cand)
+                # fix/dead-switch-auto-discovery (2026-09-09): der Schalter
+                # `trading.core_sweep.auto_discovery` stand seit dem 2026-07-22
+                # in config.yaml und wurde NIE gelesen — die Funktion lief
+                # unbedingt. Wer ihn auf false setzte, aenderte nichts.
+                # Default true = bisheriges Verhalten.
+                if bool((( cfg.get("trading", {}) or {}).get("core_sweep", {})
+                         or {}).get("auto_discovery", True)):
+                    _cs_auto_discovery(db, symbol, instrument_id, cand)
 
                 # fix/watchlist-promotion-all-regions: a discovery signal is
                 # a one-shot with a 6h TTL — promote the candidate into the
