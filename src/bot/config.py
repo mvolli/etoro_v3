@@ -88,13 +88,13 @@ class SizingConfig:
     # Risk-neutral Kelly scale (fix/kelly-risk-neutral, 2026-08-21):
     # factor = clamp(kelly_base + kelly_scale * kelly, kelly_min_factor, kelly_max_factor)
     kelly_min_trades: int = 25     # min trades before Kelly scaling kicks in
-    kelly_base: float = 0.3099     # nachkalibriert 2026-09-09 → gewichtetes Mittel 0.3000
+    kelly_base: float = 0.3681     # nachkalibriert 2026-09-09 → gewichtetes Mittel 0.3000
     kelly_scale: float = 0.45      # multiplier on the Kelly fraction
     kelly_min_factor: float = 0.15 # floor: negative-edge combos shrink to this
-    kelly_max_factor: float = 0.7599
+    kelly_max_factor: float = 0.8181
     # feat/kelly-asset-class-split (2026-09-05): getrennte Kelly-Pools fuer
     # crypto vs. alles andere. Default AUS = bisheriges Verhalten.
-    kelly_asset_class_split: bool = False
+    kelly_asset_class_split: bool = True
     # feat/sizing-drift-guard (2026-09-09): Melder, kein Blocker.
     kelly_target_mean: float = 0.30
     kelly_drift_band_pct: float = 15.0

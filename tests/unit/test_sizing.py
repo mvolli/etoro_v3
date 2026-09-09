@@ -46,6 +46,10 @@ def _pin_sizing_defaults(monkeypatch):
     """Tests laufen gegen die DEFAULT_*-Konstanten, NICHT gegen das
     repo's config.yaml — sonst zerbroecht jeder Tuning-Edit des Users
     (z.B. kelly_base -> 0.6) die Sizing-Tests."""
+    # Das Original hinterlegen: der Strukturtest weiter unten muss den
+    # ECHTEN Loader pruefen, sonst testet er die Fixture.
+    monkeypatch.setattr(sizing_mod, "_ECHTER_CFG_LOADER",
+                        sizing_mod._get_sizing_cfg, raising=False)
     monkeypatch.setattr(sizing_mod, "_get_sizing_cfg", lambda: {})
 
 
@@ -385,3 +389,34 @@ class TestSizingDrift:
         g = check_sizing_drift(db, target_mean=0.0,
                                kelly_cfg={"kelly_min_trades": 25})
         assert g["ok"] is True
+
+
+# ── fix/sizing-cfg-keys (2026-09-09) ─────────────────────────────────────────
+# `_get_sizing_cfg()` baut ein EXPLIZITES Dict. Wer einen sizing.*-Key in
+# config.yaml und SizingConfig ergaenzt, ihn dort aber vergisst, hat einen
+# TOTEN Schalter: `kelly_asset_class_split: true` stand zwei Commits lang in
+# der Config und hat nichts getan. Aufgefallen ist es nur, weil der
+# Vol-Guard 0.3527 meldete, wo die Rechnung 0.3000 ergab.
+
+def test_jeder_kelly_key_erreicht_den_loader():
+    """Strukturtest: kein sizing.kelly_*-Feld darf im Loader fehlen."""
+    from dataclasses import fields
+    from bot.config import SizingConfig
+    import bot.core.sizing as _sz
+
+    deklariert = {f.name for f in fields(SizingConfig)
+                  if f.name.startswith("kelly_")}
+    geladen = set(_sz._ECHTER_CFG_LOADER().keys())
+    fehlend = deklariert - geladen
+    assert not fehlend, (
+        f"tote Config-Schalter: {sorted(fehlend)} — in SizingConfig deklariert, "
+        f"aber nicht in _get_sizing_cfg(). Der Wert aus config.yaml erreicht "
+        f"kelly_size_factor() nie."
+    )
+
+
+def test_split_flag_kommt_wirklich_an():
+    """Der konkrete Fall: das Flag muss den Faktor veraendern koennen."""
+    import bot.core.sizing as _sz
+    cfg = _sz._ECHTER_CFG_LOADER()
+    assert "kelly_asset_class_split" in cfg

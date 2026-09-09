@@ -326,10 +326,13 @@ sizing:                       # Position size as % of portfolio equity
   # bleibt: jeder Cluster faellt um 0.180, Bandbreite 0.210 .. 0.359.
   # ACHTUNG: dieser Wert ist ein Punkt in der Zeit, keine Konstante —
   # der Vol-Guard in pnl_reconcile.py meldet die naechste Drift.
-  kelly_base: 0.3099          # Kalibrierung → gewichtetes Mittel 0.3000
+  kelly_base: 0.3681          # Kalibrierung → gewichtetes Mittel 0.3000
+                              # MIT aktivem Split. Ohne Split waeren es 0.3099 —
+                              # der Split allein haette das Mittel auf 0.2596
+                              # gedrueckt, also 13.5 % kleiner als entschieden.
   kelly_scale: 0.45           # Steigung auf die Kelly-Fraktion
   kelly_min_factor: 0.15      # Floor: proven Lossbringer schrumpfen (vorher 0.5)
-  kelly_max_factor: 0.7599    # = base + scale; kelly ist auf [-1,1] geklemmt,
+  kelly_max_factor: 0.8181    # = base + scale; kelly ist auf [-1,1] geklemmt,
                               # also ist das die natuerliche Obergrenze
   # feat/kelly-asset-class-split (2026-09-05): Krypto-Trades duerfen nicht
   # die Groesse fuer Aktien-Trades desselben Signal-Clusters setzen.
@@ -337,7 +340,7 @@ sizing:                       # Position size as % of portfolio equity
   #   Krypto n=9 Ø +16.52% | Aktien n=72 Ø +0.08%  -> Faktor 0.573 (hoechster)
   # Die 9 Krypto-Trades lagen im Fenster XRP +45.2% / BTC +24.3% = Beta.
   # Default AUS (Blue/Green) — erst nach Auswertung scharfschalten.
-  kelly_asset_class_split: false
+  kelly_asset_class_split: true   # scharf seit 2026-09-09 (Entscheid VoLLi)
   # feat/sizing-drift-guard (2026-09-09, Karpathy-Loop Vol-Guard):
   # kelly_base ist ein Punkt-in-der-Zeit-Wert. Am 2026-08-22 lag das
   # trade-gewichtete Mittel bei 0.3011; am 2026-09-09 bei 0.463 = +54 %

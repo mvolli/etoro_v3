@@ -56,7 +56,7 @@ DEFAULT_MIN_TRADES = 25
 # high-Kelly combos), the weighted mean drifts and per-trade risk moves
 # again. Re-fit DEFAULT_BASE when the realized trade-weighted mean
 # deviates >~25% from 0.30 — or on a quarterly cadence.
-DEFAULT_BASE = 0.3099   # nachkalibriert 2026-09-09 (war 0.49)
+DEFAULT_BASE = 0.3681   # nachkalibriert 2026-09-09 (war 0.49)
 DEFAULT_SCALE = 0.45
 DEFAULT_MIN_FACTOR = 0.15
 # Natuerliche Obergrenze: kelly ist auf [-1, 1] geklemmt, also ist der
@@ -64,11 +64,13 @@ DEFAULT_MIN_FACTOR = 0.15
 # Cap darueber; der Default entspricht exakt dieser natuerlichen Grenze,
 # d.h. der Cap bindet nur, wenn base/scale per Config nach oben getunet
 # werden. (0.49+0.45 = 0.94, NICHT 0.49*1.5 — das war ein alter Kommentar.)
-DEFAULT_MAX_FACTOR = 0.7599  # = base + scale (kelly auf [-1,1] geklemmt)
+DEFAULT_MAX_FACTOR = 0.8181  # = base + scale (kelly auf [-1,1] geklemmt)
 
 
 # feat/kelly-shrinkage (2026-08-24): Schrumpfungskonstante. alpha = k0/(n+k0).
 DEFAULT_SHRINK_K0 = 50.0
+DEFAULT_TARGET_MEAN = 0.30      # siehe feat/sizing-drift-guard unten
+DEFAULT_DRIFT_BAND_PCT = 15.0
 
 
 def _get_sizing_cfg() -> dict:
@@ -87,6 +89,19 @@ def _get_sizing_cfg() -> dict:
             "kelly_min_factor": s.kelly_min_factor,
             "kelly_max_factor": s.kelly_max_factor,
             "kelly_shrink_k0": getattr(s, "kelly_shrink_k0", DEFAULT_SHRINK_K0),
+            # fix/sizing-cfg-keys (2026-09-09): diese drei fehlten hier.
+            # Folge: `kelly_asset_class_split: true` in config.yaml war
+            # WIRKUNGSLOS — der Schluessel erreichte kelly_size_factor nie,
+            # und der Vol-Guard nutzte still die DEFAULT_*-Konstanten statt
+            # der Config. Aufgefallen beim Scharfschalten, weil der Guard
+            # 0.3527 meldete, wo die Rechnung 0.3000 ergab.
+            # Dieses Dict ist eine EXPLIZITE Liste: jeder neue sizing.*-Key
+            # muss hier eingetragen werden, sonst ist er tot.
+            "kelly_asset_class_split": getattr(
+                s, "kelly_asset_class_split", False),
+            "kelly_target_mean": getattr(s, "kelly_target_mean", DEFAULT_TARGET_MEAN),
+            "kelly_drift_band_pct": getattr(
+                s, "kelly_drift_band_pct", DEFAULT_DRIFT_BAND_PCT),
         }
     except Exception:
         return {}
@@ -357,9 +372,6 @@ def kelly_size_factor(signal_type: str, db=None, min_trades: int | None = None,
 # `kelly_base` ist ein Punkt-in-der-Zeit-Wert, keine strukturelle
 # Eigenschaft. Diese Funktionen machen die Drift sichtbar.
 
-DEFAULT_TARGET_MEAN = 0.30    # Risikoniveau, auf dem das Konto getestet ist
-DEFAULT_DRIFT_BAND_PCT = 15.0  # erlaubte Abweichung, bevor gemeldet wird
-
 
 def kelly_weighted_mean(db, kelly_cfg: dict | None = None) -> float | None:
     """Trade-gewichtetes Mittel der Kelly-Faktoren ueber das Kelly-Fenster.
@@ -372,10 +384,42 @@ def kelly_weighted_mean(db, kelly_cfg: dict | None = None) -> float | None:
     None, wenn keine Trades im Fenster liegen (dann gibt es nichts zu
     ueberwachen).
     """
+    cfg = kelly_cfg if kelly_cfg is not None else _get_sizing_cfg()
+
+    # fix/drift-guard-asset-class (2026-09-09): bei aktivem Split MUSS die
+    # Anlageklasse mitgegeben werden — sonst misst der Guard die
+    # ungesplittete Welt und meldet einen Wert, den es gar nicht gibt.
+    # Beobachtet beim Scharfschalten: Guard 0.3527 gegen tatsaechliche
+    # 0.3000, weil `asset_class` fehlte. Der Guard hat damit seine eigene
+    # blinde Stelle gemeldet.
+    if bool(cfg.get("kelly_asset_class_split", False)):
+        try:
+            rows = db.fetchall(
+                """
+                SELECT s.signal_type AS st,
+                       COALESCE(i.asset_class, '') AS ac
+                FROM trades t
+                JOIN signals s ON s.id = t.signal_id
+                JOIN instruments i ON i.instrument_id = t.instrument_id
+                WHERE t.status = 'CLOSED'
+                  AND t.pnl_pct IS NOT NULL
+                  AND t.created_at > datetime('now', '-90 days')
+                """
+            )
+        except Exception:
+            rows = None
+        if rows:
+            faktoren = [kelly_size_factor(r["st"], db, kelly_cfg=cfg,
+                                          asset_class=r["ac"])
+                        for r in rows]
+            faktoren = [f for f in faktoren if f is not None]
+            return (sum(faktoren) / len(faktoren)) if faktoren else None
+        # kein Join moeglich -> unten ohne Klasse weiter (fail-open)
+
     rows = _recent_trade_rows(db)
     if not rows:
         return None
-    faktoren = [kelly_size_factor(st, db, kelly_cfg=kelly_cfg) for st, _ in rows]
+    faktoren = [kelly_size_factor(st, db, kelly_cfg=cfg) for st, _ in rows]
     faktoren = [f for f in faktoren if f is not None]
     if not faktoren:
         return None
