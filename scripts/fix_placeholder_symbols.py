@@ -74,13 +74,21 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--apply", action="store_true")
     ap.add_argument("--yes-to-all", action="store_true")
+    ap.add_argument("--include-inactive", action="store_true",
+                    help="Also resolve placeholder rows with is_active=0 (default: only active rows)")
     args = ap.parse_args()
 
     db = sqlite3.connect(str(DB_PATH))
     db.row_factory = sqlite3.Row
 
-    ph = [r for r in db.execute("SELECT * FROM instruments WHERE is_active=1 AND symbol GLOB '[A-Z]*_[0-9]*'") if PAT.match(r["symbol"])]
-    print(f"Active placeholder rows: {len(ph)}")
+    # The identity gate (verify_instrument_identity) compares a TRADE's
+    # instrument_id against its live symbol, and signals can reference
+    # inactive rows too (e.g. 2878/AT&T had 16 blocked trades). Default
+    # fixes the active (tradable-candidate) rows; --include-inactive
+    # sweeps every placeholder so the gate can never trip on one.
+    active_filter = "is_active=1" if not args.include_inactive else "1=1"
+    ph = [r for r in db.execute(f"SELECT * FROM instruments WHERE {active_filter} AND symbol GLOB '[A-Z]*_[0-9]*'") if PAT.match(r["symbol"])]
+    print(f"{'All' if args.include_inactive else 'Active'} placeholder rows: {len(ph)}")
 
     # existing symbols across the WHOLE table (UNIQUE(symbol) covers
     # inactive rows too — the dry-run that only checked is_active=1
@@ -152,8 +160,8 @@ def main():
         db.execute("ROLLBACK")
         raise
 
-    left = db.execute("SELECT COUNT(*) FROM instruments WHERE is_active=1 AND symbol GLOB '[A-Z]*_[0-9]*'").fetchone()[0]
-    print(f"\nAPPLIED: {n_upd} rows updated. Remaining active placeholders: {left}")
+    left = db.execute(f"SELECT COUNT(*) FROM instruments WHERE {active_filter} AND symbol GLOB '[A-Z]*_[0-9]*'").fetchone()[0]
+    print(f"\nAPPLIED: {n_upd} rows updated. Remaining {'all' if args.include_inactive else 'active'} placeholders: {left}")
 
 if __name__ == "__main__":
     main()
