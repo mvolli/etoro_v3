@@ -56,7 +56,7 @@ DEFAULT_MIN_TRADES = 25
 # high-Kelly combos), the weighted mean drifts and per-trade risk moves
 # again. Re-fit DEFAULT_BASE when the realized trade-weighted mean
 # deviates >~25% from 0.30 — or on a quarterly cadence.
-DEFAULT_BASE = 0.49
+DEFAULT_BASE = 0.3099   # nachkalibriert 2026-09-09 (war 0.49)
 DEFAULT_SCALE = 0.45
 DEFAULT_MIN_FACTOR = 0.15
 # Natuerliche Obergrenze: kelly ist auf [-1, 1] geklemmt, also ist der
@@ -64,7 +64,7 @@ DEFAULT_MIN_FACTOR = 0.15
 # Cap darueber; der Default entspricht exakt dieser natuerlichen Grenze,
 # d.h. der Cap bindet nur, wenn base/scale per Config nach oben getunet
 # werden. (0.49+0.45 = 0.94, NICHT 0.49*1.5 — das war ein alter Kommentar.)
-DEFAULT_MAX_FACTOR = 0.94
+DEFAULT_MAX_FACTOR = 0.7599  # = base + scale (kelly auf [-1,1] geklemmt)
 
 
 # feat/kelly-shrinkage (2026-08-24): Schrumpfungskonstante. alpha = k0/(n+k0).

@@ -6,10 +6,15 @@ fix/kelly-risk-neutral (2026-08-22, post commit-review-2026-08-21-b):
     factor = clamp(kelly_base + kelly_scale * kelly,
                    kelly_min_factor, kelly_max_factor)
 
-Defaults: base=0.49 (calibrated so the trade-weighted mean over the live
-90d trade mix is ~0.30 — the tested account risk level), scale=0.45,
-min_trades=25 (was 10), floor=0.15 (was 0.5), cap=0.94 (base+scale —
-kelly ist auf [-1,1] geklemmt, also die natuerliche Obergrenze).
+Defaults: base so kalibriert, dass das trade-gewichtete Mittel ueber den
+Live-Signalmix bei ~0.30 liegt — dem getesteten Risikoniveau des Kontos.
+Nachkalibriert 2026-09-09 von 0.49 auf 0.3099, weil der Mix das Mittel auf
+0.4630 getrieben hatte (+54 % Positionsgroesse ohne Ideenaenderung).
+scale=0.45, min_trades=25, floor=0.15, cap = base+scale (kelly ist auf
+[-1,1] geklemmt, also die natuerliche Obergrenze).
+
+Alle Erwartungswerte hier stehen RELATIV zu DEFAULT_BASE/DEFAULT_SCALE —
+hartkodierte Zahlen brechen bei jeder Nachkalibrierung.
 
 Negative-edge samples now pull the factor DOWN to the floor (kelly can be
 negative); the old scale floored every combo at 0.5 and boosted 10-trade
@@ -111,27 +116,27 @@ class TestKellySizeFactor:
     def test_good_edge_boosts_size_risk_neutral(self):
         """Strong edge (70% win, avg_win=2%, avg_loss=1%).
 
-        kelly = 0.7 - 0.3/2 = 0.55 → 0.49 + 0.45*0.55 = 0.7375.
+        kelly = 0.7 - 0.3/2 = 0.55 → base + scale*0.55.
         Above base (reward) but BELOW the old-scale value (1.55 → capped 1.5):
         the reward mechanism stays, the level does not get raised."""
         wins = [{"pnl_pct": 2.0}] * 7
         losses = [{"pnl_pct": -1.0}] * 3
         db = _make_db(wins + losses, st="BB_EXTREME_RSI_OVERSOLD")
         factor = kelly_size_factor("BB_EXTREME_RSI_OVERSOLD", db, min_trades=5)
-        assert factor == pytest.approx(0.49 + 0.45 * 0.55)
+        assert factor == pytest.approx(DEFAULT_BASE + DEFAULT_SCALE * 0.55)
         assert factor > DEFAULT_BASE
         assert factor <= DEFAULT_MAX_FACTOR
 
     def test_excellent_edge_stays_bounded(self):
         """Excellent edge (80% win, avg_win=4%, avg_loss=1%).
 
-        kelly = 0.8 - 0.2/4 = 0.75 → 0.49 + 0.45*0.75 = 0.8275 < cap 0.94.
+        kelly = 0.8 - 0.2/4 = 0.75 → base + scale*0.75, unter dem Cap.
         Reward without a size increase above the tested risk level."""
         wins = [{"pnl_pct": 4.0}] * 8
         losses = [{"pnl_pct": -1.0}] * 2
         db = _make_db(wins + losses, st="RSI_EXTREME_OVERSOLD")
         factor = kelly_size_factor("RSI_EXTREME_OVERSOLD", db, min_trades=5)
-        assert factor == pytest.approx(0.49 + 0.45 * 0.75)
+        assert factor == pytest.approx(DEFAULT_BASE + DEFAULT_SCALE * 0.75)
         assert DEFAULT_MIN_FACTOR <= factor <= DEFAULT_MAX_FACTOR
 
     def test_db_error_returns_base(self):

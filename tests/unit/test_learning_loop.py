@@ -9,6 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
+import pytest
 import sqlite3
 
 from bot.core.signals import generate_signal
@@ -54,6 +55,18 @@ def test_single_signal_conviction_unchanged():
 
 
 # ── Kelly auf Komponenten-Ebene ──────────────────────────────────────────────
+
+@pytest.fixture(autouse=True)
+def _pin_sizing_defaults(monkeypatch):
+    """Tests laufen gegen die DEFAULT_*-Konstanten, NICHT gegen config.yaml.
+
+    Ohne das zerbricht jeder Tuning-Edit des Users die Sizing-Tests —
+    eingetreten am 2026-09-09 bei der Nachkalibrierung kelly_base
+    0.49 -> 0.3099. `test_sizing.py` hatte die Fixture, diese Datei nicht.
+    """
+    import bot.core.sizing as _sz
+    monkeypatch.setattr(_sz, "_get_sizing_cfg", lambda: {})
+
 
 class _FakeDB:
     def __init__(self, rows):
@@ -105,7 +118,7 @@ def test_kelly_falls_back_to_component_pool():
 def test_kelly_neutral_when_even_pool_too_small():
     rows = [("X,Y", 1.0)] * 3
     f = kelly_size_factor("A,B", _FakeDB(rows), min_trades=10)
-    # fix/kelly-risk-neutral: no data → base (0.49), nicht 1.0
+    # fix/kelly-risk-neutral: no data → base, nicht 1.0
     assert f == DEFAULT_BASE
 
 
