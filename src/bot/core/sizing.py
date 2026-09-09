@@ -144,7 +144,7 @@ def _recent_trade_rows(db, bucket: str | None = None) -> list[tuple[str, float]]
     joined via trades.signal_id.
     """
     sql = """
-            SELECT s.signal_type AS st, t.pnl_pct
+            SELECT t.id AS tid, s.signal_type AS st, t.pnl_pct
             FROM trades t
             JOIN signals s ON s.id = t.signal_id
             WHERE t.status = 'CLOSED'
@@ -169,7 +169,40 @@ def _recent_trade_rows(db, bucket: str | None = None) -> list[tuple[str, float]]
         rows = db.fetchall(sql)
     except Exception:
         return []
-    return [(r["st"], float(r["pnl_pct"])) for r in rows]
+
+    # fix/kelly-realized-pnl (2026-09-09): `trades.pnl_pct` ist bei
+    # teilgeschlossenen Trades die SEIT-EINSTIEG-Prozentzahl der LETZTEN
+    # Tranche, nicht das kapitalgewichtete Ergebnis des ganzen Trades. Ein
+    # Trade, der bei +25% eine Tranche mitnimmt und den Rest abrutschen
+    # laesst, stand hier weiter mit +25% — und hob den Kelly-Faktor seines
+    # Clusters. Messung 2026-09-09 ueber das 90d-Fenster: 235 von 393
+    # Trades haben einen Event-Ledger, 98 davon weichen um > 0.5pp ab, die
+    # Abweichung ist einseitig nach oben (Ø +1.117% -> +0.980%). Groesster
+    # Einzelfall: Trade 1676 +25.06% -> +8.49%.
+    #
+    # Quelle ist jetzt realized_by_trade() (Summe aller Tranchen /
+    # eingesetztes Kapital). Trades ohne Event-Ledger — alles vor
+    # feat/pnl-nachreport (2026-07-28) — fallen auf trades.pnl_pct zurueck
+    # und verhalten sich wie bisher.
+    try:
+        from bot.core.trade_pnl import realized_by_trade
+        realized = realized_by_trade(db)
+    except Exception:
+        realized = {}
+
+    out: list[tuple[str, float]] = []
+    for r in rows:
+        pct = float(r["pnl_pct"])
+        try:
+            slot = realized.get(int(r["tid"]))
+        except (TypeError, ValueError, KeyError):
+            slot = None
+        if slot:
+            basis = slot.get("basis_usd") or 0.0
+            if basis > 0:
+                pct = 100.0 * slot["realized_usd"] / basis
+        out.append((r["st"], pct))
+    return out
 
 
 def _asset_bucket(asset_class: str | None) -> str | None:
