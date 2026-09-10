@@ -76,7 +76,17 @@ _EQUITY_TOLERANZ = 25.0
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    """UTC im Format der Datenbank: '2026-09-10 21:22:12'.
+
+    NICHT isoformat(). `trade_events.event_at` steht in allen 1.676 Zeilen
+    als "%Y-%m-%d %H:%M:%S" — ohne 'T', ohne Offset (bot/db/repo.py:_utcnow).
+    Der Epoch-Filter vergleicht lexikalisch, und ' ' (0x20) sortiert VOR
+    'T' (0x54): eine Epoche '2026-09-10T21:22:12+00:00' waere groesser als
+    jedes Ereignis desselben Tages. Am Reset-Tag — und nur dort — waeren
+    die ersten Trades der neuen Epoche still aus der Rechnung gefallen,
+    ab dem Folgetag haette alles wieder gestimmt.
+    """
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

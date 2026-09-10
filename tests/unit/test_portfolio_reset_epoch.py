@@ -37,7 +37,11 @@ CREATE TABLE trade_events (
 );
 """
 
-EPOCH = "2026-09-10T21:00:00+00:00"
+# GENAU das Format, in dem trade_events.event_at real steht (repo._utcnow).
+# Die erste Fassung dieses Tests nahm isoformat() mit 'T' und Offset — und
+# stimmte mit sich selbst ueberein, weil die Fixture dasselbe falsche Format
+# einsetzte. Ein Test, der beide Seiten gleich falsch macht, prueft nichts.
+EPOCH = "2026-09-10 21:00:00"
 
 
 @pytest.fixture
@@ -50,20 +54,20 @@ def db(tmp_path):
     # vor der Epoche: -300 USD realisiert, davon -50 ohne Trade-Bezug
     con.execute("INSERT INTO trade_events (trade_id, event_at, close_pct,"
                 " event_type, amount_usd, pnl_pct, pnl_usd)"
-                " VALUES (1, '2026-08-01T10:00:00+00:00', 100, 'CLOSE',"
+                " VALUES (1, '2026-08-01 10:00:00', 100, 'CLOSE',"
                 " 500.0, -50.0, -250.0)")
     con.execute("INSERT INTO trade_events (trade_id, event_at, close_pct,"
                 " event_type, amount_usd, pnl_pct, pnl_usd)"
-                " VALUES (NULL, '2026-08-02T10:00:00+00:00', 100, 'CLOSE',"
+                " VALUES (NULL, '2026-08-02 10:00:00', 100, 'CLOSE',"
                 " 100.0, -50.0, -50.0)")
     # nach der Epoche: +120 USD realisiert, davon +20 ohne Trade-Bezug
     con.execute("INSERT INTO trade_events (trade_id, event_at, close_pct,"
                 " event_type, amount_usd, pnl_pct, pnl_usd)"
-                " VALUES (2, '2026-09-11T10:00:00+00:00', 100, 'CLOSE',"
+                " VALUES (2, '2026-09-11 10:00:00', 100, 'CLOSE',"
                 " 400.0, 25.0, 100.0)")
     con.execute("INSERT INTO trade_events (trade_id, event_at, close_pct,"
                 " event_type, amount_usd, pnl_pct, pnl_usd)"
-                " VALUES (NULL, '2026-09-11T11:00:00+00:00', 100, 'CLOSE',"
+                " VALUES (NULL, '2026-09-11 11:00:00', 100, 'CLOSE',"
                 " 80.0, 25.0, 20.0)")
     con.execute("INSERT INTO system_state VALUES ('CURRENT_EQUITY','10120.0')")
     con.execute("INSERT INTO system_state VALUES ('EPOCH_START_EQUITY','10000.0')")
@@ -144,3 +148,39 @@ def test_epoch_sicht_ohne_marker_bricht_ab(db):
 def test_expliziter_start_equity_gewinnt_auch_mit_since(db):
     r = reconcile(db, start_equity=5_000.0, since=EPOCH)
     assert r["start_equity"] == pytest.approx(5_000.0)
+
+
+# ── Zeitformat ───────────────────────────────────────────────────────────────
+
+def test_epoche_am_reset_tag_verschluckt_nichts(db):
+    """Der Grenzfall, an dem ein falsches Format nur EINEN Tag lang wehtut.
+
+    `event_at` steht als "%Y-%m-%d %H:%M:%S" in der DB, der Vergleich ist
+    lexikalisch, und ' ' (0x20) sortiert vor 'T' (0x54). Eine mit
+    isoformat() erzeugte Epoche waere groesser als JEDES Ereignis desselben
+    Tages — die ersten Trades nach dem Reset waeren still aus der Rechnung
+    gefallen, ab dem Folgetag haette wieder alles gestimmt. Genau die Sorte
+    Fehler, die man im Betrieb nicht bemerkt.
+    """
+    db.execute("INSERT INTO trade_events (trade_id, event_at, close_pct,"
+               " event_type, amount_usd, pnl_pct, pnl_usd)"
+               " VALUES (3, '2026-09-10 22:00:00', 100, 'CLOSE',"
+               " 200.0, 5.0, 10.0)")
+    # Epoche 21:00 desselben Tages, im DB-Format -> Ereignis 22:00 zaehlt
+    assert 3 in realized_by_trade(db, since=EPOCH)
+    # zur Gegenprobe: mit dem 'T'-Format faellt es heraus
+    assert 3 not in realized_by_trade(db, since="2026-09-10T21:00:00+00:00")
+
+
+def test_now_iso_liefert_das_db_format():
+    """Die Quelle des Epoch-Markers, direkt geprueft."""
+    import importlib.util
+    from pathlib import Path
+    spec = importlib.util.spec_from_file_location(
+        "portfolio_reset",
+        Path(__file__).resolve().parents[2] / "scripts" / "portfolio_reset.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    ts = mod._now_iso()
+    assert "T" not in ts and "+" not in ts
+    assert len(ts) == 19 and ts[10] == " "
