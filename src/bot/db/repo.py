@@ -220,12 +220,39 @@ class TradeRepo:
         # Statt jeden Schreibpfad einzeln zu pruefen, garantiert es die
         # zentrale Stelle: wer CLOSED setzt und keinen Zeitstempel mitgibt,
         # bekommt "jetzt". Ein explizit uebergebener Wert gewinnt immer.
+        #
+        # fix/closed-at-nicht-ueberschreiben (2026-09-11): die Garantie oben
+        # unterschied nicht zwischen "wird gerade CLOSED" und "ist laengst
+        # CLOSED und bekommt nur ein Feld nachgetragen". Der Reconciler ruft
+        # in seiner Verifikations-Schleife alle 5 Minuten
+        #     trade_repo.update_status(t_id, "CLOSED", verify_attempts=attempts)
+        # und setzte damit closed_at jedes Mal neu auf "jetzt".
+        #
+        # Zwei Folgen, beide gemessen am 2026-09-10:
+        #   1. Die echte Schlusszeit ging verloren. Alle 30 PENDING-Trades
+        #      standen auf 22:16:54 (dem letzten Reconciler-Lauf), waehrend
+        #      ihre CLOSE-Events 21:31:30 bis 21:32:08 zeigten.
+        #   2. Der Ablauf konnte nie greifen. age_days wird aus closed_at
+        #      gerechnet; wenn dieselbe Schleife den Wert vorher auffrischt,
+        #      ist age_days immer ~0 und VERIFY_EXPIRY_DAYS=7 unerreichbar —
+        #      eine Endlosschleife mit 8.640 Log-Zeilen am Tag.
+        #
+        # Die Garantie bleibt (CLOSED ohne Zeitstempel ist ein kaputter
+        # Zustand), sie schreibt nur nicht mehr ueber einen vorhandenen Wert.
         if new_status == "CLOSED" and "closed_at" not in extra_fields:
-            from datetime import datetime, timezone
-            extra_fields = dict(extra_fields)
-            extra_fields["closed_at"] = datetime.now(timezone.utc).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            )
+            _hat_schon = None
+            try:
+                _row = self.db.fetchone(
+                    "SELECT closed_at FROM trades WHERE id = ?", (trade_id,))
+                _hat_schon = _row["closed_at"] if _row else None
+            except Exception:
+                _hat_schon = None
+            if not _hat_schon:
+                from datetime import datetime, timezone
+                extra_fields = dict(extra_fields)
+                extra_fields["closed_at"] = datetime.now(timezone.utc).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
 
         # Always update the status column
         set_clauses = ["status = ?"]
