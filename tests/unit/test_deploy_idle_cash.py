@@ -157,8 +157,46 @@ def test_helper_bumps_when_deploy_active(bump_helper):
     out, bumped, log, sig, blocked = _call(
         bump_helper, amt=200.0, floor=FLOOR, active=True)
     assert out == FLOOR and bumped is True
+    assert blocked == [] and sig.updates == []   # kein REJECT
+    # fix/bump-observability (2026-09-10): der Bump schreibt jetzt eine
+    # eigene Zeile nach system_log. Vorher stand hier `log.writes == []` --
+    # genau das machte den Mechanismus unbeobachtbar.
+    assert len(log.writes) == 1
+    args, _ = log.writes[0]
+    assert "BUMP" in args[2] and "BLOCKED" not in args[2]
+    assert args[3]["floor_kind"] == "DUST_FLOOR"
+    assert args[3]["amount_usd"] == 200.0
+    assert args[3]["bumped_to_usd"] == FLOOR
+
+
+def test_bump_log_traegt_die_freigabe_kennzahlen(bump_helper):
+    """Ohne Cash/Equity/Schwelle laesst sich spaeter nicht rekonstruieren,
+    WARUM der Bump aktiv war."""
+    _, _, log, _, _ = _call(bump_helper, amt=200.0, floor=FLOOR, active=True)
+    d = log.writes[0][0][3]
+    assert d["cash_usd"] == round(ACTIVE["cash"], 2)
+    assert d["equity_usd"] == round(ACTIVE["equity"], 2)
+    assert d["schwelle_pct"] == round(ACTIVE["pct"], 2)
+    assert d["cash_pct"] == round(ACTIVE["cash"] / ACTIVE["equity"] * 100.0, 2)
+
+
+def test_bump_ist_fail_open_wenn_log_repo_bricht(bump_helper):
+    """Ein defektes log_repo darf einen Live-Trade nicht verhindern."""
+    out, bumped, _, sig, blocked = _call(
+        bump_helper, amt=200.0, floor=FLOOR, active=True,
+        log=_LogRepo(broken=True))
+    assert out == FLOOR and bumped is True
     assert blocked == [] and sig.updates == []
-    assert log.writes == []                 # Bump: nur Logger, kein Reject-Log
+
+
+def test_bump_und_reject_sind_ueber_floor_kind_gemeinsam_abfragbar(bump_helper):
+    """Gleicher Schluessel auf beiden Seiten, `bumped_to_usd` trennt sie."""
+    _, _, log_b, _, _ = _call(bump_helper, amt=200.0, floor=FLOOR, active=True)
+    _, _, log_r, _, _ = _call(bump_helper, amt=200.0, floor=FLOOR, active=False)
+    d_bump, d_rej = log_b.writes[0][0][3], log_r.writes[0][0][3]
+    assert d_bump["floor_kind"] == d_rej["floor_kind"] == "DUST_FLOOR"
+    assert "bumped_to_usd" in d_bump
+    assert "bumped_to_usd" not in d_rej
 
 
 def test_helper_cap_above_floor_bumps_to_floor(bump_helper):
@@ -193,7 +231,12 @@ def test_helper_signal_floor_kind_log(bump_helper):
         bump_helper, amt=200.0, floor=FLOOR, active=True,
         kind="SIGNAL_FLOOR", stage="vor Haircuts")
     assert out == FLOOR and bumped is True
-    assert log.writes == []                 # Bump: nur Logger, kein Reject-Log
+    # fix/bump-observability: auch hier eine BUMP-Zeile, kein REJECT.
+    assert len(log.writes) == 1
+    args, _ = log.writes[0]
+    assert "BUMP" in args[2] and "BLOCKED" not in args[2]
+    assert args[3]["floor_kind"] == "SIGNAL_FLOOR"
+    assert args[3]["stage"] == "vor Haircuts"
 
 
 # ---------------------------------------------------------------------------

@@ -699,14 +699,42 @@ def _deploy_bump_or_reject(log_repo, signal_repo, blocked_reasons, *,
         return buy_amount, False
     if deploy_active:
         new_amt = _deploy_bumped_amount(buy_amount, floor, cap)
+        _cash_pct = cash_estimate / equity * 100.0 if equity else 0.0
         logger.info(
             "SignalWorker: %s DEPLOY-BUMP $%.2f -> $%.2f (%s $%.0f, Cash "
             "$%.2f = %.1f%% von Equity $%.2f >= %.0f%%)",
             symbol, buy_amount, new_amt, kind, floor,
-            cash_estimate,
-            cash_estimate / equity * 100.0 if equity else 0.0,
-            equity, cfg_pct,
+            cash_estimate, _cash_pct, equity, cfg_pct,
         )
+        # fix/bump-observability (2026-09-10): der Erfolgsfall ging bisher NUR
+        # nach logger.info. Ablehnungen landen ueber log_repo in system_log,
+        # Bumps nirgends -- und der Cron haelt kein stdout. Dadurch war der
+        # Mechanismus unbeobachtbar: am 2026-09-10 liess sich nicht belegen,
+        # ob er seit dem Deploy (f6bec72, 2026-08-30) je gefeuert hat.
+        #
+        # Gleicher Schluessel `floor_kind` wie im Reject-Pfad, damit eine
+        # Abfrage beide Seiten findet; `bumped_to_usd` gibt es nur hier und
+        # trennt sie voneinander.
+        try:
+            log_repo.write(
+                "INFO", "signal_worker",
+                f"Signal BUMP: {symbol} auf {kind} "
+                f"(${buy_amount:.2f} -> ${new_amt:.2f})",
+                {
+                    "symbol": symbol, "signal_id": signal_id,
+                    "amount_usd": round(float(buy_amount), 2),
+                    "bumped_to_usd": round(float(new_amt), 2),
+                    "floor_usd": round(float(floor), 2),
+                    "floor_kind": kind, "stage": stage,
+                    "cash_usd": round(float(cash_estimate), 2),
+                    "equity_usd": round(float(equity), 2),
+                    "cash_pct": round(_cash_pct, 2),
+                    "schwelle_pct": round(float(cfg_pct), 2),
+                },
+            )
+        except Exception:
+            logger.debug("log_repo.write fehlgeschlagen (fail-open)",
+                         exc_info=True)
         return new_amt, True
     _reject_below_floor_impl(
         log_repo, signal_repo, blocked_reasons,
