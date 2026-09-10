@@ -2208,8 +2208,35 @@ def post_position_closed_embed(
     if ok:
         _pnl_txt = f"PnL=${pnl_usd:+.2f}" if pnl_usd is not None else "PnL=folgt"
         level = "INFO" if (pnl_usd is None or pnl_usd >= 0) else "WARN"
+        # diag/close-embed-caller (2026-09-10): Zwischen dem 2026-08-28
+        # 02:31:45 — der Sekunde, in der Trade 682 (CAR.AX) finalisiert
+        # wurde — und dem 2026-09-10 21:33 gingen 511 Close-Embeds fuer
+        # CAR.AX nach #trades, immer exakt 15 am Stueck, alle mit
+        # "$0.00 PnL=folgt", waehrend CAR.AX genau EIN CLOSE-Event vom
+        # 28.08. hat. Der Verursacher liess sich statisch nicht bestimmen:
+        # alle 12 Aufrufstellen rufen record_posted_event(), das aber
+        # dedupliziert, sobald die Position schon ein CLOSE-Event hat —
+        # in trade_events steht deshalb keine Spur.
+        #
+        # amount_usd == 0 ist die Signatur der Anomalie (ein echter Close
+        # hat immer einen Betrag). Nur dann den Aufrufer mitschreiben:
+        # kein Rauschen im Normalbetrieb, aber beim naechsten Auftreten
+        # steht die Zeile im Log statt einer weiteren Ratesitzung.
+        _caller = ""
+        if not amount_usd:
+            try:
+                import traceback
+                _fr = [f for f in traceback.extract_stack()[:-1]
+                       if "discord_embeds" not in f.filename]
+                if _fr:
+                    _last = _fr[-1]
+                    _caller = (f"  [Aufrufer: {Path(_last.filename).name}"
+                               f":{_last.lineno} {_last.name}]")
+            except Exception:
+                pass
         insert_system_log(level, "discord_embeds",
-                          f"P14 Position Closed: {symbol} ${amount_usd:.2f} {_pnl_txt}")
+                          f"P14 Position Closed: {symbol} ${amount_usd:.2f} "
+                          f"{_pnl_txt}{_caller}")
     return ok
 
 

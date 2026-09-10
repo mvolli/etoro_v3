@@ -1096,10 +1096,26 @@ class LogRepo:
         if details is not None:
             details_str = json.dumps(details, default=str)
 
+        # fix/system-log-doppelte-zeitzone (2026-09-10): die Spalte traegt
+        # DEFAULT (datetime('now','utc')). SQLites `now` IST bereits UTC —
+        # der 'utc'-Modifier liest den Wert als Ortszeit und rechnet ein
+        # ZWEITES Mal um. Gemessen: datetime('now') = 21:45:28,
+        # datetime('now','utc') = 19:45:28. Jede ueber diesen Weg
+        # geschriebene Zeile lag damit zwei Stunden (im Winter eine) in der
+        # Vergangenheit, waehrend discord_embeds.insert_system_log() mit
+        # datetime('now') korrekt schrieb — zwei Uhren in derselben Tabelle.
+        # Das verfaelscht jede Zeitfensterabfrage auf system_log und macht
+        # Ereignisse aus zwei Quellen unvergleichbar.
+        #
+        # ts explizit setzen statt die Tabelle umzubauen: ALTER TABLE kann
+        # keinen DEFAULT aendern, und ein Rebuild von 107.956 Zeilen auf
+        # einem laufenden System ist das groessere Risiko. Altzeilen bleiben
+        # falsch — sie sind nicht nachtraeglich korrigierbar, weil der
+        # Offset von der damaligen Sommerzeit abhaengt.
         self.db.execute(
             """
-            INSERT INTO system_log (level, worker, message, details)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO system_log (ts, level, worker, message, details)
+            VALUES (datetime('now'), ?, ?, ?, ?)
             """,
             (level.upper(), worker, message, details_str),
         )
