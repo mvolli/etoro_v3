@@ -149,13 +149,31 @@ def realized_unattributed(db: Any) -> dict:
     return out
 
 
-def reconcile(db: Any, start_equity: float = 10_000.0) -> dict:
+def reconcile(db: Any, start_equity: float | None = None) -> dict:
     """Stellt die Summe der Trade-Ergebnisse der Kontoentwicklung gegenueber.
 
     Der Rest (`residual_usd`) ist alles, was kein Trade-Datensatz erklaert:
     Spread, Gebuehren, Slippage, nicht gebuchte Schliessungen. Heute wird
     davon NICHTS erfasst — die Zahl sichtbar zu machen ist der ganze Zweck.
+
+    fix/capital-ledger (2026-09-10): `start_equity` war fest auf 10.000
+    verdrahtet und unterstellte, dass nie ein- oder ausgezahlt wurde. Bei
+    der ersten Einzahlung waere der Bericht STILL falsch geworden — frisches
+    Kapital haette wie verschwundene Kosten ausgesehen. Die Basis kommt
+    jetzt aus `capital_events` (CapitalRepo). Ein explizit uebergebener Wert
+    gewinnt weiterhin; das halten die Tests am Leben.
     """
+    if start_equity is None:
+        # Ledger fehlt/leer (base() liefert dann None, nicht 0.0) -> der alte
+        # feste Wert. Lieber die dokumentierte Annahme als eine Null, die
+        # das Residuum um den vollen Kontostand verfaelschen wuerde.
+        base = None
+        try:
+            from bot.db.repo import CapitalRepo
+            base = CapitalRepo(db).base()
+        except Exception as exc:
+            logger.debug("CapitalRepo nicht verfuegbar: %s", exc)
+        start_equity = 10_000.0 if base is None else base
     res = {"start_equity": start_equity, "equity": None, "realized_usd": 0.0,
            "unrealized_usd": 0.0, "trades": 0, "tranchen": 0,
            "residual_usd": None,

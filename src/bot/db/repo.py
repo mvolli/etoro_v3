@@ -987,6 +987,94 @@ class TradeEventRepo:
 
 # ── LogRepo ───────────────────────────────────────────────────────────────────
 
+class CapitalRepo:
+    """Ein- und Auszahlungen — die Basis, gegen die rekonziliert wird.
+
+    fix/capital-ledger (2026-09-10): `reconcile()` hatte 10.000 USD fest
+    verdrahtet und unterstellte, dass seit dem 2026-06-24 weder ein- noch
+    ausgezahlt wurde. Diese Annahme war nirgends geprueft und nirgends
+    dokumentiert -- sie stand als Default-Parameter im Code.
+
+    Bei der ersten Einzahlung waere der Bericht still falsch geworden:
+    frisches Kapital haette wie verschwundene Kosten ausgesehen (aus
+    -2.400 USD Residuum waere bei einer Auffuellung auf 10k schlagartig
+    -234 USD geworden, ohne dass sich irgendetwas geaendert haette).
+
+    Das Ledger macht die Basis explizit und datiert. Betraege sind
+    vorzeichenbehaftet: positiv = Einzahlung, negativ = Auszahlung.
+    """
+
+    def __init__(self, db: Any) -> None:
+        self.db = db
+        self._ensure_schema()
+
+    def _ensure_schema(self) -> None:
+        try:
+            self.db.execute("""
+                CREATE TABLE IF NOT EXISTS capital_events (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    occurred_at TEXT NOT NULL,
+                    amount_usd  REAL NOT NULL,
+                    note        TEXT,
+                    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+                )
+            """)
+            # Seed: die urspruengliche Einzahlung. PEAK_EQUITY wurde am
+            # 2026-06-24 auf 10.000 gesetzt -- das ist der Kontostart.
+            row = self.db.fetchone("SELECT COUNT(*) AS n FROM capital_events")
+            if row and int(row["n"]) == 0:
+                self.db.execute(
+                    "INSERT INTO capital_events (occurred_at, amount_usd, note)"
+                    " VALUES (?, ?, ?)",
+                    ("2026-06-24 19:44:00", 10_000.0,
+                     "Startkapital (aus PEAK_EQUITY abgeleitet)"),
+                )
+        except Exception:
+            pass  # bare test DBs / gleichzeitige Migration -- fail-open
+
+    def base(self) -> float | None:
+        """Summe aller Kapitalbewegungen = Basis fuer die Rekonziliation.
+
+        None (nicht 0.0!) wenn das Ledger fehlt oder leer ist. Ein stilles
+        0.0 waere hier gefaehrlich: es wuerde als Startkapital durchgehen
+        und das Residuum um den vollen Kontostand verfaelschen. Der Aufrufer
+        muss den Fall sehen und selbst entscheiden.
+        """
+        try:
+            row = self.db.fetchone(
+                "SELECT COUNT(*) AS n, COALESCE(SUM(amount_usd), 0.0) AS s"
+                " FROM capital_events")
+        except Exception:
+            return None
+        if not row or not int(row["n"] or 0):
+            return None
+        try:
+            return round(float(row["s"]), 2)
+        except (TypeError, ValueError):
+            return None
+
+    def add(self, amount_usd: float, note: str = "",
+            occurred_at: str | None = None) -> int | None:
+        """Ein- (positiv) oder Auszahlung (negativ) buchen."""
+        try:
+            cur = self.db.execute(
+                "INSERT INTO capital_events (occurred_at, amount_usd, note)"
+                " VALUES (?, ?, ?)",
+                (occurred_at or _utcnow(), float(amount_usd), note or None),
+            )
+            return cur.lastrowid
+        except Exception:
+            return None
+
+    def all(self) -> list:
+        try:
+            return self.db.fetchall(
+                "SELECT id, occurred_at, amount_usd, note FROM capital_events"
+                " ORDER BY occurred_at, id")
+        except Exception:
+            return []
+
+
 class LogRepo:
     """Structured log writer / reader for the `system_log` table."""
 
