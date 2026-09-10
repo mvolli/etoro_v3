@@ -41,11 +41,18 @@ DB_PATH = PROJECT_ROOT / "data" / "trading.db"
 def _bericht(db) -> dict:
     from bot.core.trade_pnl import reconcile
     r = reconcile(db)
-    erwartet = r["start_equity"] + r["realized_usd"] + r["unrealized_usd"]
+    erwartet = (r["start_equity"] + r["realized_usd"]
+                + r.get("unattributed_usd", 0.0) + r["unrealized_usd"])
     print("── Rekonziliation " + "─" * 45)
     print(f"  Start                                     ${r['start_equity']:>12,.2f}")
     print(f"  realisiert ({r['trades']:>4} Trades, {r['tranchen']:>5} Tranchen)  "
           f"${r['realized_usd']:>+12,.2f}")
+    # fix/orphan-events (2026-09-10): Geisterpositionen ohne Trade-Zeile —
+    # echtes Geld, aber keinem Trade zuordenbar. Eigene Zeile, damit der
+    # Unterschied sichtbar bleibt statt in "realisiert" zu verschwinden.
+    if r.get("unattributed_tranchen"):
+        print(f"  + ohne Trade-Bezug ({r['unattributed_tranchen']:>4} Tranchen)        "
+              f"${r['unattributed_usd']:>+12,.2f}")
     print(f"  unrealisiert (offene Positionen)          ${r['unrealized_usd']:>+12,.2f}")
     print(f"  {'-' * 58}")
     print(f"  = erwartete Equity                        ${erwartet:>12,.2f}")

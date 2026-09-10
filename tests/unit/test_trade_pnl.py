@@ -16,7 +16,9 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
-from bot.core.trade_pnl import event_pnl_usd, realized_by_trade, reconcile
+from bot.core.trade_pnl import (
+    event_pnl_usd, realized_by_trade, realized_unattributed, reconcile,
+)
 
 
 class _DB:
@@ -26,9 +28,17 @@ class _DB:
         self._unreal = unreal
 
     def fetchall(self, sql, params=()):
+        # fix/orphan-events (2026-09-10): Der Mock ignorierte die
+        # WHERE-Klausel und lieferte jeder Abfrage ALLE Events. Seit
+        # reconcile() zusaetzlich realized_unattributed() ruft, haette das
+        # jedes Event doppelt gezaehlt — der Mock muss die beiden Abfragen
+        # auseinanderhalten koennen.
+        nur_waisen = "trade_id IS NULL" in sql
         # dedupliziert wie die echte SQL es tut
         seen, out = set(), []
         for e in self._events:
+            if nur_waisen != (e["trade_id"] is None):
+                continue
             key = (e["trade_id"], e.get("event_at"), e.get("close_pct"))
             if key in seen:
                 continue
@@ -189,3 +199,40 @@ def test_kosten_fallen_open():
         def fetchone(self, *a, **k):
             raise RuntimeError("db weg")
     assert recorded_costs(_Broken())["cost_usd"] == 0.0
+
+
+# ── realized_unattributed (fix/orphan-events 2026-09-10) ─────────────────────
+
+def test_waisen_werden_getrennt_ausgewiesen():
+    """Events ohne trade_id: echtes Geld, aber keinem Trade zuordenbar."""
+    db = _DB([_ev(1, 100.0, 5.0, at="a"), _ev(None, 200.0, -2.0, at="b")])
+    assert realized_by_trade(db).keys() == {1}          # Waise NICHT dabei
+    un = realized_unattributed(db)
+    assert un["realized_usd"] == pytest.approx(-4.0)
+    assert un["tranchen"] == 1
+
+
+def test_waisen_zaehlen_in_der_kontorechnung_mit():
+    """Start 10.000 + 5 (zugeordnet) - 4 (Waise) = 10.001 -> kein Residuum."""
+    db = _DB([_ev(1, 100.0, 5.0, at="a"), _ev(None, 200.0, -2.0, at="b")],
+             equity=10001.0, unreal=0.0)
+    r = reconcile(db)
+    assert r["realized_usd"] == pytest.approx(5.0)
+    assert r["unattributed_usd"] == pytest.approx(-4.0)
+    assert r["unattributed_tranchen"] == 1
+    assert r["residual_usd"] == pytest.approx(0.0)
+
+
+def test_ohne_waisen_bleibt_alles_wie_vorher():
+    db = _DB([_ev(1, 100.0, 5.0, at="a")], equity=10005.0, unreal=0.0)
+    r = reconcile(db)
+    assert r["unattributed_usd"] == 0.0
+    assert r["unattributed_tranchen"] == 0
+    assert r["residual_usd"] == pytest.approx(0.0)
+
+
+def test_waisen_faellt_open_bei_defekter_db():
+    class _Broken:
+        def fetchall(self, *a, **k):
+            raise RuntimeError("db weg")
+    assert realized_unattributed(_Broken()) == {"realized_usd": 0.0, "tranchen": 0}

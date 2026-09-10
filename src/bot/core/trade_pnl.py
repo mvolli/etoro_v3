@@ -106,6 +106,49 @@ def realized_by_trade(db: Any) -> dict[int, dict]:
     return out
 
 
+def realized_unattributed(db: Any) -> dict:
+    """Realisiertes PnL aus Events, die KEINEM Trade zugeordnet sind.
+
+    fix/orphan-events (2026-09-10): Es gibt Positionen, die auf eToro
+    existierten, aber nie eine erfolgreiche Trade-Zeile bekamen —
+    Geisterorders, die der Bot als FAILED/REJECTED verbuchte, waehrend die
+    Boerse sie ausfuehrte. Die Exit-Worker iterieren ueber LIVE-Positionen
+    und haben sie ganz normal bewirtschaftet (POLR.L etwa mit drei
+    Teilverkaeufen bei +7,5 / +8,3 / +10,5 %), nur ohne Trade-Bezug.
+
+    `realized_by_trade()` gruppiert nach trade_id und laesst sie deshalb
+    fallen. Fuer die Kelly-Sizing-Grundlage ist das RICHTIG (ohne
+    trades.signal_id gibt es keinen Cluster, dem sie zugerechnet werden
+    koennten). Fuer die KONTO-Rekonziliation ist es falsch: das Geld ist
+    geflossen. Messung 2026-09-10: 43 Events, +31,52 USD.
+
+    Getrennt gehalten statt in realized_by_trade() gemischt, damit die
+    Unterscheidung "zugeordnet" gegen "real, aber nicht zuordenbar"
+    sichtbar bleibt.
+    """
+    out = {"realized_usd": 0.0, "tranchen": 0}
+    try:
+        rows = db.fetchall(
+            """
+            SELECT amount_usd, pnl_pct, pnl_usd
+            FROM trade_events
+            WHERE trade_id IS NULL
+              AND event_type IN ('PARTIAL_CLOSE', 'CLOSE')
+            """
+        )
+    except Exception as exc:
+        logger.debug("realized_unattributed: %s", exc)
+        return out
+    for r in rows or []:
+        val = event_pnl_usd(r["amount_usd"], r["pnl_pct"], r["pnl_usd"])
+        if val is None:
+            continue
+        out["realized_usd"] += val
+        out["tranchen"] += 1
+    out["realized_usd"] = round(out["realized_usd"], 2)
+    return out
+
+
 def reconcile(db: Any, start_equity: float = 10_000.0) -> dict:
     """Stellt die Summe der Trade-Ergebnisse der Kontoentwicklung gegenueber.
 
@@ -115,7 +158,8 @@ def reconcile(db: Any, start_equity: float = 10_000.0) -> dict:
     """
     res = {"start_equity": start_equity, "equity": None, "realized_usd": 0.0,
            "unrealized_usd": 0.0, "trades": 0, "tranchen": 0,
-           "residual_usd": None}
+           "residual_usd": None,
+           "unattributed_usd": 0.0, "unattributed_tranchen": 0}
     try:
         row = db.fetchone(
             "SELECT value FROM system_state WHERE key = 'CURRENT_EQUITY'")
@@ -136,8 +180,16 @@ def reconcile(db: Any, start_equity: float = 10_000.0) -> dict:
     except Exception:
         pass
 
+    # fix/orphan-events (2026-09-10): Geisterpositionen ohne Trade-Zeile.
+    # Ihr PnL ist echtes Geld und gehoert in die Konto-Rechnung, auch wenn
+    # es keinem Trade zugeordnet werden kann.
+    _un = realized_unattributed(db)
+    res["unattributed_usd"] = _un["realized_usd"]
+    res["unattributed_tranchen"] = _un["tranchen"]
+
     if res["equity"] is not None:
-        erwartet = start_equity + res["realized_usd"] + res["unrealized_usd"]
+        erwartet = (start_equity + res["realized_usd"]
+                    + res["unattributed_usd"] + res["unrealized_usd"])
         res["residual_usd"] = round(res["equity"] - erwartet, 2)
     return res
 
