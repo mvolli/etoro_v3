@@ -1,0 +1,15 @@
+[
+  {
+    "date": "2026-09-10",
+    "timestamp": "2026-09-10T21:57:45.989095+00:00",
+    "type": "config",
+    "key": "sizing.high_pct",
+    "old_value": 7.0,
+    "new_value": 6.5,
+    "reason": "ok",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  }
+]
