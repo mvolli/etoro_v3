@@ -63,8 +63,15 @@ def event_pnl_usd(amount_usd: float | None, pnl_pct: float | None,
         return None
 
 
-def realized_by_trade(db: Any) -> dict[int, dict]:
+def realized_by_trade(db: Any, since: str | None = None) -> dict[int, dict]:
     """{trade_id: {realized_usd, tranchen, basis_usd}} ueber alle Tranchen.
+
+    `since` (ISO-Zeitstempel) grenzt auf Tranchen ab diesem Zeitpunkt ein —
+    die "seit Reset"-Sicht. Default None = kumulativ ueber die ganze
+    Kontohistorie; DAS ist die Sicht, die Kelly braucht. Der Epoch-Filter
+    darf nie in den Sizing-Pfad wandern: der Reset wirft das Portfolio weg,
+    nicht das ueber Wochen angesammelte Wissen darueber, welche Signale
+    tragen (feat/portfolio-reset, 2026-09-10).
 
     Fail-open: bei Fehler ein leeres Dict — Aufrufer fallen dann auf
     `trades.pnl_usd` zurueck und verhalten sich wie bisher.
@@ -79,8 +86,10 @@ def realized_by_trade(db: Any) -> dict[int, dict]:
                 FROM trade_events
                 WHERE event_type IN ('PARTIAL_CLOSE', 'CLOSE')
                   AND trade_id IS NOT NULL
+                  AND (? IS NULL OR event_at >= ?)
             )
-            """
+            """,
+            (since, since),
         )
     except Exception as exc:
         logger.debug("realized_by_trade: %s", exc)
@@ -106,7 +115,7 @@ def realized_by_trade(db: Any) -> dict[int, dict]:
     return out
 
 
-def realized_unattributed(db: Any) -> dict:
+def realized_unattributed(db: Any, since: str | None = None) -> dict:
     """Realisiertes PnL aus Events, die KEINEM Trade zugeordnet sind.
 
     fix/orphan-events (2026-09-10): Es gibt Positionen, die auf eToro
@@ -134,7 +143,9 @@ def realized_unattributed(db: Any) -> dict:
             FROM trade_events
             WHERE trade_id IS NULL
               AND event_type IN ('PARTIAL_CLOSE', 'CLOSE')
-            """
+              AND (? IS NULL OR event_at >= ?)
+            """,
+            (since, since),
         )
     except Exception as exc:
         logger.debug("realized_unattributed: %s", exc)
@@ -149,7 +160,8 @@ def realized_unattributed(db: Any) -> dict:
     return out
 
 
-def reconcile(db: Any, start_equity: float | None = None) -> dict:
+def reconcile(db: Any, start_equity: float | None = None,
+              since: str | None = None) -> dict:
     """Stellt die Summe der Trade-Ergebnisse der Kontoentwicklung gegenueber.
 
     Der Rest (`residual_usd`) ist alles, was kein Trade-Datensatz erklaert:
@@ -162,7 +174,36 @@ def reconcile(db: Any, start_equity: float | None = None) -> dict:
     Kapital haette wie verschwundene Kosten ausgesehen. Die Basis kommt
     jetzt aus `capital_events` (CapitalRepo). Ein explizit uebergebener Wert
     gewinnt weiterhin; das halten die Tests am Leben.
+
+    feat/portfolio-reset (2026-09-10): ZWEI Sichten, bewusst getrennt.
+
+      since=None  — Audit-Sicht. Basis = Summe aller Kapitalbewegungen,
+                    realisiert = die ganze Kontohistorie. Das Residuum
+                    behaelt sein Gedaechtnis: die -2.400 USD ungeklaerte
+                    Reibung verschwinden nicht dadurch, dass ein neues
+                    Portfolio anfaengt.
+      since=ISO   — Epoch-Sicht ("seit Reset"). Basis = EPOCH_START_EQUITY
+                    (der Kontostand IM Moment des Resets), realisiert =
+                    nur Tranchen ab diesem Zeitpunkt.
+
+    Beide Fenster muessen zueinander passen — eine epoch-gefilterte
+    Realisierung gegen eine kumulative Kapitalbasis zu rechnen ergaebe ein
+    Residuum in Hoehe der gesamten Vorgeschichte. Deshalb zieht `since`
+    die Basis MIT um.
     """
+    if start_equity is None and since is not None:
+        row = None
+        try:
+            row = db.fetchone(
+                "SELECT value FROM system_state WHERE key = 'EPOCH_START_EQUITY'")
+        except Exception as exc:
+            logger.debug("EPOCH_START_EQUITY: %s", exc)
+        if row is None:
+            raise ValueError(
+                "Epoch-Sicht angefordert, aber EPOCH_START_EQUITY fehlt. "
+                "scripts/portfolio_reset.py finalize setzt beides gemeinsam.")
+        start_equity = float(row["value"])
+
     if start_equity is None:
         # Ledger fehlt/leer (base() liefert dann None, nicht 0.0) -> der alte
         # feste Wert. Lieber die dokumentierte Annahme als eine Null, die
@@ -186,7 +227,8 @@ def reconcile(db: Any, start_equity: float | None = None) -> dict:
     except Exception:
         pass
 
-    per_trade = realized_by_trade(db)
+    res["since"] = since
+    per_trade = realized_by_trade(db, since=since)
     res["realized_usd"] = round(sum(v["realized_usd"] for v in per_trade.values()), 2)
     res["trades"] = len(per_trade)
     res["tranchen"] = sum(v["tranchen"] for v in per_trade.values())
@@ -201,7 +243,7 @@ def reconcile(db: Any, start_equity: float | None = None) -> dict:
     # fix/orphan-events (2026-09-10): Geisterpositionen ohne Trade-Zeile.
     # Ihr PnL ist echtes Geld und gehoert in die Konto-Rechnung, auch wenn
     # es keinem Trade zugeordnet werden kann.
-    _un = realized_unattributed(db)
+    _un = realized_unattributed(db, since=since)
     res["unattributed_usd"] = _un["realized_usd"]
     res["unattributed_tranchen"] = _un["tranchen"]
 
