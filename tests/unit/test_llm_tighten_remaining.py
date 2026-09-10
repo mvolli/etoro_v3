@@ -77,9 +77,19 @@ def _isolate(tmp_path, monkeypatch):
     """Empfehlungsdatei ins tmp_path, Netzwerk/Embeds stumm, Floor auf 50 %."""
     monkeypatch.setattr(LE, "RECS_PATH", tmp_path / "recs.json")
     monkeypatch.setattr(TS, "MIN_REMAINING_PCT", 50.0)
-    for name in ("_post_closed_embed", "_append_outcome_entry"):
-        if hasattr(LE, name):
-            monkeypatch.setattr(LE, name, lambda *a, **k: None)
+    # fix/tests-schreiben-in-produktion (2026-09-10): hier stand
+    #     for name in ("_post_closed_embed", "_append_outcome_entry"):
+    #         if hasattr(LE, name):
+    # `llm_execution` hat keine Funktion `_post_closed_embed` — sie heisst
+    # `_discord`. hasattr war False, der Patch griff nie, und das `if`
+    # verschluckte den Fehler: die Fixture SAH aus wie eine Absicherung,
+    # waehrend jeder Lauf 15 echte Embeds nach #etoro-trades schickte und
+    # 15 Zeilen in die Produktions-system_log schrieb. Zwischen dem
+    # 2026-09-05 und dem 2026-09-10 kamen so 526 zusammen.
+    # Kein hasattr mehr: raising=True soll knallen, wenn sich ein Name
+    # aendert, statt still nichts zu tun.
+    monkeypatch.setattr(LE, "_discord", lambda *a, **k: None)
+    monkeypatch.setattr(LE, "_append_outcome_entry", lambda *a, **k: None)
     return tmp_path
 
 
