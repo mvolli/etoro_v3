@@ -752,10 +752,53 @@ class TradeEventRepo:
             self.db.execute(
                 "CREATE INDEX IF NOT EXISTS idx_tev_at ON trade_events(event_at)"
             )
+            # fix/event-trade-link (2026-09-10): record() loest trade_id jetzt
+            # aus position_id auf — ohne Index waere das ein Table-Scan bei
+            # JEDEM Event-Schreibvorgang.
+            self.db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_trades_apipos "
+                "ON trades(api_position_id)"
+            )
         except Exception:
             pass  # bare test DBs / gleichzeitige Migration — fail-open
 
     # ── write ──────────────────────────────────────────────────────────────────
+
+    def _trade_id_for_position(self, position_id: Any) -> int | None:
+        """trade_id aus api_position_id aufloesen — oder None.
+
+        fix/event-trade-link (2026-09-10): Mehrere Close-Pfade iterieren ueber
+        LIVE-API-Positionen, nicht ueber Trades, und hatten die trade_id gar
+        nicht zur Hand. Messung an diesem Tag: 212 Close-Events ohne trade_id,
+        davon `risk_sl` 157 (ALLE), `exposure_trim` 13 (alle), `concentration`
+        6 (alle). Zusammen trugen sie -225,56 USD realisiertes PnL.
+
+        Folge: `realized_by_trade()` gruppiert nach trade_id und hat diese
+        Events stillschweigend verworfen — die Kelly-Sizing-Grundlage und jede
+        Residuum-Rechnung liefen auf einer luecken haften Basis.
+
+        Aufgeloest wird nur bei EINDEUTIGEM Treffer. Leere Strings sind
+        ausdruecklich ausgeschlossen: Fehltrades aus Juni/Juli tragen
+        api_position_id='' — ein Match darauf wuerde 35 Trades gleichzeitig
+        treffen und Events dem falschen Trade zuordnen. Lieber NULL als
+        falsch verknuepft.
+        """
+        pid = str(position_id or "").strip()
+        if not pid:
+            return None
+        try:
+            rows = self.db.fetchall(
+                "SELECT id FROM trades WHERE api_position_id = ? LIMIT 2",
+                (pid,),
+            )
+        except Exception:
+            return None
+        if not rows or len(rows) != 1:
+            return None
+        try:
+            return int(rows[0]["id"])
+        except (TypeError, ValueError, KeyError):
+            return None
 
     def record(
         self,
@@ -784,6 +827,11 @@ class TradeEventRepo:
         try:
             if event_type not in _EVENT_TYPES:
                 return None
+            # fix/event-trade-link (2026-09-10): zentral statt an zehn
+            # Aufrufstellen — kuenftige Close-Pfade koennen es nicht mehr
+            # vergessen.
+            if trade_id is None:
+                trade_id = self._trade_id_for_position(position_id)
             cur = self.db.execute(
                 """
                 INSERT INTO trade_events
