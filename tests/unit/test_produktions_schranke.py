@@ -59,3 +59,35 @@ def test_tmp_path_bleibt_unberuehrt(tmp_path):
     z = tmp_path / "ok.json"
     z.write_text("{}")
     assert z.read_text() == "{}"
+
+
+# ── Reichweite: greift die Schranke frueh genug? ─────────────────────────────
+
+def test_schranke_gilt_ab_der_sammelphase(pytester_pfad=None):
+    """Die Schranke sitzt in pytest_configure, nicht in einer Fixture.
+
+    Gemessen am 2026-09-11: als funktionsweite Fixture kam beides an ihr
+    vorbei — ein Schreibzugriff auf MODULEBENE einer Testdatei (laeuft beim
+    Import waehrend der Sammelphase) und eine Fixture mit scope="session"
+    (laeuft vor den funktionsweiten). Beide Proben legten ihre Datei unter
+    data/ an, ohne dass etwas ansprang.
+
+    Dieser Test prueft die Ursache statt das Symptom: die Hooks muessen im
+    conftest stehen, sonst wandert die Schranke bei der naechsten
+    Ueberarbeitung unbemerkt wieder in eine Fixture zurueck.
+    """
+    import tests.conftest as cf
+    assert hasattr(cf, "pytest_configure")
+    assert hasattr(cf, "pytest_unconfigure")
+    quelle = Path(cf.__file__).read_text(encoding="utf-8")
+    assert "def pytest_configure" in quelle
+    # Die vier abgesicherten Pfade
+    for name in ("sqlite3.connect", "builtins.open",
+                 "Path.write_text", "Path.write_bytes"):
+        assert name in quelle, f"{name} nicht mehr abgesichert"
+
+
+def test_originale_sind_fuer_die_wiederherstellung_gesichert():
+    """pytest_unconfigure muss zurueckbauen koennen — sonst leckt es nach aussen."""
+    import tests.conftest as cf
+    assert set(cf._ORIG) == {"connect", "open", "write_text", "write_bytes"}
