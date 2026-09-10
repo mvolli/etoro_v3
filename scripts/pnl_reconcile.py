@@ -46,7 +46,7 @@ def _bericht(db, since: str | None = None) -> dict:
     if since:
         print("── Rekonziliation SEIT RESET " + "─" * 34)
         print(f"  Epoche ab {since}")
-        print("  (kumulative Sicht: ohne --seit-reset)")
+        print("  (ganze Kontohistorie: --kumulativ)")
     else:
         print("── Rekonziliation " + "─" * 45)
     print(f"  Start                                     ${r['start_equity']:>12,.2f}")
@@ -120,22 +120,27 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--backfill", action="store_true",
                     help="fehlende trade_events.pnl_usd schreiben")
-    ap.add_argument("--seit-reset", dest="seit_reset", action="store_true",
-                    help="nur ab EPOCH_START rechnen (Sicht 'seit Portfolio-Reset')")
+    ap.add_argument("--kumulativ", action="store_true",
+                    help="ueber die ganze Kontohistorie rechnen, auch ueber "
+                         "einen Portfolio-Reset hinweg (Audit-Sicht)")
     args = ap.parse_args()
 
     from bot.core.trade_pnl import event_pnl_usd
     from bot.db.connection import DB
 
     with DB(DB_PATH) as db:
+        # feat/portfolio-reset (2026-09-10, Entscheid VoLLi): "der Bot soll ab
+        # heute denken, er sei frisch aufgesetzt". Sobald eine Epoche steht,
+        # ist die Epoch-Sicht die normale Sicht — sonst zeigt der Bericht ein
+        # P/L, das aus einem Buch stammt, das es fuer ihn nicht mehr gibt.
+        # Die kumulative Sicht bleibt ueber --kumulativ erreichbar; sie ist
+        # das Gedaechtnis fuer die ungeklaerte Reibung, kein laufendes Konto.
         since = None
-        if args.seit_reset:
+        if not args.kumulativ:
             row = db.fetchone(
                 "SELECT value FROM system_state WHERE key='EPOCH_START'")
-            if not row:
-                print("Keine Epoche gesetzt — scripts/portfolio_reset.py finalize")
-                return 2
-            since = row["value"]
+            if row:
+                since = row["value"]
         _bericht(db, since=since)
 
         # feat/sizing-drift-guard (2026-09-09): der Vol-Guard aus dem
