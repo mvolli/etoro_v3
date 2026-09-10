@@ -615,6 +615,15 @@ def test_non_experiment_param_still_allowed(monkeypatch, tmp_path):
     monkeypatch.setattr(lrw, "CONFIG_YAML_PATH", cfg)
     monkeypatch.setattr(lrw, "_active_experiment_param", lambda: "sl.default_pct")
     monkeypatch.setattr(lrw, "_load_decision_log", lambda: [])  # kein 24h-Cooldown
+    # fix/tests-schreiben-in-produktion (2026-09-10): _update_config_yaml()
+    # ruft _append_decision_log(), das nach DECISION_LOG_PATH schreibt. Ohne
+    # diese Zeile ging das in data/llm_decision_log.json — und weil
+    # _load_decision_log oben auf [] gepatcht ist, wurde die Datei nicht
+    # ergaenzt sondern UEBERSCHRIEBEN. Seit dem 2026-09-05 hat jeder
+    # Suitenlauf so die Entscheidungs-Historie des LLM-Review-Workers
+    # geloescht; 110 Eintraege liessen sich nur aus der Git-Historie
+    # zurueckholen.
+    monkeypatch.setattr(lrw, "DECISION_LOG_PATH", tmp_path / "decision_log.json")
     applied = lrw._update_config_yaml(
         {"sizing.high_pct": {"value": 6.5, "reason": "ok"}}
     )

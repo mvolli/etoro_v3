@@ -65,3 +65,82 @@ def _kein_zugriff_auf_produktion(monkeypatch, tmp_path_factory):
     monkeypatch.setattr(de, "_TRADING_DB_PATH",
                         tmp_path_factory.mktemp("kein_prod") / "trading.db",
                         raising=False)
+
+
+@pytest.fixture(autouse=True)
+def _kein_schreiben_in_produktion(request):
+    """Bricht ab, sobald ein Test in data/ schreibt.
+
+    fix/tests-schreiben-in-produktion (2026-09-10): Die Fixture darueber
+    deckt die zwei bekannten Pfade in discord_embeds ab. Sie hilft nichts
+    gegen den naechsten Test, der eine ANDERE Modulkonstante uebersieht —
+    und davon gibt es viele: allein unter src/bot/ zeigen 40 Konstanten
+    direkt auf data/ (RECS_PATH, DECISION_LOG_PATH, GHOST_BLACKLIST_PATH,
+    CACHE_FILE, _TRADING_DB_PATH …), alle zur Importzeit gesetzt, keine
+    injiziert.
+
+    Zwei Lecks haben genau so funktioniert und beide fielen erst nach
+    Wochen auf:
+
+      test_llm_tighten_remaining  -> 540 Zeilen in system_log + ebenso
+                                     viele echte Posts nach #etoro-trades
+      test_llm_advisors           -> UEBERSCHRIEB llm_decision_log.json
+                                     bei jedem Lauf; 110 echte Eintraege
+                                     mussten aus der Git-Historie zurueck
+
+    Deshalb hier keine weitere Stummschaltung nach Namen, sondern eine
+    Schranke am Systemaufruf: wer waehrend eines Tests unter data/
+    schreibend oeffnet, bekommt einen Fehler mit dem Dateinamen. Lesen
+    bleibt erlaubt (mode=ro / 'r'), sonst waeren Fixtures blockiert, die
+    legitim aus der Produktions-DB lesen.
+    """
+    import builtins
+    import sqlite3
+
+    prod = (Path(__file__).parent.parent / "data").resolve()
+
+    def _ist_produktion(ziel) -> bool:
+        try:
+            return Path(str(ziel)).resolve().is_relative_to(prod)
+        except Exception:
+            return False
+
+    def _stop(ziel):
+        raise AssertionError(
+            f"Test schreibt in die Produktionsdaten: {Path(str(ziel)).name}\n"
+            f"  Test: {request.node.nodeid}\n"
+            f"  Die betroffene Modulkonstante im Test auf tmp_path patchen "
+            f"(z. B. monkeypatch.setattr(modul, 'DECISION_LOG_PATH', "
+            f"tmp_path / 'x.json'))."
+        )
+
+    _connect, _open, _wt, _wb = (sqlite3.connect, builtins.open,
+                                 Path.write_text, Path.write_bytes)
+
+    def connect(*a, **k):
+        if a and "mode=ro" not in str(a[0]) and _ist_produktion(a[0]):
+            _stop(a[0])
+        return _connect(*a, **k)
+
+    def open_(file, mode="r", *a, **k):
+        if any(c in str(mode) for c in "wax+") and _ist_produktion(file):
+            _stop(file)
+        return _open(file, mode, *a, **k)
+
+    def write_text(self, *a, **k):
+        if _ist_produktion(self):
+            _stop(self)
+        return _wt(self, *a, **k)
+
+    def write_bytes(self, *a, **k):
+        if _ist_produktion(self):
+            _stop(self)
+        return _wb(self, *a, **k)
+
+    sqlite3.connect, builtins.open = connect, open_
+    Path.write_text, Path.write_bytes = write_text, write_bytes
+    try:
+        yield
+    finally:
+        sqlite3.connect, builtins.open = _connect, _open
+        Path.write_text, Path.write_bytes = _wt, _wb
