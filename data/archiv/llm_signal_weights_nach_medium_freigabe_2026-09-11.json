@@ -1,0 +1,53 @@
+{
+  "updated_at": "2026-09-11T20:30:00+00:00",
+  "auto_expires_at": "2026-09-25T20:31:34.808206+00:00",
+  "adjustments": {
+    "TREND_PULLBACK,GOLDEN_CROSS": {
+      "score_multiplier": 1.0,
+      "skip": false,
+      "reason": "HIGH n=31 realisiert -151.84 USD (Dollar-WR 41.9 %) bleibt auf 0.25. MEDIUM n=32 realisiert +3.75 USD (Dollar-WR 53.1 %) freigegeben — Entscheid VoLLi 2026-09-11. Basis: realized_by_trade ueber alle Tranchen; trades.pnl_usd allein haette -14.83 gezeigt und in die Gegenrichtung gewiesen.",
+      "_ratchet_frozen": true,
+      "_proposed": 0.5,
+      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.25 -> 0.5 blockiert (n_closed=63/20, realized=-46.50 USD)",
+      "by_conviction": {
+        "HIGH": 0.25,
+        "LOW": 0.25,
+        "VERY_HIGH": 0.25
+      },
+      "_decided_by": "VoLLi 2026-09-11",
+      "_note_conviction": "Typ erzeugt nur HIGH/MEDIUM (3931/530, 0 sonst). LOW/VERY_HIGH bleiben gedaempft, damit eine Aenderung im Scorer keine stille Lockerung wird."
+    },
+    "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": {
+      "score_multiplier": 1.0,
+      "skip": false,
+      "reason": "Post-26.07 (n=38, WR 47.4%, avg +5.04%, +$51): the ONLY positive-expectancy signal type in the book. MACD-turn confirmation is the differentiator. No dampening."
+    },
+    "CORE_SWEEP": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "Post-26.07 (n=113, WR 42.5%, avg +0.26%, sum -$181.18): near-breakeven edge, drag from size (biggest in book) + 21 full-SL hits. Dampening 0.5 kept. 2026-09-11 self-improvement: prior 0.0/skip=true (09-10 auto-run) was a ghost-double-count artifact (13 LATE-FILL-recovered trades counted as ghost_failed -> false '7/7 rejection'). Root cause fixed in llm_review_worker (_load_trading_data now filters status='FAILED' + prefix 'Ghost order%'); entry reverted to data-backed value."
+    },
+    "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD": {
+      "score_multiplier": 0.1,
+      "skip": false,
+      "reason": "Falling-Knife combo (pre-fix n=37, WR 2.7%): near-skip retained. No post-26.07 trades — the Falling-Knife-Gate now blocks these at signal level; weight kept as backstop."
+    },
+    "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD": {
+      "score_multiplier": 0.2,
+      "skip": false,
+      "reason": "Oversold without MACD confirmation (pre-fix n=10, WR 10%): backstop under the Falling-Knife-Gate. No post-26.07 trades."
+    },
+    "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "Small sample size but negative PnL (-3.03%); aligning with strategy basis that deep RSI without strong trend confirmation is risky."
+    }
+  },
+  "strategy_notes": [
+    "TREND_PULLBACK,GOLDEN_CROSS signals with HIGH conviction are underperforming significantly compared to MEDIUM conviction variants, suggesting the conviction filter may be too loose for trend-following entries.",
+    "Recent losses with short holding periods (<1 day) indicate potential slippage or market timing issues, which should be monitored for correlation with specific exchanges or volatility regimes."
+  ],
+  "conviction_issues": [
+    "HIGH conviction for TREND_PULLBACK,GOLDEN_CROSS has a 25.8% win rate, which is significantly lower than the MEDIUM conviction variant (50.0% win rate for MACD_TURN+BB_LOW combo), indicating a potential misalignment in conviction scoring for trend signals."
+  ]
+}
