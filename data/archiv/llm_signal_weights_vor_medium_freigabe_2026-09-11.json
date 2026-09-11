@@ -3,19 +3,12 @@
   "auto_expires_at": "2026-09-25T20:31:34.808206+00:00",
   "adjustments": {
     "TREND_PULLBACK,GOLDEN_CROSS": {
-      "score_multiplier": 1.0,
+      "score_multiplier": 0.25,
       "skip": false,
-      "reason": "HIGH n=31 realisiert -151.84 USD (Dollar-WR 41.9 %) bleibt auf 0.25. MEDIUM n=32 realisiert +3.75 USD (Dollar-WR 53.1 %) freigegeben — Entscheid VoLLi 2026-09-11. Basis: realized_by_trade ueber alle Tranchen; trades.pnl_usd allein haette -14.83 gezeigt und in die Gegenrichtung gewiesen.",
+      "reason": "HIGH conviction variant has 25.8% win rate and negative avg PnL (-1.43%), indicating poor entry quality for this specific conviction level.",
       "_ratchet_frozen": true,
       "_proposed": 0.5,
-      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.25 -> 0.5 blockiert (n_closed=63/20, realized=-46.50 USD)",
-      "by_conviction": {
-        "HIGH": 0.25,
-        "LOW": 0.25,
-        "VERY_HIGH": 0.25
-      },
-      "_decided_by": "VoLLi 2026-09-11",
-      "_note_conviction": "Typ erzeugt nur HIGH/MEDIUM (3931/530, 0 sonst). LOW/VERY_HIGH bleiben gedaempft, damit eine Aenderung im Scorer keine stille Lockerung wird."
+      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.25 -> 0.5 blockiert (n_closed=63/20, realized=-46.50 USD)"
     },
     "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": {
       "score_multiplier": 1.0,

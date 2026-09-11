@@ -1373,6 +1373,26 @@ def _update_signal_weights(llm_analysis: dict, db_path: Path | None = None) -> N
     # Der Merge ist ein No-Op, wenn die LLM alle Typen nennt.
     merged_adj: dict = dict(current_adj)
     merged_adj.update(adjustments)
+
+    # feat/conviction-aware-weights (2026-09-11): der Merge ersetzt
+    # SCHLUESSELWEISE. Ein LLM-Vorschlag ohne `by_conviction` loeschte damit
+    # eine bestehende Conviction-Daempfung lautlos mit — dieselbe Klasse von
+    # stiller Lockerung, gegen die fix/llm-weights-merge-keep oben steht, nur
+    # eine Ebene tiefer. Nennt die LLM das Feld nicht, bleibt der bestehende
+    # Wert stehen; nennt sie es, gewinnt ihr Vorschlag (und laeuft durch
+    # Clamp und Ratschen-Deckel).
+    _bc_kept = []
+    for sig, cur_entry in current_adj.items():
+        if sig not in adjustments:
+            continue
+        cur_bc = cur_entry.get("by_conviction") if isinstance(cur_entry, dict) else None
+        if cur_bc and not (adjustments[sig] or {}).get("by_conviction"):
+            merged_adj[sig]["by_conviction"] = cur_bc
+            _bc_kept.append(sig)
+    if _bc_kept:
+        print(f"[llm_review] Signal-Weights Merge: by_conviction erhalten fuer "
+              f"{_bc_kept} (LLM nannte das Feld nicht)")
+
     kept = [sig for sig in current_adj if sig not in adjustments]
     if kept:
         print(f"[llm_review] Signal-Weights Merge: {len(kept)} LLM-unerwaehnte "

@@ -192,3 +192,51 @@ def test_strengere_conviction_bleibt_erlaubt(tmp_path, monkeypatch):
     adj = {TYP: {"score_multiplier": 0.5, "by_conviction": {"HIGH": 0.1}}}
     _ratchet_signal_weights(adj, db_path=db)
     assert adj[TYP]["by_conviction"]["HIGH"] == 0.1
+
+
+# ── Merge: eine gesetzte Conviction-Daempfung darf nicht lautlos wegfallen ──
+
+def test_merge_erhaelt_by_conviction_wenn_die_llm_es_nicht_nennt():
+    """Der Merge ersetzt SCHLUESSELWEISE.
+
+    Ein LLM-Vorschlag ohne `by_conviction` loeschte eine bestehende
+    Conviction-Daempfung lautlos mit — dieselbe Klasse von stiller
+    Lockerung, gegen die fix/llm-weights-merge-keep steht, nur eine Ebene
+    tiefer. Nachgestellt wird hier die reine Merge-Semantik.
+    """
+    current = {TYP: {"score_multiplier": 1.0, "by_conviction": {"HIGH": 0.25}}}
+    llm = {TYP: {"score_multiplier": 0.5, "reason": "neu"}}
+
+    merged = dict(current)
+    merged.update(llm)
+    for sig, cur in current.items():
+        if sig in llm and cur.get("by_conviction") and not llm[sig].get("by_conviction"):
+            merged[sig]["by_conviction"] = cur["by_conviction"]
+
+    assert merged[TYP]["by_conviction"] == {"HIGH": 0.25}
+    assert merged[TYP]["score_multiplier"] == 0.5
+
+
+def test_llm_darf_by_conviction_ueberschreiben_wenn_sie_es_nennt():
+    current = {TYP: {"score_multiplier": 1.0, "by_conviction": {"HIGH": 0.25}}}
+    llm = {TYP: {"score_multiplier": 1.0, "by_conviction": {"HIGH": 0.1}}}
+    merged = dict(current)
+    merged.update(llm)
+    assert merged[TYP]["by_conviction"] == {"HIGH": 0.1}
+
+
+# ── der real gesetzte Stand ─────────────────────────────────────────────────
+
+def test_live_eintrag_gibt_nur_medium_frei():
+    """Entscheid VoLLi 2026-09-11: MEDIUM frei, alles andere gedaempft."""
+    import json
+    from pathlib import Path
+    p = Path(__file__).resolve().parents[2] / "data" / "llm_signal_weights.json"
+    if not p.exists():
+        pytest.skip("keine Live-Gewichte in dieser Umgebung")
+    w = json.loads(p.read_text(encoding="utf-8"))
+    if TYP not in w.get("adjustments", {}):
+        pytest.skip("Eintrag nicht (mehr) vorhanden")
+    assert _get_signal_score_multiplier(TYP, w, "MEDIUM") == 1.0
+    for conv in ("HIGH", "LOW", "VERY_HIGH"):
+        assert _get_signal_score_multiplier(TYP, w, conv) == 0.25
