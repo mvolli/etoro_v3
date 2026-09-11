@@ -640,10 +640,21 @@ Ergaenze das JSON um folgende zusaetzliche Felder:
   "signal_weight_adjustments": {{
     "SIGNAL_TYP": {{"score_multiplier": 0.5, "skip": false, "reason": "kurze Begruendung"}}
 
+CONVICTION-EBENE: Wenn nur EINE Conviction-Stufe eines Signaltyps das
+Problem ist, schreibe sie getrennt statt den ganzen Typ zu daempfen:
+  "SIGNAL_TYP": {{"score_multiplier": 1.0,
+                 "by_conviction": {{"HIGH": 0.25}},
+                 "skip": false, "reason": "..."}}
+Ohne dieses Feld gilt score_multiplier fuer ALLE Stufen. Gemessen am
+2026-09-11 an 'TREND_PULLBACK,GOLDEN_CROSS': HIGH n=31 realisiert
+-151.84 USD, MEDIUM n=32 realisiert +3.75 USD — beide liefen mit
+demselben Faktor, weil die Begruendung die Unterscheidung traf, das
+Schema sie aber nicht ausdruecken konnte.
+
 REGEL: score_multiplier MAXIMAL 1.0 — Daempfen und Skippen ist erlaubt,
 VERSTAERKEN nicht (asymmetrische Rechte: Halluzination darf nur
 Gelegenheiten kosten, nie Geld). Werte >1.0 werden vom Code auf 1.0
-geclampt.
+geclampt. Dasselbe gilt fuer jeden Wert in by_conviction.
 
 {__import__("bot.core.signal_scorecard", fromlist=["STRATEGY_RULES"]).STRATEGY_RULES}
   }},
@@ -1096,6 +1107,10 @@ def _update_trading_memory(llm_analysis: dict, trade_perf: dict,
             "date": now[:10],
             # fix/no-boost-weights: nie >1.0 persistieren
             "score_multiplier": min(1.0, float(adj.get("score_multiplier", 1.0) or 1.0)),
+            # feat/conviction-aware-weights (2026-09-11): die Historie muss
+            # die Conviction-Ebene mitfuehren, sonst liest der naechste Lauf
+            # eine Daempfung als typweit, die nur fuer HIGH galt.
+            "by_conviction": _clamp_by_conviction(adj.get("by_conviction")),
             "skip": adj.get("skip", False),
             "reason": adj.get("reason", ""),
         })
@@ -1187,6 +1202,29 @@ def _collect_realized_signal_pnl(db_path: Path) -> dict:
         return {}
 
 
+def _clamp_by_conviction(raw: Any) -> dict:
+    """Conviction-spezifische Multiplikatoren, auf <= 1.0 geklemmt.
+
+    feat/conviction-aware-weights (2026-09-11). Derselbe Never-Boost-Clamp
+    wie fuer score_multiplier: die LLM darf pro Conviction daempfen, nie
+    verstaerken. Unbekannte Stufen und nicht-numerische Werte fallen still
+    heraus statt den ganzen Eintrag zu verwerfen — ein halber Eintrag ist
+    hier besser als gar keine Daempfung.
+    """
+    if not isinstance(raw, dict):
+        return {}
+    out: dict[str, float] = {}
+    for stufe, wert in raw.items():
+        key = str(stufe).upper()
+        if key not in ("LOW", "MEDIUM", "HIGH", "VERY_HIGH"):
+            continue
+        try:
+            out[key] = min(1.0, float(wert))
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
 def _ratchet_signal_weights(adjustments: dict, db_path: Path | None = None) -> list[str]:
     """Ratsche (fix/signal-weight-ratchet, 2026-08-27): ein Signal-Typ darf
     seine Sizing-Gewichtung nur NACH OBEN rattern, wenn der Typ es nach
@@ -1220,7 +1258,15 @@ def _ratchet_signal_weights(adjustments: dict, db_path: Path | None = None) -> l
         print("[llm_review] Ratchet DEAKTIVIERT — Lockerungen unangetastet")
         return frozen
 
+    frozen_conv: list[str] = []
     for sig, adj in adjustments.items():
+        # feat/conviction-aware-weights (2026-09-11): ausdruecklich normieren
+        # statt sich darauf zu verlassen, dass der Schluessel unberuehrt
+        # durchrutscht. Die Ratsche liest und schreibt nur score_multiplier;
+        # ein ungeclampter by_conviction-Wert kaeme sonst als Verstaerkung
+        # durch, genau an der Stelle, die Verstaerkungen verhindern soll.
+        if adj.get("by_conviction") is not None:
+            adj["by_conviction"] = _clamp_by_conviction(adj.get("by_conviction"))
         if adj.get("skip"):
             continue  # Sperrungen sind kein Sizing-Locker — unangetastet
         try:
@@ -1235,6 +1281,20 @@ def _ratchet_signal_weights(adjustments: dict, db_path: Path | None = None) -> l
                 current_mult = min(1.0, float(cur_entry.get("score_multiplier", 1.0)))
             except (TypeError, ValueError):
                 current_mult = 1.0
+
+        # feat/conviction-aware-weights (2026-09-11): by_conviction darf kein
+        # Schleichweg an der Ratsche vorbei sein. Sie prueft nur
+        # score_multiplier; ein Wert wie {"MEDIUM": 1.0} neben einem Basiswert
+        # von 0.25 waere eine unverdiente Lockerung, die nie jemand gesehen
+        # haette. Deshalb: jeder Conviction-Wert wird am CURRENT-Basiswert
+        # gedeckelt. Strenger als current bleibt jederzeit erlaubt — das ist
+        # die Richtung, die die Ratsche ohnehin nicht schuetzt.
+        _bc = adj.get("by_conviction")
+        if isinstance(_bc, dict):
+            for _stufe, _wert in list(_bc.items()):
+                if _wert > current_mult:
+                    _bc[_stufe] = current_mult
+                    frozen_conv.append(f"{sig}[{_stufe}]")
 
         if proposed <= current_mult:
             # Kein Locker in die obere Richtung (Daempfung < current, neutral
@@ -1271,6 +1331,9 @@ def _ratchet_signal_weights(adjustments: dict, db_path: Path | None = None) -> l
         print(f"  RATCHET {sig}: FROZEN am {current_mult} "
               f"(n_closed={n_closed}/{min_n}, realized={realized_pnl:+.2f} USD)")
 
+    if frozen_conv:
+        print(f"[llm_review] Ratchet: {len(frozen_conv)} Conviction-Lockerung(en) "
+              f"am Basiswert gedeckelt: {frozen_conv}")
     if frozen:
         print(f"[llm_review] Ratchet: {len(frozen)} Lockerung(en) eingefroren: {frozen}")
     return frozen

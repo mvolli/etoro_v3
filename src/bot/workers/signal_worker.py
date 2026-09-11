@@ -86,7 +86,48 @@ def _load_llm_news_flags() -> dict:
         return {}
 
 
-def _get_signal_score_multiplier(signal_type: str, weights: dict) -> float:
+def _adj_multiplier(adj: dict, conviction: str | None) -> float:
+    """Multiplikator eines Weights-Eintrags, ggf. conviction-spezifisch.
+
+    feat/conviction-aware-weights (2026-09-11): Die LLM diagnostiziert
+    regelmaessig auf Conviction-Ebene — der Eintrag vom 2026-09-11 begruendet
+    sich woertlich mit "HIGH conviction variant has 25.8% win rate ... poor
+    entry quality for THIS SPECIFIC conviction level". Ausdruecken konnte das
+    Schema es nicht: der Schluessel war der nackte Signaltyp, und dieser
+    Nachschlag kannte die Conviction gar nicht. Gemessen fuer
+    'TREND_PULLBACK,GOLDEN_CROSS' post-Zaesur, realisiert ueber ALLE Tranchen
+    (realized_by_trade, nicht die Spalte trades.pnl_usd):
+
+        HIGH    n=31   -151.84 USD   Dollar-Trefferquote 41.9 %
+        MEDIUM  n=32     +3.75 USD   Dollar-Trefferquote 53.1 %
+
+    Beide liefen mit demselben Faktor 0.25. `by_conviction` macht die
+    Unterscheidung darstellbar; fehlt der Schluessel, gilt score_multiplier
+    wie bisher.
+
+    Der Never-Boost-Clamp gilt hier genauso: die LLM darf daempfen, nie
+    verstaerken.
+    """
+    if not isinstance(adj, dict):
+        return 1.0
+    base = 1.0
+    try:
+        base = min(1.0, float(adj.get("score_multiplier", 1.0)))
+    except (TypeError, ValueError):
+        base = 1.0
+    by_conv = adj.get("by_conviction")
+    if conviction and isinstance(by_conv, dict):
+        raw = by_conv.get(str(conviction).upper())
+        if raw is not None:
+            try:
+                return min(1.0, float(raw))
+            except (TypeError, ValueError):
+                pass
+    return base
+
+
+def _get_signal_score_multiplier(signal_type: str, weights: dict,
+                                 conviction: str | None = None) -> float:
     """Gibt Score-Multiplikator fuer Signal-Typ zurueck (1.0 = unveraendert).
 
     Fix/llm-combo-multiplier (2026-07-15): Combo-Signale wie
@@ -105,8 +146,9 @@ def _get_signal_score_multiplier(signal_type: str, weights: dict) -> float:
     if adj is not None:
         # fix/no-boost-weights: asymmetrische Rechte — die LLM darf
         # daempfen/skippen, NIE verstaerken. Hart geclampt (45fc9e1
-        # versuchte 1.5x auf Basis von 6 Trades).
-        return min(1.0, float(adj.get("score_multiplier", 1.0)))
+        # versuchte 1.5x auf Basis von 6 Trades). Clamp sitzt jetzt in
+        # _adj_multiplier(), damit er auch fuer by_conviction gilt.
+        return _adj_multiplier(adj, conviction)
     # Combo-Signal: Einzelkomponenten + Teilmengen-Combos pruefen
     if "," in signal_type:
         sig_parts = _split_signal_type(signal_type)
@@ -115,7 +157,7 @@ def _get_signal_score_multiplier(signal_type: str, weights: dict) -> float:
         for part in sig_parts:
             part_adj = weights.get("adjustments", {}).get(part)
             if part_adj is not None:
-                product *= min(1.0, float(part_adj.get("score_multiplier", 1.0)))
+                product *= _adj_multiplier(part_adj, conviction)
         # fix/combo-subset-propagation (2026-07-26): Combo-Keys wie
         # 'BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD'=0.4 griffen
         # bisher NICHT auf Obermengen-Combos (Dreier-Combo mit denselben
@@ -127,7 +169,7 @@ def _get_signal_score_multiplier(signal_type: str, weights: dict) -> float:
             if "," not in key or key_adj is None:
                 continue
             if set(_split_signal_type(key)) <= sig_set:
-                result = min(result, min(1.0, float(key_adj.get("score_multiplier", 1.0))))
+                result = min(result, _adj_multiplier(key_adj, conviction))
         return result
     return 1.0
 
@@ -1416,7 +1458,9 @@ def main() -> None:
             key=lambda t: (
                 float(t[0].get("score", 0))
                 * get_score_boost(t[1])
-                * _get_signal_score_multiplier(t[0].get("signal_type", ""), _llm_signal_weights)
+                * _get_signal_score_multiplier(t[0].get("signal_type", ""),
+                                               _llm_signal_weights,
+                                               t[0].get("conviction"))
                 * _signal_age_factor(t[0].get("generated_at", ""), ttl_minutes=1440)
                 * _liquidity_map.get(t[0]["instrument_id"], 1.0)
                 * _signal_performance_decay(
