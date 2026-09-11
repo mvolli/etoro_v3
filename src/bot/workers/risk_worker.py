@@ -866,7 +866,35 @@ def main() -> None:
             # fix/asset-class-concentration (audit H7): detect asset-class
             # drift post-trade (price appreciation past a sector cap). Warn
             # only — no auto-close; surfaces for a human rebalance decision.
-            ac_violations = check_asset_class_violations(raw_positions, equity, instrument_map)
+            #
+            # Unification (2026-09-11): der Monitor auflöst die Asset-Klasse
+            # jetzt mit resolve_asset_class wie das Pre-Trade-Gate — kuratiertes
+            # ASSET_CLASS_MAP plus DB-Sektor-Fallback. Die Sektor-Map wird NUR
+            # dann gespeist, wenn sector_limits.enforce_db_sectors aktiv ist —
+            # derselbe Schalter wie im Gate, damit Pre- und Post-Trade
+            # identisch grenzen. In der LIVE-Config ist der Schalter AN —
+            # der Monitor warnt daher jetzt auch bei DB-Sektor-Drift
+            # (WARN-only: kein Auto-Close, keine Geld-Wirkung; das Geld-
+            # wirksame Pre-Trade-Gate bleibt unverändert). Nur ohne Flag
+            # → Verhalten exakt wie zuvor.
+            _ac_sector_map: dict = {}
+            if bool((cfg.get("sector_limits", {}) or {}).get("enforce_db_sectors", False)):
+                try:
+                    _ac_sector_map = {
+                        str(r["symbol"]).upper(): str(r["sector"])
+                        for r in (db.fetchall(
+                            "SELECT symbol, sector FROM instruments "
+                            "WHERE sector IS NOT NULL AND sector != '' AND sector != 'unknown'"
+                        ) or [])
+                    }
+                    logger.info("RiskWorker: Asset-Class-Sektor-Map aktiv (%d Instrumente)",
+                                len(_ac_sector_map))
+                except Exception as _ac_sec_exc:
+                    logger.warning("RiskWorker: Sektor-Map nicht ladbar (%s) — Asset-Class-Monitor fail-open",
+                                   _ac_sec_exc)
+                    _ac_sector_map = {}
+            ac_violations = check_asset_class_violations(
+                raw_positions, equity, instrument_map, _ac_sector_map)
             for _acv in ac_violations:
                 _acmsg = (
                     f"{_acv['asset_class']} at {_acv['actual_pct']:.1f}% "

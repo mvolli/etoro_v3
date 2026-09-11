@@ -26,7 +26,7 @@ from bot.core.risk import (
     DEFAULT_INSTRUMENT_LIMIT,
     ASSET_CLASS_LIMITS,
     ASSET_CLASS_DEFAULT_LIMIT_PCT,
-    ASSET_CLASS_MAP,
+    resolve_asset_class,
 )
 
 # ── Discord Embeds ─────────────────────────────────────────────────────────────
@@ -120,6 +120,7 @@ def check_asset_class_violations(
     positions: list[dict],
     equity: float,
     instrument_map: dict,
+    sector_by_symbol: dict | None = None,
 ) -> list[dict]:
     """Detect ASSET-CLASS-level concentration drift (audit H7).
 
@@ -127,6 +128,15 @@ def check_asset_class_violations(
     cap, but a portfolio can still drift past the cap purely via price
     appreciation after entry — which nothing detected post-trade (only the
     per-instrument check_concentration_violations existed).
+
+    Asset-Klassen-Auflösung spiegelt das Pre-Trade-Gate
+    (check_asset_class_gate → resolve_asset_class): kuratiertes
+    ASSET_CLASS_MAP zuerst, dann DB-Sektor aus instruments.sector als
+    SECTOR:{sektor}-Fallback. Ohne sector_by_symbol bleibt der Check
+    ASSET_CLASS_MAP-only (Backwards-kompatibel, Verhalten wie zuvor).
+    Der Worker speist die Map nur, wenn sector_limits.enforce_db_sectors
+    aktiv ist — exakt derselbe Schalter wie das Gate, damit Pre- und
+    Post-Trade identisch grenzen.
 
     Detection-only, WARNING severity: unlike the per-instrument monitor this
     does NOT auto-close. Forcing sells to rebalance a whole asset class is a
@@ -143,9 +153,9 @@ def check_asset_class_violations(
     for pos in positions:
         iid = int(pos.get("instrumentID", 0))
         sym = get_symbol_from_instrument_id(iid, instrument_map)
-        asset_class = ASSET_CLASS_MAP.get(sym.upper())
+        asset_class = resolve_asset_class(sym, sector_by_symbol)
         if not asset_class:
-            continue  # unmapped symbol → no asset-class attribution
+            continue  # unmapped symbol AND no DB sector → no asset-class attribution
         amt = float(pos.get("amount", 0))
         class_totals[asset_class] = class_totals.get(asset_class, 0.0) + amt
         class_symbols.setdefault(asset_class, set()).add(sym)

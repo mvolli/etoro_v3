@@ -60,3 +60,41 @@ def test_multiple_classes_reported_independently():
     v = check_asset_class_violations(positions, 10_000.0, _MAP)
     classes = {x["asset_class"] for x in v}
     assert classes == {"US_TECH", "FINANCIAL"}
+
+
+# ── Unification (2026-09-11): DB-Sektor-Fallback wie das Pre-Trade-Gate ─────────
+# resolve_asset_class: kuratiertes ASSET_CLASS_MAP zuerst, dann instruments.sector
+# als SECTOR:{sektor}. Nur aktiv, wenn der Worker eine Sektor-Map übergibt.
+
+
+def test_sector_fallback_for_unmapped_symbol():
+    # SAVE ist NICHT in ASSET_CLASS_MAP, aber DB-Sektor vorhanden →
+    # SECTOR:RENEWABLES. 90% von 10k > Default-Cap 20% → Violation.
+    # (Vor der Unification wurde dieses Symbol still übersprungen.)
+    m = {6: "SAVE"}
+    v = check_asset_class_violations([_pos(6, 9000)], 10_000.0, m,
+                                     {"SAVE": "RENEWABLES"})
+    assert len(v) == 1
+    assert v[0]["asset_class"] == "SECTOR:RENEWABLES"
+    assert v[0]["limit_pct"] == 20.0
+
+
+def test_sector_fallback_inactive_without_map():
+    # Keine Sektor-Map (None oder leeres dict) → ASSET_CLASS_MAP-only,
+    # unmapped SAVE wird ignoriert. Backwards-kompatibel mit dem alten
+    # ASSET_CLASS_MAP.get()-Verhalten.
+    m = {6: "SAVE"}
+    assert check_asset_class_violations([_pos(6, 9000)], 10_000.0, m) == []
+    assert check_asset_class_violations([_pos(6, 9000)], 10_000.0, m, {}) == []
+
+
+def test_sector_equivalent_class_merges_into_sector():
+    # JPM ist kuratiert FINANCIAL — ein _SECTOR_EQUIVALENT_CLASS. Mit DB-Sektor
+    # löst resolve_asset_class zu SECTOR:Financial Services auf (weil FINANCIAL
+    # nur den Default-Cap liefern würde) — exakt wie das Pre-Trade-Gate.
+    m = {4: "JPM"}
+    v = check_asset_class_violations([_pos(4, 9000)], 10_000.0, m,
+                                     {"JPM": "Financial Services"})
+    assert len(v) == 1
+    assert v[0]["asset_class"] == "SECTOR:Financial Services"
+    assert v[0]["limit_pct"] == 20.0

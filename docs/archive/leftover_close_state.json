@@ -1,0 +1,205 @@
+{
+  "task": "leftover-cleanup-2026-08-28",
+  "created_utc": "2026-08-28T02:14:00Z",
+  "spec": {
+    "window_pad_minutes": 15,
+    "positions": {
+      "3523612825": {
+        "market": "SYD",
+        "slot": "ASX 12:45 AEST (02:45 UTC)",
+        "symbol": "CAR.ASX",
+        "instrument_id": 3317
+      },
+      "3523631308": {
+        "market": "TOKYO",
+        "slot": "JST 13:45 (04:45 UTC)",
+        "symbol": "6753.T",
+        "instrument_id": 14623
+      },
+      "3523630023": {
+        "market": "TOKYO",
+        "slot": "JST 13:45 (04:45 UTC)",
+        "symbol": "6753.T",
+        "instrument_id": 14623
+      },
+      "3536306290": {
+        "market": "TOKYO",
+        "slot": "JST 13:45 (04:45 UTC)",
+        "symbol": "4519.T",
+        "instrument_id": 14558
+      },
+      "3536346116": {
+        "market": "HK",
+        "slot": "HKT 14:30 (06:30 UTC)",
+        "symbol": "1766.HK",
+        "instrument_id": 13674
+      },
+      "3508362304": {
+        "market": "HK",
+        "slot": "HKT 14:30 (06:30 UTC)",
+        "symbol": "1929.HK",
+        "instrument_id": 13697
+      },
+      "3547202727": {
+        "market": "EU",
+        "slot": "CEST 13:30 (11:30 UTC)",
+        "symbol": "BBOX.L",
+        "instrument_id": 2717
+      },
+      "3539546393": {
+        "market": "EU",
+        "slot": "CEST 13:30 (11:30 UTC)",
+        "symbol": "SAVE.ST",
+        "instrument_id": 2967
+      },
+      "3546768189": {
+        "market": "EU",
+        "slot": "CEST 13:30 (11:30 UTC)",
+        "symbol": "ELMRA.OL",
+        "instrument_id": 12828
+      },
+      "3535589144": {
+        "market": "EU",
+        "slot": "CEST 13:30 (11:30 UTC)",
+        "symbol": "GRE.MC",
+        "instrument_id": 3718
+      },
+      "3533920363": {
+        "market": "EU",
+        "slot": "CEST 13:30 (11:30 UTC)",
+        "symbol": "SIX2.DE",
+        "instrument_id": 2573
+      },
+      "3531502122": {
+        "market": "US",
+        "slot": "ET 12:45 (16:45 UTC)",
+        "symbol": "SPY",
+        "instrument_id": 3000
+      },
+      "3525568646": {
+        "market": "US",
+        "slot": "ET 12:45 (16:45 UTC)",
+        "symbol": "JPM",
+        "instrument_id": 1023
+      },
+      "3547419338": {
+        "market": "US",
+        "slot": "ET 12:45 (16:45 UTC)",
+        "symbol": "PG",
+        "instrument_id": 1029
+      },
+      "3526453726": {
+        "market": "US",
+        "slot": "ET 12:45 (16:45 UTC)",
+        "symbol": "META",
+        "instrument_id": 1003
+      }
+    }
+  },
+  "results": {
+    "3523612825": {
+      "outcome": "CLOSED",
+      "order_id": 1571654108,
+      "status_id_at_send": 1,
+      "attempted_at_utc": "2026-08-28T02:21:17Z",
+      "note": "closed at ASX 12:21 AEST (12:30-15:00 window); verified via portfolio + history"
+    },
+    "3523631308": {
+      "outcome": "CLOSED",
+      "attempted_at_utc": "2026-08-28T04:46:11+00:00",
+      "order_id": 1571511323,
+      "status_id_at_send": 1,
+      "pnl_note": "see eToro history / trade_events for final P/L"
+    },
+    "3523630023": {
+      "outcome": "CLOSED",
+      "attempted_at_utc": "2026-08-28T04:46:27+00:00",
+      "order_id": 1571485469,
+      "status_id_at_send": 1,
+      "pnl_note": "see eToro history / trade_events for final P/L"
+    },
+    "3536306290": {
+      "outcome": "CLOSED",
+      "attempted_at_utc": "2026-08-28T04:46:44+00:00",
+      "order_id": 1571556957,
+      "status_id_at_send": 1,
+      "pnl_note": "see eToro history / trade_events for final P/L"
+    },
+    "3536346116": {
+      "outcome": "CLOSED",
+      "attempted_at_utc": "2026-08-28T06:30:04+00:00",
+      "note": "not present in portfolio at run start"
+    },
+    "3508362304": {
+      "outcome": "CLOSED",
+      "attempted_at_utc": "2026-08-28T06:30:21+00:00",
+      "order_id": 1571571133,
+      "status_id_at_send": 1,
+      "pnl_note": "see eToro history / trade_events for final P/L"
+    },
+    "3547202727": {
+      "outcome": "CLOSED",
+      "attempted_at_utc": "2026-08-28T11:30:59+00:00",
+      "order_id": 1571675645,
+      "status_id_at_send": 1,
+      "pnl_note": "see eToro history / trade_events for final P/L"
+    },
+    "3539546393": {
+      "outcome": "CLOSED",
+      "attempted_at_utc": "2026-08-28T11:31:16+00:00",
+      "order_id": 1571908274,
+      "status_id_at_send": 1,
+      "pnl_note": "see eToro history / trade_events for final P/L"
+    },
+    "3546768189": {
+      "outcome": "CLOSED",
+      "attempted_at_utc": "2026-08-28T16:45:31+00:00",
+      "order_id": 1571675648,
+      "status_id_at_send": 1,
+      "note": "deferred verified on later slot run"
+    },
+    "3535589144": {
+      "outcome": "CLOSED",
+      "attempted_at_utc": "2026-08-28T11:32:06+00:00",
+      "order_id": 1571765063,
+      "status_id_at_send": 1,
+      "pnl_note": "see eToro history / trade_events for final P/L"
+    },
+    "3533920363": {
+      "outcome": "CLOSED",
+      "attempted_at_utc": "2026-08-28T11:32:22+00:00",
+      "order_id": 1571765064,
+      "status_id_at_send": 1,
+      "pnl_note": "see eToro history / trade_events for final P/L"
+    },
+    "3531502122": {
+      "outcome": "CLOSED",
+      "attempted_at_utc": "2026-08-28T16:45:48+00:00",
+      "order_id": 1572241911,
+      "status_id_at_send": 1,
+      "pnl_note": "see eToro history / trade_events for final P/L"
+    },
+    "3525568646": {
+      "outcome": "CLOSED",
+      "attempted_at_utc": "2026-08-28T16:46:05+00:00",
+      "order_id": 1572478284,
+      "status_id_at_send": 1,
+      "pnl_note": "see eToro history / trade_events for final P/L"
+    },
+    "3547419338": {
+      "outcome": "CLOSED",
+      "attempted_at_utc": "2026-08-28T16:46:22+00:00",
+      "order_id": 1572339130,
+      "status_id_at_send": 1,
+      "pnl_note": "see eToro history / trade_events for final P/L"
+    },
+    "3526453726": {
+      "outcome": "CLOSED",
+      "attempted_at_utc": "2026-08-28T16:46:39+00:00",
+      "order_id": 1572315401,
+      "status_id_at_send": 1,
+      "pnl_note": "see eToro history / trade_events for final P/L"
+    }
+  },
+  "notes": "Full-close only. Post-flight verify via portfolio. Deferred rule: on accept(statusID=1) with no fill, check order resolution BEFORE re-sending. Delete position_state rows only after verified close. No re-open of these titles."
+}

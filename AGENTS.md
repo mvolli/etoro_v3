@@ -48,6 +48,21 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   (Embed rendert grau „P/L folgt (Nachreport)"). Kein History-Match ⇒
   Trade bleibt PENDING (`verify_attempts`++), nach 7 Tagen UNRESOLVED —
   niemals VERIFIED ohne echte Zahlen.
+  - **Out-of-band-Closes** (manuelles Cleanup oder jeder Close, der NICHT über
+    den Bot-Exit-Pfad läuft) brauchen zum Close-Zeitpunkt KEINE Live-
+    `record_posted_event()`-Zeile — das ist keine Ledger-Lücke, sondern der
+    Recovery-Pfad: der Reconciler (9d) erkennt den Close aus der eToro-
+    Positions-/Order-History, schreibt die `CLOSE`-trade_event-Zeile
+    (source=`reconciler_9d`) und reportet die echten Zahlen nach
+    (`pnl_source='api_history'`, `reported_final=1`), danach ist der Trade
+    VERIFIED — unabhängig von `record_posted_event()`. Beleg: die 2026-08-28
+    leftover-cleanup-Batch (15 manuelle Closes, Skripte jetzt in
+    `docs/archive/`): alle 15 Trades CLOSED+VERIFIED mit reconciler_9d-CLOSE-
+    Events (api_history-PnL), null manuelle Ledger-Einträge — solche Closes
+    also NICHT manuell nachtragen. Nuance: hatte der eigene Exit-Worker die
+    Position bereits selbst geschlossen, trägt das CLOSE-Event dessen source
+    (z.B. `trailing_be`) statt `reconciler_9d` — ebenfalls vollständig
+    protokolliert.
 - Discord-Channels (hartkodiert in `src/bot/discord_embeds.py`, config.yaml
   ist dead config): MAIN #etoro-trading, TRADE #trades, REPORTS #reports.
   Trade-Events (Fills/Closes/Partials, auch KI-EXIT/TIGHTEN) → #trades;
