@@ -1364,6 +1364,41 @@ def _update_signal_weights(llm_analysis: dict, db_path: Path | None = None) -> N
 
     current_adj = _load_signal_weights().get("adjustments", {}) or {}
 
+    # fix/decided-by-guard (2026-09-12): Eintraege mit _decided_by (VoLLi-
+    # Entscheid, z.B. die MEDIUM-Freigabe TREND_PULLBACK,GOLDEN_CROSS vom
+    # 2026-09-11, Commit 65996de) sind voLLi-gesichert. Die Ratsche und der
+    # Merge-Schutz decken NUR den Codepfad — und ein Vorschlag mit komplettem
+    # by_conviction-Dict wuerde auch HIER das VoLLi-Dict schluesselweise
+    # ersetzen (teilweise Teilmenge = LOW/VERY_HIGH leise geloescht).
+    # Deshalb: ein Vorschlag an einen _decided_by-Eintrag wird verworfen,
+    # ausser mit ausdruecklichem _override_decided_by=True (damit VoLLi-
+    # freigegebene Aenderungen im Agent-Pfad moeglich bleiben — mit Eintrag
+    # im Decision-Log).
+    _locked_out = []
+    for sig, cur_entry in list(current_adj.items()):
+        if not isinstance(cur_entry, dict) or not cur_entry.get("_decided_by"):
+            continue
+        prop = adjustments.get(sig)
+        if not prop:
+            continue  # LLM-unerwaehnt -> Merge-Keeper behaelt ihn (intakt)
+        if prop.get("_override_decided_by") is True:
+            continue  # ausdrueckliche Freigabe -> laeuft durch Ratsche/Merge
+        print(f"[llm_review] DECIDED-BY-GUARD: Vorschlag an "
+              f"{sig!r} verworfen (gesichert von {cur_entry['_decided_by']!r}; "
+              f"setze _override_decided_by=True mit VoLLi-Freigabe)")
+        adjustments.pop(sig, None)
+        _locked_out.append(sig)
+        try:
+            _record_decision(
+                "signal_weight", sig,
+                float(cur_entry.get("score_multiplier", 1.0) or 1.0),
+                {"action": "LOCKED_OUT_BY_GUARD",
+                 "reason": f"entry secured by {cur_entry['_decided_by']!r}"},
+                f"decided-by-guard discarded LLM proposal for {sig}"[:160],
+            )
+        except Exception as e:
+            print(f"[llm_review] decided-by-guard: Decision-Log failed: {e}")
+
     # fix/llm-weights-merge-keep (2026-08-28): LLM-unerwaehnte Einträge der
     # CURRENT-Datei ERHALTEN — nicht loeschen. Die LLM nennt pro Run nur eine
     # Teilmenge der Signaltypen; ein loeschender Write hat die Falling-Knife-

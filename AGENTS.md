@@ -299,6 +299,21 @@ beim LLM-Review-Lauf (Cron `30 22 * * *` — der Ausdruck steht in **Lokalzeit**
 Live-Abweichung vom belegten Stand — das ist die eigentliche Evidenz für
 „aktive Gewichte ≠ committete Gewichte".
 
+**`_decided_by`-Freigaben schützen (fix/decided-by-guard, 2026-09-12):**
+`data/llm_signal_weights.json` hat ZWEI Schreiber: der Review-Pfad (Cron
+`3e8465bb6051`, 22:30 lokal) UND der Self-Improvement-Agent (Cron
+`a7f2c91d3b84`, Mo/Mi/Fr 21:00 UTC), der die Datei auch DIREKT überschreiben
+kann — der Merge-Schutz + Ratsche greifen im Codepfad, ein Raw-Write umgeht
+beide. Eintrag mit `_decided_by` (VoLLi-Entscheid, z.B. MEDIUM-Freigabe
+`TREND_PULLBACK,GOLDEN_CROSS` vom 2026-09-11, Commit 65996de) darf daher von
+keinem Pfad angefasst werden: (1) Code-Guard in `_update_signal_weights()`
+wirft Vorschläge an `_decided_by`-Einträgen weg (nur `_override_decided_by=True`
+= ausdrückliche VoLLi-Freigabe läuft durch; Lockouts landen im
+Decision-Log als `LOCKED_OUT_BY_GUARD`), (2) PFLICHT-REGEL im
+Self-Improvement-Prompt (Jobs `a7f2c91d3b84`): Agent darf den Eintrag nur mit
+VoLLi-Freigabe ändern und muss nach jedem Write die Datei zurücklesen.
+Regression: `tests/unit/test_decided_by_guard.py`.
+
 **Interpreter-Regel:** die Suite IMMER mit `/usr/bin/python3` (System-Python,
 hat matplotlib 3.10.8) ausführen — die Cron-Worker laufen exakt darauf. Das bare
 `python3` auf der WSL-PATH ist der `~/.hermes/hermes-agent/venv`, in dem
