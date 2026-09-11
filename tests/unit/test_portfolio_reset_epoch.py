@@ -33,7 +33,8 @@ CREATE TABLE capital_events (
 );
 CREATE TABLE trade_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT, trade_id INTEGER, event_at TEXT,
-    close_pct REAL, event_type TEXT, amount_usd REAL, pnl_pct REAL, pnl_usd REAL
+    close_pct REAL, event_type TEXT, amount_usd REAL, pnl_pct REAL, pnl_usd REAL,
+    cost_usd REAL
 );
 """
 
@@ -184,3 +185,32 @@ def test_now_iso_liefert_das_db_format():
     ts = mod._now_iso()
     assert "T" not in ts and "+" not in ts
     assert len(ts) == 19 and ts[10] == " "
+
+
+# ── Kostenfenster muss zum Residuum passen ──────────────────────────────────
+
+def test_recorded_costs_folgt_dem_epoch_fenster(db):
+    """fix/epoch-kostenfenster (2026-09-12).
+
+    Der Tagesbericht vom 2026-09-11 stellte ein epoch-bezogenes Residuum
+    (-87.92 USD seit dem Reset) neben kumulative Kostenzahlen aus der
+    ganzen Kontohistorie: "Fills gesamt: 1775 -> $0.05 je Fill" und
+    "davon im Residuum erklaert: 12 %". Beides eine Quote aus zwei
+    verschiedenen Zeitraeumen. Richtig gerechnet waren es 69 Fills und
+    $1.27 je Fill — Faktor 25.
+    """
+    from bot.core.trade_pnl import recorded_costs
+    db.execute("UPDATE trade_events SET cost_usd = 1.0 WHERE id IS NOT NULL")
+
+    kumulativ = recorded_costs(db)
+    epoche = recorded_costs(db, since=EPOCH)
+
+    assert kumulativ["fills_gesamt"] == 4
+    assert epoche["fills_gesamt"] == 2, "Kostenfenster ignoriert die Epoche"
+    assert epoche["cost_usd"] < kumulativ["cost_usd"]
+
+
+def test_recorded_costs_ohne_since_unveraendert(db):
+    """Die kumulative Sicht bleibt, was sie war."""
+    from bot.core.trade_pnl import recorded_costs
+    assert recorded_costs(db)["fills_gesamt"] == 4

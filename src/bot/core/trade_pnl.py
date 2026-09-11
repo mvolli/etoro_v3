@@ -283,15 +283,23 @@ def estimate_fill_cost(amount_usd: float | None,
         return None
 
 
-def recorded_costs(db: Any) -> dict:
-    """{cost_usd, fills_mit_kosten, fills_gesamt} aus trade_events."""
+def recorded_costs(db: Any, since: str | None = None) -> dict:
+    """{cost_usd, fills_mit_kosten, fills_gesamt} aus trade_events.
+
+    fix/epoch-kostenfenster (2026-09-12): `since` muss mitlaufen, sonst
+    steht im Epoch-Bericht eine kumulative Kostenzahl neben einem
+    epoch-bezogenen Residuum. Gemessen am 2026-09-11: Residuum -87.92 USD
+    seit dem Reset, daneben "103 / 1775 Fills" und "12 % erklaert" aus der
+    ganzen Kontohistorie — eine Quote aus zwei verschiedenen Zeitraeumen.
+    """
     out = {"cost_usd": 0.0, "fills_mit_kosten": 0, "fills_gesamt": 0}
     try:
         row = db.fetchone(
             "SELECT COALESCE(SUM(cost_usd), 0) AS c, "
             "       SUM(cost_usd IS NOT NULL) AS m, COUNT(*) AS n "
             "FROM (SELECT DISTINCT trade_id, event_at, close_pct, cost_usd "
-            "      FROM trade_events)"
+            "      FROM trade_events WHERE (? IS NULL OR event_at >= ?))",
+            (since, since),
         )
     except Exception:
         return out

@@ -67,11 +67,11 @@ def _bericht(db, since: str | None = None) -> dict:
     print(f"  tatsaechliche Equity                      ${r['equity']:>12,.2f}")
     print(f"  RESIDUUM (kein Trade-Datensatz)           ${r['residual_usd']:>+12,.2f}")
 
-    fills = _fill_count(db)
+    fills = _fill_count(db, since)
     if fills and r["residual_usd"] is not None:
         print(f"\n  Fills gesamt: {fills}   ->   ${abs(r['residual_usd']) / fills:.2f} je Fill")
     from bot.core.trade_pnl import recorded_costs
-    k = recorded_costs(db)
+    k = recorded_costs(db, since)
     print(f"\n── Erfasste Kosten " + "─" * 44)
     print(f"  Fills mit gemessenem Spread: {k['fills_mit_kosten']} / {k['fills_gesamt']}")
     print(f"  gebuchte Reibung:            ${k['cost_usd']:>+12,.2f}")
@@ -88,11 +88,13 @@ def _bericht(db, since: str | None = None) -> dict:
     return r
 
 
-def _fill_count(db) -> int:
+def _fill_count(db, since: str | None = None) -> int:
+    """Fills im selben Fenster wie das Residuum (fix/epoch-kostenfenster)."""
     try:
         row = db.fetchone(
             "SELECT COUNT(*) AS n FROM (SELECT DISTINCT trade_id, event_at, "
-            "close_pct FROM trade_events)")
+            "close_pct FROM trade_events WHERE (? IS NULL OR event_at >= ?))",
+            (since, since))
         return int(row["n"]) if row else 0
     except Exception:
         return 0
