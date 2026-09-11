@@ -290,10 +290,18 @@ def _collect_data(db_path: Path) -> dict:
     positions = [dict(r) for r in cur.fetchall()]
 
     # Ghost-Failures pro Signal-Typ (separat — Exchange-Infra != Strategy-Qualitaet)
+    # fix/ghost-late-fill-count (2026-09-11): NUR FAILED-Trades mit echtem
+    # Ghost-Grund zaehlen. "LATE FILL recovered: Ghost order: ..." (Reconciler
+    # hat die Position nach 3 Defers gefunden -> ACTIVE/CLOSED) ist kein
+    # Failure, sondern ein spaet ausgefuehrter Trade — vor dem Fix trieb der
+    # LIKE-Match die ghost_failed-Zahlen hoch (09-07: 7/7 CORE_SWEEP "ghost",
+    # LLM schrieb skip=true/0.0 mit falscher Begruendung). status='FAILED'
+    # trennt beide Saetze; das recovered-Prafix liegt immer am Zeilenanfang.
     cur.execute(
         "SELECT s.signal_type, COUNT(*) as n "
         "FROM trades t JOIN signals s ON t.signal_id = s.id "
-        "WHERE t.created_at > ? AND t.rejection_reason LIKE '%Ghost order%' "
+        "WHERE t.created_at > ? AND t.status = 'FAILED' "
+        "AND t.rejection_reason LIKE 'Ghost order%' "
         "GROUP BY s.signal_type",
         (since,),
     )
@@ -362,7 +370,14 @@ def _compute_ghost_rates(trades: list[dict]) -> dict:
         suffix = _exchange_suffix(t["symbol"])
         stats[suffix]["total"] += 1
         stats[suffix]["symbols"].add(t["symbol"])
-        if "Ghost order" in (t.get("rejection_reason") or ""):
+        # fix/ghost-late-fill-count (2026-09-11): nur FAILED-Trades mit echtem
+        # Ghost-Grund. LATE-FILL-recovered Trades (ACTIVE/CLOSED, Prafix
+        # "LATE FILL recovered:"/"LATE-FILL MULTI recovered:") haben zwar
+        # "Ghost order" im Grund, sind aber erfolgreich ausgefuehrt — sie
+        # duerfen die Exchange-Ghost-Rate nicht treiben (sonst wuerde eine
+        # Laenz-Cluster-Phase eine falsche Exchange-Blacklist triggern).
+        if (t.get("status") == "FAILED"
+                and (t.get("rejection_reason") or "").startswith("Ghost order")):
             stats[suffix]["ghost"] += 1
     return {
         k: {

@@ -125,6 +125,91 @@ def test_hard_block_config_still_blocks_and_bypasses_floor():
     assert ev.size_mult == 0.0
 
 
+# ─── dipbuy_regime: Dip-Buys im defensiven Regime nur mit Trend ─────────────
+
+def test_dipbuy_regime_fires_in_defensive():
+    """MACD_TURN in DEFENSIVE ohne Trend (SMA20<SMA50, ROC5d tief negativ)
+    -> 0.25x, kein Block (Anti-Brake)."""
+    ind = {"sma20": 95.0, "sma50": 100.0, "roc_5d_pct": -20.0}
+    ev = EQ.evaluate(_cfg(), symbol="AAPL", signal_type="MACD_TURN_BELOW_SMA20",
+                     indicators=ind, regime="DEFENSIVE")
+    assert [h.gate for h in ev.hits] == ["dipbuy_regime"]
+    assert ev.size_mult == 0.25
+    assert ev.blocked is False
+
+
+def test_dipbuy_regime_sma20_above_sma50_overrides():
+    """Trend-Bestaetigung (SMA20>SMA50) hebt das Gate auf — auch in CRITICAL."""
+    ind = {"sma20": 105.0, "sma50": 100.0, "roc_5d_pct": -20.0}
+    ev = EQ.evaluate(_cfg(), symbol="AAPL", signal_type="BB_LOWER_RSI_OVERSOLD",
+                     indicators=ind, regime="CRITICAL")
+    assert ev.hits == []
+    assert ev.size_mult == 1.0
+
+
+def test_dipbuy_regime_roc_override():
+    """ROC5d ueber min_roc (-12) reicht allein als Trend-Bestaetigung."""
+    ind = {"sma20": 95.0, "sma50": 100.0, "roc_5d_pct": -5.0}
+    ev = EQ.evaluate(_cfg(), symbol="AAPL", signal_type="RSI_EXTREME_OVERSOLD",
+                     indicators=ind, regime="DEFENSIVE")
+    assert ev.hits == []
+
+
+def test_dipbuy_regime_fails_open_without_trend_data():
+    """Ohne SMA20/50 UND ROC greift das Gate NICHT (Indikatorenausfall
+    darf nicht zum stillen Strategy-Wechsel werden)."""
+    ev = EQ.evaluate(_cfg(), symbol="AAPL", signal_type="MACD_TURN_BELOW_SMA20",
+                     indicators={}, regime="DEFENSIVE")
+    assert ev.hits == []
+    assert ev.size_mult == 1.0
+
+
+def test_dipbuy_regime_not_active_in_allowed_regimes():
+    """NORMAL/CAUTION: Gate bleibt stumm, egal wie der Trend aussieht."""
+    ind = {"sma20": 95.0, "sma50": 100.0, "roc_5d_pct": -20.0}
+    for reg in ("NORMAL", "CAUTION"):
+        ev = EQ.evaluate(_cfg(), symbol="AAPL",
+                         signal_type="BB_LOW_MACD_IMPROVING",
+                         indicators=ind, regime=reg)
+        assert ev.hits == [], reg
+        assert ev.size_mult == 1.0
+
+
+def test_dipbuy_regime_ignores_non_dipbuy_types():
+    """Trend-/Breakout-Typen sind ausserhalb des Gates."""
+    ind = {"sma20": 95.0, "sma50": 100.0, "roc_5d_pct": -20.0}
+    for st in ("TREND_PULLBACK", "GOLDEN_CROSS", "MOMENTUM_BREAKOUT"):
+        ev = EQ.evaluate(_cfg(), symbol="AAPL", signal_type=st,
+                         indicators=ind, regime="DEFENSIVE")
+        assert ev.hits == [], st
+
+
+def test_dipbuy_regime_core_sweep_excluded():
+    """CORE_SWEEP wird ueber core_sweep_regime (0.25, kein Override)
+    behandelt — dipbuy_regime (mit Trend-Override) greift NICHT."""
+    ind = {"sma20": 95.0, "sma50": 100.0, "roc_5d_pct": -20.0}
+    ev = EQ.evaluate(_cfg(), symbol="AAPL", signal_type="CORE_SWEEP",
+                     indicators=ind, regime="DEFENSIVE", is_core_sweep=True)
+    assert [h.gate for h in ev.hits] == ["core_sweep_regime"]
+    assert ev.size_mult == 0.25
+
+
+def test_shipped_config_dipbuy_regime_is_soft():
+    """Die ausgelieferte Konfiguration: Gate an, SOFT (0.25, kein Block),
+    alle finf Dip-Buy-Cluster-Typen abgedeckt, NORMAL+CAUTION erlaubt."""
+    cfg = yaml.safe_load((REPO / "config" / "config.yaml").read_text(encoding="utf-8"))
+    gates = cfg["trading"]["entry_quality"]["gates"]
+    g = gates["dipbuy_regime"]
+    assert g["enabled"] is True
+    assert float(g["size_mult"]) == 0.25
+    assert g["allowed_regimes"] == ["NORMAL", "CAUTION"]
+    assert g["trend_override"] is True
+    for t in ("BB_LOWER_RSI_OVERSOLD", "BB_EXTREME_RSI_OVERSOLD",
+              "RSI_EXTREME_OVERSOLD", "MACD_TURN_BELOW_SMA20",
+              "BB_LOW_MACD_IMPROVING"):
+        assert t in g["applies_to"], t
+
+
 # ─── DB-Schicht: mark_applied / latest_size_mult ─────────────────────────────
 
 def _db(tmp_path):

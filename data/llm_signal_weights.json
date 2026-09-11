@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-09-06T20:30:27.539620+00:00",
-  "auto_expires_at": "2026-09-20T20:30:27.539627+00:00",
+  "updated_at": "2026-09-11T20:30:00+00:00",
+  "auto_expires_at": "2026-09-25T20:31:34.808206+00:00",
   "adjustments": {
     "TREND_PULLBACK,GOLDEN_CROSS": {
       "score_multiplier": 0.25,
       "skip": false,
-      "reason": "Negative average PnL (-1.43%) and low win rate (25.8%) indicate poor edge despite high execution success.",
+      "reason": "HIGH conviction variant has 25.8% win rate and negative avg PnL (-1.43%), indicating poor entry quality for this specific conviction level.",
       "_ratchet_frozen": true,
       "_proposed": 0.5,
-      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.25 -> 0.5 blockiert (n_closed=44/20, realized=-35.62 USD)"
+      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.25 -> 0.5 blockiert (n_closed=63/20, realized=-46.50 USD)"
     },
     "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": {
       "score_multiplier": 1.0,
@@ -18,7 +18,7 @@
     "CORE_SWEEP": {
       "score_multiplier": 0.5,
       "skip": false,
-      "reason": "Post-26.07 (n=85, WR 40.0%, avg -0.09%, -$165): wins +3.0% / losses -2.15% (payoff >1) — thin positive edge, drag comes from size (avg $230, biggest in book) and 21 full-SL hits. Dampening 0.5 kept."
+      "reason": "Post-26.07 (n=113, WR 42.5%, avg +0.26%, sum -$181.18): near-breakeven edge, drag from size (biggest in book) + 21 full-SL hits. Dampening 0.5 kept. 2026-09-11 self-improvement: prior 0.0/skip=true (09-10 auto-run) was a ghost-double-count artifact (13 LATE-FILL-recovered trades counted as ghost_failed -> false '7/7 rejection'). Root cause fixed in llm_review_worker (_load_trading_data now filters status='FAILED' + prefix 'Ghost order%'); entry reverted to data-backed value."
     },
     "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD": {
       "score_multiplier": 0.1,
@@ -37,10 +37,10 @@
     }
   },
   "strategy_notes": [
-    "TREND_PULLBACK,GOLDEN_CROSS entries often hit stop-loss quickly (hold_d < 1 day in recent losses), suggesting entry timing or volatility mismatch.",
-    "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING remains the strongest performer with positive avg PnL and high success rate."
+    "TREND_PULLBACK,GOLDEN_CROSS signals with HIGH conviction are underperforming significantly compared to MEDIUM conviction variants, suggesting the conviction filter may be too loose for trend-following entries.",
+    "Recent losses with short holding periods (<1 day) indicate potential slippage or market timing issues, which should be monitored for correlation with specific exchanges or volatility regimes."
   ],
   "conviction_issues": [
-    "HIGH conviction trades for TREND_PULLBACK,GOLDEN_CROSS have a 25.8% win rate, significantly lower than MEDIUM conviction (45.7%), suggesting conviction scoring may be misaligned for this signal type."
+    "HIGH conviction for TREND_PULLBACK,GOLDEN_CROSS has a 25.8% win rate, which is significantly lower than the MEDIUM conviction variant (50.0% win rate for MACD_TURN+BB_LOW combo), indicating a potential misalignment in conviction scoring for trend signals."
   ]
 }

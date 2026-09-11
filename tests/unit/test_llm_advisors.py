@@ -675,3 +675,109 @@ def test_reject_rate_wird_separat_ausgewiesen():
         "Mit korrektem Nenner faellt CORE_SWEEP nicht mehr unter die "
         "underperforming-Schwelle von 0.3"
     )
+
+# ── ghost-late-fill-count (fix/ghost-late-fill-count, 2026-09-11) ────────────
+# Regression: "LATE FILL recovered: Ghost order: ..." (Reconciler fand die
+# Position nach 3 Defers -> ACTIVE/CLOSED) wurde vom LIKE '%Ghost order%'
+# als ghost_failed gezaehlt. 2026-09-07: 7/7 CORE_SWEEP "ghost_failed",
+# LLM schrieb skip=true/score 0.0 mit falscher Begruendung. NUR FAILED-Trades
+# mit echtem Ghost-Grund (Prafix "Ghost order") zaehlen.
+
+
+def _ghost_schema(db):
+    """Minimales Schema fuer _collect_data (trades braucht instrument_id)."""
+    for ddl in (
+        "CREATE TABLE trades (id INTEGER PRIMARY KEY, instrument_id INTEGER, "
+        "symbol TEXT, signal_id INTEGER, status TEXT, rejection_reason TEXT, "
+        "created_at TEXT)",
+        "CREATE TABLE signals (id INTEGER PRIMARY KEY, signal_type TEXT, "
+        "conviction TEXT, generated_at TEXT)",
+        "CREATE TABLE instruments (instrument_id INTEGER PRIMARY KEY, "
+        "symbol TEXT, is_tradable INTEGER)",
+        "CREATE TABLE system_state (key TEXT PRIMARY KEY, value TEXT)",
+        "CREATE TABLE portfolio_snapshot (symbol TEXT, amount_usd REAL)",
+        "CREATE TABLE slippage_rejects (symbol TEXT, rejected_at TEXT)",
+    ):
+        db.execute(ddl)
+
+
+def _ghost_db(tmp_path):
+    db = DB(db_path=tmp_path / "ghost.db")
+    _ghost_schema(db)
+    rows = [
+        # 1: echter Ghost-Failure (FAILED, Prafix "Ghost order") -> zaehlt
+        (1, 101, "AAA", 1, "FAILED",
+         "Ghost order: orderId=123 but position never materialized (failure #1, blacklist: none)",
+         "2026-09-10 08:00:00"),
+        # 2/3: LATE-FILL-recovered -> status CLOSED/ACTIVE, Prafix "LATE ...
+        # recovered:" -> duerfen NICHT zaehlen (auch wenn LIKE '%Ghost order%'
+        # treffe)
+        (2, 102, "BBB", 1, "CLOSED",
+         "LATE FILL recovered: Ghost order: orderId=234 but position never materialized (failure #1, blacklist: none)",
+         "2026-09-10 08:05:00"),
+        (3, 103, "CCC", 1, "ACTIVE",
+         "LATE-FILL MULTI recovered: Ghost order: orderId=345 but position never materialized (failure #2, blacklist: none)",
+         "2026-09-10 08:10:00"),
+        # 4: normal CLOSED ohne Ghost-Grund
+        (4, 104, "DDD", 2, "CLOSED", None, "2026-09-10 09:00:00"),
+    ]
+    for r in rows:
+        db.execute("INSERT INTO trades VALUES (?,?,?,?,?,?,?)", r)
+    db.execute("INSERT INTO signals VALUES (1, 'CORE_SWEEP', 'MEDIUM', '2026-09-10 07:00:00')")
+    db.execute("INSERT INTO signals VALUES (2, 'TREND_PULLBACK,GOLDEN_CROSS', 'MEDIUM', '2026-09-10 07:00:00')")
+    for iid, sym in ((101, "AAA"), (102, "BBB"), (103, "CCC"), (104, "DDD")):
+        db.execute("INSERT INTO instruments VALUES (?,?,1)", (iid, sym))
+    db.execute("INSERT INTO system_state VALUES ('CURRENT_REGIME', 'NORMAL')")
+    db.execute("INSERT INTO portfolio_snapshot VALUES ('AAA', 100.0)")
+    return db
+
+
+def test_ghost_stats_zaehlt_nur_failed_ghostruns(tmp_path):
+    import bot.workers.llm_review_worker as lrw
+    db = _ghost_db(tmp_path)
+    data = lrw._collect_data(db.db_path)
+    # NUR der echte FAILED-Ghost wird als ghost_failure gezaehlt.
+    assert data["ghost_signal_stats"] == {"CORE_SWEEP": 1}, (
+        f"Expected CORE_SWEEP ghost=1, got {data['ghost_signal_stats']!r}"
+    )
+
+
+def test_ghost_rates_exclude_late_fill_recovered(tmp_path):
+    import bot.workers.llm_review_worker as lrw
+    db = _ghost_db(tmp_path)
+    data = lrw._collect_data(db.db_path)
+    rates = lrw._compute_ghost_rates(data["trades"])
+    # 4 tradable trades; 1 FAILED Ghost (AAA), 2 LATE-FILL-recovered
+    # (CLOSED/ACTIVE) -> ghost=1 total, total=4.
+    o = rates.get("_OTHER", {})
+    assert o.get("ghost") == 1, (
+        f"LATE-FILL-recovered Trades duerfen die Ghost-Rate nicht treiben: {rates!r}"
+    )
+    assert o.get("total") == 4
+    # success_rate: der echte FAILED-Ghost wird auf GHOST_FAILED umbucht und
+    # verlaesst den Nenner: executed=2 (CLOSED+ACTIVE), success=2 -> 1.0.
+    # Genau das verhindert den 09-08-Fehl-Skip (7/7 ghost -> "invalid").
+    perf = lrw._compute_signal_perf(data["signal_stats"], data["ghost_signal_stats"])
+    cs = perf.get("CORE_SWEEP", {})
+    assert cs.get("ghost_failed") == 1, f"Expected ghost_failed=1, got {cs!r}"
+    assert cs.get("FAILED") == 0
+    assert cs.get("success_rate") == 1.0, (
+        f"Ghost-UMBuchung darf den success_rate-Nenner nicht druecken: {cs!r}"
+    )
+
+
+def test_ghost_stats_leer_wohne_failed_ghostruns(tmp_path):
+    """Nur LATE-FILL-recovered (CLOSED): ghost_stats bleibt leer."""
+    import bot.workers.llm_review_worker as lrw
+    db = DB(db_path=tmp_path / "g2.db")
+    _ghost_schema(db)
+    db.execute(
+        "INSERT INTO trades VALUES (1,101,'AAA',1,'CLOSED',?,'2026-09-10 08:00:00')",
+        ("LATE FILL recovered: Ghost order: orderId=999",),
+    )
+    db.execute("INSERT INTO signals VALUES (1,'CORE_SWEEP','MEDIUM','2026-09-10 07:00:00')")
+    db.execute("INSERT INTO instruments VALUES (101,'AAA',1)")
+    data = lrw._collect_data(db.db_path)
+    assert data["ghost_signal_stats"] == {}, (
+        f"LATE-FILL-recovered CLOSED darf NICHT in ghost_stats landen: {data['ghost_signal_stats']!r}"
+    )

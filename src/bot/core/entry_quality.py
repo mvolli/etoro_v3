@@ -75,6 +75,32 @@ DEFAULT_CONFIG: dict = {
             "min_roc_5d_pct": -12.0,
             "size_mult": 0.0,   # in live mode: block (skip) the sweep order
         },
+        "dipbuy_regime": {
+            # feat/dipbuy-regime-gate (2026-09-11): Dip-Buys brauchen im
+            # defensiven Regime Trend-Bestaetigung. Evidenz (New-Regime,
+            # created_at >= 2026-08-24 13:16, beides: Conviction-Abflachung
+            # 56b6c04 + Entry-Quality P2 5892deb live): MACD_TURN+BB_LOW-
+            # Cluster n=75, WR 16.0 %, avg -1.94 %, SUM -126.08 USD — im
+            # Alt-Regime (07-26..08-24) n=43, WR 46.5 %, +49.63 USD. Der
+            # Dip-Buy-Cluster ist regime-abhaengig (Vault-Concept
+            # dip-buy-cluster-regime-dependent-2026-09-05): in CAUTION/
+            # DEFENSIVE ohne Trend-Bestaetigung (SMA20<SMA50 UND
+            # ROC5d<=min_roc) wird er auf 0.25x gedaeempft. SOFT-Gate
+            # (Anti-Brake: kein Block), TREND_PULLBACK/Klassik-Trend bleibt
+            # aus, CORE_SWEEP geht ueber core_sweep_regime.
+            "enabled": True,
+            "applies_to": [
+                "BB_LOWER_RSI_OVERSOLD",
+                "BB_EXTREME_RSI_OVERSOLD",
+                "RSI_EXTREME_OVERSOLD",
+                "MACD_TURN_BELOW_SMA20",
+                "BB_LOW_MACD_IMPROVING",
+            ],
+            "allowed_regimes": ["NORMAL", "CAUTION"],
+            "trend_override": True,
+            "min_roc_5d_pct": -12.0,
+            "size_mult": 0.25,
+        },
         "dipbuy_trend": {
             "enabled": True,
             "applies_to": [
@@ -255,6 +281,36 @@ def evaluate(
                     f"ATR% {atr_pct:.2f} outside ({lo}..{hi})",
                     float(g.get("size_mult", 0.5)),
                 ))
+
+    # ── 6. dipbuy_regime: Dip-Buys im defensiven Regime nur mit
+    #        Trend-Bestaetigung (feat/dipbuy-regime-gate, 2026-09-11) ─────
+    g = gates.get("dipbuy_regime", {})
+    if g.get("enabled") and not is_core_sweep:
+        applies_to = g.get("applies_to", _DIPBUY_TYPES_DEFAULT)
+        if any(t in applies_to for t in types):
+            allowed = [str(r).upper() for r in g.get("allowed_regimes", ["NORMAL", "CAUTION"])]
+            if regime.upper() not in allowed:
+                override_ok = False
+                if g.get("trend_override"):
+                    sma20, sma50 = indicators.get("sma20"), indicators.get("sma50")
+                    roc = indicators.get("roc_5d_pct")
+                    min_roc = float(g.get("min_roc_5d_pct", -12.0))
+                    # Trend-Bestaetigung: SMA20 > SMA50 ODER ROC5d > min_roc.
+                    # Fail-open wie die uebrigen Gates: OHNE Trend-Daten
+                    # (beide SMA UND ROC fehlen) greift das Gate NICHT —
+                    # ein Indikatorenausfall darf nicht zum stillen
+                    # Strategy-Wechsel werden.
+                    if (sma20 is not None and sma50 is not None and sma20 > sma50) \
+                            or (roc is not None and roc > min_roc):
+                        override_ok = True
+                    elif (sma20 is None or sma50 is None) and roc is None:
+                        override_ok = True   # keine Trend-Daten -> fail-open
+                if not override_ok:
+                    ev.hits.append(GateHit(
+                        "dipbuy_regime",
+                        f"Dip-Buy in Regime {regime.upper()} ohne Trend-Bestaetigung",
+                        float(g.get("size_mult", 0.25)),
+                    ))
 
     # Kombiniert = MIN ueber alle Hits, hart-geclampt (min_size_mult) —
     # aber ein Block (0.0) bleibt ein Block.
