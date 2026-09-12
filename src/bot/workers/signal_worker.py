@@ -1559,8 +1559,18 @@ def main() -> None:
                 _budget = float(cfg.get("trading", {}).get("signal_news_pull_budget_s", 45.0))
                 _entries = []
                 for _sig, _sym in candidates:
-                    _yf, _ = _resolve_market_fields(_sig.get("instrument_id"))
-                    _entries.append({"symbol": _sym, "yf": _yf or _sym})
+                    _iid = _sig.get("instrument_id")
+                    _yf, _ = _resolve_market_fields(_iid)
+                    _ac = None
+                    try:
+                        _acr = db.fetchone(
+                            "SELECT asset_class FROM instruments WHERE instrument_id=?",
+                            (_iid,))
+                        _ac = _acr["asset_class"] if _acr else None
+                    except Exception:
+                        pass
+                    _entries.append({"symbol": _sym, "yf": _yf or _sym,
+                                     "asset_class": _ac})
                 _neu, _abgebrochen = pull_regel_flags(_entries, budget_s=_budget)
                 for _sym, _flag in _neu.items():
                     _news_flags[_sym] = staerkeres_flag(_news_flags.get(_sym), _flag)

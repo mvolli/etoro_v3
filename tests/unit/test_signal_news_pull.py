@@ -167,3 +167,46 @@ def test_eintrag_ohne_symbol_wird_uebersprungen():
         _earnings=lambda y: AVOID, _analyst=lambda y: None)
     assert flags == {"MSFT": AVOID}
     assert ab is False
+
+
+# ── Anlageklassen ohne Fundamentaldaten ──────────────────────────────────────
+# Gemessen am 12.09.: von 5 Kandidaten waren 2 Krypto (ETHFI, KNC). yfinance
+# antwortete je zweimal mit HTTP 404 auf die Fundamentaldaten — vier
+# verschwendete Netzabrufe und vier ERROR-Zeilen im Log, in einem Fenster von
+# 180 Sekunden vor dem Execution-Slot.
+
+def test_krypto_wird_gar_nicht_erst_gefragt():
+    gerufen = []
+    flags, ab = pull_regel_flags(
+        [{"symbol": "ETHFI", "yf": "ETHFI-USD", "asset_class": "crypto"},
+         {"symbol": "AAPL", "yf": "AAPL", "asset_class": "stock"}],
+        _earnings=lambda y: gerufen.append(y) or AVOID,
+        _analyst=lambda y: None)
+    assert gerufen == ["AAPL"]
+    assert flags == {"AAPL": AVOID}
+
+
+@pytest.mark.parametrize("klasse", ["crypto", "commodity", "index", "forex",
+                                    "CRYPTO", "Forex"])
+def test_klassen_ohne_earnings_werden_uebersprungen(klasse):
+    flags, _ = pull_regel_flags(
+        [{"symbol": "X", "yf": "X", "asset_class": klasse}],
+        _earnings=lambda y: AVOID, _analyst=lambda y: AVOID)
+    assert flags == {}
+
+
+@pytest.mark.parametrize("klasse", ["stock", "etf", "ETF"])
+def test_aktien_und_etfs_werden_geprueft(klasse):
+    flags, _ = pull_regel_flags(
+        [{"symbol": "X", "yf": "X", "asset_class": klasse}],
+        _earnings=lambda y: AVOID, _analyst=lambda y: None)
+    assert flags == {"X": AVOID}
+
+
+def test_fehlende_asset_class_wird_geprueft():
+    """Fail-open: unbekannte Klasse lieber einmal zu viel fragen als ein
+    Earnings-Risiko uebersehen."""
+    flags, _ = pull_regel_flags(
+        [{"symbol": "X", "yf": "X"}, {"symbol": "Y", "yf": "Y", "asset_class": None}],
+        _earnings=lambda y: AVOID, _analyst=lambda y: None)
+    assert flags == {"X": AVOID, "Y": AVOID}

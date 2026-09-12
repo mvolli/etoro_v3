@@ -412,6 +412,14 @@ if __name__ == "__main__":
 
 FLAG_RANG = {"AVOID": 2, "CAUTION": 1}
 
+# Nur diese Anlageklassen haben ueberhaupt Earnings-Termine und
+# Analysten-Kursziele. Fuer Krypto/Rohstoff/Index/Forex liefert yfinance
+# ein 404 auf die Fundamentaldaten — gemessen am 12.09.: von 5 Kandidaten
+# waren 2 Krypto, das waren 4 verschwendete Netzabrufe und vier
+# ERROR-Zeilen aus yfinance im Log. Der Pull laeuft im 180-s-Fenster vor
+# dem Execution-Slot; verschwendete Calls sind dort teurer als anderswo.
+FUNDAMENTAL_KLASSEN = frozenset({"stock", "etf"})
+
 
 def staerkeres_flag(alt: dict | None, neu: dict | None) -> dict | None:
     """Verschmelzung: nur verschaerfen, nie abschwaechen.
@@ -436,8 +444,10 @@ def pull_regel_flags(
 ) -> tuple[dict[str, dict], bool]:
     """Synchroner, regelbasierter Flag-Pull fuer wenige Symbole.
 
-    `entries`: [{"symbol": ..., "yf": ...}, ...] — der Aufrufer waehlt aus,
-    hier wird NICHT zusaetzlich gedeckelt.
+    `entries`: [{"symbol": ..., "yf": ..., "asset_class": ...}, ...] — der
+    Aufrufer waehlt aus, hier wird NICHT zusaetzlich gedeckelt. Eintraege
+    mit einer asset_class ausserhalb von FUNDAMENTAL_KLASSEN werden
+    uebersprungen; fehlt das Feld, wird geprueft (fail-open).
 
     `budget_s` ist ein harter Wall-Clock-Deckel ueber den GESAMTEN Pull,
     geprueft zwischen den Symbolen. Ein try/except je Symbol begrenzt die
@@ -467,6 +477,11 @@ def pull_regel_flags(
         yf_sym = entry.get("yf") or entry.get("symbol")
         sym = entry.get("symbol")
         if not yf_sym or not sym:
+            continue
+        klasse = entry.get("asset_class")
+        if klasse and str(klasse).lower() not in FUNDAMENTAL_KLASSEN:
+            # Krypto/Rohstoff/Index/Forex haben weder Earnings noch
+            # Kursziele — der Call waere ein garantiertes 404.
             continue
         try:
             treffer = earnings_fn(yf_sym)
