@@ -32,11 +32,14 @@ def trade_db(tmp_path):
     db.execute("""
         CREATE TABLE trades (
             id INTEGER PRIMARY KEY, symbol TEXT, amount_usd REAL,
-            status TEXT, rejection_reason TEXT
+            status TEXT, rejection_reason TEXT, order_id TEXT
         )
     """)
-    db.execute("INSERT INTO trades VALUES (1, 'AAPL', 400.0, 'APPROVED', NULL)")
-    db.execute("INSERT INTO trades VALUES (2, 'MSFT', 400.0, 'ACTIVE', NULL)")
+    db.execute("INSERT INTO trades VALUES (1, 'AAPL', 400.0, 'APPROVED', NULL, NULL)")
+    db.execute("INSERT INTO trades VALUES (2, 'MSFT', 400.0, 'ACTIVE', NULL, NULL)")
+    # Trade 3: deferter Trade — wieder APPROVED, aber Order liegt beim Broker
+    db.execute("INSERT INTO trades VALUES "
+               "(3, 'VU.PA', 62.83, 'APPROVED', NULL, '1582187392')")
     return db
 
 
@@ -781,3 +784,38 @@ def test_ghost_stats_leer_wohne_failed_ghostruns(tmp_path):
     assert data["ghost_signal_stats"] == {}, (
         f"LATE-FILL-recovered CLOSED darf NICHT in ghost_stats landen: {data['ghost_signal_stats']!r}"
     )
+
+
+# ── fix/veto-inflight: deferte Trades haben eine lebende Order ───────────────
+# Trade #2174 (VU.PA) stand nach einem DEFER wieder auf APPROVED. Das Veto
+# griff, eToro fuehrte Order 1582187392 aber 7 Minuten spaeter aus — die
+# Position blieb dem Bot unbekannt und damit ohne Stop-Loss. Geld, das schon
+# beim Broker liegt, ist der LLM-Bewertung entzogen.
+
+def test_veto_greift_nicht_bei_laufender_order(trade_db):
+    out = _apply_decision(trade_db, _trade(3, 62.83),
+                          {"decision": "VETO", "reason": "zu spaet"}, 50.0)
+    assert out == "NOOP"
+    row = trade_db.fetchone("SELECT status, rejection_reason FROM trades WHERE id=3")
+    assert row["status"] == "APPROVED"
+    assert row["rejection_reason"] is None
+
+
+def test_reduce_greift_nicht_bei_laufender_order(trade_db):
+    # Order ueber $62.83 laeuft — die Summe nachtraeglich zu kuerzen wuerde
+    # die DB von der tatsaechlich platzierten Order entkoppeln.
+    out = _apply_decision(trade_db, _trade(3, 62.83),
+                          {"decision": "REDUCE", "reduce_to_pct": 50}, 20.0)
+    assert out == "NOOP"
+    row = trade_db.fetchone("SELECT amount_usd FROM trades WHERE id=3")
+    assert row["amount_usd"] == 62.83
+
+
+def test_reduce_unter_min_buy_greift_nicht_bei_laufender_order(trade_db):
+    # Genau der Pfad, der #2174 getroffen hat: REDUCE faellt unter min_buy
+    # und wird zum VETO — bei laufender Order muss auch das folgenlos bleiben.
+    out = _apply_decision(trade_db, _trade(3, 62.83),
+                          {"decision": "REDUCE", "reduce_to_pct": 25}, 50.0)
+    assert out == "NOOP"
+    row = trade_db.fetchone("SELECT status FROM trades WHERE id=3")
+    assert row["status"] == "APPROVED"

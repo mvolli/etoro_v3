@@ -17,6 +17,11 @@ Veto kostet eine Gelegenheit — ein halluzinierter Boost wuerde Geld kosten.
 Fail-open: LLM down/Timeout/Parse-Fehler → alle Trades laufen unveraendert.
 Race-safe: alle UPDATEs mit "WHERE status='APPROVED'" — hat der
 execution_worker den Trade schon (SUBMITTING/ACTIVE), greift nichts mehr.
+Zusaetzlich order_id IS NULL (fix/veto-inflight, 2026-09-12): ein deferter
+Trade steht wieder auf APPROVED, hat aber bereits eine Order beim Broker.
+Trade #2174 (VU.PA) wurde so vetoed, waehrend Order 1582187392 lief —
+eToro fuehrte sie 7 Minuten spaeter aus, die Position 3575889260 blieb
+unverwaltet ohne Stop-Loss. Geld schon committed = LLM hat kein Wort mehr.
 
 Lernschleife: jede Entscheidung landet in data/llm_veto_log.json; Vetos
 werden nach >=24h gegen den Live-Preis bewertet (GOOD/MISSED_UPSIDE) und die
@@ -175,7 +180,8 @@ def _apply_decision(db, trade: dict, decision: dict, min_buy: float) -> str:
     if action == "VETO":
         cur = db.execute(
             "UPDATE trades SET status='REJECTED', "
-            "rejection_reason=? WHERE id=? AND status='APPROVED'",
+            "rejection_reason=? WHERE id=? AND status='APPROVED' "
+            "AND (order_id IS NULL OR order_id = '')",
             (f"LLM-Veto: {reason}", trade_id),
         )
         return "VETO" if cur.rowcount else "NOOP"
@@ -190,12 +196,14 @@ def _apply_decision(db, trade: dict, decision: dict, min_buy: float) -> str:
         if new_amount < min_buy:
             cur = db.execute(
                 "UPDATE trades SET status='REJECTED', rejection_reason=? "
-                "WHERE id=? AND status='APPROVED'",
+                "WHERE id=? AND status='APPROVED' "
+                "AND (order_id IS NULL OR order_id = '')",
                 (f"LLM-Reduce unter Min-Buy: {reason}", trade_id),
             )
             return "VETO" if cur.rowcount else "NOOP"
         cur = db.execute(
-            "UPDATE trades SET amount_usd=? WHERE id=? AND status='APPROVED'",
+            "UPDATE trades SET amount_usd=? WHERE id=? AND status='APPROVED' "
+            "AND (order_id IS NULL OR order_id = '')",
             (new_amount, trade_id),
         )
         return "REDUCE" if cur.rowcount else "NOOP"
@@ -268,6 +276,7 @@ def main() -> int:
             LEFT JOIN instruments i ON i.instrument_id = t.instrument_id
             WHERE t.status = 'APPROVED'
               AND s.signal_type != 'CORE_SWEEP'
+              AND (t.order_id IS NULL OR t.order_id = '')
         """)]
         if not trades:
             # Trade-freier Zyklus = kein Zeitdruck → hier laeuft der
