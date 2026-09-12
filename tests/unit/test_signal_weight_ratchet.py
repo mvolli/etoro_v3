@@ -57,15 +57,31 @@ def _build_db(path: Path) -> Path:
         " id INTEGER PRIMARY KEY AUTOINCREMENT, signal_id INTEGER, "
         " status TEXT, pnl_usd REAL, created_at TEXT)"
     )
+    # feat/ratsche-beide-masse (2026-09-12): die Ratsche verlangt jetzt
+    # ZWEI zustimmende Messungen — trades.pnl_usd und realized_by_trade()
+    # ueber trade_events. Ohne diese Tabelle waere die Zweitmessung 0.0 und
+    # jede Lockerung bliebe eingefroren (Fail-safe). Die Fixture spiegelt
+    # deshalb jeden Trade als eine CLOSE-Tranche.
+    con.execute(
+        "CREATE TABLE trade_events ("
+        " id INTEGER PRIMARY KEY AUTOINCREMENT, trade_id INTEGER, "
+        " event_at TEXT, close_pct REAL, event_type TEXT, amount_usd REAL, "
+        " pnl_pct REAL, pnl_usd REAL)"
+    )
 
     def add_trades(stype: str, n: int, pnl_each: float, when: str):
         cur = con.execute("INSERT INTO signals (signal_type) VALUES (?)", (stype,))
         sid = cur.lastrowid
         for _ in range(n):
-            con.execute(
+            c2 = con.execute(
                 "INSERT INTO trades (signal_id, status, pnl_usd, created_at) "
                 "VALUES (?,?,?,?)",
                 (sid, "CLOSED", pnl_each, when),
+            )
+            con.execute(
+                "INSERT INTO trade_events (trade_id, event_at, close_pct, "
+                " event_type, amount_usd, pnl_pct, pnl_usd) VALUES (?,?,?,?,?,?,?)",
+                (c2.lastrowid, when, 100.0, "CLOSE", 100.0, pnl_each, pnl_each),
             )
 
     add_trades("MACD_TURN,WINNER", 20, +5.0, "2026-08-01T00:00:00")      # realized +100

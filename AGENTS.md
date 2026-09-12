@@ -314,6 +314,27 @@ Self-Improvement-Prompt (Jobs `a7f2c91d3b84`): Agent darf den Eintrag nur mit
 VoLLi-Freigabe ändern und muss nach jedem Write die Datei zurücklesen.
 Regression: `tests/unit/test_decided_by_guard.py`.
 
+**Nachtrag (2026-09-12):** Der Guard-Schlüssel `_override_decided_by` reiste
+im selben Kanal wie die Eingabe, die er schützt — `adjustments` kam wörtlich
+aus der LLM-Antwort. Eine Antwort mit `{"_override_decided_by": true}` setzte
+den geschützten Eintrag von 1.0 auf 0.1 **und löschte `_decided_by`** mit.
+Beide Felder werden jetzt aus LLM-Vorschlägen entfernt, bevor sie jemand
+liest; eine menschliche Freigabe läuft über die Datei selbst. Bei einem
+Override aus dem Code wandert `_decided_by` mit.
+
+**Ratschen-Maß — BEIDE Messungen (feat/ratsche-beide-masse, 2026-09-12):**
+Eine Lockerung verlangt `n_closed >= 20 UND SUM(trades.pnl_usd) > 0 UND
+realized_by_trade() > 0`. Grund: `pnl_usd` hält bei gestaffelten
+Schließungen nur die LETZTE Tranche (unterschätzt); `realized_by_trade`
+summiert alle Tranchen, kennt aber die Reibung nicht (überschätzt —
+gemessen 1,27 USD je Fill, CORE_SWEEP hat 815 Fills). Ein Wechsel auf das
+realisierte Maß ALLEIN hätte zwei von vier Typen von „eingefroren" auf
+„frei" gekippt, darunter die Dip-Kerbe, die `dipbuy_regime` gerade dämpft.
+Mit zugerechneter Reibung ist kein Typ positiv. Fehlt die Zweitmessung,
+bleibt sie 0.0 — und 0.0 ist nicht > 0, ein Fehler führt also nie zu einer
+Freigabe. Belege: `workspace/references/ratschen-mass-2026-09-12.md`,
+Regression `tests/unit/test_ratsche_beide_masse.py`.
+
 **Interpreter-Regel:** die Suite IMMER mit `/usr/bin/python3` (System-Python,
 hat matplotlib 3.10.8) ausführen — die Cron-Worker laufen exakt darauf. Das bare
 `python3` auf der WSL-PATH ist der `~/.hermes/hermes-agent/venv`, in dem

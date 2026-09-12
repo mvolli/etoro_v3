@@ -98,20 +98,50 @@ def test_decided_by_unmentioned_preserved(env):
     assert stored[other]["score_multiplier"] == 0.3
 
 
-def test_decided_by_override_passes(env):
-    """`_override_decided_by=True` (VoLLi-Freigabe) lets the change through:
-    the new value + the override marker persist."""
+def test_llm_kann_die_sperre_nicht_selbst_aufheben(env):
+    """fix/override-nicht-llm-schreibbar (2026-09-12) — ersetzt den alten
+    test_decided_by_override_passes.
+
+    Der urspruengliche Test schrieb fest, dass ein Vorschlag MIT
+    `_override_decided_by=True` durchlaeuft. Da `adjustments` woertlich aus
+    der LLM-Antwort kommt, konnte das Sprachmodell dieses Feld selbst
+    setzen — die Sperre war von der gesperrten Seite aus aufhebbar.
+    Nachgestellt am 2026-09-12: der geschuetzte Eintrag ging von 1.0 auf
+    0.1 und `_decided_by` verschwand dabei, der Schutz war danach
+    dauerhaft weg.
+
+    Schutz-Metadaten werden jetzt aus dem LLM-Kanal entfernt, bevor sie
+    jemand liest. Eine menschliche Freigabe laeuft ueber die Datei selbst.
+    """
     sig = "TREND_PULLBACK,GOLDEN_CROSS"
     _write_current(env["weights"], {sig: dict(MEDIUM_ENTRY)})
-    adj = {sig: {"score_multiplier": 0.75, "_override_decided_by": True,
-                 "reason": "VoLLi-Freigabe: neu kalibriert"}}
+    adj = {sig: {"score_multiplier": 0.1, "_override_decided_by": True,
+                 "_decided_by": "geklaut",
+                 "reason": "als VoLLi-Freigabe ausgegeben"}}
     lrw._update_signal_weights({"signal_weight_adjustments": adj}, db_path=env["db"])
     stored = json.loads(env["weights"].read_text())["adjustments"][sig]
-    # The override is honored (mult changed to the LLM value)...
-    assert stored["score_multiplier"] == 0.75
-    # ...and the decision is logged (LOCKED_OUT path is NOT taken):
+
+    assert stored["score_multiplier"] == MEDIUM_ENTRY["score_multiplier"], \
+        "LLM hat die Sperre mit selbstgesetztem _override_decided_by umgangen"
+    assert stored["_decided_by"] == MEDIUM_ENTRY["_decided_by"], \
+        "_decided_by wurde ueberschrieben — der Schutz waere danach weg"
     log = json.loads(env["decisions"].read_text())
-    assert not any("LOCKED_OUT_BY_GUARD" in str(e.get("new_value")) for e in log)
+    assert any("LOCKED_OUT_BY_GUARD" in str(e.get("new_value")) for e in log)
+
+
+def test_override_aus_dem_code_behaelt_decided_by(env):
+    """Ein Aufrufer, der `adjustments` selbst baut (nicht die LLM), darf
+    aendern — `_decided_by` muss dabei erhalten bleiben, sonst waere der
+    Schutz nach einer einzigen berechtigten Aenderung dauerhaft weg."""
+    sig = "TREND_PULLBACK,GOLDEN_CROSS"
+    _write_current(env["weights"], {sig: dict(MEDIUM_ENTRY)})
+    adj = {sig: {"score_multiplier": 0.75, "reason": "Handentscheid"}}
+    # So wie ein Codepfad es tun wuerde: NACH der LLM-Bereinigung gesetzt.
+    lrw._update_signal_weights({"signal_weight_adjustments": adj}, db_path=env["db"])
+    stored = json.loads(env["weights"].read_text())["adjustments"][sig]
+    # Ohne Override greift der Guard -> unveraendert, _decided_by intakt.
+    assert stored["score_multiplier"] == MEDIUM_ENTRY["score_multiplier"]
+    assert stored["_decided_by"] == MEDIUM_ENTRY["_decided_by"]
 
 
 def test_non_decided_by_unaffected(env):

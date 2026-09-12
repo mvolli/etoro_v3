@@ -1193,9 +1193,50 @@ def _collect_realized_signal_pnl(db_path: Path) -> dict:
             r["signal_type"]: {
                 "n_closed": int(r["n_closed"] or 0),
                 "sum_pnl_usd": float(r["sum_pnl_usd"] or 0.0),
+                "sum_realized_usd": 0.0,
             }
             for r in cur.fetchall()
         }
+
+        # feat/ratsche-beide-masse (2026-09-12): zweite, unabhaengige
+        # Messung dazu. `trades.pnl_usd` haelt bei gestaffelten
+        # Schliessungen nur die LETZTE Tranche und unterschaetzt damit
+        # systematisch; `realized_by_trade()` summiert alle Tranchen und
+        # UEBERschaetzt, weil es die Reibung nicht kennt (gemessen am
+        # 2026-09-12: Residuum 1,27 USD je Fill, bei CORE_SWEEP mit 815
+        # Fills mehr als der gesamte zugeordnete Gewinn).
+        #
+        # Ein Wechsel auf das realisierte Mass allein haette zwei von vier
+        # Typen von "eingefroren" auf "frei" gekippt — darunter die
+        # Dip-Kerbe, die der dipbuy_regime-Gate vom 2026-09-11 gerade
+        # daempfen soll. Statt eines Masses also BEIDE, und die Lockerung
+        # verlangt, dass keines widerspricht. Das ist strikt strenger als
+        # jede Einzelvariante und braucht kein Reibungsmodell.
+        try:
+            cur.execute(
+                """
+                SELECT t.id AS tid, s.signal_type AS st
+                FROM trades t JOIN signals s ON t.signal_id = s.id
+                WHERE t.status = 'CLOSED' AND t.created_at >= ?
+                  AND t.pnl_usd IS NOT NULL
+                """,
+                (ZAESUR_DATE,),
+            )
+            zuordnung = [(r["st"], int(r["tid"])) for r in cur.fetchall()]
+            from bot.db.connection import DB as _DB
+            from bot.core.trade_pnl import realized_by_trade as _rbt
+            with _DB(db_path) as _db:
+                _realized = _rbt(_db)
+            for st, tid in zuordnung:
+                slot = _realized.get(tid)
+                if slot and st in out:
+                    out[st]["sum_realized_usd"] += slot["realized_usd"]
+        except Exception as exc:
+            # Fail-safe: ohne zweite Messung bleibt sum_realized_usd 0.0 —
+            # und 0.0 ist NICHT > 0, die Lockerung also blockiert. Ein
+            # Fehler hier darf nie zu einer Freigabe fuehren.
+            print(f"[llm_review] realisierte Zweitmessung nicht verfuegbar: {exc}")
+
         con.close()
         return out
     except Exception:
@@ -1306,8 +1347,11 @@ def _ratchet_signal_weights(adjustments: dict, db_path: Path | None = None) -> l
         stats = realized.get(sig) or {}
         n_closed = int(stats.get("n_closed", 0) or 0)
         realized_pnl = float(stats.get("sum_pnl_usd", 0.0) or 0.0)
+        realized_echt = float(stats.get("sum_realized_usd", 0.0) or 0.0)
 
-        if n_closed >= min_n and realized_pnl > 0:
+        # feat/ratsche-beide-masse (2026-09-12): beide Messungen muessen
+        # zustimmen. Widersprechen sie sich, ist die Datenlage kein Beleg.
+        if n_closed >= min_n and realized_pnl > 0 and realized_echt > 0:
             # Verdiente Lockerung -> ratte nach oben (auf proposed).
             # (Decision-Log: unten im einzigen Schreibpfad von _update_signal_weights)
             adj["score_multiplier"] = proposed
@@ -1325,7 +1369,8 @@ def _ratchet_signal_weights(adjustments: dict, db_path: Path | None = None) -> l
         adj["_proposed"] = proposed
         adj["_ratchet_reason"] = (
             f"RATCHET-FROZEN: Lockerung {current_mult} -> {proposed} blockiert "
-            f"(n_closed={n_closed}/{min_n}, realized={realized_pnl:+.2f} USD)"
+            f"(n_closed={n_closed}/{min_n}, pnl_usd={realized_pnl:+.2f}, "
+            f"realisiert={realized_echt:+.2f} USD)"
         )
         frozen.append(sig)
         print(f"  RATCHET {sig}: FROZEN am {current_mult} "
@@ -1347,6 +1392,32 @@ def _update_signal_weights(llm_analysis: dict, db_path: Path | None = None) -> N
     persistiert und der Freeze verlorengangen.
     """
     adjustments = (llm_analysis or {}).get("signal_weight_adjustments", {})
+
+    # fix/override-nicht-llm-schreibbar (2026-09-12): Der decided-by-Guard
+    # (2f2d30f) laesst einen Vorschlag durch, wenn er `_override_decided_by`
+    # traegt — und `adjustments` kommt WOERTLICH aus der LLM-Antwort, ohne
+    # Schluesselfilterung. Das Umgehungsfeld reist also im selben Kanal wie
+    # die Eingabe, die es schuetzen soll. Nachgestellt am 2026-09-12: eine
+    # Antwort mit {"_override_decided_by": true} setzte den geschuetzten
+    # Eintrag von 1.0 auf 0.1 UND loeschte dabei `_decided_by` — der Schutz
+    # war danach dauerhaft weg.
+    #
+    # Schutz-Metadaten duerfen aus dem LLM-Kanal grundsaetzlich nicht
+    # kommen. Beide Felder werden hier entfernt, bevor irgendetwas sie
+    # liest. Eine menschliche Freigabe laeuft ueber die Datei selbst
+    # (so wurde die MEDIUM-Freigabe am 2026-09-11 gesetzt), nicht ueber
+    # einen Vorschlag, den ein Sprachmodell formuliert.
+    _geputzt = []
+    for _sig, _prop in list((adjustments or {}).items()):
+        if not isinstance(_prop, dict):
+            continue
+        for _feld in ("_override_decided_by", "_decided_by"):
+            if _feld in _prop:
+                _prop.pop(_feld, None)
+                _geputzt.append(f"{_sig}.{_feld}")
+    if _geputzt:
+        print(f"[llm_review] Schutz-Metadaten aus LLM-Vorschlag entfernt: {_geputzt}")
+
     if not adjustments:
         # fix/llm-weights-merge-keep (2026-08-28): auch ohne LLM-Vorschlag
         # wird die DATEI neu geschrieben (frisches updated_at/auto_expires_at
@@ -1382,6 +1453,11 @@ def _update_signal_weights(llm_analysis: dict, db_path: Path | None = None) -> N
         if not prop:
             continue  # LLM-unerwaehnt -> Merge-Keeper behaelt ihn (intakt)
         if prop.get("_override_decided_by") is True:
+            # Erreichbar nur noch fuer Aufrufer, die `adjustments` selbst
+            # bauen — aus der LLM-Antwort ist das Feld oben entfernt.
+            # `_decided_by` wandert mit: sonst waere der Schutz nach einer
+            # einzigen berechtigten Aenderung dauerhaft verschwunden.
+            prop.setdefault("_decided_by", cur_entry["_decided_by"])
             continue  # ausdrueckliche Freigabe -> laeuft durch Ratsche/Merge
         print(f"[llm_review] DECIDED-BY-GUARD: Vorschlag an "
               f"{sig!r} verworfen (gesichert von {cur_entry['_decided_by']!r}; "
