@@ -6,6 +6,7 @@ FETCH: yfinance.download() nur für fehlende Tage
 STORE: INSERT OR REPLACE in ohlcv_daily
 """
 import re
+import math
 import sqlite3
 import logging
 import time
@@ -678,3 +679,88 @@ def bulk_ensure_ohlcv(conn, instruments: list, required_days: int = 50, batch_si
         logger.info(f"OHLCV Cache: skipped {skipped_delisted} delisted instruments")
     
     return results
+
+
+# ── feat/ohlcv-from-scan (2026-09-12) ────────────────────────────────────────
+# ohlcv_daily stand 73 Tage still (letztes Datum 2026-07-01, 17.230 Zeilen /
+# 299 Instrumente): der einzige Schreiber war `bulk_ensure_ohlcv` im
+# `discovery_cron.py`, und dessen Cron ("eToro Discovery Pipeline") ist
+# deaktiviert. Der AKTIVE discovery_worker laedt aber ohnehin alle 2h drei
+# Monate OHLCV fuer sein ganzes Scan-Universum (`_batch_fetch`) und wirft die
+# Frames nach der Signalberechnung weg. Diese Funktion schreibt genau die
+# bereits im Speicher liegenden Frames weg — kein einziger zusaetzlicher
+# yfinance-Call, kein reaktivierter Cron.
+
+def store_scan_frame(conn, instrument_id: int, yf_symbol: str, df) -> int:
+    """Persistiert einen yfinance-Frame aus dem Discovery-Scan in ohlcv_daily.
+
+    Erwartet das Format aus `yf.download`: DatetimeIndex + Spalten
+    Open/High/Low/Close/Volume (gross geschrieben, `auto_adjust=True`, daher
+    ist Close bereits adjustiert).
+
+    Der Krypto-Kontaminations-Guard aus `_asset_class_price_mismatch` gilt
+    unveraendert: ein stock/etf-Instrument mit echtem Krypto-Basisticker
+    bekommt KEINE Zeilen — sonst waere dieser Pfad ein neues Schlupfloch fuer
+    genau die Verseuchung, die fix/crypto-symbol-contamination aufgeraeumt hat.
+
+    Rueckgabe: Anzahl geschriebener Zeilen (0 bei Guard-Treffer/leerem Frame).
+    """
+    if df is None or getattr(df, "empty", True):
+        return 0
+    if _asset_class_price_mismatch(conn, instrument_id, yf_symbol):
+        logger.debug(
+            "store_scan_frame: %s (id=%s) vom Krypto-Guard abgewiesen",
+            yf_symbol, instrument_id,
+        )
+        return 0
+
+    rows = []
+    for ts, row in df.iterrows():
+        try:
+            date_str = ts.strftime("%Y-%m-%d")
+        except AttributeError:
+            date_str = str(ts)[:10]
+        try:
+            o = float(row["Open"]); h = float(row["High"])
+            lo = float(row["Low"]); close = float(row["Close"])
+            # NaN rutscht durch jeden Vergleich (NaN <= 0 ist False) — hier
+            # explizit auf Endlichkeit pruefen, sonst landen Luecken aus dem
+            # yfinance-Batch als NULL-artige Kurse in der Historie.
+            if not all(math.isfinite(v) for v in (o, h, lo, close)) or close <= 0:
+                continue
+            vol = row["Volume"]
+            vol = 0 if vol is None or (isinstance(vol, float) and not math.isfinite(vol)) else int(vol)
+            rows.append((instrument_id, date_str, o, h, lo, close, vol, close))
+        except (KeyError, TypeError, ValueError):
+            continue
+    if not rows:
+        return 0
+
+    conn.executemany("""
+        INSERT OR REPLACE INTO ohlcv_daily
+        (instrument_id, date, open, high, low, close, volume, adjusted_close)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, rows)
+    return len(rows)
+
+
+def store_scan_frames(conn, frames: dict) -> tuple[int, int]:
+    """Bulk-Variante: ``{instrument_id: (yf_symbol, df)}`` -> (Instrumente, Zeilen).
+
+    Ein Commit fuer alles. Fehler je Instrument sind nicht fatal — dieser
+    Pfad ist reine Datensammlung und darf einen laufenden Discovery-Scan
+    niemals abbrechen.
+    """
+    n_inst = n_rows = 0
+    for instrument_id, (yf_symbol, df) in frames.items():
+        try:
+            written = store_scan_frame(conn, instrument_id, yf_symbol, df)
+        except Exception as exc:
+            logger.debug("store_scan_frames: %s uebersprungen — %s", instrument_id, exc)
+            continue
+        if written:
+            n_inst += 1
+            n_rows += written
+    if n_rows:
+        conn.commit()
+    return n_inst, n_rows

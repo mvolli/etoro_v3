@@ -1023,6 +1023,35 @@ def main() -> int:
     
         n_scanned = len(price_data)
         logger.info("[%s] %d symbols with usable OHLCV data", WORKER_NAME, n_scanned)
+
+        # ── feat/ohlcv-from-scan: Frames wegschreiben statt wegwerfen ─────────
+        # ohlcv_daily war 73 Tage tot, weil ihr einziger Schreiber im
+        # deaktivierten Discovery-Pipeline-Cron sass. Die Daten liegen hier
+        # ohnehin schon im Speicher — Persistieren kostet keinen Netzabruf.
+        # Fail-open: ein Fehler hier darf den Handelslauf nie stoppen.
+        try:
+            _frames: dict[int, tuple[str, Any]] = {}
+            for _sym, _df in price_data.items():
+                _iid = symbol_to_inst_id.get(_sym)
+                if _iid is None:
+                    _iid = _symbol_to_instrument_id(_sym, instrument_map)
+                if _iid is None:
+                    _iid = resolve_instrument_id_last_chance(db, _sym)
+                if _iid is None:
+                    continue  # fail-closed wie beim Signalpfad: kein Placeholder
+                _frames[_iid] = (_sym, _df)
+            from bot.core.ohlcv_cache import store_scan_frames
+            _n_inst, _n_rows = store_scan_frames(db._get_persistent(), _frames)
+            logger.info(
+                "[%s] ohlcv_daily: %d Instrumente / %d Zeilen aus dem Scan "
+                "persistiert (%d/%d Symbole aufgeloest)",
+                WORKER_NAME, _n_inst, _n_rows, len(_frames), n_scanned,
+            )
+        except Exception as _ohlcv_exc:
+            logger.warning(
+                "[%s] ohlcv_daily-Persistenz uebersprungen: %s",
+                WORKER_NAME, _ohlcv_exc,
+            )
     
         # ── 3+4+5. Compute indicators + generate signals + filter ─────────────────
         buy_candidates: list[dict] = []
