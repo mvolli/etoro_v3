@@ -1563,12 +1563,28 @@ def main() -> None:
                     _entries.append({"symbol": _sym, "yf": _yf or _sym})
                 _neu, _abgebrochen = pull_regel_flags(_entries, budget_s=_budget)
                 for _sym, _flag in _neu.items():
-                    _vorher = _news_flags.get(_sym)
-                    _news_flags[_sym] = staerkeres_flag(_vorher, _flag)
+                    _news_flags[_sym] = staerkeres_flag(_news_flags.get(_sym), _flag)
+
+                # AVOID SOFORT durchsetzen — vor jedem Logging. Das Pool-Gate
+                # weiter oben ist zum Zeitpunkt der Kandidatenwahl bereits
+                # gelaufen, hier ist die letzte Stelle, an der ein Flag den
+                # Kauf noch verhindern kann. Zwischen Verschmelzung und
+                # Durchsetzung darf nichts stehen, das werfen koennte.
+                _raus = [
+                    _sym for _sig, _sym in candidates
+                    if (_news_flags.get(_sym) or {}).get("flag") == "AVOID"
+                ]
+                if _raus:
+                    candidates = [
+                        (_sig, _sym) for _sig, _sym in candidates if _sym not in _raus
+                    ]
+                    _skip["news_avoid"].extend(_raus)
+
                 if _neu:
                     logger.info(
                         "SignalWorker: News-Pull ergab %d Flag(s) fuer %d "
-                        "Kandidaten: %s", len(_neu), len(_entries),
+                        "Kandidaten (%d verworfen): %s",
+                        len(_neu), len(_entries), len(_raus),
                         ", ".join(f"{k}={v['flag']}" for k, v in _neu.items()),
                     )
                 else:
@@ -1577,23 +1593,6 @@ def main() -> None:
                 if _abgebrochen:
                     logger.warning("SignalWorker: News-Pull lief ins Zeitbudget "
                                    "(%.0fs) — Teilergebnis", _budget)
-
-                # AVOID greift hier eigenstaendig: das Pool-Gate weiter oben
-                # ist zum Zeitpunkt der Kandidatenwahl bereits gelaufen.
-                _vorher_n = len(candidates)
-                candidates = [
-                    (_sig, _sym) for _sig, _sym in candidates
-                    if (_news_flags.get(_sym) or {}).get("flag") != "AVOID"
-                ]
-                if len(candidates) < _vorher_n:
-                    _raus = _vorher_n - len(candidates)
-                    logger.info(
-                        "SignalWorker: %d Kandidat(en) durch News-Pull AVOID "
-                        "verworfen", _raus,
-                    )
-                    _skip["news_avoid"].extend(
-                        _s for _s in _neu if _neu[_s]["flag"] == "AVOID"
-                    )
             except Exception as _np_exc:
                 logger.warning("SignalWorker: News-Pull uebersprungen (%s) — "
                                "Kandidaten laufen unveraendert", _np_exc)
