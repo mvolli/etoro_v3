@@ -6,7 +6,15 @@ der teuerste blinde Fleck dieses Bots — ein Termin ist ein Gap-Risiko, gegen
 das der Software-Trailing-Stop (eToro hat keinen SL-Update-Endpoint) nicht
 schuetzt.
 
-Der Cap begrenzt jetzt nur noch den KANDIDATEN-Schwanz.
+Der Cap begrenzt nur noch den KANDIDATEN-Schwanz.
+
+fix/news-candidate-floor (2026-09-12): dieselbe Formel liess die Kandidaten
+verhungern — `budget = max(cap, n_held)` ergibt bei 51 Positionen und cap=20
+ein Budget von 51, und `rest[:51-51]` ist leer. Gemessen am 12.09.:
+Positionen 51/51, Kandidaten 0/8. Das war eine Umkehrung, denn die Flags
+wirken fast nur auf Kandidaten (AVOID = Signal ueberspringen, CAUTION =
+halbe Groesse — beides VOR dem Kauf). Kandidaten haben jetzt eine eigene,
+vom Depotstand unabhaengige Quote in Hoehe des Caps.
 """
 from __future__ import annotations
 
@@ -28,9 +36,14 @@ def test_alle_gehaltenen_positionen_werden_geprueft():
 
 
 def test_kandidaten_werden_gedeckelt():
+    """Der Cap deckelt den Kandidaten-Schwanz — unabhaengig vom Depotstand.
+
+    Frueher: 5 Positionen zogen 5 vom Budget 20 ab, es blieben 15 Kandidaten.
+    Jetzt bekommen Kandidaten die vollen 20; Positionen kosten sie nichts.
+    """
     out = _capped(_syms(5, 100), cap=20)
-    assert len(out) == 20
-    assert sum(1 for s in out if not s["held"]) == 15
+    assert sum(1 for s in out if not s["held"]) == 20
+    assert len(out) == 25
 
 
 def test_positionen_stehen_vorn():
@@ -43,11 +56,22 @@ def test_ohne_positionen_gilt_der_cap_normal():
     assert len(out) == 12
 
 
-def test_positionen_ueber_cap_verdraengen_kandidaten_ganz():
-    """Budget = max(cap, n_held) — Kandidaten bekommen dann nichts."""
-    out = _capped(_syms(30, 20), cap=12)
-    assert len(out) == 30
-    assert all(s["held"] for s in out)
+def test_volles_depot_verdraengt_die_kandidaten_nicht_mehr():
+    """Der eigentliche Fehler: ein volles Depot nahm den Kandidaten alles.
+
+    Live-Fall vom 12.09.2026 — 51 gehaltene Positionen, 8 FRESH-Kandidaten,
+    NEWS_SYMBOL_CAP=20: geprueft wurden 51 Positionen und NULL Kandidaten.
+    Genau die Symbole, bei denen ein Flag noch einen Kauf verhindern kann,
+    waren ungeprueft.
+    """
+    out = _capped(_syms(51, 8), cap=20)
+    assert sum(1 for s in out if s["held"]) == 51
+    assert sum(1 for s in out if not s["held"]) == 8
+
+    # und der Deckel greift weiterhin, wenn wirklich viele Kandidaten warten
+    viele = _capped(_syms(30, 100), cap=12)
+    assert sum(1 for s in viele if s["held"]) == 30
+    assert sum(1 for s in viele if not s["held"]) == 12
 
 
 def test_leere_liste():

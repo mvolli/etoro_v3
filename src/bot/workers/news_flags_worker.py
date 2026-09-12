@@ -72,20 +72,31 @@ def _load_env() -> None:
 
 
 def _capped(symbols: list[dict], cap: int) -> list[dict]:
-    """Alle GEHALTENEN Positionen + Kandidaten bis zum Budget.
+    """Alle GEHALTENEN Positionen + garantierte Kandidaten-Quote.
 
     fix/news-coverage (2026-08-12): vorher schnitt `symbols[:CAP]` hart ab.
     Bei 54 Live-Symbolen gegen EARNINGS_SYMBOL_CAP=12 blieben 42 offene
     Positionen ungeprueft — und Earnings sind der teuerste blinde Fleck, den
     dieser Bot haben kann: ein Termin ist ein Gap-Risiko, gegen das der
     Software-Trailing-Stop (eToro hat keinen SL-Update-Endpoint) nicht
-    schuetzt. Der Cap begrenzt jetzt nur noch den KANDIDATEN-Schwanz; was
-    im Depot liegt, wird immer geprueft.
+    schuetzt. Was im Depot liegt, wird seither immer geprueft.
+
+    fix/news-candidate-floor (2026-09-12): dieselbe Zeile liess die
+    Kandidaten verhungern. `budget = max(cap, len(held))` ergibt bei 51
+    gehaltenen Positionen und cap=20 ein Budget von 51 — und
+    `rest[:51-51]` ist LEER. Gemessen am 12.09.: Positionen 51/51 geprueft,
+    Kandidaten 0/8.
+
+    Das ist eine Umkehrung, denn die Flags wirken fast nur auf Kandidaten:
+    im signal_worker heisst AVOID "Signal ueberspringen" und CAUTION "halbe
+    Groesse" — beides Entscheidungen VOR dem Kauf. Die Menge mit voller
+    Abdeckung konnte die Flags kaum nutzen, die Menge, die sie braucht,
+    bekam keine. Kandidaten haben jetzt eine eigene, vom Depotstand
+    unabhaengige Quote in Hoehe des Caps.
     """
     held = [s for s in symbols if s.get("held")]
     rest = [s for s in symbols if not s.get("held")]
-    budget = max(int(cap), len(held))
-    return held + rest[: max(0, budget - len(held))]
+    return held + rest[: max(0, int(cap))]
 
 
 def _gather_symbols(db) -> list[dict]:
