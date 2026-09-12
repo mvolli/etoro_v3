@@ -161,34 +161,45 @@ def _fetch_news(symbols: list[dict]) -> dict[str, list[str]]:
     return out
 
 
-def _fetch_earnings_flags(symbols: list[dict]) -> dict[str, dict]:
-    """Regelbasiert: Earnings-Termin binnen EARNINGS_AVOID_DAYS → AVOID."""
+def _earnings_flag_for(yf_symbol: str) -> dict | None:
+    """Ein Symbol: Earnings-Termin binnen EARNINGS_AVOID_DAYS → AVOID.
+
+    Herausgezogen (feat/signal-news-pull 2026-09-12), damit der stuendliche
+    Worker und der synchrone Pull im signal_worker dieselbe Regel teilen.
+    """
     import yfinance as yf
-    flags: dict[str, dict] = {}
     today = datetime.now(timezone.utc).date()
     horizon = today + timedelta(days=EARNINGS_AVOID_DAYS)
+    try:
+        cal = yf.Ticker(yf_symbol).calendar
+        dates = []
+        if isinstance(cal, dict):
+            dates = cal.get("Earnings Date") or []
+        elif cal is not None and hasattr(cal, "loc"):  # Legacy-DataFrame
+            try:
+                dates = list(cal.loc["Earnings Date"])
+            except Exception:
+                dates = []
+        for d in dates:
+            d_date = d.date() if hasattr(d, "date") else d
+            if today <= d_date <= horizon:
+                return {
+                    "flag": "AVOID", "severity": "HIGH",
+                    "reason": f"Earnings am {d_date.isoformat()}",
+                    "source": "earnings_calendar",
+                }
+    except Exception:
+        pass
+    return None
+
+
+def _fetch_earnings_flags(symbols: list[dict]) -> dict[str, dict]:
+    """Regelbasiert: Earnings-Termin binnen EARNINGS_AVOID_DAYS → AVOID."""
+    flags: dict[str, dict] = {}
     for entry in _capped(symbols, EARNINGS_SYMBOL_CAP):
-        try:
-            cal = yf.Ticker(entry["yf"]).calendar
-            dates = []
-            if isinstance(cal, dict):
-                dates = cal.get("Earnings Date") or []
-            elif cal is not None and hasattr(cal, "loc"):  # Legacy-DataFrame
-                try:
-                    dates = list(cal.loc["Earnings Date"])
-                except Exception:
-                    dates = []
-            for d in dates:
-                d_date = d.date() if hasattr(d, "date") else d
-                if today <= d_date <= horizon:
-                    flags[entry["symbol"]] = {
-                        "flag": "AVOID", "severity": "HIGH",
-                        "reason": f"Earnings am {d_date.isoformat()}",
-                        "source": "earnings_calendar",
-                    }
-                    break
-        except Exception:
-            pass
+        flag = _earnings_flag_for(entry["yf"])
+        if flag:
+            flags[entry["symbol"]] = flag
     return flags
 
 
@@ -218,19 +229,22 @@ def _fetch_analyst_flags(symbols: list[dict]) -> dict[str, dict]:
     yfinance analyst_price_targets liefert {'current', 'mean', ...} in einem
     Call — kein separater Preis-Fetch noetig. Fail-open pro Symbol.
     """
-    import yfinance as yf
     flags: dict[str, dict] = {}
     for entry in _capped(symbols, ANALYST_SYMBOL_CAP):
-        try:
-            targets = yf.Ticker(entry["yf"]).analyst_price_targets or {}
-            flag = _evaluate_analyst_target(
-                targets.get("current"), targets.get("mean")
-            )
-            if flag:
-                flags[entry["symbol"]] = flag
-        except Exception:
-            pass
+        flag = _analyst_flag_for(entry["yf"])
+        if flag:
+            flags[entry["symbol"]] = flag
     return flags
+
+
+def _analyst_flag_for(yf_symbol: str) -> dict | None:
+    """Ein Symbol: Preis vs. Konsens-Kursziel. Fail-open auf None."""
+    import yfinance as yf
+    try:
+        targets = yf.Ticker(yf_symbol).analyst_price_targets or {}
+        return _evaluate_analyst_target(targets.get("current"), targets.get("mean"))
+    except Exception:
+        return None
 
 
 def _parse_llm_flags(result: dict | None) -> dict[str, dict]:
@@ -380,3 +394,94 @@ Antworte NUR mit JSON:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+# ── feat/signal-news-pull (2026-09-12) ───────────────────────────────────────
+# Gemessen: 93,4 % der 211 Epochen-Trades liefen auf Signalen, die NACH dem
+# letzten stuendlichen News-Lauf geboren wurden. Der Abstand von Signalgeburt
+# zu Freigabe betraegt im Schnitt 3,0 Minuten — Signal und Kauf fallen in
+# denselben 15-Minuten-Zyklus. Der stuendliche Worker kann ein Symbol vor
+# seinem ersten Kauf strukturell nicht sehen; die Kandidatenquote aus
+# fix/news-candidate-floor hilft nur den 6,6 %, die eine Stunde ueberleben.
+#
+# Deshalb ein synchroner Pull direkt im signal_worker, fuer die <= 5
+# Kandidaten eines Zyklus. Bewusst NUR die regelbasierten Kriterien
+# (Earnings-Termin, Analysten-Kursziel): sie sind deterministisch und
+# brauchen keinen LLM-Round-Trip. Die Headline-Bewertung bleibt beim
+# stuendlichen Worker.
+
+FLAG_RANG = {"AVOID": 2, "CAUTION": 1}
+
+
+def staerkeres_flag(alt: dict | None, neu: dict | None) -> dict | None:
+    """Verschmelzung: nur verschaerfen, nie abschwaechen.
+
+    Ein frisches Flag aus dem stuendlichen Lauf darf durch einen
+    fehlgeschlagenen oder leeren Pull nicht verlorengehen — und umgekehrt.
+    Bei Gleichstand gewinnt das bestehende (der stuendliche Lauf kennt
+    zusaetzlich die Headline-Bewertung).
+    """
+    if not neu:
+        return alt
+    if not alt:
+        return neu
+    return neu if FLAG_RANG.get(neu.get("flag"), 0) > FLAG_RANG.get(alt.get("flag"), 0) else alt
+
+
+def pull_regel_flags(
+    entries: list[dict],
+    budget_s: float = 45.0,
+    _earnings=None,
+    _analyst=None,
+) -> tuple[dict[str, dict], bool]:
+    """Synchroner, regelbasierter Flag-Pull fuer wenige Symbole.
+
+    `entries`: [{"symbol": ..., "yf": ...}, ...] — der Aufrufer waehlt aus,
+    hier wird NICHT zusaetzlich gedeckelt.
+
+    `budget_s` ist ein harter Wall-Clock-Deckel ueber den GESAMTEN Pull,
+    geprueft zwischen den Symbolen. Ein try/except je Symbol begrenzt die
+    Gesamtlatenz nicht — eine haengende yfinance-Verbindung sitzt 30 s, und
+    der signal_worker hat bis zum Execution-Slot nur 180 s (davon ~40 s
+    bereits verbraucht).
+
+    Rueckgabe: ({symbol: flag}, abgebrochen). `abgebrochen` sagt, ob das
+    Budget gerissen wurde — der Aufrufer soll das protokollieren koennen,
+    damit ein stiller Teil-Pull sichtbar bleibt.
+    """
+    earnings_fn = _earnings or _earnings_flag_for
+    analyst_fn = _analyst or _analyst_flag_for
+    flags: dict[str, dict] = {}
+    if not entries:
+        return flags, False
+
+    ende = time.monotonic() + max(0.0, float(budget_s))
+    for entry in entries:
+        if time.monotonic() >= ende:
+            logger.warning(
+                "[%s] News-Pull: Zeitbudget %.0fs erschoepft — %d von %d "
+                "Symbolen geprueft", WORKER_NAME, budget_s,
+                len(flags), len(entries),
+            )
+            return flags, True
+        yf_sym = entry.get("yf") or entry.get("symbol")
+        sym = entry.get("symbol")
+        if not yf_sym or not sym:
+            continue
+        try:
+            treffer = earnings_fn(yf_sym)
+            # Earnings ist AVOID und damit das staerkste Flag — der zweite,
+            # teurere Call entfaellt dann.
+            if treffer is None and time.monotonic() < ende:
+                treffer = analyst_fn(yf_sym)
+        except Exception as exc:
+            # Je Symbol abfangen, nicht nur um den ganzen Pull herum: sonst
+            # reisst ein einziges kaputtes Instrument die Flags aller
+            # uebrigen Kandidaten mit — und die waeren dann ungeprueft
+            # gekauft worden.
+            logger.debug("[%s] News-Pull: %s uebersprungen — %s",
+                         WORKER_NAME, yf_sym, exc)
+            continue
+        if treffer:
+            flags[sym] = treffer
+    return flags, False

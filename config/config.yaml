@@ -48,6 +48,21 @@ trading:
   # ausschliesslich mit HIGH/VERY_HIGH befuellt werden.
   candidate_slots: 5
 
+  # feat/signal-news-pull (2026-09-12): synchroner, regelbasierter News-Check
+  # fuer die Kandidaten eines Zyklus, direkt vor der Kaufentscheidung.
+  # Grund: 93,4 % der 211 Epochen-Trades liefen auf Signalen, die NACH dem
+  # letzten stuendlichen news_flags_worker-Lauf geboren wurden (Ø 3,0 min von
+  # Signalgeburt zu Freigabe). Der stuendliche Worker kann ein Symbol vor
+  # seinem ERSTEN Kauf strukturell nicht sehen.
+  # Nur Earnings-Termin + Analysten-Kursziel — deterministisch, kein LLM auf
+  # dem Geld-Pfad. Wirkt asymmetrisch wie alle Flags: AVOID = Kandidat raus,
+  # CAUTION = halbe Groesse, nie eine Vergroesserung.
+  signal_news_pull: true
+  # Harter Wall-Clock-Deckel ueber den GESAMTEN Pull. Ab :03 bleiben bis zum
+  # Execution-Slot (:06) rund 180 s, wovon der Worker heute ~40 s braucht.
+  # Bei Ueberschreitung: Teilergebnis + Warnung, nie ein verpasster Slot.
+  signal_news_pull_budget_s: 45.0
+
   # feat/rebuy-cooldown (2026-08-24): Nachkauf desselben Instruments erst nach
   # N Stunden. Ausloeser: LEG.DE, IBE.MC, MAU.PA (3x!) und 6753.T wurden
   # mehrfach gekauft, immer exakt einen 15-Minuten-Zyklus auseinander. Die

@@ -1537,6 +1537,67 @@ def main() -> None:
         except Exception:
             pass
     
+        # ── feat/signal-news-pull (2026-09-12) ───────────────────────────────
+        # Gemessen: 93,4 % der 211 Epochen-Trades liefen auf Signalen, die NACH
+        # dem letzten stuendlichen News-Lauf geboren wurden (Ø 3,0 min von
+        # Signalgeburt zu Freigabe — Signal und Kauf im selben Zyklus). Der
+        # stuendliche news_flags_worker kann ein Symbol vor seinem ERSTEN Kauf
+        # strukturell nicht sehen. Hier stehen die <= 5 Kandidaten fest, also
+        # wird genau fuer sie synchron nachgezogen.
+        #
+        # Nur die regelbasierten Kriterien (Earnings-Termin, Analysten-
+        # Kursziel) — deterministisch, kein LLM-Round-Trip auf dem Geld-Pfad.
+        # Hartes Wall-Clock-Budget: bis zum Execution-Slot (:06) bleiben ab
+        # :03 rund 180 s, wovon der Worker heute ~40 s braucht.
+        # Fail-open in jeder Richtung: Fehler oder Zeitueberschreitung
+        # bedeuten "keine zusaetzlichen Flags", nie "kauf trotzdem".
+        if candidates and bool(cfg.get("trading", {}).get("signal_news_pull", True)):
+            try:
+                from bot.workers.news_flags_worker import (
+                    pull_regel_flags, staerkeres_flag,
+                )
+                _budget = float(cfg.get("trading", {}).get("signal_news_pull_budget_s", 45.0))
+                _entries = []
+                for _sig, _sym in candidates:
+                    _yf, _ = _resolve_market_fields(_sig.get("instrument_id"))
+                    _entries.append({"symbol": _sym, "yf": _yf or _sym})
+                _neu, _abgebrochen = pull_regel_flags(_entries, budget_s=_budget)
+                for _sym, _flag in _neu.items():
+                    _vorher = _news_flags.get(_sym)
+                    _news_flags[_sym] = staerkeres_flag(_vorher, _flag)
+                if _neu:
+                    logger.info(
+                        "SignalWorker: News-Pull ergab %d Flag(s) fuer %d "
+                        "Kandidaten: %s", len(_neu), len(_entries),
+                        ", ".join(f"{k}={v['flag']}" for k, v in _neu.items()),
+                    )
+                else:
+                    logger.info("SignalWorker: News-Pull ohne Flag (%d Kandidaten)",
+                                len(_entries))
+                if _abgebrochen:
+                    logger.warning("SignalWorker: News-Pull lief ins Zeitbudget "
+                                   "(%.0fs) — Teilergebnis", _budget)
+
+                # AVOID greift hier eigenstaendig: das Pool-Gate weiter oben
+                # ist zum Zeitpunkt der Kandidatenwahl bereits gelaufen.
+                _vorher_n = len(candidates)
+                candidates = [
+                    (_sig, _sym) for _sig, _sym in candidates
+                    if (_news_flags.get(_sym) or {}).get("flag") != "AVOID"
+                ]
+                if len(candidates) < _vorher_n:
+                    _raus = _vorher_n - len(candidates)
+                    logger.info(
+                        "SignalWorker: %d Kandidat(en) durch News-Pull AVOID "
+                        "verworfen", _raus,
+                    )
+                    _skip["news_avoid"].extend(
+                        _s for _s in _neu if _neu[_s]["flag"] == "AVOID"
+                    )
+            except Exception as _np_exc:
+                logger.warning("SignalWorker: News-Pull uebersprungen (%s) — "
+                               "Kandidaten laufen unveraendert", _np_exc)
+
         evaluated_count = 0
         approved_count = 0
         approved_trades_info: list[dict] = []
