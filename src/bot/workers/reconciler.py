@@ -522,6 +522,11 @@ def _build_snapshot_record(pos: dict, instrument_map: dict[int, str], client: ET
         "stop_loss_rate":     _float(pos.get("stopLossRate")),
         "is_no_stop_loss":    1 if pos.get("isNoStopLoss") else 0,
         "last_synced":        _utcnow(),
+        # feat/broker-fee-capture: Rohfelder des Brokers mitschreiben.
+        # totalExternalFees ist ein SATZ in Prozent, kein Dollarbetrag —
+        # der Name legt anderes nahe, deshalb heisst die Spalte *_pct.
+        "broker_fee_pct":       _float(pos.get("totalExternalFees")),
+        "open_conversion_rate": _float(pos.get("openConversionRate")),
     }
 
     api_resolved_ids: set[int] = set()

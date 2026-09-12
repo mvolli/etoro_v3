@@ -592,8 +592,38 @@ class SignalRepo:
 class PortfolioRepo:
     """Repository for the `portfolio_snapshot` table."""
 
+    # feat/broker-fee-capture (2026-09-12): eToro liefert je Position
+    # `totalExternalFees` — kein Dollarbetrag, sondern ein SATZ in Prozent
+    # (gemessen 12.09.: 1.0 bei 42 Positionen, 2.0 bei 11 Fremdwaehrungs-
+    # werten, 0.66 Krypto, 0.25 bei einem). Der Bot hat das Feld nie
+    # erfasst; seine eigene Kostenschaetzung `_fill_cost` (halber Spread)
+    # buchte in der Epoche $6,10, waehrend $88,91 fehlten.
+    # Satz x Einsatz ergibt $87,07 gegen die gemessene Luecke von $88,91.
+    # Hier wird NUR das Rohfeld mitgeschrieben — es fliesst in keine
+    # Geldentscheidung ein, damit die naechste Messung direkt statt
+    # hergeleitet ist.
+    _EXTRA_COLS = (
+        ("broker_fee_pct", "REAL"),
+        ("open_conversion_rate", "REAL"),
+    )
+
     def __init__(self, db: DB) -> None:
         self.db = db
+        self._ensure_columns()
+
+    def _ensure_columns(self) -> None:
+        """Neue Spalten nachruesten — die Live-DB traegt das alte Schema."""
+        try:
+            have = {r[1] for r in self.db.fetchall("PRAGMA table_info(portfolio_snapshot)")}
+        except Exception:
+            return
+        for name, typ in self._EXTRA_COLS:
+            if name not in have:
+                try:
+                    self.db.execute(
+                        f"ALTER TABLE portfolio_snapshot ADD COLUMN {name} {typ}")
+                except Exception:
+                    pass
 
     def upsert(self, position: dict) -> None:
         """
@@ -614,6 +644,8 @@ class PortfolioRepo:
             "stop_loss_rate",
             "is_no_stop_loss",
             "last_synced",
+            "broker_fee_pct",
+            "open_conversion_rate",
         ]
         values = [position.get(c) for c in cols]
         # Ensure last_synced is always populated

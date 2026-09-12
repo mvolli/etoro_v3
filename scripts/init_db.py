@@ -94,7 +94,9 @@ TABLES: list[tuple[str, str]] = [
             unrealized_pnl_pct  REAL,
             stop_loss_rate      REAL,
             is_no_stop_loss     INTEGER DEFAULT 0,
-            last_synced         TEXT NOT NULL DEFAULT (datetime('now'))
+            last_synced         TEXT NOT NULL DEFAULT (datetime('now')),
+            broker_fee_pct      REAL,
+            open_conversion_rate REAL
         )
         """,
     ),
