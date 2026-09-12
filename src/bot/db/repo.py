@@ -179,12 +179,32 @@ class TradeRepo:
         `signal_price` stores the price from the signal at approval time
         (yfinance data) so execution doesn't need to fetch it again.
         """
+        # fix/created-at-doppelte-utc (2026-09-12): created_at wird hier
+        # EXPLIZIT gesetzt statt ueber den Spalten-Default. Der Default lautet
+        # `datetime('now','utc')` — und `datetime('now')` liefert in SQLite
+        # bereits UTC. Der 'utc'-Modifier rechnet ein ZWEITES Mal um und zieht
+        # den lokalen Offset ab: in Berliner Sommerzeit landet jeder Trade
+        # zwei Stunden in der Vergangenheit. Gemessen: approved_at minus
+        # created_at ist bei allen 224 Epochen-Trades exakt 120,0 Minuten —
+        # kein Verzug, ein Uhrversatz. (Gleiche Fehlerklasse wie der
+        # system_log-Fix, dort schon einmal behoben.)
+        #
+        # Folge: `classify_requeue` erlaubt einen Requeue nur innerhalb von
+        # REQUEUE_MAX_AGE_MIN = 60 Minuten. Ein frisch angelegter Trade las
+        # sich aber schon als 120 Minuten alt — die Bedingung 0 <= age <= 60
+        # war strukturell unerfuellbar. fix/failed-trade-requeue hat bei 294
+        # FAILED-Trades kein einziges Mal gefeuert.
+        #
+        # Der Spalten-Default bleibt vorerst stehen (ALTER COLUMN kennt SQLite
+        # nicht; ein Tabellen-Rebuild auf dem Live-System waere das groessere
+        # Risiko) — er greift nur noch, wenn jemand ohne created_at einfuegt.
         cur = self.db.execute(
             """
             INSERT INTO trades
-                (instrument_id, symbol, direction, amount_usd, stop_loss_pct, signal_id, signal_price, status)
+                (instrument_id, symbol, direction, amount_usd, stop_loss_pct,
+                 signal_id, signal_price, status, created_at)
             VALUES
-                (?, ?, ?, ?, ?, ?, ?, 'PENDING_APPROVAL')
+                (?, ?, ?, ?, ?, ?, ?, 'PENDING_APPROVAL', datetime('now'))
             """,
             (instrument_id, symbol, direction, amount_usd, stop_loss_pct, signal_id, signal_price),
         )
