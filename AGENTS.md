@@ -520,6 +520,15 @@ Metriken `consecutive_down_days`/`roc_5d_pct` kommen aus `compute_indicators()`.
   sichtbar fuer Scorecard/Kelly.
 - news_flags_worker flaggt zusaetzlich Analysten-Kursziele (Preis >5% ueber
   Konsens → CAUTION, >25% → AVOID, Quelle `analyst_target`).
+- News-Flags erreichen Kandidaten auf ZWEI Wegen (2026-09-12):
+  stuendlich (`news_flags_worker`, inkl. LLM-Headline-Bewertung) und
+  synchron im `signal_worker`, sobald die <=5 Kandidaten feststehen
+  (`feat/signal-news-pull`, nur regelbasiert: Earnings + Analysten-Kursziel).
+  Grund: 93,4 % der Trades laufen auf Signalen, die JUENGER sind als der
+  letzte stuendliche Lauf (Ø 3,0 min Signal→Freigabe) — der stuendliche
+  Worker sieht ein Symbol vor seinem ERSTEN Kauf strukturell nie.
+  Verschmelzung kann nur verschaerfen (AVOID > CAUTION > nichts).
+  Abschaltbar per `trading.signal_news_pull`.
 
 ### Datenanalyse-Kontrakt: 26.07.-Zaesur (Pflicht)
 
@@ -531,7 +540,14 @@ WR 10.9%, n=55) — seither existieren KEINE VERY_HIGH-Trades mehr.
 REGEL: Jede Auswertung von Handelsdaten (WR, Conviction-Verteilung,
 Sizing-Evidenz, Kelly/Score-Entscheidungen) MUSS per SQL auf
 `trades.created_at >= '2026-07-26'` filtern (Phase 'nachher') ODER die Phase
-explizit trennen. Pre-Fix-Zahlen duerfen NIE als Evidenz fuer aktuelles
+explizit trennen.
+
+ACHTUNG bei `created_at` (fix/created-at-doppelte-utc, 2026-09-12): Zeilen
+VOR diesem Datum liegen zwei Stunden in der Vergangenheit — der alte
+Spalten-Default `datetime('now','utc')` rechnete doppelt um (SQLites `now`
+IST bereits UTC). Fuer den Zaesur-Filter oben unerheblich, fuer jede
+Stunden-genaue Auswertung nicht. Wer Alter oder Latenzen misst, nimmt
+`approved_at`/`submitted_at` — die waren immer korrekt. Pre-Fix-Zahlen duerfen NIE als Evidenz fuer aktuelles
 Sizing/Conviction-Calibration zitiert werden; Vollverlauf nur mit klar
 gelabelter Phase (vorher→nachher WR: 19.1% → 34.4%).
 
@@ -540,12 +556,23 @@ anderem mit 'VERY_HIGH n=55 WR 10.9%' — PRE-Fix-Daten (Ziffern korrekt,
 Kontext irrefuehrend). Korrektur-Note in `data/llm_trading_memory.json`
 (strategy_notes, 2026-08-25).
 
-### Tote Tabelle: `ohlcv_daily`
+### `ohlcv_daily` — seit 2026-09-12 wieder befuellt
 
-Wird seit Pausierung des Legacy-Jobs `scripts/discovery_cron.py` (2026-07-03)
-von NIEMANDEM mehr geschrieben oder gelesen (Stand 2026-07-26, max date
-2026-07-01). Alle Live-Grader holen frische Daten direkt via yfinance.
-NICHT als aktuelle Datenquelle verwenden.
+War 73 Tage tot: der einzige Schreiber `bulk_ensure_ohlcv` haengt am
+Legacy-Job `scripts/discovery_cron.py`, dessen Cron ("eToro Discovery
+Pipeline", 33bd244c3e65) seit 2026-07-03 deaktiviert ist — reaktivieren
+verbietet die NIEMALS-Liste.
+
+feat/ohlcv-from-scan (2026-09-12): der AKTIVE "V3 Discovery Worker"
+(6fe7dae39284, alle 2h) laedt in `_batch_fetch` ohnehin drei Monate OHLCV
+fuer sein ganzes Scan-Universum und warf die Frames weg. `store_scan_frames`
+schreibt sie jetzt weg — kein zusaetzlicher Netzabruf, kein angefasster Cron.
+Erster Lauf: 17.230 -> 28.036 Zeilen, 299 -> 403 Instrumente, max date
+2026-07-01 -> 2026-09-12.
+
+Die Live-Grader holen ihre Kurse weiterhin direkt via yfinance; `ohlcv_daily`
+ist Analyse-Historie, nicht der Preis-Pfad. Alt-Zeilen vor 2026-09-12 haben
+eine 73-Tage-Luecke (Juli/August fehlen) — bei Zeitreihen pruefen.
 
 ---
 
