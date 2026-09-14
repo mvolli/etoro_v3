@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-09-06T20:30:27.534958+00:00",
-  "auto_expires_at": "2026-09-13T20:30:27.534967+00:00",
+  "updated_at": "2026-09-13T20:31:16.821206+00:00",
+  "auto_expires_at": "2026-09-20T20:31:16.821219+00:00",
   "exchanges": [
     ".L",
     ".OL",
@@ -11,32 +11,37 @@
   "symbols": [],
   "stats": {
     "_OTHER": {
-      "total": 68,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    ".L": {
-      "total": 7,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    ".MI": {
-      "total": 11,
+      "total": 286,
       "ghost": 0,
       "rate": 0.0
     },
     ".PA": {
-      "total": 12,
+      "total": 52,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    ".L": {
+      "total": 21,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    ".ST": {
+      "total": 14,
       "ghost": 0,
       "rate": 0.0
     },
     ".DE": {
-      "total": 9,
+      "total": 26,
       "ghost": 0,
       "rate": 0.0
     },
-    ".MC": {
-      "total": 8,
+    ".OL": {
+      "total": 3,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    ".MI": {
+      "total": 17,
       "ghost": 0,
       "rate": 0.0
     },
@@ -46,15 +51,20 @@
       "rate": 0.0
     },
     ".ASX": {
-      "total": 8,
+      "total": 19,
       "ghost": 0,
       "rate": 0.0
     },
-    ".ST": {
-      "total": 12,
+    ".HE": {
+      "total": 2,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    ".MC": {
+      "total": 4,
       "ghost": 0,
       "rate": 0.0
     }
   },
-  "reason": "Portfolio ist im CAUTION-Regime stabil. Keine strukturellen Ghost-Order-Probleme bei tradbaren Instrumenten. TREND_PULLBACK,GOLDEN_CROSS signalisiert Verluste trotz hoher Erfolgsquote, daher wird die Gewichtung gedämpft."
+  "reason": "Keine strukturellen Ghost-Order-Probleme festgestellt; alle Exchanges stabil. Die HIGH-Conviction-Stufe von TREND_PULLBACK,GOLDEN_CROSS performt deutlich schlechter als MEDIUM und wird gedämpft. CORE_SWEEP zeigt hohe Rejections, was auf strenge eToro-Eligibility-Checks hindeutet, aber die ausgeführten Trades sind erfolgreich."
 }

@@ -341,10 +341,15 @@ def main() -> int:
                 else:
                     _sc_lines.append(f"- {_st}: keine 30d-Historie — konservativ pruefen")
             _ms = _sc.get("macd_split", {})
-            if _ms.get("with") and _ms.get("without"):
+            # fix/scorecard-macd-split-scope (2026-09-14): Merksatz gilt
+            # NUR fuer die Dip-Buy-Familie (Scope-Label in der Datei).
+            # n=0-Seite ausblenden (sonst "WR 0.0%"-Muehlenflick).
+            if _ms.get("with", {}).get("n", 0) > 0 and _ms.get("without", {}).get("n", 0) > 0:
                 _sc_lines.append(
-                    f"- Merksatz: Kombos MIT MACD-Komponente WR {_ms['with']['win_rate_pct']}% "
-                    f"vs OHNE {_ms['without']['win_rate_pct']}% — Oversold ohne MACD-Wende ist ein Messer."
+                    f"- Merksatz (Dip-Buys NUR): MIT MACD-Wende WR {_ms['with']['win_rate_pct']}% "
+                    f"(n={_ms['with']['n']}) vs OHNE MACD-Wende WR {_ms['without']['win_rate_pct']}% "
+                    f"(n={_ms['without']['n']}) — Oversold ohne MACD-Wende ist ein Messer. "
+                    f"Gilt NICHT fuer trend-folgende Signale (TREND_PULLBACK, GOLDEN_CROSS)."
                 )
             if _sc_lines:
                 scorecard_block = "\n".join(_sc_lines)

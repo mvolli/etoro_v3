@@ -1,1123 +1,6 @@
 {
  "entries": [
   {
-   "ts": "2026-08-04T12:04:20.549891+00:00",
-   "trade_id": 1376,
-   "symbol": "TRMD-A.CO",
-   "yf_symbol": "TRMD-A.CO",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP hat schlechte WR (9.1%). Ohne MACD-Komponente ist das Risiko hoch. Position verkleinern.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-04T12:04:20.549891+00:00",
-   "trade_id": 1377,
-   "symbol": "OPC_13635",
-   "yf_symbol": "OXY",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP hat schlechte WR (9.1%). Ohne MACD-Komponente ist das Risiko hoch. Position verkleinern.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-04T12:34:23.318768+00:00",
-   "trade_id": 1378,
-   "symbol": "TLT",
-   "yf_symbol": "I2Y",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% bei n=11; Veto bei schlechter Performance ohne MACD-Wende.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-04T12:34:23.318768+00:00",
-   "trade_id": 1379,
-   "symbol": "TRMD-A.CO",
-   "yf_symbol": "TRMD-A.CO",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% bei n=11; Veto bei schlechter Performance ohne MACD-Wende.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-04T12:49:25.909791+00:00",
-   "trade_id": 1380,
-   "symbol": "TLT",
-   "yf_symbol": "I2Y",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP hat schlechte WR (9.1%). Ohne MACD-Komponente ist das Risiko hoch. Verringerung zur Risikokontrolle.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-04T12:49:25.909791+00:00",
-   "trade_id": 1381,
-   "symbol": "TRMD-A.CO",
-   "yf_symbol": "TRMD-A.CO",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP hat schlechte WR (9.1%). Ohne MACD-Komponente ist das Risiko hoch. Verringerung zur Risikokontrolle.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-04T13:04:28.777405+00:00",
-   "trade_id": 1380,
-   "symbol": "TLT",
-   "yf_symbol": "I2Y",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 9.1% sehr schlecht; Veto bei fehlendem MACD-Kombo.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-04T13:04:28.777405+00:00",
-   "trade_id": 1381,
-   "symbol": "TRMD-A.CO",
-   "yf_symbol": "TRMD-A.CO",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 9.1% sehr schlecht; Veto bei fehlendem MACD-Kombo.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-04T13:04:28.777405+00:00",
-   "trade_id": 1382,
-   "symbol": "OPC_13635",
-   "yf_symbol": "OXY",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 9.1% sehr schlecht; Veto bei fehlendem MACD-Kombo.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-04T13:04:28.777405+00:00",
-   "trade_id": 1383,
-   "symbol": "DIS.MI",
-   "yf_symbol": "DIS.MI",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 9.1% sehr schlecht; Veto bei fehlendem MACD-Kombo.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-04T13:19:31.309792+00:00",
-   "trade_id": 1380,
-   "symbol": "TLT",
-   "yf_symbol": "I2Y",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% ist kritisch niedrig; Veto bei fehlendem MACD-Wende-Signal.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-04T13:19:31.309792+00:00",
-   "trade_id": 1381,
-   "symbol": "TRMD-A.CO",
-   "yf_symbol": "TRMD-A.CO",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% ist kritisch niedrig; Veto bei fehlendem MACD-Wende-Signal.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-04T13:19:31.309792+00:00",
-   "trade_id": 1382,
-   "symbol": "OPC_13635",
-   "yf_symbol": "OXY",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 9.1% ist kritisch niedrig; Veto bei fehlendem MACD-Wende-Signal.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-04T13:19:31.309792+00:00",
-   "trade_id": 1383,
-   "symbol": "DIS.MI",
-   "yf_symbol": "DIS.MI",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 9.1% ist kritisch niedrig; Veto bei fehlendem MACD-Wende-Signal.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-04T13:34:32.417789+00:00",
-   "trade_id": 1382,
-   "symbol": "OPC_13635",
-   "yf_symbol": "OXY",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP hat schlechte WR (9.1%). Ohne MACD-Komponente hohes Risiko.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-04T13:34:32.417789+00:00",
-   "trade_id": 1383,
-   "symbol": "DIS.MI",
-   "yf_symbol": "DIS.MI",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP hat schlechte WR (9.1%). Ohne MACD-Komponente hohes Risiko.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-04T13:34:32.417789+00:00",
-   "trade_id": 1384,
-   "symbol": "TLT",
-   "yf_symbol": "I2Y",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP hat schlechte WR (9.1%). Ohne MACD-Komponente hohes Risiko.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-04T13:34:32.417789+00:00",
-   "trade_id": 1385,
-   "symbol": "TRMD-A.CO",
-   "yf_symbol": "TRMD-A.CO",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP hat schlechte WR (9.1%). Ohne MACD-Komponente hohes Risiko.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-04T13:49:31.834374+00:00",
-   "trade_id": 1386,
-   "symbol": "PG",
-   "yf_symbol": "PG",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP mit extrem schlechter WR (9.1%) und Score 0. RSI ~49 ist neutral, kein klarer Momentum-Shift. Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-04T14:04:34.549350+00:00",
-   "trade_id": 1387,
-   "symbol": "WMT",
-   "yf_symbol": "WMT",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP mit sehr schlechter WR (9.1%) und RSI ~41 (nicht klar oversold). Risiko-Management durch Positionsverkleinerung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T00:04:24.467543+00:00",
-   "trade_id": 1388,
-   "symbol": "MAIRE.MI",
-   "yf_symbol": "MAIRE.MI",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 9.1% bei n=11; ohne MACD-Komponente hohes Ausfallrisiko (Messer-Szenario).",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T00:19:25.562881+00:00",
-   "trade_id": 1388,
-   "symbol": "MAIRE.MI",
-   "yf_symbol": "MAIRE.MI",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% bei n=11; Score 0 und RSI unbekannt deuten auf fehlende MACD-Komponente/Upside hin.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T00:34:27.429678+00:00",
-   "trade_id": 1389,
-   "symbol": "MAIRE.MI",
-   "yf_symbol": "MAIRE.MI",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% (n=11) kritisch niedrig. Kein MACD-Komponente vorhanden, um das Risiko zu stützen.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T01:04:30.213993+00:00",
-   "trade_id": 1390,
-   "symbol": "MAIRE.MI",
-   "yf_symbol": "MAIRE.MI",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% bei n=11; Score 0 deutet auf fehlende MACD-Komponente hin, was laut Merksatz 'Oversold ohne MACD-Wende ist ein Messer' bedeutet.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T01:34:32.510274+00:00",
-   "trade_id": 1391,
-   "symbol": "MAIRE.MI",
-   "yf_symbol": "MAIRE.MI",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% bei n=11. RSI unbekannt, kein MACD-Komponente vorhanden (WR OHNE MACD nur 17.6%). Risiko zu hoch fuer mechanisches Gate.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T02:04:33.983760+00:00",
-   "trade_id": 1392,
-   "symbol": "MAIRE.MI",
-   "yf_symbol": "MAIRE.MI",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% bei n=11; Score 0 deutet auf fehlende MACD-Komponente hin -> 'Messer im freien Fall'.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T02:34:36.230147+00:00",
-   "trade_id": 1393,
-   "symbol": "6185.HK",
-   "yf_symbol": "6185.HK",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% bei n=11. Kein MACD-Komponente angegeben, daher hohes Risiko eines 'Messer-Falls' laut Merksatz.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T03:04:38.838335+00:00",
-   "trade_id": 1394,
-   "symbol": "6185.HK",
-   "yf_symbol": "6185.HK",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% bei n=11. Score 0 deutet auf fehlende MACD-Komponente hin (WR OHNE MACD: 17.6%). Im Zweifel: VETO bei schlechter Kombi-Performance.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T04:04:44.350687+00:00",
-   "trade_id": 1395,
-   "symbol": "6185.HK",
-   "yf_symbol": "6185.HK",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% bei n=11; Score 0 deutet auf fehlende MACD-Komponente hin (WR 17.6% OHNE MACD). Im Zweifel bei so schlechter historischer Performance veto.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T04:19:45.589030+00:00",
-   "trade_id": 1396,
-   "symbol": "6185.HK",
-   "yf_symbol": "6185.HK",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% bei n=11. Score 0 deutet auf fehlende MACD-Komponente hin (WR OHNE MACD: 17.6%). Im Zweifel bei schlechter Kombi-Performance vetoen.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T04:34:46.438863+00:00",
-   "trade_id": 1397,
-   "symbol": "6185.HK",
-   "yf_symbol": "6185.HK",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% bei n=11. Kein MACD-Komponente angegeben, daher hohes Risiko eines 'Messer'-Fehlsignals. Asymmetrisches Recht genutzt.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T04:49:47.249119+00:00",
-   "trade_id": 1398,
-   "symbol": "MAIRE.MI",
-   "yf_symbol": "MAIRE.MI",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% bei n=11; Score 0 deutet auf fehlende MACD-Komponente hin -> 'Messer im Oversold'.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T05:04:48.566457+00:00",
-   "trade_id": 1399,
-   "symbol": "6185.HK",
-   "yf_symbol": "6185.HK",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% bei n=11. Score 0 deutet auf fehlende MACD-Komponente hin; Oversold ohne MACD-Wende ist ein Messer.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T06:19:55.993916+00:00",
-   "trade_id": 1400,
-   "symbol": "6185.HK",
-   "yf_symbol": "6185.HK",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% bei n=11. Score 0 deutet auf fehlende MACD-Komponente hin; Oversold ohne MACD-Wende ist ein Messer.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T06:34:56.632297+00:00",
-   "trade_id": 1401,
-   "symbol": "6185.HK",
-   "yf_symbol": "6185.HK",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% bei n=11; Score 0 deutet auf fehlende MACD-Komponente hin -> 'Messer im Fall'.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T06:49:58.066249+00:00",
-   "trade_id": 1402,
-   "symbol": "6185.HK",
-   "yf_symbol": "6185.HK",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 9.1% bei n=11 ist statistisch schlecht; Reduktion zum Risikoschutz.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T07:05:02.662396+00:00",
-   "trade_id": 1403,
-   "symbol": "SIX2.DE",
-   "yf_symbol": "SIX2.DE",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP hat schlechte WR (9.1%). Ohne MACD-Komponente ist das Risiko hoch. Reduzierung zur Risikostreuung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T07:05:02.662396+00:00",
-   "trade_id": 1404,
-   "symbol": "MAIRE.MI",
-   "yf_symbol": "MAIRE.MI",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP hat schlechte WR (9.1%). Ohne MACD-Komponente ist das Risiko hoch. Reduzierung zur Risikostreuung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T07:20:00.966169+00:00",
-   "trade_id": 1405,
-   "symbol": "OXY",
-   "yf_symbol": "OXY",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP hat mit 9.1% WR eine extrem schlechte Trefferquote. Ohne MACD-Komponente (Score 0) liegt das Risiko hoch, da Oversold-Situationen ohne Trendwende-Konfirmation oft in Fal",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T07:35:01.790844+00:00",
-   "trade_id": 1406,
-   "symbol": "OXY",
-   "yf_symbol": "OXY",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP hat historisch nur 9.1% WR (n=11). Ohne MACD-Komponente ist das Signal laut Merksatz ein 'Messer'. Im Zweifel bei schlechter Kombi-Performance VETO.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T08:19:04.142870+00:00",
-   "trade_id": 1407,
-   "symbol": "OXY",
-   "yf_symbol": "OXY",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP hat extrem schlechte WR (9.1%). Ohne MACD-Komponente ist das Risiko hoch. Reduktion zur Risikostreuung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T08:34:06.091568+00:00",
-   "trade_id": 1407,
-   "symbol": "OXY",
-   "yf_symbol": "OXY",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP hat extrem schlechte WR (9.1%) und hohe SL-Rate. Im Zweifel verkleinern statt riskantes Full-Size.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T08:34:06.091568+00:00",
-   "trade_id": 1408,
-   "symbol": "SLP.L",
-   "yf_symbol": "SLP.L",
-   "decision": "REDUCE",
-   "reason": "Selbes Signal CORE_SWEEP mit schlechter Historie. RSI unbekannt, daher konservativ reduzieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T08:49:07.734329+00:00",
-   "trade_id": 1407,
-   "symbol": "OXY",
-   "yf_symbol": "OXY",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP hat extrem schlechte WR (9.1%) und hohe SL-Rate. Ohne MACD-Komponente ist das Risiko hoch. Position halbiert, um Drawdown zu begrenzen.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T08:49:07.734329+00:00",
-   "trade_id": 1409,
-   "symbol": "SLP.L",
-   "yf_symbol": "SLP.L",
-   "decision": "REDUCE",
-   "reason": "Selbes Signal CORE_SWEEP mit schlechter Historie. Da keine spezifischen News-Flags vorliegen, wird die Position verkleinert statt ganz vetoed, um das Risiko zu streuen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T09:19:08.634399+00:00",
-   "trade_id": 1410,
-   "symbol": "OXY",
-   "yf_symbol": "OXY",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP hat extrem schlechte WR (9.1%). Ohne MACD-Komponente ist das Risiko hoch. Reduktion zur Risikokontrolle.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T09:34:10.575785+00:00",
-   "trade_id": 1410,
-   "symbol": "OXY",
-   "yf_symbol": "OXY",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% bei n=11. Ohne MACD-Komponente (Score 0) ist das Risiko zu hoch (Messer-Szenario).",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T09:34:10.575785+00:00",
-   "trade_id": 1411,
-   "symbol": "SLP.L",
-   "yf_symbol": "SLP.L",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% bei n=11. Ohne MACD-Komponente (Score 0) ist das Risiko zu hoch (Messer-Szenario).",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T09:49:10.703846+00:00",
-   "trade_id": 1412,
-   "symbol": "OXY",
-   "yf_symbol": "OXY",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP hat extrem schlechte WR (9.1%). Ohne MACD-Komponente ist das Risiko hoch. Reduzierung zur Risikokontrolle.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T10:04:11.843504+00:00",
-   "trade_id": 1412,
-   "symbol": "OXY",
-   "yf_symbol": "OXY",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP hat historisch schlechtes WR (9.1%). Ohne MACD-Komponente ist das Risiko hoch. Im Zweifel reduziert statt verworfen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T10:19:14.001412+00:00",
-   "trade_id": 1412,
-   "symbol": "OXY",
-   "yf_symbol": "OXY",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% bei n=11. Ohne MACD-Komponente (Score 0) ist das Risiko zu hoch (Messer-Szenario).",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T10:19:14.001412+00:00",
-   "trade_id": 1413,
-   "symbol": "SLP.L",
-   "yf_symbol": "SLP.L",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% bei n=11. Ohne MACD-Komponente (Score 0) ist das Risiko zu hoch (Messer-Szenario).",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T10:34:14.221380+00:00",
-   "trade_id": 1414,
-   "symbol": "DEZ.DE",
-   "yf_symbol": "DEZ.DE",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP hat extrem schlechte WR (9.1%). Ohne MACD-Komponente ist das Risiko hoch. Reduzierung zur Risikostreuung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T10:49:15.147230+00:00",
-   "trade_id": 1415,
-   "symbol": "OXY",
-   "yf_symbol": "OXY",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP hat extrem schlechte Historie (WR 9.1%). Ohne MACD-Komponente ist das Risiko hoch. Reduzierung zur Risikokontrolle.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T11:04:16.045731+00:00",
-   "trade_id": 1415,
-   "symbol": "OXY",
-   "yf_symbol": "OXY",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% bei n=11. Score 0 deutet auf fehlende MACD-Komponente hin (WR OHNE MACD: 17.6%). Im Zweifel bei diesem schwachen Signal-Setup.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T12:19:20.493640+00:00",
-   "trade_id": 1416,
-   "symbol": "OXY",
-   "yf_symbol": "OXY",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP hat mit WR 9.1% eine extrem schlechte Trefferquote. Ohne MACD-Komponente (Score 0) liegt das Risiko bei einem 'fallenden Messer'.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T12:34:22.123396+00:00",
-   "trade_id": 1417,
-   "symbol": "GRE.MC",
-   "yf_symbol": "GRE.MC",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP hat mit WR 9.1% eine extrem schlechte Trefferquote. Ohne MACD-Komponente (Score 0) liegt das Risiko eines 'fallenden Messers' hoch. Asymmetrisches Recht genutzt.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T12:49:23.090821+00:00",
-   "trade_id": 1418,
-   "symbol": "GRE.MC",
-   "yf_symbol": "GRE.MC",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP hat extrem schlechte WR (9.1%) und viele SL-Kills. Ohne MACD-Komponente ist das Signal schwach. Risiko wird durch Reduzierung halbiert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T13:49:29.959693+00:00",
-   "trade_id": 1419,
-   "symbol": "HI_1512",
-   "yf_symbol": "HUM",
-   "decision": "VETO",
-   "reason": "Signal CORE_SWEEP hat WR 9.1% (schlecht). MACD-Kombo WR 14.3% liegt unter 25%-Schwelle. RSI ~40 ist nicht extrem oversold, Risiko hoch.",
-   "signal_price": 359.5400085449219,
-   "outcome": "MISSED_UPSIDE",
-   "outcome_delta_pct": 1.19
-  },
-  {
-   "ts": "2026-08-05T13:49:29.959693+00:00",
-   "trade_id": 1420,
-   "symbol": "OXY",
-   "yf_symbol": "OXY",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% (n=11). Letzter Veto bei HI_1512 (gleicher Trade) war erfolgreich. Kein spezifischer Grund fuer eine Abweichung von der Strategie.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T13:49:29.959693+00:00",
-   "trade_id": 1421,
-   "symbol": "SLP.L",
-   "yf_symbol": "SLP.L",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% (n=11). Gleicher schlechter Signal-Score wie bei 1420. Im Zweifel bei WR < 25% Veto, da kein konkreter Gegenbeweis vorliegt.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T14:04:30.110224+00:00",
-   "trade_id": 1422,
-   "symbol": "HI_1512",
-   "yf_symbol": "HUM",
-   "decision": "VETO",
-   "reason": "Signal CORE_SWEEP hat schlechte WR (9.1%). MACD-Kombo ist besser (38.9%), aber RSI ~41 ist nicht extrem oversold. Risiko minimieren.",
-   "signal_price": 360.3500061035156,
-   "outcome": "MISSED_UPSIDE",
-   "outcome_delta_pct": 7.03
-  },
-  {
-   "ts": "2026-08-05T14:04:30.110224+00:00",
-   "trade_id": 1423,
-   "symbol": "OXY",
-   "yf_symbol": "OXY",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP allein hat WR 9.1% (n=11). Ohne MACD-Wende-Komponente ist es ein 'Messer'. Asymmetrisches Risiko spricht gegen Entry.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T14:04:30.110224+00:00",
-   "trade_id": 1424,
-   "symbol": "SLP.L",
-   "yf_symbol": "SLP.L",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP allein hat WR 9.1%. Gleicher Grund wie bei OXY. Kein konkreter Grund für APPROVE vorhanden.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T14:19:30.754337+00:00",
-   "trade_id": 1425,
-   "symbol": "OXY",
-   "yf_symbol": "OXY",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP hat historisch schlechte WR (9.1%). Ohne MACD-Komponente ist das Risiko hoch.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T14:19:30.754337+00:00",
-   "trade_id": 1426,
-   "symbol": "SLP.L",
-   "yf_symbol": "SLP.L",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP hat historisch schlechte WR (9.1%). Ohne MACD-Komponente ist das Risiko hoch.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T14:34:31.297103+00:00",
-   "trade_id": 1427,
-   "symbol": "MDLZ",
-   "yf_symbol": "MDLZ",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% (n=11) unterkritisch; kein MACD-Kombo.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T14:34:31.297103+00:00",
-   "trade_id": 1428,
-   "symbol": "CWC.DE",
-   "yf_symbol": "CWC.DE",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% (n=11) unterkritisch; kein MACD-Kombo.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T14:49:33.210851+00:00",
-   "trade_id": 1430,
-   "symbol": "MDLZ",
-   "yf_symbol": "MDLZ",
-   "decision": "REDUCE",
-   "reason": "Signal CORE_SWEEP hat sehr schlechte WR (9.1%) und Score 0. Hohe Trefferquote an SL-Kills. Risiko wird reduziert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T14:49:33.210851+00:00",
-   "trade_id": 1431,
-   "symbol": "CWC.DE",
-   "yf_symbol": "CWC.DE",
-   "decision": "REDUCE",
-   "reason": "Signal CORE_SWEEP hat sehr schlechte WR (9.1%) und Score 0. Gleicher Grund wie bei MDLZ.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T15:04:33.076616+00:00",
-   "trade_id": 1432,
-   "symbol": "6198.HK",
-   "yf_symbol": "6198.HK",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP hat mit WR 9.1% eine extrem schlechte Trefferquote. Ohne MACD-Komponente (Score 0) liegt das Risiko bei einem 'Messer-Fall'.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T15:19:34.508185+00:00",
-   "trade_id": 1433,
-   "symbol": "6198.HK",
-   "yf_symbol": "6198.HK",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 9.1% bei n=11 ist statistisch schlecht. Ohne MACD-Komponente (Score 0) liegt die WR nur bei 17.6%. Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T15:34:35.840853+00:00",
-   "trade_id": 1433,
-   "symbol": "6198.HK",
-   "yf_symbol": "6198.HK",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% bei n=11; Score 0 deutet auf fehlende MACD-Komponente hin (WR OHNE MACD 17.6%).",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T18:34:52.846974+00:00",
-   "trade_id": 1435,
-   "symbol": "TTE.PA",
-   "yf_symbol": "TTE.PA",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP hat historisch nur 9.1% WR (n=11). Ohne MACD-Komponente ist das Risiko zu hoch (Messer-Falle).",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T18:49:51.063745+00:00",
-   "trade_id": 1436,
-   "symbol": "TTE.PA",
-   "yf_symbol": "TTE.PA",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% bei n=11. Kein MACD-Komponente vorhanden, daher hohes Risiko eines 'Messer-Falls'.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T19:05:15.836213+00:00",
-   "trade_id": 1437,
-   "symbol": "TTE.PA",
-   "yf_symbol": "TTE.PA",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP hat historisch schlechtes WR (9.1%) und Score 0. Kein MACD-Komponente vorhanden, um das Risiko zu decken.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T19:19:53.291398+00:00",
-   "trade_id": 1438,
-   "symbol": "LRE.L",
-   "yf_symbol": "LRE.L",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 9.1% bei n=11; ohne MACD-Komponente hohes Ausfallrisiko (Messer-Szenario).",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T19:34:55.544316+00:00",
-   "trade_id": 1438,
-   "symbol": "LRE.L",
-   "yf_symbol": "LRE.L",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 9.1% ist kritisch niedrig. Ohne MACD-Komponente (Score 0) hohes Risiko eines 'Messer-Falls'. Position halbiert, um SL-Kills zu minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T19:34:55.544316+00:00",
-   "trade_id": 1439,
-   "symbol": "TTE.PA",
-   "yf_symbol": "TTE.PA",
-   "decision": "REDUCE",
-   "reason": "Selbes Signal CORE_SWEEP mit WR 9.1% und Score 0. Asymmetrisches Recht genutzt, um Risiko zu verkleinern, da kein konkreter Grund fuer volle Groesse vorliegt.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T19:49:57.218021+00:00",
-   "trade_id": 1438,
-   "symbol": "LRE.L",
-   "yf_symbol": "LRE.L",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% sehr schlecht; ohne MACD-Komponente hohes Risiko.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T19:49:57.218021+00:00",
-   "trade_id": 1439,
-   "symbol": "TTE.PA",
-   "yf_symbol": "TTE.PA",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 9.1% sehr schlecht; ohne MACD-Komponente hohes Risiko.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T19:49:57.218021+00:00",
-   "trade_id": 1440,
-   "symbol": "6198.HK",
-   "yf_symbol": "6198.HK",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 9.1% sehr schlecht; ohne MACD-Komponente hohes Risiko.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T20:04:59.102185+00:00",
-   "trade_id": 1439,
-   "symbol": "TTE.PA",
-   "yf_symbol": "TTE.PA",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% bei MEDIUM Score. QQQ -0.9% ist feindlich fuer Sweep-Longs ohne MACD-Wende.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T20:04:59.102185+00:00",
-   "trade_id": 1440,
-   "symbol": "6198.HK",
-   "yf_symbol": "6198.HK",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 9.1% bei MEDIUM Score. QQQ -0.9% ist feindlich fuer Sweep-Longs ohne MACD-Wende.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T21:05:03.368630+00:00",
-   "trade_id": 1441,
-   "symbol": "TTE.PA",
-   "yf_symbol": "TTE.PA",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP hat historisch nur 7.1% WR bei 14 Trades. Ohne MACD-Komponente (Score 0) ist das Risiko zu hoch, besonders im aktuellen Marktumfeld.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T22:04:07.766338+00:00",
-   "trade_id": 1442,
-   "symbol": "TTE.PA",
-   "yf_symbol": "TTE.PA",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP hat extrem schlechte WR (7.1%) und viele SL-Kills. Ohne MACD-Komponente ist das Risiko hoch. Im Zweifel reduziert statt approved.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T22:19:08.364154+00:00",
-   "trade_id": 1442,
-   "symbol": "TTE.PA",
-   "yf_symbol": "TTE.PA",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP hat extrem schlechte Historie (WR 7.1%, viele SL-Kills). Ohne MACD-Komponente ist das Risiko hoch. Im Zweifel reduziert statt verworfen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T22:34:10.097941+00:00",
-   "trade_id": 1442,
-   "symbol": "TTE.PA",
-   "yf_symbol": "TTE.PA",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; VIX normal aber QQQ schwach, Risiko minimieren.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T22:34:10.097941+00:00",
-   "trade_id": 1443,
-   "symbol": "LRE.L",
-   "yf_symbol": "LRE.L",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; VIX normal aber QQQ schwach, Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T22:49:10.826356+00:00",
-   "trade_id": 1443,
-   "symbol": "LRE.L",
-   "yf_symbol": "LRE.L",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 7.1% extrem schlecht, RSI unbekannt, Risiko minimieren",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T22:49:10.826356+00:00",
-   "trade_id": 1444,
-   "symbol": "TTE.PA",
-   "yf_symbol": "TTE.PA",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 7.1% extrem schlecht, RSI unbekannt, Risiko minimieren",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T23:04:12.741202+00:00",
-   "trade_id": 1443,
-   "symbol": "LRE.L",
-   "yf_symbol": "LRE.L",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; VIX normal aber QQQ schwach, Risiko minimieren.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T23:04:12.741202+00:00",
-   "trade_id": 1444,
-   "symbol": "TTE.PA",
-   "yf_symbol": "TTE.PA",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; VIX normal aber QQQ schwach, Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T23:04:12.741202+00:00",
-   "trade_id": 1445,
-   "symbol": "6198.HK",
-   "yf_symbol": "6198.HK",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; VIX normal aber QQQ schwach, Risiko minimieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T23:19:14.968592+00:00",
-   "trade_id": 1444,
-   "symbol": "TTE.PA",
-   "yf_symbol": "TTE.PA",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 7.1% bei MEDIUM Score; VIX normal aber QQQ schwach, Risiko minimieren.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T23:19:14.968592+00:00",
-   "trade_id": 1445,
-   "symbol": "6198.HK",
-   "yf_symbol": "6198.HK",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 7.1% bei MEDIUM Score; HK-Markt unter Druck, Position verkleinern.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T23:19:14.968592+00:00",
-   "trade_id": 1446,
-   "symbol": "LRE.L",
-   "yf_symbol": "LRE.L",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 7.1% bei MEDIUM Score; LSE-Liquidität nutzen, Risiko halbieren.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T23:34:16.632070+00:00",
-   "trade_id": 1445,
-   "symbol": "6198.HK",
-   "yf_symbol": "6198.HK",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; RSI unbekannt, aber ohne MACD-Wende hohes Risiko.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T23:34:16.632070+00:00",
-   "trade_id": 1446,
-   "symbol": "LRE.L",
-   "yf_symbol": "LRE.L",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; RSI unbekannt, aber ohne MACD-Wende hohes Risiko.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T23:34:16.632070+00:00",
-   "trade_id": 1447,
-   "symbol": "TTE.PA",
-   "yf_symbol": "TTE.PA",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; RSI unbekannt, aber ohne MACD-Wende hohes Risiko.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-05T23:49:18.105855+00:00",
-   "trade_id": 1446,
-   "symbol": "LRE.L",
-   "yf_symbol": "LRE.L",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 7.1% bei MEDIUM Score. Historisch schlechte Performance, kein MACD-Kombo.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T23:49:18.105855+00:00",
-   "trade_id": 1447,
-   "symbol": "TTE.PA",
-   "yf_symbol": "TTE.PA",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 7.1% bei MEDIUM Score. Historisch schlechte Performance, kein MACD-Kombo.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-05T23:49:18.105855+00:00",
-   "trade_id": 1448,
-   "symbol": "6198.HK",
-   "yf_symbol": "6198.HK",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 7.1% bei MEDIUM Score. Historisch schlechte Performance, kein MACD-Kombo.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-06T00:04:17.942826+00:00",
-   "trade_id": 1449,
-   "symbol": "TTE.PA",
-   "yf_symbol": "TTE.PA",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 7.1% bei MEDIUM Signal ohne MACD-Komponente; Marktumfeld (QQQ -0.9%) feindlich fuer Mean-Reversion.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-06T00:19:18.889324+00:00",
-   "trade_id": 1450,
-   "symbol": "TTE.PA",
-   "yf_symbol": "TTE.PA",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 7.1% bei n=14 ist statistisch schlecht; Reduktion zur Risikominimierung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-06T00:34:19.743612+00:00",
-   "trade_id": 1450,
-   "symbol": "TTE.PA",
-   "yf_symbol": "TTE.PA",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP hat extrem schlechte Historie (WR 7.1%, viele SL-Kills). Ohne MACD-Komponente ist das Signal schwach. Risikoreduktion empfohlen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-06T00:49:21.194470+00:00",
-   "trade_id": 1450,
-   "symbol": "TTE.PA",
-   "yf_symbol": "TTE.PA",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP hat extrem schlechte WR (7.1%) und hohe Kill-Rate. Ohne MACD-Komponente ist das Signal laut Merksatz 'ein Messer'. Im Zweifel bei Kombos mit WR < 25% veten.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-06T01:04:21.717186+00:00",
-   "trade_id": 1451,
-   "symbol": "TTE.PA",
-   "yf_symbol": "TTE.PA",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 7.1% bei n=14. Kein MACD-Komponente angegeben, daher hohes Risiko eines 'Messer'-Fehlsignals.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-06T01:19:22.519315+00:00",
-   "trade_id": 1452,
-   "symbol": "TTE.PA",
-   "yf_symbol": "TTE.PA",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP hat extrem schlechte WR (7.1%) und viele SL-Kills. Ohne MACD-Komponente ist das Risiko hoch. Reduktion zur Risikominimierung.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-06T01:34:24.380477+00:00",
-   "trade_id": 1452,
-   "symbol": "TTE.PA",
-   "yf_symbol": "TTE.PA",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP hat extrem schlechte WR (7.1%) und viele SL-Kills. Ohne MACD-Komponente ist das Risiko hoch. Im Zweifel reduziert statt verworfen.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-06T01:49:25.900330+00:00",
-   "trade_id": 1452,
-   "symbol": "TTE.PA",
-   "yf_symbol": "TTE.PA",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; VIX normal aber QQQ schwach, Risiko minimieren.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-06T01:49:25.900330+00:00",
-   "trade_id": 1453,
-   "symbol": "LRE.L",
-   "yf_symbol": "LRE.L",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; Veto nur bei konkretem Grund, daher Reduce statt Veto.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-06T01:49:25.900330+00:00",
-   "trade_id": 1454,
-   "symbol": "6198.HK",
-   "yf_symbol": "6198.HK",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 7.1% extrem schlecht; Veto nur bei konkretem Grund, daher Reduce statt Veto.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-06T02:04:27.463633+00:00",
-   "trade_id": 1453,
-   "symbol": "LRE.L",
-   "yf_symbol": "LRE.L",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 7.1% extrem schlecht, kein MACD-Kombo, Veto gemaeß Merksatz.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
-   "ts": "2026-08-06T02:04:27.463633+00:00",
-   "trade_id": 1455,
-   "symbol": "TTE.PA",
-   "yf_symbol": "TTE.PA",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 7.1% schlecht, aber Markt stabil. Risiko halbiert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-06T02:04:27.463633+00:00",
-   "trade_id": 1456,
-   "symbol": "5201.T",
-   "yf_symbol": "5201.T",
-   "decision": "REDUCE",
-   "reason": "CORE_SWEEP WR 7.1% schlecht, aber Markt stabil. Risiko halbiert.",
-   "signal_price": null
-  },
-  {
-   "ts": "2026-08-06T02:19:27.266236+00:00",
-   "trade_id": 1455,
-   "symbol": "TTE.PA",
-   "yf_symbol": "TTE.PA",
-   "decision": "VETO",
-   "reason": "CORE_SWEEP WR 7.1% bei MEDIUM Score. Markt QQQ -0.9% feindlich. Kein MACD-Komponente-Flag genannt, daher hohes Ausfallrisiko.",
-   "signal_price": null,
-   "outcome": "NO_DATA"
-  },
-  {
    "ts": "2026-08-06T02:19:27.266236+00:00",
    "trade_id": 1457,
    "symbol": "LRE.L",
@@ -2676,7 +1559,9 @@
    "yf_symbol": "MS",
    "decision": "VETO",
    "reason": "Signal-Kombo hat negative Erwartungswert (-35$) und hohe SL-Rate; Position wird halbiert zur Risikominimierung.",
-   "signal_price": 216.97000122070312
+   "signal_price": 216.97000122070312,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.35
   },
   {
    "ts": "2026-09-07T00:34:39.764466+00:00",
@@ -2685,7 +1570,9 @@
    "yf_symbol": "CAR.AX",
    "decision": "VETO",
    "reason": "Signal-Kombo hat niedrige WR (35.7%) und viele SL-Kills; CAR.ASX bereits offen, Haeufung-Risiko.",
-   "signal_price": 25.8700008392334
+   "signal_price": 25.8700008392334,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.23
   },
   {
    "ts": "2026-09-07T04:34:57.147448+00:00",
@@ -2721,7 +1608,9 @@
    "yf_symbol": "VU.PA",
    "decision": "VETO",
    "reason": "Gleiche schwache Signal-Statistik (35.7% WR). RSI 42 ist nicht extrem oversold, was die 'Messer'-Risiko erhöht. Halbe Position.",
-   "signal_price": 123.19999694824219
+   "signal_price": 123.19999694824219,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -2.68
   },
   {
    "ts": "2026-09-07T09:49:21.689964+00:00",
@@ -2730,7 +1619,9 @@
    "yf_symbol": "VU.PA",
    "decision": "VETO",
    "reason": "Signal-Kombo hat nur 35.7% WR (n=56) und VU.PA ist bereits offen (-1.2%). Haeufung und statistische Schwaeche rechtfertigen Position-Reduktion statt Voll-Veto.",
-   "signal_price": 123.0
+   "signal_price": 123.0,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -2.52
   },
   {
    "ts": "2026-09-07T13:34:41.439155+00:00",
@@ -2748,7 +1639,9 @@
    "yf_symbol": "MS",
    "decision": "VETO",
    "reason": "Signal-Kombo (TREND_PULLBACK,GOLDEN_CROSS) hat negative Expectancy (-27$) und hohe SL-Rate; Position bereits offen (MS +0.2%), daher Haeufung/Risiko-Mitigation.",
-   "signal_price": 217.72000122070312
+   "signal_price": 217.72000122070312,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.31
   },
   {
    "ts": "2026-09-07T13:49:39.877785+00:00",
@@ -2766,7 +1659,9 @@
    "yf_symbol": "SPG",
    "decision": "VETO",
    "reason": "Signal-Kombo hat nur 35.7% WR (n=56) und 17 SL-Kills. MACD-Komponente senkt WR deutlich. Halbe Position als Vorsicht.",
-   "signal_price": 209.44000244140625
+   "signal_price": 209.44000244140625,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.03
   },
   {
    "ts": "2026-09-07T14:49:47.310822+00:00",
@@ -2784,7 +1679,9 @@
    "yf_symbol": "MS",
    "decision": "VETO",
    "reason": "Kombo WR 33.3% (n=33) nahe Schwelle, negative PnL-Historie.",
-   "signal_price": 217.72000122070312
+   "signal_price": 217.72000122070312,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.05
   },
   {
    "ts": "2026-09-07T15:04:47.973494+00:00",
@@ -2793,7 +1690,9 @@
    "yf_symbol": "TMUS",
    "decision": "VETO",
    "reason": "Kombo WR 33.3% (n=33) nahe Schwelle, negative PnL-Historie.",
-   "signal_price": 181.52000427246094
+   "signal_price": 181.52000427246094,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.25
   },
   {
    "ts": "2026-09-07T15:34:47.625261+00:00",
@@ -2802,7 +1701,9 @@
    "yf_symbol": "SPG",
    "decision": "VETO",
    "reason": "SPG bereits offen (-1.3%), Signal-Kombo hat niedrige WR (35.7%) und MACD-Komponente; Haeufung vermeiden.",
-   "signal_price": 209.44000244140625
+   "signal_price": 209.44000244140625,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.32
   },
   {
    "ts": "2026-09-07T15:49:50.111427+00:00",
@@ -2820,7 +1721,9 @@
    "yf_symbol": "MS",
    "decision": "VETO",
    "reason": "MS bereits offen (+0.2%), Signal-Kombo WR nur 33.3% mit 14 SL-Kills, negative P&L history.",
-   "signal_price": 217.72000122070312
+   "signal_price": 217.72000122070312,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.05
   },
   {
    "ts": "2026-09-07T16:04:50.229017+00:00",
@@ -2829,7 +1732,9 @@
    "yf_symbol": "SPG",
    "decision": "VETO",
    "reason": "Signal-Kombo hat nur 35.7% WR (n=56) und MACD-Komponenten sind historisch schwächer (37.7% vs 48.0%). Halbe Position zur Risikominimierung.",
-   "signal_price": 209.44000244140625
+   "signal_price": 209.44000244140625,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.0
   },
   {
    "ts": "2026-09-07T16:49:55.228380+00:00",
@@ -2847,7 +1752,9 @@
    "yf_symbol": "SPG",
    "decision": "VETO",
    "reason": "Signal-Kombo hat nur 35.7% WR und SPG ist bereits offen (-1.3%). Halbe Groesse zur Risikominimierung.",
-   "signal_price": 209.44000244140625
+   "signal_price": 209.44000244140625,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.0
   },
   {
    "ts": "2026-09-07T17:49:59.567565+00:00",
@@ -2865,7 +1772,1176 @@
    "yf_symbol": "SPG",
    "decision": "VETO",
    "reason": "Signal-Kombo hat nur 35.7% WR und 17 SL-Kills; RSI 31.7 zeigt 'Messer' (Oversold ohne MACD-Wende). Position halbiert.",
+   "signal_price": 209.44000244140625,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.0
+  },
+  {
+   "ts": "2026-09-07T19:34:07.301048+00:00",
+   "trade_id": 1999,
+   "symbol": "SPG",
+   "yf_symbol": "SPG",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat niedrige WR (35.7%) und MACD-Komponente senkt Erfolgswahrscheinlichkeit. Halbe Position als Vorsicht.",
    "signal_price": 209.44000244140625
+  },
+  {
+   "ts": "2026-09-07T19:49:08.273490+00:00",
+   "trade_id": 2000,
+   "symbol": "SPG",
+   "yf_symbol": "SPG",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat niedrige WR (35.7%) und MACD-Komponente senkt Erfolgswahrscheinlichkeit. Halbe Position als Vorsicht.",
+   "signal_price": 209.44000244140625
+  },
+  {
+   "ts": "2026-09-07T20:04:09.296133+00:00",
+   "trade_id": 2000,
+   "symbol": "SPG",
+   "yf_symbol": "SPG",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat niedrige WR (35.7%) und MACD-Komponente senkt Erfolgswahrscheinlichkeit. Halbe Position als Vorsicht.",
+   "signal_price": 209.44000244140625,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.0
+  },
+  {
+   "ts": "2026-09-08T00:04:35.058701+00:00",
+   "trade_id": 2001,
+   "symbol": "AIA.ASX",
+   "yf_symbol": "AIA.AX",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (31.2%) und MACD-Komponente (Messer-Risiko). Halbe Position als Kompromiss.",
+   "signal_price": 6.989999771118164,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -1.14
+  },
+  {
+   "ts": "2026-09-08T00:34:35.097329+00:00",
+   "trade_id": 2003,
+   "symbol": "2871.T",
+   "yf_symbol": "2871.T",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat niedrige WR (31.2%) und MACD-Komponente; Risiko-Messing. Halbe Position als Vorsicht.",
+   "signal_price": 2109.0
+  },
+  {
+   "ts": "2026-09-08T02:04:41.227860+00:00",
+   "trade_id": 2004,
+   "symbol": "3969.HK",
+   "yf_symbol": "3969.HK",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat niedrige WR (31.2%) und MACD-Komponente; Halve Size als Vorsicht.",
+   "signal_price": 3.1449999809265137
+  },
+  {
+   "ts": "2026-09-08T02:19:42.595970+00:00",
+   "trade_id": 2005,
+   "symbol": "5101.T",
+   "yf_symbol": "5101.T",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat niedrige WR (31.2%) und MACD-Komponente; Halve Size zur Risikominimierung.",
+   "signal_price": 7012.0,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -2.52
+  },
+  {
+   "ts": "2026-09-08T07:05:05.111437+00:00",
+   "trade_id": 2008,
+   "symbol": "DWNI.DE",
+   "yf_symbol": "DWNI.DE",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat niedrige WR (31.2%) und MACD-Komponente; Halve Size zur Risikominimierung.",
+   "signal_price": 17.260000228881836,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -2.67
+  },
+  {
+   "ts": "2026-09-08T07:19:05.666911+00:00",
+   "trade_id": 2009,
+   "symbol": "SAX.DE",
+   "yf_symbol": "SAX.DE",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat niedrige WR (31.2%) und MACD-Komponente; Risiko-Messing. Position halbiert.",
+   "signal_price": 37.47999954223633,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.11
+  },
+  {
+   "ts": "2026-09-08T07:34:06.910166+00:00",
+   "trade_id": 2010,
+   "symbol": "FRE.DE",
+   "yf_symbol": "FRE.DE",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat niedrige WR (31.2%) und MACD-Komponente; Halve Size zur Risikominimierung.",
+   "signal_price": 43.94499969482422
+  },
+  {
+   "ts": "2026-09-09T00:34:26.710337+00:00",
+   "trade_id": 2015,
+   "symbol": "AIA.ASX",
+   "yf_symbol": "AIA.AX",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat niedrige WR (27.5%) und MACD-Komponente senkt Erfolgswahrscheinlichkeit. Position wird halbiert zur Risikominimierung.",
+   "signal_price": 6.909999847412109
+  },
+  {
+   "ts": "2026-09-09T05:04:48.552635+00:00",
+   "trade_id": 2016,
+   "symbol": "9863.HK",
+   "yf_symbol": "9863.HK",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.5%) und MACD-Komponente senkt Win-Rate deutlich. Halbe Position als Vorsicht.",
+   "signal_price": 35.15999984741211,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.11
+  },
+  {
+   "ts": "2026-09-09T07:35:00.631087+00:00",
+   "trade_id": 2018,
+   "symbol": "TOWNS",
+   "yf_symbol": "TOWNS-USD",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.5%) und MACD-Komponente senkt Historie auf 31%. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
+   "signal_price": 0.002094099996611476,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -9.69
+  },
+  {
+   "ts": "2026-09-09T08:34:05.521917+00:00",
+   "trade_id": 2019,
+   "symbol": "TOWNS",
+   "yf_symbol": "TOWNS-USD",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.5%) und MACD-Komponente senkt Historie auf 31%. Halbe Groesse als Vorsicht.",
+   "signal_price": 0.002085499931126833,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -8.89
+  },
+  {
+   "ts": "2026-09-09T09:04:07.835618+00:00",
+   "trade_id": 2020,
+   "symbol": "ANIM.MI",
+   "yf_symbol": "ANIM.MI",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (27.5%) und MACD-Komponente senkt Historie auf 31%. Halbe Position als Vorsicht.",
+   "signal_price": 6.880000114440918
+  },
+  {
+   "ts": "2026-09-09T09:19:08.764665+00:00",
+   "trade_id": 2020,
+   "symbol": "ANIM.MI",
+   "yf_symbol": "ANIM.MI",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.5%) und MACD-Komponente senkt Historie auf 31%. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
+   "signal_price": 6.880000114440918,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.44
+  },
+  {
+   "ts": "2026-09-09T09:34:10.017249+00:00",
+   "trade_id": 2021,
+   "symbol": "TOWNS",
+   "yf_symbol": "TOWNS-USD",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.5%) und MACD-Komponente senkt Historie-WR. Halbe Groesse als Vorsicht.",
+   "signal_price": 0.0020836000330746174,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -9.69
+  },
+  {
+   "ts": "2026-09-09T10:34:18.878545+00:00",
+   "trade_id": 2023,
+   "symbol": "MEDCL.PA",
+   "yf_symbol": "MEDCL.PA",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.5%) und MACD-Komponente; Risiko-Messing. Halbe Position.",
+   "signal_price": 22.81999969482422,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -2.98
+  },
+  {
+   "ts": "2026-09-09T10:34:18.878545+00:00",
+   "trade_id": 2024,
+   "symbol": "EXA.PA",
+   "yf_symbol": "EXA.PA",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (27.5%) und MACD-Komponente; Risiko-Messing. Halbe Position.",
+   "signal_price": 124.0999984741211
+  },
+  {
+   "ts": "2026-09-09T10:34:18.878545+00:00",
+   "trade_id": 2025,
+   "symbol": "ACE.MI",
+   "yf_symbol": "ACE.MI",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (27.5%) und MACD-Komponente; Risiko-Messing. Halbe Position.",
+   "signal_price": 20.420000076293945
+  },
+  {
+   "ts": "2026-09-09T14:04:31.822548+00:00",
+   "trade_id": 2027,
+   "symbol": "MCD",
+   "yf_symbol": "MCD",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (27.5%) und MACD-Komponente senkt Historie-WR. Halbe Groesse zur Risikominimierung.",
+   "signal_price": 255.27960205078125
+  },
+  {
+   "ts": "2026-09-09T14:34:37.229917+00:00",
+   "trade_id": 2029,
+   "symbol": "ABT.US",
+   "yf_symbol": "ABT",
+   "decision": "VETO",
+   "reason": "Kombi WR 27.5% < 25% Grenze knapp verfehlt, hohe SL-Kill Rate, RSI 43 nicht extrem oversold.",
+   "signal_price": 106.44999694824219,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -2.9
+  },
+  {
+   "ts": "2026-09-09T14:34:37.229917+00:00",
+   "trade_id": 2030,
+   "symbol": "TEG.DE",
+   "yf_symbol": "TEG.DE",
+   "decision": "REDUCE",
+   "reason": "Kombi WR 27.5% < 25% Grenze knapp verfehlt, RSI 35 naehert sich Oversold, aber MACD-Komponente schwach.",
+   "signal_price": 12.15999984741211
+  },
+  {
+   "ts": "2026-09-09T16:34:43.749653+00:00",
+   "trade_id": 2031,
+   "symbol": "NLOP",
+   "yf_symbol": "NLOP",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (27.5%) und MACD-Komponente senkt Historie auf 31%. Markt leicht negativ. Halbe Position als Vorsicht.",
+   "signal_price": 11.069999694824219
+  },
+  {
+   "ts": "2026-09-10T05:49:58.163266+00:00",
+   "trade_id": 2032,
+   "symbol": "JIN.ASX",
+   "yf_symbol": "JIN.AX",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.6%) und MACD-Komponente senkt WR auf 31.2%. RSI 31 ist nicht extrem oversold. Halbe Position zur Risikominimierung.",
+   "signal_price": 6.489999771118164,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.62
+  },
+  {
+   "ts": "2026-09-10T06:20:00.669520+00:00",
+   "trade_id": 2033,
+   "symbol": "1585.HK",
+   "yf_symbol": "1585.HK",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat niedrige WR (27.6%) und MACD-Komponente; RSI 30.7 ist nicht extrem oversold. Halbe Position zur Risikominimierung.",
+   "signal_price": 8.6899995803833,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -1.5
+  },
+  {
+   "ts": "2026-09-10T11:34:27.069131+00:00",
+   "trade_id": 2034,
+   "symbol": "RHM.DE",
+   "yf_symbol": "RHM.DE",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat niedrige WR (27.6%) und MACD-Komponente; Halve Size als Vorsicht.",
+   "signal_price": 1019.7999877929688,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.06
+  },
+  {
+   "ts": "2026-09-10T13:34:36.685638+00:00",
+   "trade_id": 2035,
+   "symbol": "COST",
+   "yf_symbol": "COST",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (27.6%) und MACD-Komponente senkt WR auf 31.2%. Markt ist feindlich (QQQ -1.16%). Halbe Position als Kompromiss.",
+   "signal_price": 907.0
+  },
+  {
+   "ts": "2026-09-10T14:34:44.183360+00:00",
+   "trade_id": 2036,
+   "symbol": "COST",
+   "yf_symbol": "COST",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (27.6%) und MACD-Komponente senkt WR weiter. RSI 35 ist nicht tief genug for 'Oversold' safety. Halve size to mitigate risk.",
+   "signal_price": 904.5499877929688
+  },
+  {
+   "ts": "2026-09-10T14:34:44.183360+00:00",
+   "trade_id": 2037,
+   "symbol": "FME.DE",
+   "yf_symbol": "FME.DE",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (27.6%). RSI 30.9 is better, but MACD component remains a negative factor. Halve size.",
+   "signal_price": 38.5099983215332
+  },
+  {
+   "ts": "2026-09-10T14:34:44.183360+00:00",
+   "trade_id": 2038,
+   "symbol": "PLNW.PA",
+   "yf_symbol": "PLNW.PA",
+   "decision": "VETO",
+   "reason": "Signal-Kombo has WR < 25% (27.6%). RSI 45 is neutral, not oversold. MACD component is a negative factor. Halve size.",
+   "signal_price": 23.399999618530273,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.21
+  },
+  {
+   "ts": "2026-09-10T15:19:45.344868+00:00",
+   "trade_id": 2039,
+   "symbol": "RHM.DE",
+   "yf_symbol": "RHM.DE",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.6%) und MACD-Komponente senkt WR weiter. Markt negativ (SPY/QQQ down). Halbe Position als Vorsicht.",
+   "signal_price": 1022.4000244140625,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -3.34
+  },
+  {
+   "ts": "2026-09-10T16:19:49.884582+00:00",
+   "trade_id": 2040,
+   "symbol": "COST",
+   "yf_symbol": "COST",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (27.6%) und MACD-Komponente senkt Historie auf 31.2%. Markt ist negativ (SPY/QQQ down). Halbe Position als Vorsicht.",
+   "signal_price": 903.7100219726562
+  },
+  {
+   "ts": "2026-09-10T18:34:58.796088+00:00",
+   "trade_id": 2041,
+   "symbol": "DEO",
+   "yf_symbol": "DGE.L",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (27.6% ist knapp, aber MACD-Komponente drückt WR auf 31.2% vs 48.3% ohne). Markt ist schwach (SPY -0.64%, QQQ -0.99%). Halbe Position als Vorsicht.",
+   "signal_price": 1602.5
+  },
+  {
+   "ts": "2026-09-10T18:34:58.796088+00:00",
+   "trade_id": 2042,
+   "symbol": "CL",
+   "yf_symbol": "CL",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.6% is knapp, but MACD-Komponente drückt WR auf 31.2% vs 48.3% ohne). Markt ist schwach (SPY -0.64%, QQQ -0.99%). Halbe Position als Vorsicht.",
+   "signal_price": 88.10579681396484,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -1.48
+  },
+  {
+   "ts": "2026-09-10T19:34:56.761624+00:00",
+   "trade_id": 2043,
+   "symbol": "CL",
+   "yf_symbol": "CL",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.6%) und MACD-Komponente senkt WR auf 31.2%. Markt ist negativ (SPY -0.58%, QQQ -0.98%). Halbe Position zur Risikominimierung.",
+   "signal_price": 88.02999877929688,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -1.4
+  },
+  {
+   "ts": "2026-09-10T19:49:57.707557+00:00",
+   "trade_id": 2044,
+   "symbol": "GOOG",
+   "yf_symbol": "GOOG",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (27.6%) und MACD-Komponente senkt WR auf 31.2%. Markt ist negativ (SPY -0.57%, QQQ -1.0%). Halbe Position zur Risikominimierung.",
+   "signal_price": 330.8699035644531
+  },
+  {
+   "ts": "2026-09-11T02:20:11.227215+00:00",
+   "trade_id": 2087,
+   "symbol": "3401.T",
+   "yf_symbol": "3401.T",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (QQQ -1.06%). Halbe Position als Vorsicht.",
+   "signal_price": 1648.0,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.09
+  },
+  {
+   "ts": "2026-09-11T03:49:34.077134+00:00",
+   "trade_id": 2104,
+   "symbol": "4755.T",
+   "yf_symbol": "4755.T",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt Edge. Markt ist feindlich (QQQ -1.06%). Halbe Position als Kompromiss.",
+   "signal_price": 718.7000122070312,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.33
+  },
+  {
+   "ts": "2026-09-11T04:34:41.474762+00:00",
+   "trade_id": 2113,
+   "symbol": "4755.T",
+   "yf_symbol": "4755.T",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Position 4755.T ist bereits offen. Halbe Groesse zur Risikominimierung.",
+   "signal_price": 716.4000244140625,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.01
+  },
+  {
+   "ts": "2026-09-11T04:34:41.474762+00:00",
+   "trade_id": 2114,
+   "symbol": "7733.T",
+   "yf_symbol": "7733.T",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Halbe Groesse zur Risikominimierung.",
+   "signal_price": 1946.0
+  },
+  {
+   "ts": "2026-09-11T04:34:41.474762+00:00",
+   "trade_id": 2115,
+   "symbol": "9766.T",
+   "yf_symbol": "9766.T",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Halbe Groesse zur Risikominimierung.",
+   "signal_price": 20635.0,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.46
+  },
+  {
+   "ts": "2026-09-11T04:49:39.604491+00:00",
+   "trade_id": 2120,
+   "symbol": "JIN.ASX",
+   "yf_symbol": "JIN.AX",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (QQQ -1.06%). Halbe Position als Vorsicht.",
+   "signal_price": 6.510000228881836,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.61
+  },
+  {
+   "ts": "2026-09-11T07:04:53.333953+00:00",
+   "trade_id": 2147,
+   "symbol": "1585.HK",
+   "yf_symbol": "1585.HK",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und negative PnL; MACD-Komponente senkt WR signifikant. Halbe Position als Kompromiss.",
+   "signal_price": 8.600000381469727,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.47
+  },
+  {
+   "ts": "2026-09-11T07:19:55.329628+00:00",
+   "trade_id": 2152,
+   "symbol": "ELIS.PA",
+   "yf_symbol": "ELIS.PA",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. RSI 28.5 ist oversold, aber ohne MACD-Wende ist es ein Messer. Halbe Position als Kompromiss.",
+   "signal_price": 23.15999984741211
+  },
+  {
+   "ts": "2026-09-11T07:19:55.329628+00:00",
+   "trade_id": 2153,
+   "symbol": "EXA.PA",
+   "yf_symbol": "EXA.PA",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%). RSI 50.1 is neutral, not oversold, so the 'BB_LOW' context is weak. MACD component drags WR down. No concrete edge to approve.",
+   "signal_price": 124.0999984741211,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.08
+  },
+  {
+   "ts": "2026-09-11T08:19:58.694009+00:00",
+   "trade_id": 2158,
+   "symbol": "VU.PA",
+   "yf_symbol": "VU.PA",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (QQQ -1.06%). Halbe Position als Kompromiss.",
+   "signal_price": 118.0999984741211,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -1.44
+  },
+  {
+   "ts": "2026-09-11T08:34:59.288445+00:00",
+   "trade_id": 2163,
+   "symbol": "EXA.PA",
+   "yf_symbol": "EXA.PA",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (QQQ -1.06%). Halbe Position als Vorsicht.",
+   "signal_price": 124.0999984741211
+  },
+  {
+   "ts": "2026-09-11T09:20:08.203794+00:00",
+   "trade_id": 2171,
+   "symbol": "RHM.DE",
+   "yf_symbol": "RHM.DE",
+   "decision": "VETO",
+   "reason": "MACD-Kombo mit historisch schwacher WR (27%) und aktiver Position in PLNW.PA (Haufung/Risiko-Stacking). Reduzierung zur Absicherung.",
+   "signal_price": 1023.0,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -3.17
+  },
+  {
+   "ts": "2026-09-11T09:20:08.203794+00:00",
+   "trade_id": 2173,
+   "symbol": "PLNW.PA",
+   "yf_symbol": "PLNW.PA",
+   "decision": "VETO",
+   "reason": "Aktive Position in PLNW.PA vorhanden. Doppelte Exposure auf denselben Ticker erhöht das Risiko. Reduzierung empfohlen.",
+   "signal_price": 23.299999237060547,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.43
+  },
+  {
+   "ts": "2026-09-11T09:35:07.869922+00:00",
+   "trade_id": 2172,
+   "symbol": "AWE",
+   "yf_symbol": "AWE-USD",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt Edge. Markt schwach (QQQ -1.06%). Halbe Position als Kompromiss.",
+   "signal_price": 0.059209421277046204,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.22
+  },
+  {
+   "ts": "2026-09-11T09:35:07.869922+00:00",
+   "trade_id": 2174,
+   "symbol": "VU.PA",
+   "yf_symbol": "VU.PA",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt Edge. Markt schwach (QQQ -1.06%). Halbe Position als Kompromiss.",
+   "signal_price": 118.0999984741211,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 1.02
+  },
+  {
+   "ts": "2026-09-11T09:35:07.869922+00:00",
+   "trade_id": 2176,
+   "symbol": "MEDCL.PA",
+   "yf_symbol": "MEDCL.PA",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt Edge. Markt schwach (QQQ -1.06%). Halbe Position als Kompromiss.",
+   "signal_price": 21.940000534057617,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.82
+  },
+  {
+   "ts": "2026-09-11T10:19:09.991944+00:00",
+   "trade_id": 2181,
+   "symbol": "VU.PA",
+   "yf_symbol": "VU.PA",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (QQQ -1.06%). Halbe Position als Vorsicht.",
+   "signal_price": 117.5999984741211,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 1.45
+  },
+  {
+   "ts": "2026-09-11T10:34:14.419986+00:00",
+   "trade_id": 2182,
+   "symbol": "INVE-A.ST",
+   "yf_symbol": "INVE-A.ST",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (SPY -0.6%, QQQ -1.06%). Risiko minimieren.",
+   "signal_price": 399.70001220703125
+  },
+  {
+   "ts": "2026-09-11T10:34:14.419986+00:00",
+   "trade_id": 2183,
+   "symbol": "AWE",
+   "yf_symbol": "AWE-USD",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (SPY -0.6%, QQQ -1.06%). Risiko minimieren.",
+   "signal_price": 0.059027887880802155,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.06
+  },
+  {
+   "ts": "2026-09-11T10:34:14.419986+00:00",
+   "trade_id": 2184,
+   "symbol": "PLNW.PA",
+   "yf_symbol": "PLNW.PA",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (SPY -0.6%, QQQ -1.06%). Risiko minimieren.",
+   "signal_price": 23.25,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.65
+  },
+  {
+   "ts": "2026-09-11T10:49:13.311528+00:00",
+   "trade_id": 2189,
+   "symbol": "MEDCL.PA",
+   "yf_symbol": "MEDCL.PA",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. VIX 17.16 + QQQ -1.06% zeigt feindliches Umfeld fuer Longs. Bisherige Vetoes bei MEDCL.PA waren korrekt.",
+   "signal_price": 21.860000610351562,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.46
+  },
+  {
+   "ts": "2026-09-11T11:04:14.023624+00:00",
+   "trade_id": 2194,
+   "symbol": "JASMY",
+   "yf_symbol": "JASMY-USD",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (QQQ -1.06%). Halbe Position als Kompromiss.",
+   "signal_price": 0.003980000037699938,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 1.76
+  },
+  {
+   "ts": "2026-09-11T11:19:14.814299+00:00",
+   "trade_id": 2197,
+   "symbol": "VU.PA",
+   "yf_symbol": "VU.PA",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt Historie auf 30.4%. VIX normal, aber Marktumfeld negativ (QQQ -1.06%). Halbe Position als Kompromiss.",
+   "signal_price": 117.9000015258789,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 1.19
+  },
+  {
+   "ts": "2026-09-11T11:34:15.835235+00:00",
+   "trade_id": 2201,
+   "symbol": "PLNW.PA",
+   "yf_symbol": "PLNW.PA",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (QQQ -1.06%). Halbe Position als Vorsicht.",
+   "signal_price": 23.299999237060547,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.43
+  },
+  {
+   "ts": "2026-09-11T11:49:18.379505+00:00",
+   "trade_id": 2203,
+   "symbol": "MEDCL.PA",
+   "yf_symbol": "MEDCL.PA",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. VIX normal, aber statistisch schwaches Setup. Halbe Position als Kompromiss.",
+   "signal_price": 21.920000076293945,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.73
+  },
+  {
+   "ts": "2026-09-11T12:04:19.525241+00:00",
+   "trade_id": 2208,
+   "symbol": "ACAST.ST",
+   "yf_symbol": "ACAST.ST",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (SPY -0.6%, QQQ -1.06%). Risiko-Messing. Halbe Position als Kompromiss.",
+   "signal_price": 33.849998474121094,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.74
+  },
+  {
+   "ts": "2026-09-11T12:19:20.156813+00:00",
+   "trade_id": 2209,
+   "symbol": "VU.PA",
+   "yf_symbol": "VU.PA",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (QQQ -1.06%). Halbe Position als Kompromiss.",
+   "signal_price": 117.9000015258789,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 1.19
+  },
+  {
+   "ts": "2026-09-11T12:34:27.416508+00:00",
+   "trade_id": 2210,
+   "symbol": "SIE.DE",
+   "yf_symbol": "SIE.DE",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (SPY -0.6%, QQQ -1.06%). Risiko-Minimierung.",
+   "signal_price": 263.1499938964844
+  },
+  {
+   "ts": "2026-09-11T12:34:27.416508+00:00",
+   "trade_id": 2211,
+   "symbol": "VIRP.PA",
+   "yf_symbol": "VIRP.PA",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (SPY -0.6%, QQQ -1.06%). Risiko-Minimierung.",
+   "signal_price": 309.5
+  },
+  {
+   "ts": "2026-09-11T12:34:27.416508+00:00",
+   "trade_id": 2212,
+   "symbol": "ATE.PA",
+   "yf_symbol": "ATE.PA",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (SPY -0.6%, QQQ -1.06%). Risiko-Minimierung.",
+   "signal_price": 69.0,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.94
+  },
+  {
+   "ts": "2026-09-11T12:34:27.416508+00:00",
+   "trade_id": 2213,
+   "symbol": "TFI.PA",
+   "yf_symbol": "TFI.PA",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (SPY -0.6%, QQQ -1.06%). Risiko-Minimierung.",
+   "signal_price": 6.739999771118164
+  },
+  {
+   "ts": "2026-09-11T12:49:28.401080+00:00",
+   "trade_id": 2217,
+   "symbol": "PLNW.PA",
+   "yf_symbol": "PLNW.PA",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR weiter. Position bereits offen, daher nur halbe size.",
+   "signal_price": 23.350000381469727,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.21
+  },
+  {
+   "ts": "2026-09-11T12:49:28.401080+00:00",
+   "trade_id": 2218,
+   "symbol": "AWE",
+   "yf_symbol": "AWE-USD",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR weiter. Halve size due to low historical win rate.",
+   "signal_price": 0.05921836942434311,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.22
+  },
+  {
+   "ts": "2026-09-11T12:49:28.401080+00:00",
+   "trade_id": 2219,
+   "symbol": "EXA.PA",
+   "yf_symbol": "EXA.PA",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR weiter. Position bereits offen, daher only half size.",
+   "signal_price": 124.0999984741211
+  },
+  {
+   "ts": "2026-09-11T12:49:28.401080+00:00",
+   "trade_id": 2220,
+   "symbol": "ACE.MI",
+   "yf_symbol": "ACE.MI",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) and MACD-Komponente senkt WR weiter. RSI is low but signal quality is poor.",
+   "signal_price": 19.950000762939453
+  },
+  {
+   "ts": "2026-09-11T13:49:29.613350+00:00",
+   "trade_id": 2237,
+   "symbol": "AWE",
+   "yf_symbol": "AWE-USD",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente (Messer-Risiko). Position halbiert zur Risikominimierung.",
+   "signal_price": 0.05900454521179199,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.09
+  },
+  {
+   "ts": "2026-09-11T14:19:31.973675+00:00",
+   "trade_id": 2238,
+   "symbol": "MC.PA",
+   "yf_symbol": "MC.PA",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente (Messer-Risiko). VIX normal, kein News-Flag. Halbe Position als Kompromiss.",
+   "signal_price": 415.8999938964844,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.14
+  },
+  {
+   "ts": "2026-09-11T14:34:34.589635+00:00",
+   "trade_id": 2239,
+   "symbol": "FRA.DE",
+   "yf_symbol": "FRA.DE",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Halbe Position als Vorsicht.",
+   "signal_price": 60.25
+  },
+  {
+   "ts": "2026-09-11T14:34:34.589635+00:00",
+   "trade_id": 2240,
+   "symbol": "CATE.ST",
+   "yf_symbol": "CATE.ST",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Halbe Position als Vorsicht.",
+   "signal_price": 376.6000061035156
+  },
+  {
+   "ts": "2026-09-11T15:19:36.416295+00:00",
+   "trade_id": 2243,
+   "symbol": "MC.PA",
+   "yf_symbol": "MC.PA",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt Historie auf 30.4%. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
+   "signal_price": 414.79998779296875,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.12
+  },
+  {
+   "ts": "2026-09-11T16:19:41.345368+00:00",
+   "trade_id": 2244,
+   "symbol": "AWE",
+   "yf_symbol": "AWE-USD",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente (Messer-Risiko). Halbe Position als Kompromiss.",
+   "signal_price": 0.05919334664940834,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.09
+  },
+  {
+   "ts": "2026-09-11T16:34:42.134116+00:00",
+   "trade_id": 2245,
+   "symbol": "NEGG",
+   "yf_symbol": "NEGG",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt Historie auf 30.4%. Halbe Groesse als Vorsicht.",
+   "signal_price": 14.628100395202637,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.29
+  },
+  {
+   "ts": "2026-09-11T17:04:44.876908+00:00",
+   "trade_id": 2246,
+   "symbol": "NLOP",
+   "yf_symbol": "NLOP",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente (Messer-Risiko). Position halbiert zur Risikominimierung.",
+   "signal_price": 10.970000267028809,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.91
+  },
+  {
+   "ts": "2026-09-11T17:19:46.205085+00:00",
+   "trade_id": 2247,
+   "symbol": "AWE",
+   "yf_symbol": "AWE-USD",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente (Messer-Risiko). Position halbiert zur Risikominimierung.",
+   "signal_price": 0.05931711569428444,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.26
+  },
+  {
+   "ts": "2026-09-11T18:04:50.612786+00:00",
+   "trade_id": 2248,
+   "symbol": "NLOP",
+   "yf_symbol": "NLOP",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente (Messer-Risiko). Position halbiert zur Risikominimierung.",
+   "signal_price": 10.9399995803833,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.64
+  },
+  {
+   "ts": "2026-09-11T18:19:53.678194+00:00",
+   "trade_id": 2249,
+   "symbol": "JASMY",
+   "yf_symbol": "JASMY-USD",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
+   "signal_price": 0.003980000037699938,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.75
+  },
+  {
+   "ts": "2026-09-11T18:19:53.678194+00:00",
+   "trade_id": 2250,
+   "symbol": "AWE",
+   "yf_symbol": "AWE-USD",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
+   "signal_price": 0.05904258415102959,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.18
+  },
+  {
+   "ts": "2026-09-11T18:34:52.984912+00:00",
+   "trade_id": 2251,
+   "symbol": "MCD",
+   "yf_symbol": "MCD",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Halbe Position als Vorsicht.",
+   "signal_price": 252.9149932861328,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.15
+  },
+  {
+   "ts": "2026-09-11T23:34:37.662254+00:00",
+   "trade_id": 2254,
+   "symbol": "AWE",
+   "yf_symbol": "AWE-USD",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber MACD-Komponente drückt WR auf 30.1% vs 49.6% ohne). Merksatz warnt vor MACD-Wende als Messer. Halve Size to mitigate risk.",
+   "signal_price": 0.05899474397301674,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.17
+  },
+  {
+   "ts": "2026-09-13T22:19:17.840799+00:00",
+   "trade_id": 2256,
+   "symbol": "2z",
+   "yf_symbol": "2Z-USD",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber MACD-Komponente drückt WR auf 30.1% vs 49.5% ohne). Merksatz warnt vor MACD-Wende als Messer. Halve Size to mitigate risk.",
+   "signal_price": 0.046560000628232956
+  },
+  {
+   "ts": "2026-09-14T10:05:14.192138+00:00",
+   "trade_id": 2257,
+   "symbol": "BN.PA",
+   "yf_symbol": "BN.PA",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber MACD-Komponente drückt WR auf 30.1% vs 49.5% ohne). RSI 31.9 ist oversold, aber ohne starke MACD-Wende ist es ein 'Messer'. Halbe P",
+   "signal_price": 61.91999816894531
+  },
+  {
+   "ts": "2026-09-14T10:05:14.192138+00:00",
+   "trade_id": 2258,
+   "symbol": "LEG.DE",
+   "yf_symbol": "LEG.DE",
+   "decision": "VETO",
+   "reason": "Gleiche Signal-Schwäche wie BN.PA. WR 26.8% ist unter dem 25% Schwelle für 'concrete reason' needed, aber MACD-Komponente riskant. RSI 32.2 oversold. Halve size to mitigate risk of",
+   "signal_price": 47.29999923706055
+  },
+  {
+   "ts": "2026-09-14T10:34:09.260251+00:00",
+   "trade_id": 2260,
+   "symbol": "ADS.DE",
+   "yf_symbol": "ADS.DE",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber MACD-Komponente drückt WR auf 30.1% vs 49.5% ohne). RSI 30.3 ist tief, aber 'Oversold without MACD-Wende is a Messer'. Halve size t",
+   "signal_price": 142.85000610351562
+  },
+  {
+   "ts": "2026-09-14T10:34:09.260251+00:00",
+   "trade_id": 2261,
+   "symbol": "VU.PA",
+   "yf_symbol": "VU.PA",
+   "decision": "VETO",
+   "reason": "Same weak signal combo (WR 26.8%). RSI 36.7 is less oversold than ADS.DE, reducing urgency but not changing the low-probability nature of the MACD-based entry. Halve size.",
+   "signal_price": 116.5999984741211
+  },
+  {
+   "ts": "2026-09-14T10:49:09.282470+00:00",
+   "trade_id": 2262,
+   "symbol": "ACE.MI",
+   "yf_symbol": "ACE.MI",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber MACD-Komponente drückt WR auf 30.1% vs 49.5% ohne). RSI 30.4 ist 'Oversold' aber ohne starke MACD-Wende ist es ein falling knife. H",
+   "signal_price": 19.760000228881836
+  },
+  {
+   "ts": "2026-09-14T11:19:13.036465+00:00",
+   "trade_id": 2263,
+   "symbol": "SIE.DE",
+   "yf_symbol": "SIE.DE",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber MACD-Komponente drückt WR auf 30.1% vs 49.5% ohne). SIE.DE ist bereits offen (-1.4%), was auf Haeufung/Re-entry hindeutet. Halbe Gr",
+   "signal_price": 260.54998779296875
+  },
+  {
+   "ts": "2026-09-14T11:34:15.907210+00:00",
+   "trade_id": 2264,
+   "symbol": "ADS.DE",
+   "yf_symbol": "ADS.DE",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber MACD-Komponente drückt WR auf 30.1% vs 49.5% ohne). RSI 31 ist tief, aber 'Messer' risk. Halve size to mitigate.",
+   "signal_price": 143.1999969482422
+  },
+  {
+   "ts": "2026-09-14T11:34:15.907210+00:00",
+   "trade_id": 2265,
+   "symbol": "VU.PA",
+   "yf_symbol": "VU.PA",
+   "decision": "VETO",
+   "reason": "Same weak signal combo (WR 26.8%). RSI 37 is less oversold than ADS, reducing edge. Halve size due to low historical win rate of this specific MACD-based combo.",
+   "signal_price": 116.9000015258789
+  },
+  {
+   "ts": "2026-09-14T12:19:22.080835+00:00",
+   "trade_id": 2266,
+   "symbol": "BCH",
+   "yf_symbol": "BCH-USD",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber MACD-Komponente drückt Erwartungswert negativ laut Merksatz). RSI 39.7 ist nicht extrem oversold. Halve size to mitigate risk of ca",
+   "signal_price": 222.64999389648438
+  },
+  {
+   "ts": "2026-09-14T12:19:22.080835+00:00",
+   "trade_id": 2267,
+   "symbol": "VU.PA",
+   "yf_symbol": "VU.PA",
+   "decision": "VETO",
+   "reason": "Same weak signal combo (WR 26.8%). RSI 36.8 is lower but still not extreme. Reduce exposure due to negative expectancy of MACD-based oversold signals.",
+   "signal_price": 116.69999694824219
+  },
+  {
+   "ts": "2026-09-14T12:34:22.963938+00:00",
+   "trade_id": 2268,
+   "symbol": "ADS.DE",
+   "yf_symbol": "ADS.DE",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber MACD-Komponente drückt WR auf 30.1% vs 49.5% ohne). RSI 31.5 ist oversold, aber ohne starke MACD-Wende ist es ein falling knife. Ha",
+   "signal_price": 143.35000610351562
+  },
+  {
+   "ts": "2026-09-14T12:49:24.268196+00:00",
+   "trade_id": 2269,
+   "symbol": "ACE.MI",
+   "yf_symbol": "ACE.MI",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber MACD-Komponente drückt Erwartungswert negativ laut Merksatz). Halbe Position als Vorsicht.",
+   "signal_price": 19.75
+  },
+  {
+   "ts": "2026-09-14T13:19:28.605792+00:00",
+   "trade_id": 2270,
+   "symbol": "BCH",
+   "yf_symbol": "BCH-USD",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber MACD-Komponente drückt WR auf 30.1% vs 49.5% ohne). RSI 39 ist nicht extrem oversold. Halve size to mitigate risk of catching a fal",
+   "signal_price": 222.24000549316406
+  },
+  {
+   "ts": "2026-09-14T13:34:29.176281+00:00",
+   "trade_id": 2271,
+   "symbol": "ELIS.PA",
+   "yf_symbol": "ELIS.PA",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber n=97 zeigt hohe SL-Kills). MACD-Komponente senkt WR signifikant. Halbe Position als Vorsicht.",
+   "signal_price": 22.81999969482422
+  },
+  {
+   "ts": "2026-09-14T13:49:31.959755+00:00",
+   "trade_id": 2272,
+   "symbol": "ADS.DE",
+   "yf_symbol": "ADS.DE",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber MACD-Komponente drückt Erwartungswert negativ). Markt ist schwach (QQQ -1.14%). Halbe Position als Vorsicht.",
+   "signal_price": 142.8000030517578
+  },
+  {
+   "ts": "2026-09-14T13:49:31.959755+00:00",
+   "trade_id": 2273,
+   "symbol": "ACE.MI",
+   "yf_symbol": "ACE.MI",
+   "decision": "VETO",
+   "reason": "Gleiche Signal-Schwäche wie 2272. MACD-Komponente in Oversold-Zone ist historisch schwach (WR 30.1% vs 49.5%). Halbe Position.",
+   "signal_price": 19.760000228881836
+  },
+  {
+   "ts": "2026-09-14T14:04:32.015488+00:00",
+   "trade_id": 2274,
+   "symbol": "MEDCL.PA",
+   "yf_symbol": "MEDCL.PA",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber n=97 zeigt hohe SL-Kills). MACD-Komponente senkt WR signifikant. QQQ -1.22% zeigt feindliches Tech-Umfeld. Halbe Position als Kompr",
+   "signal_price": 21.860000610351562
+  },
+  {
+   "ts": "2026-09-14T14:19:33.046078+00:00",
+   "trade_id": 2275,
+   "symbol": "VU.PA",
+   "yf_symbol": "VU.PA",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber MACD-Komponente drückt WR auf 30.1% vs 49.5% ohne). Markt ist schwach (QQQ -1.14%). Halbe Position als Vorsicht.",
+   "signal_price": 116.69999694824219
+  },
+  {
+   "ts": "2026-09-14T14:34:36.301636+00:00",
+   "trade_id": 2277,
+   "symbol": "BCH",
+   "yf_symbol": "BCH-USD",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber MACD-Komponente drückt WR auf 30.1% vs 49.5% ohne). Markt ist schwach (SPY -0.68%, QQQ -1.23%). Halbe Position als Vorsicht.",
+   "signal_price": 222.8699951171875
+  },
+  {
+   "ts": "2026-09-14T14:34:36.301636+00:00",
+   "trade_id": 2278,
+   "symbol": "UBER",
+   "yf_symbol": "UBER",
+   "decision": "REDUCE",
+   "reason": "Gleiche Signal-Schwäche wie BCH. UBER ist Tech, Markt ist risk-off. Halbe Position.",
+   "signal_price": 71.33000183105469
+  },
+  {
+   "ts": "2026-09-14T14:49:37.335595+00:00",
+   "trade_id": 2279,
+   "symbol": "ELIS.PA",
+   "yf_symbol": "ELIS.PA",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber MACD-Komponente drückt WR auf 30.1% vs 49.5% ohne). RSI 25.5 ist tief, aber ohne MACD-Wende ist es ein falling knife. Halve size to",
+   "signal_price": 22.780000686645508
+  },
+  {
+   "ts": "2026-09-14T15:04:40.114495+00:00",
+   "trade_id": 2280,
+   "symbol": "ADS.DE",
+   "yf_symbol": "ADS.DE",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber MACD-Komponente drückt WR auf 30.1% vs 49.5% ohne). RSI ~30 ist 'Oversold' aber ohne MACD-Wende ist es a falling knife. Market is r",
+   "signal_price": 142.89999389648438
+  },
+  {
+   "ts": "2026-09-14T15:04:40.114495+00:00",
+   "trade_id": 2281,
+   "symbol": "ACE.MI",
+   "yf_symbol": "ACE.MI",
+   "decision": "VETO",
+   "reason": "Same signal combo with low historical WR. RSI ~30. Market environment is bearish (QQQ -1.31%). High risk of catching a falling knife. Reduce position size to protect capital.",
+   "signal_price": 19.719999313354492
+  },
+  {
+   "ts": "2026-09-14T15:19:39.933208+00:00",
+   "trade_id": 2282,
+   "symbol": "MEDCL.PA",
+   "yf_symbol": "MEDCL.PA",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber MACD-Komponente drückt WR auf 30.1% vs 49.5% ohne). RSI 29 ist oversold, aber ohne clear MACD reversal confirmation it's a falling ",
+   "signal_price": 21.860000610351562
+  },
+  {
+   "ts": "2026-09-14T15:34:40.518751+00:00",
+   "trade_id": 2283,
+   "symbol": "BCH",
+   "yf_symbol": "BCH-USD",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber n=97 zeigt hohe SL-Kills). MACD-Komponente senkt WR signifikant. Halve size to mitigate risk.",
+   "signal_price": 222.60000610351562
+  },
+  {
+   "ts": "2026-09-14T16:19:46.042217+00:00",
+   "trade_id": 2285,
+   "symbol": "NLOP",
+   "yf_symbol": "NLOP",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber n=97 zeigt -80$ und 43 SL-Kills). MACD-Komponente senkt WR signifikant. VIX normal, aber Signal-Qualitaet ist schwach. Reduzierung ",
+   "signal_price": 10.875
+  },
+  {
+   "ts": "2026-09-14T16:34:45.402209+00:00",
+   "trade_id": 2286,
+   "symbol": "EW",
+   "yf_symbol": "EW",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber n=97 zeigt hohe SL-Kills). MACD-Komponente senkt WR signifikant. QQQ -0.64% zeigt feindliches Umfeld fuer Tech/Small-Cap. Halve Siz",
+   "signal_price": 85.41500091552734
+  },
+  {
+   "ts": "2026-09-14T17:19:48.511665+00:00",
+   "trade_id": 2287,
+   "symbol": "NLOP",
+   "yf_symbol": "NLOP",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber n=97 zeigt -80$ und 43 SL-Kills). MACD-Komponente senkt WR signifikant. VIX normal, aber statistische Edge fehlt. Halve size to man",
+   "signal_price": 10.90999984741211
+  },
+  {
+   "ts": "2026-09-14T18:34:19.882973+00:00",
+   "trade_id": 2288,
+   "symbol": "MSDL",
+   "yf_symbol": "MSDL",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber MACD-Komponente drückt WR auf 30.1% vs 49.5% ohne). Merksatz warnt vor 'Messer' ohne klare Wende. RSI 37 ist nicht extrem oversold.",
+   "signal_price": 14.755000114440918
+  },
+  {
+   "ts": "2026-09-14T18:49:53.552337+00:00",
+   "trade_id": 2289,
+   "symbol": "NLOP",
+   "yf_symbol": "NLOP",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber MACD-Komponente drückt WR auf 30.1% vs 49.5% ohne). VIX normal, aber Signal-Qualitaet schwach. Reduzierung statt Veto, da RSI 34 ni",
+   "signal_price": 10.90999984741211
   }
  ]
 }

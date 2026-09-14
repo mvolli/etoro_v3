@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-09-11T20:30:00+00:00",
-  "auto_expires_at": "2026-09-25T20:31:34.808206+00:00",
+  "updated_at": "2026-09-13T20:31:16.834169+00:00",
+  "auto_expires_at": "2026-09-27T20:31:16.834177+00:00",
   "adjustments": {
     "TREND_PULLBACK,GOLDEN_CROSS": {
       "score_multiplier": 1.0,
@@ -44,10 +44,10 @@
     }
   },
   "strategy_notes": [
-    "TREND_PULLBACK,GOLDEN_CROSS signals with HIGH conviction are underperforming significantly compared to MEDIUM conviction variants, suggesting the conviction filter may be too loose for trend-following entries.",
-    "Recent losses with short holding periods (<1 day) indicate potential slippage or market timing issues, which should be monitored for correlation with specific exchanges or volatility regimes."
+    "Differentiate conviction levels for TREND_PULLBACK,GOLDEN_CROSS: MEDIUM is profitable, HIGH is losing. Apply conviction-specific weighting.",
+    "Monitor CORE_SWEEP rejection rate (79%): High rejections may indicate signal quality is good but execution constraints (liquidity/eligibility) are tight. No action needed on signal logic, but watch for slippage if rejections drop."
   ],
   "conviction_issues": [
-    "HIGH conviction for TREND_PULLBACK,GOLDEN_CROSS has a 25.8% win rate, which is significantly lower than the MEDIUM conviction variant (50.0% win rate for MACD_TURN+BB_LOW combo), indicating a potential misalignment in conviction scoring for trend signals."
+    "TREND_PULLBACK,GOLDEN_CROSS HIGH conviction has a 26% win rate and negative average PnL, while MEDIUM has a 53% win rate and positive PnL. The HIGH filter is not adding value and is increasing risk."
   ]
 }

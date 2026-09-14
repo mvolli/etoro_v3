@@ -77,7 +77,8 @@
    "position_id": "3554927456",
    "instrument_id": 1330,
    "exit_pnl_pct": -1.4,
-   "outcome": null
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.3
   }
  ]
 }

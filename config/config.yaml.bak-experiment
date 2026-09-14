@@ -18,11 +18,62 @@ db:
   busy_timeout_ms: 5000       # SQLite busy_timeout in milliseconds
 
 trading:
-  max_positions: 21           # Maximum total open positions across all instruments
+  # max_positions ENTFERNT (2026-08-12): check_max_positions_gate war seit dem
+  # V5-Umbau nicht mehr in check_buy_gate verdrahtet — der Key hat nichts
+  # bewirkt (Config sagte 40, offen waren 59) und der LLM-Review-Worker hat
+  # ihn trotzdem als Stellschraube gepflegt. Echte Grenzen: Exposure-Gate
+  # (75%), cash_target_min_pct, per-Instrument (10%), Sektor- und Regionen-Caps.
   max_fragments_per_instrument: 3  # Maximum partial fills / DCA entries per ticker
+  # DUST-Floor: absolute Broker-Untergrenze fuer den FINALEN Ordersbetrag
+  # (Spread/Mindestvolumen). Regime-unabhaengig. Der regimeabhaengige
+  # SIGNAL-Floor ("lohnt sich dieses Signal?") steht in
+  # core/regime.py:_REGIME_PARAMS[...]["signal_floor_usd"] (50/75/100/150) und
+  # wird VOR den Haircuts geprueft; der wirksame Dust-Floor ist
+  # max(signal_floor * 0.6, diesem Wert) -> NORMAL/CAUTION 50, DEFENSIVE 60,
+  # CRITICAL 90. Beide hiessen bis 2026-08-28 min_buy_usd.
   min_buy_usd: 50.0           # Minimum order size in USD
+
+  # feat/deploy-idle-cash (2026-08-29, VoLLi directive): Wenn der Bot viel
+  # Free Cash haeft (>= deploy_min_free_cash_pct of Equity) und ein Signal
+  # nur wegen des Regime-Floors (signal_floor_usd) zu klein waere, BUMPEN
+  # wir die Order auf den Floor und APPROVIEREN statt REJECT. Damit wird
+  # das Idle-Cash-Pool aktiv deployed, bis Free Cash falls unter der
+  # Schwellwert. Floor bleibt der Regime-Wert (DEFENSIVE=100, CRITICAL=150,
+  # …) — keine Umgehung der Broker-Minimum-Regel (720), nur der
+  # Sizing-Haircut-Rejection wird aufgeweicht. Set
+  # deploy_idle_cash_min_free_cash_pct to 0 to disable.
+  deploy_idle_cash_min_free_cash_pct: 50.0
+  # 2026-08-24: Basis-Kandidaten-Slots pro signal_worker-Zyklus (war fest 3).
+  # Bei Cash > cash_target_max_pct kommen bis zu 2 weitere hinzu, die
+  # ausschliesslich mit HIGH/VERY_HIGH befuellt werden.
+  candidate_slots: 5
+
+  # feat/rebuy-cooldown (2026-08-24): Nachkauf desselben Instruments erst nach
+  # N Stunden. Ausloeser: LEG.DE, IBE.MC, MAU.PA (3x!) und 6753.T wurden
+  # mehrfach gekauft, immer exakt einen 15-Minuten-Zyklus auseinander. Die
+  # bestehende Sperre deckt nur status=APPROVED ab; die Bestaetigung erfolgt
+  # aber ~3 Minuten nach Freigabe, der naechste Zyklus nach 15 — das Fenster
+  # war immer schon zu. Nachkaufen bleibt erlaubt, nur nicht im Minutentakt.
+  # 0 schaltet die Regel ab.
+  rebuy_cooldown_hours: 6.0
+
+  # feat/commodity (2026-08-24): bewusst kleines Experiment.
+  # Rohstoffe brauchen bei eToro 1000 USD Mindest-EXPOSURE. amount ist die
+  # Margin, Exposure = amount x leverage — 500 USD bei Hebel 2 erreichen die
+  # Schwelle also genau. Hoeher als 2 wird NIE gehebelt (der API-Client
+  # deckelt zusaetzlich hart und faellt auf 1 zurueck, wenn der Broker den
+  # Wert nicht zulaesst).
+  # Evidenzlage: 6 geschlossene Trades, alle exakt 0.0 % — es gibt schlicht
+  # keine. max_positions 1 und die feste Groesse halten den Verlustfall bei
+  # rund 60 USD (6 % Stop auf 1000 USD Exposure), waehrend Datenpunkte
+  # entstehen. Erst mit belastbarer Historie ueber Ausweitung nachdenken.
+  commodity:
+    enabled: true
+    leverage: 2               # HARTER Deckel im Client: nie mehr als 2
+    position_usd: 500.0       # feste Margin, keine Kelly-/Regime-Skalierung
+    max_positions: 1          # gleichzeitig offene Rohstoffpositionen
   max_trades_per_day: 0       # 0 = deaktiviert (2026-07-14, User-Entscheid). Runaway-Schutz
-                              # uebernehmen: Exposure-Gate 75%, max_positions, cash_emergency_pct,
+                              # uebernehmen: Exposure-Gate 75%, cash_emergency_pct,
                               # daily_loss_limit (Auto-Kill-Switch) und 3 Slots/15-min-Zyklus.
   max_slippage_pct: 1.5       # Max signal→execution price deviation for stocks/ETFs (%)
   max_slippage_pct_crypto: 3.0  # Max signal→execution price deviation for crypto (%)
@@ -31,16 +82,132 @@ trading:
   cash_emergency_pct: 10.0    # Hard floor — no new buys below this cash level
   post_loss_cooldown_h: 24.0
   block_mean_reversion_in_caution: true  # 2026-07-17: kein Messer-Fangen ausserhalb NORMAL  # fix/post-loss-cooldown: nach Verlust-Close X h kein Re-Entry (LUS1.DE-Muster)
+  require_macd_confirmation_for_oversold: true  # 2026-07-20: Oversold ohne MACD-Wende = WR 8% (63 Trades) — Messer-Schutz
+  liquidity_tiering: true     # feat/liquidity-tiering (2026-07-26): Market-Cap/ADV-Tier-Faktor im Kandidaten-Ranking (bot/core/liquidity.py)
   max_spread_pct_crypto: 3.0  # feat/crypto-247: Krypto-Spreads strukturell breiter
   deployment_boost: 1.25      # fix/cash-deployment (2026-07-15): boostet Positionsgroessen bei
-                              # Cash-Ueberschuss (Gates: NORMAL-Regime + Makro-Scalar 1.0 +
-                              # kein News-Flag; hart geclampt 1.5). SCHARF seit 2026-07-15
+                              # Cash-Ueberschuss (Gates: Regime-Whitelist unten + Makro-Scalar 1.0
+                              # + kein News-Flag; hart geclampt 1.5). SCHARF seit 2026-07-15
                               # zusammen mit stale_exit (User-Entscheid, engmaschige Beobachtung).
+  # fix/deployment-boost-regimes (2026-08-28, Entscheid VoLLi): vorher war der
+  # Boost hart auf NORMAL beschraenkt — der Mechanismus fuer brachliegendes
+  # Kapital war also genau dann aus, wenn am meisten Kapital brachlag (5 Tage
+  # DEFENSIVE bei 88 % Cash, Boost feuerte kein einziges Mal).
+  # Der Regime-risk_scalar multipliziert VOR dem Boost, deshalb bleibt das
+  # Risiko unter dem NORMAL-Normalfall:
+  #   NORMAL    1.00 x Kelly 1.5 x 1.25 = 1.88x  (das urspruenglich gemeinte Risiko)
+  #   CAUTION   0.75 x Kelly 1.5 x 1.25 = 1.41x
+  #   DEFENSIVE 0.50 x Kelly 1.5 x 1.25 = 0.94x
+  # CRITICAL wird im Code immer herausgefiltert — dort ist Stillstand gewollt.
+  deployment_boost_regimes: [NORMAL, CAUTION, DEFENSIVE]
+
+  # ── feat/core-sweep (2026-07-22): liquides Cash-Deployment ──────────────────
+  # Ueberschuessiges Cash (ueber reserve_target_pct) wird in einen kuratierten
+  # Korb hochliquider Large-Caps/ETFs gesweept — ENTKOPPELT vom illiquiden
+  # Small-Cap-Signalfluss (dessen Spread/Slippage-Gates das Deployment
+  # ausbremsen). Grosse, diversifizierte, stop-losste Positionen in Titeln,
+  # die grosse Groessen SICHER aufnehmen. Nutzt dieselbe create->APPROVED->
+  # execution-Bahn wie normale Signale (erbt SL-Clamp, Market-Open-Guard,
+  # Ghost-Order-Pipeline). Whitelist per instrument_id GEPINNT — das Symbol
+  # 'DIA' loest z.B. auf einen Krypto-Token auf, nicht den Dow-ETF.
+  core_sweep:
+    enabled: true             # SCHARF 2026-07-22: signal-agnostische Discovery (Option B)
+    auto_discovery: true       # Discovery-Worker schreibt FRESH-Signale in Core-Sweep-Whitelist
+    reserve_target_pct: 15.0  # Cash-Ziel — Ueberschuss darueber wird abgesweept
+    reserve_floor_pct: 10.0   # Harter Boden: nie darunter sweepen (= cash_emergency)
+    per_position_pct: 4.0     # Zielgroesse je Core-Position (% Equity)
+    max_position_pct: 6.0     # Harter Deckel je Core-Titel (% Equity)
+    max_sweeps_per_run: 4     # "Zuegig" (User-Entscheid): bis N Core-Trades/Lauf
+    max_days: 60              # Laengerer Stale-Horizont als Small-Caps (dort 20)
+    rsi_overbought: 75.0      # Kein Sweep in einen Titel mit RSI darueber (nicht extended kaufen)
+    reject_cooldown_after: 3  # Ab N REJECTED/FAILED Core-Sweep-Trades im Fenster -> Cooldown
+    reject_cooldown_hours: 3.0  # Cooldown-Fenster in Stunden (0 = Check deaktivieren via cooldown_after)
+    regimes: ["NORMAL", "CAUTION"]  # Regime-Gate: pausiert in DEFENSIVE/CRITICAL
+    whitelist:                # symbol -> instrument_id (validiert: tradable+aktiv, ATR vorhanden)
+      SPY:  3000              # Index-Anker, ATR 1.1% (niedrigste Vola)
+      AAPL: 1001
+      MSFT: 1004
+      AMZN: 1005
+      NVDA: 1137
+      META: 1003
+      JPM:  1023
+      V:    1046
+      KO:   1024
+      PG:   1029
+      JNJ:  1022
+      WMT:  1035
+
+  # ── feat/entry-quality: qualitative Entry-Pruefung ───────────────────────
+  # PHASE 2 = LIVE seit 2026-08-24 (mode: live): die 5 Gates wirken auf die
+  # Positionsgroesse. Kombiniert = MIN ueber alle Treffer, geklemmt auf
+  # min_size_mult. Ausschliesslich Soft-Gates (0.25-1.0) — KEINE Hard-Blocks,
+  # gemaess Plan-Phase 2 und der Anti-Brake-Vorgabe: ein getroffenes Signal
+  # wird kleiner gehandelt, nicht verworfen. Das erhaelt Trade-Count,
+  # Discovery UND die laufende Datensammlung fuer die WR-Auswertung.
+  # Basis: Live-DB-Evidenz (Pure-Oversold-Cluster ohne MACD_TURN = 2.7% WR;
+  # CORE_SWEEP = -$171 Drag) + references/entry-quality-plan-2026-08-22.md.
+  # Auswertung laeuft weiter gegen entry_quality_events: mode + applied
+  # trennen wirksame von beobachteten Zeilen (applied=1 = Groesse geaendert).
+  # Faellt FAIL-OPEN aus: fehlende Daten = kein Gate-Hit, keine Aenderung.
+  # Rueckweg jederzeit: mode: shadow — der Code bleibt identisch.
+  entry_quality:
+    enabled: true
+    mode: live                # shadow | live
+    min_size_mult: 0.25       # hart-clamped Floor fuer kombinierte Sizing-Multipliers
+    gates:
+      macd_turn_required:     # Pure-Oversold OHNE MACD_TURN → 0.5x (2.7%-WR-Cluster)
+        enabled: true
+        size_mult: 0.5
+      core_sweep_regime:      # CORE_SWEEP ausserhalb allowed Regimes -> 0.25x
+        enabled: true
+        allowed_regimes: ["NORMAL", "CAUTION"]
+        trend_override: true
+        min_roc_5d_pct: -12.0
+        # 2026-08-24: war 0.0 (Hard-Block). Phase 2 verbietet Hard-Blocks —
+        # ein Block wuerde die Klemme auf min_size_mult umgehen UND die
+        # Datensammlung fuer diesen Cluster beenden. 0.25 = kleinste
+        # zugelassene Groesse, Trade findet statt und liefert ein Ergebnis.
+        size_mult: 0.25
+      dipbuy_trend:           # Dip-Buys brauchen ROC5d > min (soft 0.5x)
+        enabled: true
+        min_roc_5d_pct: -15.0
+        size_mult: 0.5
+      volume_confirm:         # vol_ratio >= min am Entry (soft 0.5x)
+        enabled: true
+        min_vol_ratio: 1.2
+        size_mult: 0.5
+      atr_window:             # ATR%-Fenster am Entry (soft 0.5x)
+        enabled: true
+        min_atr_pct: 0.8
+        max_atr_pct: 7.0
+        size_mult: 0.5
+
+  # Ratsche (fix/signal-weight-ratchet, 2026-08-27): Die LLM (llm_review_worker
+  # -> _ratchet_signal_weights) darf die score_multiplier eines Signaltyps
+  # nur NACH OBEN rattern, wenn der Typ es nach REALIZED (CLOSED) Daten
+  # post-Zaesur (ZAESUR_DATE) verdient hat: n_closed >= min_closed_trades
+  # AND SUM(pnl_usd) > 0. Dämpfungen (new < 1.0) bleiben unangetastet.
+  # Eine nicht verdiente Lockerung wird am CURRENT-Wert eingefroren (frozen,
+  # not rotated) — ein Verlustbringer bleibt <=1.0 bis er nachweislich Geld
+  # macht. Realized-only ist bewusst: offene Buchgewinne dürfen die Lockerung
+  # nicht begründen (Rückkopplung: die Lockerung vergrößert genau die Position
+  # deren Tages-Buchwert sie sonst selbst treibt + flackert taeglich).
+  # Das Fenster ist an ZAESUR_DATE gebunden, damit z.B. CORE_SWEEP die
+  # -166.38 $ aus der alten Aera nicht mitschleppt.
+  signal_weight_ratchet:
+    enabled: true
+    min_closed_trades: 20
 
 risk:
   daily_loss_limit_pct: 5.0   # Auto-kill-switch: intraday equity drop from day start (%; 0 = disabled)
   weekly_loss_limit_pct: 8.0  # Auto-kill-switch: max drawdown from 7-day equity high (%; 0 = disabled)
   monthly_loss_limit_pct: 12.0 # Auto-kill-switch: max drawdown from 30-day equity high (%; 0 = disabled)
+  exposure_auto_trim: true    # fix/exposure-auto-trim (User-Entscheid 2026-08-12):
+                              # Gesamt-Exposure ueber MAX_TOTAL_EXPOSURE_PCT (75%)
+                              # wird vom risk_worker SELBST korrigiert (LIFO-Close
+                              # bis zurueck unter den Cap) statt nur gemeldet.
+                              # false = warn-only (altes Verhalten).
+                              # Kill-Switch hat Vorrang: aktiv = kein Trim.
 
 regime:                       # Drawdown-from-rolling-peak → 4-state regime (reduces sizing)
   # Entry thresholds — regime escalates immediately on breach.
@@ -52,11 +219,54 @@ regime:                       # Drawdown-from-rolling-peak → 4-state regime (r
   defensive_exit_pct: 7.0     # DD < 7.0% → back to CAUTION
   critical_exit_pct: 13.0     # DD < 13.0% → back to DEFENSIVE
 
+  # fix/regime-min-conviction-config (2026-08-28, Entscheid VoLLi):
+  # Mindest-Conviction pro Regime. Stand vorher hart in regime.py.
+  # DEFENSIVE HIGH -> MEDIUM. Grund ist eine Messung, keine Lockerung:
+  # Der HIGH-Bucket besteht post-Zaesur zu 100 % aus TREND_PULLBACK,
+  # GOLDEN_CROSS (n=31, WR 35.5%, -31.67 USD) — genau dem Typ, den der Bot
+  # selbst als strukturell negativ auf score_multiplier 0.25 gedaempft hat.
+  # MEDIUM enthaelt den einzigen profitablen Typ (MACD_TURN_BELOW_SMA20,
+  # BB_LOW_MACD_IMPROVING, n=38, WR 47.4%, +50.81 USD). Das HIGH+-Gate liess
+  # also ausschliesslich den schlechtesten Typ durch und sperrte den besten.
+  # Ursache: seit d0a07d7 (Combo-Conviction = schwaechste Komponente) ist
+  # HIGH selten geworden; das Gate wurde dadurch von einer Bremse zur Sperre
+  # (3 Tage ohne Eroeffnung bei 89,7 % Cash, 15 frischen MEDIUM-Kaufsignalen).
+  # Alle uebrigen DEFENSIVE-Schutzmassnahmen bleiben: risk_scalar 0.50,
+  # allow_pyramiding false, min_buy_usd 100, max_trade_pct 3.0.
+  # CRITICAL bleibt bewusst auf VERY_HIGH — dort ist der Stillstand gewollt.
+  min_conviction:
+    NORMAL:    LOW
+    CAUTION:   MEDIUM
+    DEFENSIVE: MEDIUM
+    CRITICAL:  VERY_HIGH
+
+# ── Diversity-Gate (fix/diversity-mixed-cap 2026-08-28, Entscheid VoLLi) ─────
+# Kappe je Signal-Kategorie, gemessen als Anteil der OFFENEN Positionen.
+# 1.0 = keine Kappe.
+#
+# MIXED steht auf 1.0. Begruendung ist eine Messung, keine Lockerung:
+# MIXED ist keine Strategie, sondern der Rest-Topf fuer Gleichstaende in
+# _get_signal_category() ("eine Komponente Mean-Reversion, eine Trend").
+# Der beste Typ des Bots — MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING
+# (n=41, WR 51,2 %, +55,99 USD, 61 % aller Kaufsignale) — faellt genau in
+# diesen Gleichstand. Das Buch fuellte sich damit auf 10/14 = 71,4 % und
+# sperrte sich danach selbst: nachruecken konnte nur wieder MIXED.
+# Messung 2026-08-28: haeufigster Blocker in 36 von 96 Laeufen,
+# 102 Signale -> 20 Kandidaten -> 1 genehmigter Trade in 24 h bei 88 % Cash.
+# MEAN_REVERSION / TREND_FOLLOWING / CORE behalten die 45 %-Kappe.
+diversity:
+  max_category_fraction: 0.45
+  category_overrides:
+    MIXED: 1.0
+
 sl:                           # Stop-loss configuration
-  default_pct: 2.5            # Default stop-loss distance from entry (%)
+  default_pct: 3.0            # Default stop-loss distance from entry (%) — AKTIVES Experiment (2.5->3.0, 14d seit 2026-07-19)
   emergency_pct: 4.0          # Widened SL used in high-volatility / emergency mode
   warning_pct: 2.0            # SL proximity warning threshold (% from current price)
   safety_tp_pct: 25.0         # feat/tp-safety-net: weites Broker-TP als Crash-Netz (Trailing bleibt primaer)
+  atr_adaptive: true          # feat/strategy-gates 2026-07-20: SL = clamp(atr_multiple*ATR, default, max) + Risk-Parity-Sizing
+  atr_multiple: 1.5
+  max_pct: 6.0                # Obergrenze des ATR-SL
 
 exits:                        # feat/exit-monitor-1h (2026-07-16, OSS-Report P17)
   signal_exit_1h:
@@ -69,14 +279,88 @@ exits:                        # feat/exit-monitor-1h (2026-07-16, OSS-Report P17
     close_pct: 50.0           # Teilverkauf ueber die sell_exits-Maschinerie
 
 sizing:                       # Position size as % of portfolio equity
-  very_high_pct: 8.0          # Conviction tier: VERY HIGH (fix 2026-07-14: stand auf 4.0 und war
-                              # damit KLEINER als HIGH — invertierte Conviction-Leiter. Schwache
-                              # Signal-Typen bremst heute der Kelly-Faktor, nicht dieser Wert.)
-  high_pct: 6.0               # Conviction tier: HIGH
-  medium_pct: 5.0             # Conviction tier: MEDIUM
+  # 2026-08-29 (Entscheid VoLLi): 5.0 -> 6.0 fuer VERY_HIGH/HIGH/MEDIUM.
+  # Ziel ist eine Basisgroesse von rund 500 USD; bei 8.356.85 Equity ergibt
+  # 6.0 % genau 501.41 USD in NORMAL (aggressiveness 1.0) und 250.71 USD in
+  # DEFENSIVE (0.5). LOW bleibt bei 2.0 — die Leiter bleibt monoton
+  # (6.0 >= 6.0 >= 6.0 >= 2.0, User-Entscheid 2026-07-14).
+  #
+  # Motiv: das Konto kopiert mit 1:20, eine 70-USD-Position sind real 3.50 USD.
+  # Zu klein, um ueberhaupt etwas zu bewirken.
+  #
+  # GEGENLAEUFIGE MESSUNG, bewusst in Kauf genommen: geschlossene Trades seit
+  # 2026-07-26 ohne CORE_SWEEP zeigen 50-75 USD n=44 WR 45.5 % +15.12 und
+  # 75-100 USD n=15 WR 46.7 % +22.06, dagegen 100-150 USD n=12 WR 33.3 %
+  # -15.81. Jedes bisher gemessene Band ueber 100 USD steht in Summe im Minus.
+  # 500 USD liegt ausserhalb des gemessenen Bereichs — es gibt keinen einzigen
+  # Signalpfad-Trade dieser Groesse. Die Mediane sind allerdings in ALLEN
+  # Baendern negativ und das Gegenband hat n=12; die Daten belegen also weder
+  # "klein ist besser" noch das Gegenteil belastbar. Ab 2026-09-15 gegen die
+  # dann vorliegenden Groessenbaender nachrechnen.
+  #
+  # Positionszahl: das Exposure-Gate (75 %) deckelt bei 8.357 Equity auf
+  # 6.267 USD, also rund 12 Positionen zu 500 USD — nicht 40.
+  very_high_pct: 6.0          # Conviction tier: VERY HIGH (self-improvement 2026-08-24: 7.0->5.0.
+                              # VERY_HIGH = schlaechteste Stufe (n=55, WR 10.9%, -42 USD) und stand
+                              # als GROSSTE Stufe oben in der Leiter — genau die Stufen, die Kelly
+                              # noch nicht voll erreicht (min_trades=25), waren ueberdimensioniert.
+                              # 5.0 = auf MEDIUM-Base abgeflacht; Kelly differenziert ueber Basis.)
+  high_pct: 6.0               # Conviction tier: HIGH (self-improvement 2026-08-24: 6.0->5.0.
+                              # HIGH = groesster einziger Drag (n=84, WR 31.0%, -269 USD), lief aber
+                              # als 2-groesste Stufe. Auf MEDIUM-Base abgeflacht; Leiter bleibt
+                              # monoton (User-Entscheid 2026-07-14: 5.0 >= 5.0 >= 5.0 >= 2.0).)
+  medium_pct: 6.0             # Conviction tier: MEDIUM (2026-08-24: UNVERAENDERT — beste Stufe,
+                              # n=122, WR 42.6%; MACD_TURN-Combos laufen hier avg +10%)
   low_pct: 2.0                # Conviction tier: LOW / speculative
+  # Risk-neutral Kelly scale (fix/kelly-risk-neutral 2026-08-22, post
+  # commit-review 2026-08-21-b):
+  # factor = clamp(kelly_base + kelly_scale * kelly, kelly_min_factor, kelly_max_factor)
+  # kelly kann NEGATIV sein (negative Edge) → Faktor sinkt Richtung Floor.
+  # Base ist kalibriert (243 Closed Trades, 90d), damit das trade-gewichtete
+  # Mittel ~0.30 ergibt = das Risiko-Niveau, auf dem das Konto getestet ist.
+  kelly_min_trades: 25        # 10→25: Samples mit n=10 verdienen keinen Boost mehr
+  kelly_base: 0.49            # Kalibrierung → gewichtetes Mittel ~0.30
+  kelly_scale: 0.45           # Steigung auf die Kelly-Fraktion
+  kelly_min_factor: 0.15      # Floor: proven Lossbringer schrumpfen (vorher 0.5)
+  kelly_max_factor: 0.94      # Cap = base + scale (natuerliche Grenze bei kelly=1.0)
+  # feat/kelly-asset-class-split (2026-09-05): Krypto-Trades duerfen nicht
+  # die Groesse fuer Aktien-Trades desselben Signal-Clusters setzen.
+  # Gemessen am Dip-Cluster MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING:
+  #   Krypto n=9 Ø +16.52% | Aktien n=72 Ø +0.08%  -> Faktor 0.573 (hoechster)
+  # Die 9 Krypto-Trades lagen im Fenster XRP +45.2% / BTC +24.3% = Beta.
+  # Default AUS (Blue/Green) — erst nach Auswertung scharfschalten.
+  kelly_asset_class_split: false
+  # feat/kelly-shrinkage (2026-08-24): Empirical-Bayes-Schrumpfung ersetzt die
+  # harte Schwelle. Bisher wurde die eigene Schaetzung ab kelly_min_trades zu
+  # 100 % geglaubt und darunter gar nicht — eine Klippe genau im Bereich der
+  # real vorkommenden Stichproben (n = 26..73). Jetzt stufenlos:
+  #   alpha = k0 / (n + k0);  k = (1-alpha) * eigene + alpha * naechste Ebene
+  # Hierarchie: exakte Combo -> Komponenten-Pool -> Gesamtmittel.
+  # 50 folgt der Praxisregel, dass Trefferquoten unter ~50 Trades noch rund
+  # +-10 Prozentpunkte streuen. Groesser = vorsichtiger (mehr Richtung Mittel),
+  # 0 = Schrumpfung aus (altes Verhalten).
+  kelly_shrink_k0: 50.0
 
 trailing:                     # Dynamic profit-taking (runs each risk_worker cycle on LIVE PnL)
+  min_partial_close_usd: 10.0 # fix/min-partial-close (2026-08-12): Teilverkaeufe
+                              # unter diesem Betrag werden uebersprungen UND als
+                              # genommen gebucht. eToro weist Mini-Orders unter
+                              # minPositionExposure ab, und mark_level_taken()
+                              # laeuft erst bei Annahme — ohne diese Grenze wuerde
+                              # ein $2-Teilverkauf im 5-min-Takt endlos retryen.
+  profit_ladder:              # fix/profit-ladder-reachability (2026-08-12)
+    atr_scale: 0.35           # Skaliert atr_mult+min_pct ALLER ATR-Profit-Stufen.
+                              # Gemessen: bei 1.0 lag die erste Stufe im Median bei
+                              # +17.1% und wurde von 2 von 59 offenen Positionen je
+                              # erreicht (3%). Der Ø GEWINN-Trade liegt bei +3.49%,
+                              # der Median-Peak bei 4.2% — die Leiter feuerte nie,
+                              # Gewinner endeten nur an BE-Stop (+0.3%) und Fade.
+                              # 0.35 ergibt 6.0% / 10.0% / 17.9% → 25 von 59 (42%)
+                              # erreichen die erste Stufe. Bewusst NICHT tiefer:
+                              # 6.0% liegt ueber dem Ø-Gewinn, schneidet den
+                              # Durchschnittsgewinner also nicht ab, und 17.9%
+                              # bleibt im beobachteten Peak-Bereich (max 22.7%).
+                              # Der LLM-Review-Worker darf 0.2..1.0 nachjustieren.
   stale_exit:                 # fix/stale-exit (2026-07-15): totes Kapital freisetzen
     enabled: true             # SCHARF seit 2026-07-15 (User-Entscheid: sofort live, engmaschige Beobachtung)
     min_days: 10              # Kalendertage seit openDateTime (~7 Handelstage)
@@ -84,11 +368,45 @@ trailing:                     # Dynamic profit-taking (runs each risk_worker cyc
     min_peak_pct: 2.0         # Peak < Momentum-Fade-Arm-Schwelle: Position lief nie
     llm_hold_grace_h: 24      # frische LLM-HOLD-Empfehlung schont ...
     max_days: 20              # ... harter Deckel: dann Exit trotz HOLD
+  # feat/min-remaining (2026-08-24): Untergrenze der Restposition.
+  # close_pct wirkt auf die AKTUELLE Groesse, nicht auf den Einstieg — die
+  # Kette lautet 100 -> 75 -> 56 -> 42 %. Ohne Untergrenze zerfaellt eine
+  # Position in Splitter (gemessen: Median 11 % Rest bei 9.9 % Median-Peak).
+  # Wuerde ein Teilverkauf diese Marke unterschreiten, wird stattdessen GANZ
+  # geschlossen. Die Profit-Leiter bleibt damit erhalten und wirksam — sie
+  # kann eine Position nur nicht mehr zerfasern. 0 schaltet die Regel ab.
+  min_remaining_pct: 50.0
+
+  full_exit:                  # feat/full-exit (2026-08-24): Ziel erreicht -> GANZ raus
+    # Gemessen vor der Umstellung: offene Positionen erreichten im Median
+    # 9.9 % Peak-PnL, realisiert wurden aber nur 0.27 % (Median der Gewinner).
+    # Vier unabhaengige Teilverkaufsmechanismen nahmen je ~25 % und liessen im
+    # Median 11 % der Einstiegsgroesse uebrig — die Gewinner wurden zerlegt,
+    # waehrend sie noch stiegen. momentum_faded stand auf 36 von 42 Positionen.
+    # Methodenpassung: unsere Gewinnersignale sind Mean-Reversion, keine
+    # Trendfolge. Hinter dem Umkehrpunkt gibt es keine Kante mehr, dort schlaegt
+    # ein fester Vollausstieg das Aufteilen (bei Trendfolge waere es umgekehrt).
+    # 2026-08-24 auf false: die Untergrenze oben uebernimmt den Vollausstieg,
+    # ohne die Leiter auszuhebeln. Bei true feuert zusaetzlich ein ATR-Ziel,
+    # das die Leiter praktisch stilllegt (erste Stufe liegt bei ~6 %).
+    enabled: false
+    atr_mult: 2.0             # Ziel = atr_mult x ATR% der Position
+    min_pct: 4.0              # Untergrenze (ruhige Titel)
+    max_pct: 10.0             # Obergrenze (volatile Titel)
+
   momentum_fade:              # Universal quick-profit lock — protects a gain that starts fading
     enabled: true             # false → disable momentum-fade entirely (ladder/BE unchanged)
-    arm_pct: 2.0              # Peak PnL must reach this before fade protection arms (%)
+    # 2026-08-24: 2.0 -> 5.0. Bei 2 % Peak feuerte der Fade auf normalem
+    # Rauschen — ein Rueckgang von 0.6 Prozentpunkten genuegte fuer einen
+    # Teilverkauf, und er hatte auf 86 % aller offenen Positionen ausgeloest.
+    # Praxisregel: ein Trailing gilt als zu eng, wenn die Trefferquote unter
+    # 30 % liegt und der Kurs nach dem Ausstieg sofort weiterlaeuft — beides
+    # traf zu. Ab 5 % schuetzt er nur noch substanzielle Gewinne; alles
+    # darunter laeuft bis zum Vollausstiegsziel oder in den Stop.
+    arm_pct: 5.0              # Peak PnL must reach this before fade protection arms (%)
     retrace_frac: 0.30        # Fire when PnL gives back this fraction of its peak (0.30 = 30%)
-    min_lock_pct: 1.0         # Never fire below this current PnL — leave it to BE/SL (%)
+    min_lock_pct: 2.0         # Never fire below this current PnL — leave it to BE/SL (%)
+                              # 2026-08-24: 1.0 -> 2.0, damit kein Mini-Gewinn realisiert wird
     close_pct: 25.0           # % Default-Fade-Close (KI kalibriert live; war 50%)
     max_retrace_abs_pct: 4.0  # Absoluter Cap: max. Profit-pp vor Fade (bei Peaks >13% bindend)
   scalp:                      # Early first profit rung — only for positions tagged strategy='scalp'
@@ -111,11 +429,50 @@ instrument_limits:            # Maximum allocation per instrument as % of portfo
 
 sector_limits:
   # Fallback per-asset-class exposure cap for classes not explicitly listed
-  # in risk.ASSET_CLASS_LIMITS (US_TECH 40 / BROAD_ETF 25 / CRYPTO 10 / …).
+  # in risk.ASSET_CLASS_LIMITS (US_TECH 40 / BROAD_ETF 25 / CRYPTO 25 / …).
   # Wired via risk.apply_config → check_asset_class_gate.
   max_per_sector_pct: 20.0
+  # feat/sector-backfill (2026-08-12): instruments.sector (yfinance) als
+  # Fallback-Quelle fuer das Asset-Class-Gate. ASSET_CLASS_MAP deckt ~65
+  # US-Ticker ab — gemessen fielen 43 von 54 gehaltenen Symbolen = 74.2% des
+  # Equity fail-open durch das Gate.
+  # SCHARF seit 2026-08-12, nach Backfill und Messung. Verteilung des Buchs
+  # zum Zeitpunkt der Aktivierung (alle 59 Positionen haben einen Sektor):
+  #   Industrials 17.1% | Financial Services 16.3% | Consumer Cyclical 9.7%
+  #   Consumer Defensive 9.7% | Energy 6.8% | Basic Materials 6.8%
+  #   Healthcare 6.8% | Utilities 3.6% | Technology 3.1% | Comm. Services 1.0%
+  # Kein Sektor ueber dem 20%-Cap -> das Scharfschalten erzwingt HEUTE keinen
+  # einzigen Verkauf, verhindert aber weiteres Anwachsen der groessten Klumpen.
+  # Anteil des Buchs ohne jede Sektor-Grenze: 74.2% -> 0%.
+  enforce_db_sectors: true
+
+region_limits:                # feat/region-damper (2026-08-12)
+  # Die reale Klumpenlage des Buchs ist GEOGRAFISCH, nicht sektoral. Stand der
+  # Einfuehrung (Anteil am Equity): EU 34.8% | ASIA_CN 18.0% | US 9.7% |
+  # GLOBAL 9.3% | ASIA_JP 5.2% | ASIA_AU 0.9%. Gemessen an den Positionen
+  # allein sind es 44.7% EU. Kein Gate hat das je betrachtet.
+  #
+  # BEWUSST Damper statt Block: EU ist der Markt, in dem der Bot die meisten
+  # Signale findet (US-Werte sind liquider und liefern seltener Extremwerte).
+  # Ein harter Cap unterhalb der aktuellen Quote wuerde die Haupt-Signalquelle
+  # abschalten — weniger Autonomie, nicht mehr. Ueber dem Soft-Cap schrumpft
+  # die Positionsgroesse linear; der Bot baut den Klumpen handelnd ab.
+  soft_cap_pct: 35.0          # ab hier schrumpft die Groesse
+  hard_cap_pct: 50.0          # darueber kein weiterer Aufbau in der Region
+  min_factor: 0.35            # kleinste Groesse am Hard-Cap
 
 discovery:
+  movers_scan:                # feat/market-movers 2026-07-20: API-weiter Daily-Mover-Scan (Bulk-Closing + Batch-Rates)
+    enabled: true
+    min_move_pct: 5.0
+    min_move_pct_crypto: 8.0
+    top_n: 10
+    max_move_pct: 25.0        # fix/movers-sanity: darueber = Pennystock-Artefakt/Datenrauschen
+    min_price: 5.0            # feat/liquidity-tiering (2026-07-26): 0.5 -> 5.0, angeglichen an
+                              # discovery MIN_PRICE — $0.50-Stocks waren die looseste Eintrittstuer
+                              # ins Universum (Movers-Pfad hatte keinerlei Volumentest)
+    max_rates_ids: 2000       # Budget-Deckel: max. IDs pro Lauf fuer Batch-Rates
+    watchlist_cap: 15         # eigener movers.discovered-Pool, TTL-Eviction wie alle *.discovered
   max_price_deviation_pct: 25.0  # Identity guard: max yfinance↔eToro price deviation (scale-aware GBp/GBP)
 
 discord:
@@ -132,3 +489,13 @@ cache:
 #     open: "15:30"            # NYSE open in Europe/Berlin = CET/CEST
 #     close: "22:00"           # NYSE close in Europe/Berlin
 #   timezone: "Europe/Berlin"  # All market_hours times were in this timezone
+
+memory:                       # feat/qmd-memory 2026-07-22: Bot liest+schreibt die QMD-Wissensbasis
+  qmd:
+    enabled: true
+    binary: /home/mvolli/.local/bin/qmd
+    collection: hermes-workspace
+    recall_limit: 5
+
+execution:
+  market_closed_max_hours: 4.0  # fix/market-closed-ttl: APPROVED-Trade nach X h Marktschluss verwerfen

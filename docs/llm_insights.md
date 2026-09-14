@@ -1655,3 +1655,415 @@
 **Tests:** 1100 passed (PYTHONPATH=src /usr/bin/python3 -m pytest -q, 16.8s). Kill-Switch-Healthcheck leer = gesund.
 
 **Naechster Fokus:** TP+GC beobachten (Kelly ~0.20 + 0.25-Ranking-Daempfer); CORE_SWEEP-Whitelist-Qualitaet (RSI<30-Filter statt nur >75); Oversold-3-Combo: n=37/WR 2.7% ist belastbar genug fuer Skip-Option beim naechsten Review.
+
+## 2026-08-24 20:31 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 3% (1/32)
+- `.L`: 0% (0/35) ← GEBLOCKT
+- `.MC`: 0% (0/4)
+- `.PA`: 0% (0/6)
+- `.DE`: 0% (0/5)
+- `.ST`: 0% (0/16)
+- `.OL`: 0% (0/5) ← GEBLOCKT
+- `_ASIA`: 0% (0/17)
+- `_CRYPTO`: 0% (0/3)
+- `.ASX`: 0% (0/8)
+- `.MI`: 0% (0/2)
+- `.HE`: 0% (0/2)
+
+**Schwache Signaltypen:** CORE_SWEEP
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS has high success rate (82%) but negative average PnL (-1.30%), indicating exit logic failure rather than entry failure.
+- VERY_HIGH conviction signals (BB_LOWER_RSI_OVERSOLD combos) show extremely low win rates (2-10%) and negative PnL, confirming 'Falling Knife' behavior.
+- CORE_SWEEP has a low success rate (28%) and negative average PnL (-0.07%), underperforming relative to its frequency.
+
+**LLM-Fazit:** Keine strukturellen Ghost-Order-Probleme erkannt; alle Exchange-Raten stabil. TREND_PULLBACK,GOLDEN_CROSS zeigt hohe Trefferquote, verliert aber Geld durch schlechte Exits, während VERY_HIGH Conviction Oversold-Signale weiterhin als 'Falling Knives' agieren. CORE_SWEEP unterperformt mit 28% Success Rate und wird gedämpft.
+
+## 2026-08-25 20:32 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 3% (1/32)
+- `.L`: 0% (0/37) ← GEBLOCKT
+- `_ASIA`: 0% (0/20)
+- `.ASX`: 0% (0/9)
+- `.MC`: 0% (0/4)
+- `.PA`: 0% (0/4)
+- `.DE`: 0% (0/3)
+- `.ST`: 0% (0/13)
+- `.OL`: 0% (0/3) ← GEBLOCKT
+- `_CRYPTO`: 0% (0/3)
+
+*LLM nicht verfügbar — nur algorithmische Analyse.*
+
+## 2026-08-26 20:31 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 3% (1/31)
+- `.L`: 0% (0/37) ← GEBLOCKT
+- `_ASIA`: 0% (0/19)
+- `.ASX`: 0% (0/9)
+- `.MC`: 0% (0/4)
+- `.PA`: 0% (0/4)
+- `.DE`: 0% (0/3)
+- `.ST`: 0% (0/7)
+- `.OL`: 0% (0/3) ← GEBLOCKT
+- `_CRYPTO`: 0% (0/3)
+
+**Schwache Signaltypen:** CORE_SWEEP
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS zeigt 100% Success-Rate, aber negativen Avg-PnL (-1.41%) und hohe Verlustquote (76%) — Payoff-Problem statt Entry-Problem.
+- BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD (VERY_HIGH) hat 97% Verlustrate (1 Win / 36 Losses) — Extremes RSI ohne MACD-Wende ist a falling knife.
+- CORE_SWEEP hat 47 REJECTED Orders (77% of total) — High rejection rate indicates strict filters or market conditions blocking entry.
+
+**LLM-Fazit:** Keine strukturellen Ghost-Order-Probleme erkannt; alle Exchange-Raten stabil. CORE_SWEEP unterperformt mit 23% Success-Rate und wird als unterperforming markiert. TREND_PULLBACK,GOLDEN_CROSS zeigt zwar hohe Success-Rate, aber negative PnL, was auf ein Payoff-Problem hindeutet.
+
+## 2026-08-27 20:31 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 3% (1/31)
+- `.L`: 0% (0/36) ← GEBLOCKT
+- `_ASIA`: 0% (0/11)
+- `.ASX`: 0% (0/9)
+- `.MC`: 0% (0/4)
+- `.PA`: 0% (0/4)
+- `.DE`: 0% (0/3)
+- `.ST`: 0% (0/7)
+- `.OL`: 0% (0/3) ← GEBLOCKT
+- `_CRYPTO`: 0% (0/3)
+
+**Anomalien:**
+- CORE_SWEEP zeigt negative Avg-PnL (-0.15%) trotz 100% Success-Rate, was auf hohe Rejection-Rates (76%) und kleine Verluste bei aktiven Trades hindeutet.
+- TREND_PULLBACK,GOLDEN_CROSS hat eine sehr niedrige Win-Rate (25.8%) und negative Avg-PnL (-1.43%), was die bestehende Dämpfung (0.25x) bestätigt.
+
+**LLM-Fazit:** Keine strukturellen Ghost-Order-Probleme erkannt; alle Exchanges stabil. CORE_SWEEP und TREND_PULLBACK,GOLDEN_CROSS bleiben die Haupt-Verlusttreiber trotz hoher Rejection-Rates. Regime DEFENSIVE ist aktiv und Konfiguration innerhalb der Limits.
+
+## 2026-08-28 20:31 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 3% (1/31)
+- `.ST`: 0% (0/9)
+- `_ASIA`: 0% (0/40)
+- `.DE`: 0% (0/4)
+- `.L`: 0% (0/36) ← GEBLOCKT
+- `.ASX`: 0% (0/9)
+- `.MC`: 0% (0/4)
+- `.PA`: 0% (0/4)
+- `.OL`: 0% (0/3) ← GEBLOCKT
+- `_CRYPTO`: 0% (0/3)
+
+*LLM nicht verfügbar — nur algorithmische Analyse.*
+
+## 2026-08-29 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 3% (1/31)
+- `.ST`: 0% (0/9)
+- `_ASIA`: 0% (0/40)
+- `.DE`: 0% (0/4)
+- `.L`: 0% (0/36) ← GEBLOCKT
+- `.ASX`: 0% (0/9)
+- `.MC`: 0% (0/4)
+- `.PA`: 0% (0/4)
+- `.OL`: 0% (0/3) ← GEBLOCKT
+- `_CRYPTO`: 0% (0/3)
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS shows negative avg PnL (-1.43%) and low win rate (25.8%) despite HIGH conviction
+- CORE_SWEEP has high rejection rate (76%) but positive avg PnL (+0.37%) for executed trades
+
+**LLM-Fazit:** Keine Ghost-Order-Probleme erkannt; alle Exchanges stabil. TREND_PULLBACK,GOLDEN_CROSS unterperformt mit negativer Rendite und wird gedämpft. DEFENSIVE-Regime aktiv, Portfolio diversifiziert über 10 Positionen.
+
+## 2026-08-30 20:31 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 4% (1/23)
+- `.ST`: 0% (0/9)
+- `_ASIA`: 0% (0/40)
+- `.DE`: 0% (0/4)
+- `.L`: 0% (0/16) ← GEBLOCKT
+- `.MC`: 0% (0/4)
+- `.PA`: 0% (0/4)
+- `.OL`: 0% (0/3) ← GEBLOCKT
+- `_CRYPTO`: 0% (0/3)
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS zeigt negative Avg PnL (-1.43%) und niedrige Winrate (25.8%), was auf ein Entry-Problem hindeutet.
+- CORE_SWEEP hat eine hohe Reject-Rate (55%), was auf strenge Filter oder Marktbedingungen hindeutet, aber die ausgeführten Trades sind positiv.
+
+**LLM-Fazit:** Das Portfolio befindet sich im DEFENSIVE-Regime mit einer stabilen Performance. TREND_PULLBACK,GOLDEN_CROSS unterperformt deutlich und sollte gedämpft werden, während MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING weiterhin die beste Edge bietet. Keine strukturellen Ghost-Order-Probleme bei tradbaren Instrumenten.
+
+## 2026-08-31 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_ASIA`: 0% (0/37)
+- `_OTHER`: 0% (0/18)
+- `.DE`: 0% (0/6)
+- `.PA`: 0% (0/3)
+- `.MI`: 0% (0/2)
+- `.MC`: 0% (0/5)
+- `.ASX`: 0% (0/2)
+- `.ST`: 0% (0/2)
+- `.L`: 0% (0/7) ← GEBLOCKT
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS shows negative avg PnL (-1.43%) and low win rate (25.8%), indicating structural weakness in this signal type.
+- Multiple recent losses on MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING for HK-listed stocks (1099.HK, 3898.HK, 2367.HK) suggest potential liquidity or slippage issues in that specific sector, despite overall positive signal performance.
+
+**LLM-Fazit:** Das Portfolio befindet sich im DEFENSIVE-Regime mit einer stabilen Equity-Position. Keine strukturellen Ghost-Order-Probleme wurden festgestellt, da alle Exchange-Raten stabil sind. Der Signal-Typ TREND_PULLBACK,GOLDEN_CROSS unterperformt deutlich und sollte gedämpft werden, während MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING weiterhin die beste Edge liefert.
+
+## 2026-09-01 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/20)
+- `_ASIA`: 0% (0/44)
+- `.ST`: 0% (0/7)
+- `.MI`: 0% (0/7)
+- `.MC`: 0% (0/6)
+- `.PA`: 0% (0/4)
+- `.DE`: 0% (0/6)
+- `.ASX`: 0% (0/2)
+- `.L`: 0% (0/7) ← GEBLOCKT
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS zeigt negative Avg PnL (-1.43%) und hohe Verlustquote (23/31), trotz 100% Execution Success Rate.
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING hat eine hohe Reject-Rate (46%), was auf strenge Filter oder Markt-Zeit-Konflikte hindeutet, aber die verbleibenden Trades sind profitabel.
+
+**LLM-Fazit:** Keine strukturellen Ghost-Order-Probleme erkannt; alle Exchanges stabil. TREND_PULLBACK,GOLDEN_CROSS unterperformt aktuell mit negativer PnL und wird gedämpft. MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING bleibt der einzige konsistent profitable Signal-Typ.
+
+## 2026-09-02 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/25)
+- `.ST`: 0% (0/9)
+- `.PA`: 0% (0/6)
+- `.DE`: 0% (0/7)
+- `.MI`: 0% (0/9)
+- `_ASIA`: 0% (0/49)
+- `.ASX`: 0% (0/5)
+- `.MC`: 0% (0/6)
+- `.L`: 0% (0/7) ← GEBLOCKT
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS shows negative avg PnL (-1.43%) despite 100% execution success rate, indicating entry quality issues rather than execution failures.
+- CORE_SWEEP has a high rejection rate (53%) but 100% success on executed trades, suggesting filters are effective but restrictive.
+
+**LLM-Fazit:** Keine strukturellen Ghost-Order-Probleme erkannt; alle Exchanges stabil. TREND_PULLBACK,GOLDEN_CROSS unterperformt mit negativem Durchschnitts-PnL und wird gedämpft. MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING bleibt der stärkste Signal-Typ mit positiver Edge.
+
+## 2026-09-03 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/28)
+- `.MC`: 0% (0/7)
+- `.ST`: 0% (0/12)
+- `.DE`: 0% (0/8)
+- `.PA`: 0% (0/7)
+- `_ASIA`: 0% (0/52)
+- `.MI`: 0% (0/9)
+- `.ASX`: 0% (0/5)
+- `.L`: 0% (0/7) ← GEBLOCKT
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS (HIGH conviction) shows negative avg PnL (-1.43%) and low win rate (25.8%), indicating poor entry quality despite high conviction label.
+- Multiple recent MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING trades closed with losses (e.g., SDHC -3.83%, 1876.HK -3.06%), suggesting recent volatility or slippage issues despite historical positive edge.
+
+**LLM-Fazit:** Keine strukturellen Ghost-Order-Probleme erkannt; alle Exchanges stabil. TREND_PULLBACK,GOLDEN_CROSS signal type underperforms significantly with negative average PnL, warranting a score reduction. Portfolio remains in DEFENSIVE regime with no critical anomalies detected.
+
+## 2026-09-04 20:31 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/35)
+- `.MI`: 0% (0/11)
+- `.PA`: 0% (0/12)
+- `.DE`: 0% (0/9)
+- `.MC`: 0% (0/8)
+- `_ASIA`: 0% (0/53)
+- `.ASX`: 0% (0/8)
+- `.ST`: 0% (0/12)
+- `.L`: 0% (0/7) ← GEBLOCKT
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS shows negative avg PnL (-1.43%) despite 100% execution success rate, indicating entry quality issues rather than execution failures.
+- CORE_SWEEP has a high rejection rate (53%) but 100% success for executed trades, suggesting filters are effective but potentially too strict.
+
+**LLM-Fazit:** Keine strukturellen Ghost-Order-Probleme erkannt; alle Exchange-Raten stabil. TREND_PULLBACK,GOLDEN_CROSS unterperformt mit negativem Durchschnitts-PnL, daher wird das Signal gedämpft. MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING bleibt der stärkste Signal-Typ mit positiver Edge.
+
+## 2026-09-05 20:32 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/36)
+- `.MI`: 0% (0/11)
+- `.PA`: 0% (0/12)
+- `.DE`: 0% (0/9)
+- `.MC`: 0% (0/8)
+- `_ASIA`: 0% (0/53)
+- `.ASX`: 0% (0/8)
+- `.ST`: 0% (0/12)
+- `.L`: 0% (0/7) ← GEBLOCKT
+
+*LLM nicht verfügbar — nur algorithmische Analyse.*
+
+## 2026-09-06 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/68)
+- `.L`: 0% (0/7) ← GEBLOCKT
+- `.MI`: 0% (0/11)
+- `.PA`: 0% (0/12)
+- `.DE`: 0% (0/9)
+- `.MC`: 0% (0/8)
+- `_ASIA`: 0% (0/53)
+- `.ASX`: 0% (0/8)
+- `.ST`: 0% (0/12)
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS shows negative avg PnL (-1.43%) despite high success rate, indicating poor risk-reward or exit timing.
+- CORE_SWEEP has a very high rejection rate (81%) but 100% success on executed trades, suggesting filters are effective but restrictive.
+
+**LLM-Fazit:** Portfolio ist im CAUTION-Regime stabil. Keine strukturellen Ghost-Order-Probleme bei tradbaren Instrumenten. TREND_PULLBACK,GOLDEN_CROSS signalisiert Verluste trotz hoher Erfolgsquote, daher wird die Gewichtung gedämpft.
+
+## 2026-09-07 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 8% (11/144)
+- `.PA`: 0% (0/20)
+- `.MI`: 0% (0/13)
+- `.L`: 0% (0/8) ← GEBLOCKT
+- `.DE`: 0% (0/8)
+- `.ST`: 0% (0/13)
+- `_ASIA`: 0% (0/60)
+- `.ASX`: 0% (0/15)
+- `.MC`: 0% (0/4)
+
+**Anomalien:**
+- CORE_SWEEP signal shows 100% rejection rate (7/7 ghost_failed), indicating a structural mismatch or filter conflict.
+- TREND_PULLBACK,GOLDEN_CROSS (HIGH conviction) has a negative average PnL (-1.43%) and low win rate (25.8%), underperforming its MEDIUM conviction counterpart.
+- Slippage rejects observed on multiple symbols (SPELL, NMR, H, FIDA) suggest liquidity or timing issues in entry execution.
+
+**LLM-Fazit:** Keine strukturellen Ghost-Order-Blöcke aktiv; alle Exchange-Suffixe stabil. CORE_SWEEP-Signale werden zu 100% abgelehnt, was auf ein Filter-Problem hindeutet. TREND_PULLBACK,GOLDEN_CROSS mit HIGH Conviction verliert Geld und sollte gedämpft werden, während MACD_TURN+BB_LOW bleibt der einzige profitable Signal-Typ.
+
+## 2026-09-08 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 8% (11/145)
+- `.MI`: 0% (0/14)
+- `.DE`: 0% (0/12)
+- `_ASIA`: 0% (0/63)
+- `.ASX`: 0% (0/15)
+- `.PA`: 0% (0/20)
+- `.L`: 0% (0/5) ← GEBLOCKT
+- `.ST`: 0% (0/13)
+- `.MC`: 0% (0/4)
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS (HIGH conviction) zeigt negative Edge (-1.43% avg PnL, 25.8% WR) im DEFENSIVE Regime
+- CORE_SWEEP hat eine sehr hohe Reject-Rate (88%) bei 100% Success-Rate der ausgeführten Trades
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING zeigt hohe Volatilität mit 33% Reject-Rate und 2 Ghost-Failures
+
+**LLM-Fazit:** Das Portfolio befindet sich im DEFENSIVE-Regime mit einer Equity von 7.940 USD. Die Signal-Performance zeigt, dass TREND_PULLBACK,GOLDEN_CROSS mit HIGH Conviction aktuell eine negative Edge aufweist und gedämpft werden sollte, während MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING die beste Performance liefert. Keine strukturellen Ghost-Order-Probleme wurden in den letzten 14 Tagen festgestellt.
+
+## 2026-09-09 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 7% (11/152)
+- `.DE`: 0% (0/13)
+- `.HE`: 0% (0/2)
+- `.MI`: 0% (0/16)
+- `.PA`: 0% (0/22)
+- `_ASIA`: 0% (0/65)
+- `.ASX`: 0% (0/16)
+- `.L`: 0% (0/5) ← GEBLOCKT
+- `.ST`: 0% (0/13)
+- `.MC`: 0% (0/4)
+
+**Anomalien:**
+- CORE_SWEEP zeigt 88% Reject-Rate, was auf aggressive Entry-Filter oder Markt-Zeit-Konflikte hindeutet.
+- TREND_PULLBACK,GOLDEN_CROSS (HIGH Conviction) hat eine negative Avg-PnL von -1.43% und nur 25.8% Winrate.
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING hat eine hohe Reject-Rate (35%) trotz positiver Avg-PnL.
+
+**LLM-Fazit:** Das Portfolio befindet sich im DEFENSIVE-Regime mit einer Equity von 7.859 USD. Es gibt keine strukturellen Ghost-Order-Probleme bei den Exchanges, aber CORE_SWEEP Signale werden zu 88% abgelehnt. TREND_PULLBACK,GOLDEN_CROSS mit HIGH Conviction performt schlecht (negativer PnL) und sollte gedämpft werden.
+
+## 2026-09-10 20:31 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 7% (11/159)
+- `.DE`: 0% (0/16)
+- `.PA`: 0% (0/23)
+- `_ASIA`: 0% (0/66)
+- `.ASX`: 0% (0/17)
+- `.HE`: 0% (0/2)
+- `.MI`: 0% (0/16)
+- `.L`: 0% (0/5) ← GEBLOCKT
+- `.ST`: 0% (0/13)
+- `.MC`: 0% (0/4)
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS (HIGH conviction) zeigt negative Avg-PnL (-1.43%) und niedrige Win-Rate (25.8%), im Gegensatz zur MEDIUM-Variante (+0.56%).
+- CORE_SWEEP hat eine sehr hohe Reject-Rate (88%), was auf strikte Eligibility-Filter oder Markt-Zeit-Konflikte hindeutet, obwohl die Success-Rate bei 100% liegt.
+
+**LLM-Fazit:** Das Portfolio befindet sich im DEFENSIVE-Regime mit einer Equity von 7.790 USD. Die Signal-Performance zeigt, dass MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING die beste Edge bietet (+0.55% Avg PnL), während TREND_PULLBACK,GOLDEN_CROSS bei HIGH Conviction verliert. Keine strukturellen Ghost-Order-Probleme bei tradbaren Instrumenten festgestellt.
+
+## 2026-09-11 20:31 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/286)
+- `.PA`: 0% (0/52)
+- `.L`: 0% (0/21) ← GEBLOCKT
+- `.ST`: 0% (0/14)
+- `.DE`: 0% (0/26)
+- `.OL`: 0% (0/3) ← GEBLOCKT
+- `.MI`: 0% (0/17)
+- `_ASIA`: 0% (0/53)
+- `.ASX`: 0% (0/19)
+- `.HE`: 0% (0/2)
+- `.MC`: 0% (0/4)
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS (HIGH conviction) shows severe underperformance with avg PnL -1.43% and 25.8% win rate, indicating a broken entry filter for high-conviction trend signals.
+- Recent trades show a cluster of losses with hold_d < 1 day (e.g., COST, LR.PA, ELIS.PA), suggesting potential slippage or timing issues rather than pure signal failure.
+
+**LLM-Fazit:** Keine strukturellen Ghost-Order-Probleme erkannt; alle Exchange-Raten sind stabil. Die Signal-Typen 'TREND_PULLBACK,GOLDEN_CROSS' (HIGH conviction) und 'CORE_SWEEP' (MEDIUM) zeigen aktuell schwache PnL-Performance und werden entsprechend gedämpft. Das Portfolio befindet sich im NORMAL-Regime mit akzeptabler Drawdown-Situation.
+
+## 2026-09-12 20:31 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/287)
+- `.PA`: 0% (0/52)
+- `.L`: 0% (0/21) ← GEBLOCKT
+- `.ST`: 0% (0/14)
+- `.DE`: 0% (0/26)
+- `.OL`: 0% (0/3) ← GEBLOCKT
+- `.MI`: 0% (0/17)
+- `_ASIA`: 0% (0/53)
+- `.ASX`: 0% (0/19)
+- `.HE`: 0% (0/2)
+- `.MC`: 0% (0/4)
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS (HIGH) zeigt massive Verluste (-1.43% avg) im Vergleich zu MEDIUM (+0.51% avg)
+- Hohe Rejections bei CORE_SWEEP (79%) trotz 100% Success Rate der ausgeführten Trades
+
+**LLM-Fazit:** Keine strukturellen Ghost-Order-Probleme erkannt; alle Exchanges stabil. Hauptproblem ist die schwache Performance von TREND_PULLBACK,GOLDEN_CROSS bei HIGH Conviction, die nun gedämpft wird. CORE_SWEEP zeigt hohe Rejections, was auf enge eToro-Eligibility-Filter hindeutet.
+
+## 2026-09-13 20:31 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/286)
+- `.PA`: 0% (0/52)
+- `.L`: 0% (0/21) ← GEBLOCKT
+- `.ST`: 0% (0/14)
+- `.DE`: 0% (0/26)
+- `.OL`: 0% (0/3) ← GEBLOCKT
+- `.MI`: 0% (0/17)
+- `_ASIA`: 0% (0/53)
+- `.ASX`: 0% (0/19)
+- `.HE`: 0% (0/2)
+- `.MC`: 0% (0/4)
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS (HIGH) zeigt starke Verluste (-1.43% avg PnL, 23L/8W) im Vergleich zur MEDIUM-Stufe (+0.51% avg PnL).
+- Hohe Rejections bei CORE_SWEEP (79%) trotz 100% Success-Rate der ausgeführten Trades.
+
+**LLM-Fazit:** Keine strukturellen Ghost-Order-Probleme festgestellt; alle Exchanges stabil. Die HIGH-Conviction-Stufe von TREND_PULLBACK,GOLDEN_CROSS performt deutlich schlechter als MEDIUM und wird gedämpft. CORE_SWEEP zeigt hohe Rejections, was auf strenge eToro-Eligibility-Checks hindeutet, aber die ausgeführten Trades sind erfolgreich.

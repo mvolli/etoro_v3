@@ -244,6 +244,18 @@ def is_transient_failure(rejection_reason: str | None) -> bool:
     reason = rejection_reason.strip()
     lowered = reason.lower()
     if reason.startswith("APIError"):
+        # fix/auth-flap-requeue (2026-09-14): HTTP 401/403 = transient.
+        # Beleg 2026-09-10 11:31..2026-09-11 02:09: eToro-Auth-Flap —
+        # ~15h alle Endpoints 401 (pnl, orders), 6 Trades terminal-FAILED
+        # (COST x3, FME.DE, DEO, GOOG), Signal-CONSUMED, nie retried.
+        # eToro-Keys sind static, kein token-rotation -> a 401 from a
+        # healthy key-pair can ONLY be server/edge-side, i.e. a condition
+        # that heals. Same class as 5xx/timeout; the one-shot requeue
+        # cap (classify_requeue: requeue_count 0->1, 60min) still bounds
+        # the blast radius.
+        _AUTH_HTTP_RE = re.compile(r"HTTP 40[13]\b")
+        if _AUTH_HTTP_RE.search(reason):
+            return True
         return bool(_TRANSIENT_HTTP_RE.search(reason)) or any(
             m in lowered for m in _TRANSIENT_MARKERS
         )

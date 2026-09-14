@@ -191,8 +191,17 @@ def test_transient_classification():
     assert is_transient_failure("APIError: HTTP 503 from /orders: unavailable")
     assert is_transient_failure("APIError: read timeout after 30s")
     assert is_transient_failure("Unexpected error: ConnectionError('reset by peer')")
+    # fix/auth-flap-requeue (2026-09-14): Auth-Flap 2026-09-10 — 15h lang
+    # alle eToro-Endpoints 401, 6 Trades terminal-FAILED. eToro-Keys sind
+    # static -> 401 von einem gesunden Key-Paar kann nur server-seitig
+    # (healable) sein. 403 gleicht (Forbidden bei kaputter Auth).
+    assert is_transient_failure(
+        "APIError: HTTP 401 from /trading/execution/orders: {'errorCode': 'Unauthorized', 'errorMessage': 'Unauthorized'}"
+    )
+    assert is_transient_failure("APIError: HTTP 403 from /trading/info/real/pnl: Forbidden")
     # strukturell — NIE requeuen
     assert not is_transient_failure("APIError: HTTP 400 from /orders: bad request")
+    assert not is_transient_failure("APIError: HTTP 404 from /orders: not found")
     assert not is_transient_failure("Ghost order: orderId=x but position never materialized")
     assert not is_transient_failure("Blocked: allowOpenPosition=false")
     assert not is_transient_failure("Market closed: NYSE closed until 14:30")

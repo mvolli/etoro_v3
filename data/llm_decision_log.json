@@ -1609,9 +1609,9 @@
     },
     "reason": "RATCHET-FROZEN: Lockerung 0.25 -> 0.5 blockiert (n_closed=63/20, realized=-46.50 USD)",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal TREND_PULLBACK,GOLDEN_CROSS: 1 Trades, avg_pnl=-1.14% (Gewicht={'score_multiplier': 0.25, 'skip': False, 'reason': 'HIGH conviction variant has 25.8% win rate and negative avg PnL (-1.43%), indicating poor entry quality for this specific conviction level.', '_ratchet_frozen': True, '_proposed': 0.5, '_ratchet_reason': 'RATCHET-FROZEN: Lockerung 0.25 -> 0.5 blockiert (n_closed=63/20, realized=-46.50 USD)'})",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-09-12"
   },
   {
     "date": "2026-09-11",
@@ -1626,9 +1626,9 @@
     },
     "reason": "MEDIUM conviction shows low avg PnL (0.26%) and high reject rate (79%), suggesting marginal edge that warrants slight dampening.",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal CORE_SWEEP: 4 Trades, avg_pnl=-0.90% (Gewicht={'score_multiplier': 0.8, 'skip': False, 'reason': 'MEDIUM conviction shows low avg PnL (0.26%) and high reject rate (79%), suggesting marginal edge that warrants slight dampening.'})",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-09-12"
   },
   {
     "date": "2026-09-11",
@@ -1655,6 +1655,38 @@
         "dollar_wr": 53.1
       }
     },
+    "outcome": "Signal TREND_PULLBACK,GOLDEN_CROSS: 1 Trades, avg_pnl=-1.14% (Gewicht={'score_multiplier': 1.0, 'by_conviction': {'HIGH': 0.25}})",
+    "outcome_grade": "WORSE",
+    "outcome_date": "2026-09-12"
+  },
+  {
+    "date": "2026-09-12",
+    "timestamp": "2026-09-12T20:31:07.430292+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-09-13",
+    "timestamp": "2026-09-13T20:31:16.832888+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
     "outcome": null,
     "outcome_grade": null,
     "outcome_date": null

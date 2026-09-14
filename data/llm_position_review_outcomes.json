@@ -2348,9 +2348,9 @@
     "reason": "RSI 73 überkauft, BB% 1.51 extrem, Gewinnabgabe droht",
     "pnl_at_execution": 16.722348320624313,
     "price_at_execution": 457.68,
-    "outcome_checked": false,
-    "outcome_grade": null,
-    "outcome_pnl_delta": null
+    "outcome_checked": true,
+    "outcome_grade": "AVOIDED_LOSS",
+    "outcome_pnl_delta": -16.92
   },
   {
     "ts_recommended": "2026-07-30T20:36:24",
@@ -2361,9 +2361,9 @@
     "reason": "RSI 72 überkauft, BB% 1.50 extrem, Gewinn gibt ab (-2.3% vom Peak)",
     "pnl_at_execution": 14.562240187702425,
     "price_at_execution": 449.21,
-    "outcome_checked": false,
-    "outcome_grade": null,
-    "outcome_pnl_delta": null
+    "outcome_checked": true,
+    "outcome_grade": "AVOIDED_LOSS",
+    "outcome_pnl_delta": -14.76
   },
   {
     "ts_recommended": "2026-07-31T06:35:34",
@@ -2400,9 +2400,9 @@
     "reason": "RSI 72 überkauft, BB% > 0.95, wiederholte Overbought-Signale",
     "pnl_at_execution": 13.858356073550793,
     "price_at_execution": 446.45,
-    "outcome_checked": false,
-    "outcome_grade": null,
-    "outcome_pnl_delta": null
+    "outcome_checked": true,
+    "outcome_grade": "AVOIDED_LOSS",
+    "outcome_pnl_delta": -14.06
   },
   {
     "ts_recommended": "2026-07-31T12:36:02",
@@ -9043,9 +9043,9 @@
     "reason": "Momentum_faded=FADED (Schwung bereits gebrochen)",
     "pnl_at_execution": 2.641027686906572,
     "price_at_execution": 771.84,
-    "outcome_checked": false,
-    "outcome_grade": null,
-    "outcome_pnl_delta": null
+    "outcome_checked": true,
+    "outcome_grade": "AVOIDED_LOSS",
+    "outcome_pnl_delta": -2.85
   },
   {
     "ts_recommended": "2026-08-27T17:36:45",
@@ -9056,9 +9056,9 @@
     "reason": "Momentum_faded=FADED (Schwung bereits gebrochen)",
     "pnl_at_execution": 1.982530743592692,
     "price_at_execution": 354.94,
-    "outcome_checked": false,
-    "outcome_grade": null,
-    "outcome_pnl_delta": null
+    "outcome_checked": true,
+    "outcome_grade": "AVOIDED_LOSS",
+    "outcome_pnl_delta": -2.9
   },
   {
     "ts_recommended": "2026-08-27T17:36:45",
@@ -9225,9 +9225,9 @@
     "reason": "FADED-Label vorhanden, Momentum gebrochen",
     "pnl_at_execution": 2.430915715843507,
     "price_at_execution": 770.26,
-    "outcome_checked": false,
-    "outcome_grade": null,
-    "outcome_pnl_delta": null
+    "outcome_checked": true,
+    "outcome_grade": "AVOIDED_LOSS",
+    "outcome_pnl_delta": -2.64
   },
   {
     "ts_recommended": "2026-08-27T20:36:15",
@@ -9238,9 +9238,9 @@
     "reason": "FADED-Label vorhanden, Momentum gebrochen",
     "pnl_at_execution": 1.7469256407309564,
     "price_at_execution": 354.12,
-    "outcome_checked": false,
-    "outcome_grade": null,
-    "outcome_pnl_delta": null
+    "outcome_checked": true,
+    "outcome_grade": "AVOIDED_LOSS",
+    "outcome_pnl_delta": -2.67
   },
   {
     "ts_recommended": "2026-08-27T20:36:15",
@@ -9381,9 +9381,9 @@
     "reason": "momentum_faded=FADED im Label. Schwung bereits gebrochen.",
     "pnl_at_execution": 2.505399079762771,
     "price_at_execution": 770.8201,
-    "outcome_checked": false,
-    "outcome_grade": null,
-    "outcome_pnl_delta": null
+    "outcome_checked": true,
+    "outcome_grade": "AVOIDED_LOSS",
+    "outcome_pnl_delta": -2.71
   },
   {
     "ts_recommended": "2026-08-28T06:35:53",
@@ -9394,9 +9394,9 @@
     "reason": "momentum_faded=FADED im Label. Schwung bereits gebrochen.",
     "pnl_at_execution": 1.7124468451902075,
     "price_at_execution": 354.0,
-    "outcome_checked": false,
-    "outcome_grade": null,
-    "outcome_pnl_delta": null
+    "outcome_checked": true,
+    "outcome_grade": "AVOIDED_LOSS",
+    "outcome_pnl_delta": -2.63
   },
   {
     "ts_recommended": "2026-08-28T06:35:53",
@@ -9615,9 +9615,9 @@
     "reason": "FADED Label + PnL +3.8% > 0% UND Δ -5.3% < -1.5% → Gewinnabgabe, Momentum gebrochen",
     "pnl_at_execution": 3.827183913497101,
     "price_at_execution": 218.93,
-    "outcome_checked": false,
-    "outcome_grade": null,
-    "outcome_pnl_delta": null
+    "outcome_checked": true,
+    "outcome_grade": "AVOIDED_LOSS",
+    "outcome_pnl_delta": -4.03
   },
   {
     "ts_recommended": "2026-08-31T12:36:48",
@@ -9628,9 +9628,9 @@
     "reason": "Momentum faded (FADED) und PnL > 0% mit Δ < -1.5% (Peak +9.0% -> +3.6%).",
     "pnl_at_execution": 3.7892440481836154,
     "price_at_execution": 218.85,
-    "outcome_checked": false,
-    "outcome_grade": null,
-    "outcome_pnl_delta": null
+    "outcome_checked": true,
+    "outcome_grade": "AVOIDED_LOSS",
+    "outcome_pnl_delta": -3.99
   },
   {
     "ts_recommended": "2026-08-31T17:36:30",
@@ -9641,9 +9641,9 @@
     "reason": "Momentum faded (FADED) und PnL > 0% mit Δ < -1.5%.",
     "pnl_at_execution": 4.03111068955706,
     "price_at_execution": 219.36,
-    "outcome_checked": false,
-    "outcome_grade": null,
-    "outcome_pnl_delta": null
+    "outcome_checked": true,
+    "outcome_grade": "AVOIDED_LOSS",
+    "outcome_pnl_delta": -4.23
   },
   {
     "ts_recommended": "2026-09-01T06:36:52",
@@ -9732,9 +9732,9 @@
     "reason": "FADED Label (Momentum gebrochen) → sofort TIGHTEN. Additionally PnL +4.5% > +2% AND MACD↓.",
     "pnl_at_execution": 4.519586455468061,
     "price_at_execution": 220.39,
-    "outcome_checked": false,
-    "outcome_grade": null,
-    "outcome_pnl_delta": null
+    "outcome_checked": true,
+    "outcome_grade": "AVOIDED_LOSS",
+    "outcome_pnl_delta": -4.72
   },
   {
     "ts_recommended": "2026-09-01T06:36:52",
@@ -9914,9 +9914,9 @@
     "reason": "PnL > 0% UND Δ < -1.5% (Peak-Gewinn abgegeben)",
     "pnl_at_execution": 1.328217237308138,
     "price_at_execution": 274.64,
-    "outcome_checked": false,
-    "outcome_grade": null,
-    "outcome_pnl_delta": null
+    "outcome_checked": true,
+    "outcome_grade": "AVOIDED_LOSS",
+    "outcome_pnl_delta": -1.83
   },
   {
     "ts_recommended": "2026-09-02T20:36:20",
@@ -9927,9 +9927,9 @@
     "reason": "PnL > 0% UND Δ < -1.5%",
     "pnl_at_execution": 1.0920897284533604,
     "price_at_execution": 274.0,
-    "outcome_checked": false,
-    "outcome_grade": null,
-    "outcome_pnl_delta": null
+    "outcome_checked": true,
+    "outcome_grade": "AVOIDED_LOSS",
+    "outcome_pnl_delta": -1.59
   },
   {
     "ts_recommended": "2026-09-03T06:35:43",
@@ -10551,6 +10551,279 @@
     "reason": "PnL -2.5% < -2% und SMA50↓ MACD↓ (doppeltes Trendsignal gegen Position). Signal-Typ avg_pnl +1.71% aber Win-Rate 30%, Verlust begrenzen.",
     "pnl_at_execution": -2.502234137622872,
     "price_at_execution": 10.91,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-09-07T20:36:09",
+    "ts_executed": "2026-09-07T20:41:09",
+    "symbol": "NDX1.DE",
+    "recommendation": "TIGHTEN",
+    "close_pct": 25.0,
+    "reason": "PnL +2.5% > +2% UND MACD=↓ erfüllt TIGHTEN-Kriterium (Momentum dreht bei profitabler Position).",
+    "pnl_at_execution": 2.475997978777178,
+    "price_at_execution": 40.56,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-09-07T20:36:09",
+    "ts_executed": "2026-09-07T20:41:09",
+    "symbol": "MUX.DE",
+    "recommendation": "TIGHTEN",
+    "close_pct": 25.0,
+    "reason": "PnL +1.8% > 0% UND Δ -1.0% (not < -1.5%), but PnL > +2%? No. PnL > 0% AND SMA50=↓ AND VolR > 1.5? VolR=0.9x. No. Wait, PnL +1.8% is not > +2%. So no TIGHTEN? Let's re-check. PnL +1.8%, peak +2.8%, Δ -1.0%. No TIGHTEN trigger. HOLD.",
+    "pnl_at_execution": 1.7786561264822032,
+    "price_at_execution": 25.75,
+    "outcome_checked": true,
+    "outcome_grade": "AVOIDED_LOSS",
+    "outcome_pnl_delta": -0.59
+  },
+  {
+    "ts_recommended": "2026-09-08T06:36:58",
+    "ts_executed": "2026-09-08T06:36:59",
+    "symbol": "NDX1.DE",
+    "recommendation": "TIGHTEN",
+    "close_pct": 100.0,
+    "reason": "PnL +2.5% mit Δ -1.9% zeigt, dass die Position Peak-Gewinn abgibt (Δ < -1.5%), TIGHTEN-Trigger aktiv.",
+    "pnl_at_execution": 2.475997978777178,
+    "price_at_execution": 40.56,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-09-09T06:36:46",
+    "ts_executed": "2026-09-09T06:36:52",
+    "symbol": "6990.HK",
+    "recommendation": "EXIT",
+    "close_pct": 100.0,
+    "reason": "PnL -3.0% überschreitet die -3% Verlustgrenze, Verlust begrenzen.",
+    "pnl_at_execution": -2.986279257465696,
+    "price_at_execution": 480.8,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-09-09T12:36:18",
+    "ts_executed": "2026-09-09T12:36:21",
+    "symbol": "0914.HK",
+    "recommendation": "TIGHTEN",
+    "close_pct": 25.0,
+    "reason": "PnL +2.3% > +2% und MACD↓. Momentum dreht bei profitabler Position.",
+    "pnl_at_execution": 2.289156626506017,
+    "price_at_execution": 16.98,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-09-09T17:37:00",
+    "ts_executed": "2026-09-09T17:41:51",
+    "symbol": "SPG",
+    "recommendation": "EXIT",
+    "close_pct": 100.0,
+    "reason": "PnL -1.7% unter -2% Exit-Schwelle. SMA50=↓ und MACD↓ bilden doppeltes Trendsignal gegen Position.",
+    "pnl_at_execution": -2.7443768566982607,
+    "price_at_execution": 206.25,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-09-09T17:37:00",
+    "ts_executed": "2026-09-09T17:41:51",
+    "symbol": "PSA",
+    "recommendation": "EXIT",
+    "close_pct": 100.0,
+    "reason": "PnL -2.1% unter -2% Exit-Schwelle. SMA50=↓ und MACD↓ bilden doppeltes Trendsignal gegen Position.",
+    "pnl_at_execution": -2.168874172185431,
+    "price_at_execution": 295.45,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-09-09T17:37:00",
+    "ts_executed": "2026-09-09T17:41:51",
+    "symbol": "MMM",
+    "recommendation": "EXIT",
+    "close_pct": 100.0,
+    "reason": "PnL -2.4% unter -2% Exit-Schwelle. SMA50=↓ und MACD↓ bilden doppeltes Trendsignal gegen Position.",
+    "pnl_at_execution": -2.5416715923868183,
+    "price_at_execution": 164.88,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-09-09T20:36:06",
+    "ts_executed": "2026-09-09T20:41:06",
+    "symbol": "0914.HK",
+    "recommendation": "TIGHTEN",
+    "close_pct": 25.0,
+    "reason": "PnL +2.3% > 0% und SMA50=↓ mit VolR 1.6x > 1.5. Preis bricht unter Trend mit hohem Volumen.",
+    "pnl_at_execution": 2.289156626506017,
+    "price_at_execution": 16.98,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-09-09T20:36:06",
+    "ts_executed": "2026-09-09T20:41:06",
+    "symbol": "MUX.DE",
+    "recommendation": "TIGHTEN",
+    "close_pct": 25.0,
+    "reason": "PnL +1.2% > 0% und Δ -2.0% < -1.5%. Position gibt Peak-Gewinn ab.",
+    "pnl_at_execution": 1.1857707509881354,
+    "price_at_execution": 25.6,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-09-10T06:36:54",
+    "ts_executed": "2026-09-10T06:36:57",
+    "symbol": "MUX.DE",
+    "recommendation": "TIGHTEN",
+    "close_pct": 100.0,
+    "reason": "PnL +1.2% > 0% UND Δ -2.0% < -1.5% → Position gibt Peak-Gewinn ab → TIGHTEN.",
+    "pnl_at_execution": 1.1857707509881354,
+    "price_at_execution": 25.6,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-09-10T12:36:22",
+    "ts_executed": "2026-09-10T12:36:28",
+    "symbol": "UTG.L",
+    "recommendation": "EXIT",
+    "close_pct": 100.0,
+    "reason": "PnL -3.1% < -3% Verlustlimit. Zusätzlich PnL < -1% mit SMA50↓ und MACD↓.",
+    "pnl_at_execution": -3.0995106035889064,
+    "price_at_execution": 475.2,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-09-10T12:36:22",
+    "ts_executed": "2026-09-10T12:36:28",
+    "symbol": "BYG.L",
+    "recommendation": "EXIT",
+    "close_pct": 100.0,
+    "reason": "PnL -3.0% < -3% Verlustlimit. Zusätzlich PnL < -1% mit SMA50↓ und MACD↓.",
+    "pnl_at_execution": -3.3092659446450012,
+    "price_at_execution": 803.5,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-09-10T12:36:22",
+    "ts_executed": "2026-09-10T12:36:28",
+    "symbol": "EQT.ST",
+    "recommendation": "EXIT",
+    "close_pct": 100.0,
+    "reason": "PnL -2.3% < -1% AND SMA50=↓ AND MACD↓. Double trend signal against position.",
+    "pnl_at_execution": -2.385436283741371,
+    "price_at_execution": 311.0,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-09-11T12:36:06",
+    "ts_executed": "2026-09-11T12:36:20",
+    "symbol": "GSF.OL",
+    "recommendation": "EXIT",
+    "close_pct": 100.0,
+    "reason": "PnL < -1% mit SMA50↓ und MACD↓ (Doppeltes Trendsignal gegen Position)",
+    "pnl_at_execution": -1.4587892049598872,
+    "price_at_execution": 27.02,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-09-11T12:36:06",
+    "ts_executed": "2026-09-11T12:36:20",
+    "symbol": "SAX.DE",
+    "recommendation": "EXIT",
+    "close_pct": 100.0,
+    "reason": "PnL < -1% mit SMA50↓ und MACD↓ (Doppeltes Trendsignal gegen Position)",
+    "pnl_at_execution": -0.846560846560851,
+    "price_at_execution": 37.48,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-09-11T12:36:06",
+    "ts_executed": "2026-09-11T12:36:20",
+    "symbol": "PSN.L",
+    "recommendation": "EXIT",
+    "close_pct": 100.0,
+    "reason": "PnL < -1% mit SMA50↓ und MACD↓ (Doppeltes Trendsignal gegen Position)",
+    "pnl_at_execution": -0.7191011235955003,
+    "price_at_execution": 1104.5,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-09-11T12:36:06",
+    "ts_executed": "2026-09-11T12:36:20",
+    "symbol": "LR.PA",
+    "recommendation": "EXIT",
+    "close_pct": 100.0,
+    "reason": "PnL < -1% und Signal-Typ (TREND_PULLBACK,GOLDEN_CROSS) hat avg_pnl < -1% bei mind. 3 historischen Trades",
+    "pnl_at_execution": -0.9946714031971671,
+    "price_at_execution": 139.35,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-09-11T12:36:06",
+    "ts_executed": "2026-09-11T12:36:20",
+    "symbol": "ELIS.PA",
+    "recommendation": "EXIT",
+    "close_pct": 100.0,
+    "reason": "PnL < -1% mit SMA50↓ und MACD↓ (Doppeltes Trendsignal gegen Position)",
+    "pnl_at_execution": -1.300954032957491,
+    "price_at_execution": 22.76,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-09-14T10:03:13",
+    "ts_executed": "2026-09-14T10:06:59",
+    "symbol": "DOTD.L",
+    "recommendation": "EXIT",
+    "close_pct": 100.0,
+    "reason": "PnL < -1% mit SMA50↓ und MACD↓ (Doppeltes Trendsignal gegen Position)",
+    "pnl_at_execution": -0.8298755186722073,
+    "price_at_execution": 47.8,
+    "outcome_checked": false,
+    "outcome_grade": null,
+    "outcome_pnl_delta": null
+  },
+  {
+    "ts_recommended": "2026-09-14T17:36:33",
+    "ts_executed": "2026-09-14T17:36:46",
+    "symbol": "JPM",
+    "recommendation": "EXIT",
+    "close_pct": 100.0,
+    "reason": "PnL < -1% UND SMA50=↓ UND MACD↓",
+    "pnl_at_execution": -2.785267546907566,
+    "price_at_execution": 349.73,
     "outcome_checked": false,
     "outcome_grade": null,
     "outcome_pnl_delta": null
