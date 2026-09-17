@@ -1228,14 +1228,17 @@ def main() -> None:
         _recent_buys: set[int] = set()
         if _rebuy_h > 0:
             try:
-                _recent_buys = {
-                    r["instrument_id"] for r in db.fetchall(
-                        "SELECT DISTINCT instrument_id FROM trades "
-                        "WHERE status IN ('APPROVED','SUBMITTING','ACTIVE') "
-                        "AND created_at > datetime('now', ?)",
-                        (f"-{_rebuy_h} hours",),
-                    )
-                }
+                # fix/rebuy-cooldown-closed (2026-09-17): Die Sperre deckte
+                # nur status IN ('APPROVED','SUBMITTING','ACTIVE') ab. Ein
+                # Exposure-Auto-Trim, der die Position GANZ schliesst
+                # (min_remaining_pct: 50), setzt den Trade aber auf CLOSED —
+                # und fiel damit aus dem Filter: das naechste FRESH-Signal
+                # kaufte denselben Namen sofort wieder (9531.T dreimal in
+                # 3 Tagen; GFRD.L 8 Min; 5101.T 77 Min). CLOSED-Trades
+                # zaehlen jetzt mit, gemaessen an closed_at — der Zeitpunkt,
+                # zu dem die Position wirklich wieder verfuegbar war.
+                from bot.core.rebuy_cooldown import recent_buy_instrument_ids
+                _recent_buys = recent_buy_instrument_ids(db, _rebuy_h)
             except Exception:
                 _recent_buys = set()
 

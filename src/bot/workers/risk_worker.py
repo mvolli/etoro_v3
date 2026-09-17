@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -929,6 +930,30 @@ def main() -> None:
             except Exception as _drift_exc:
                 _drift = None
                 logger.debug("RiskWorker: exposure drift check skipped: %s", _drift_exc)
+
+            # feat/exposure-shadow (2026-09-17): Die Headroom-Entscheidung
+            # (75% -> 72%?) braucht die Exposure-VERTEILUNG, nicht nur die
+            # Trim-Events. Jeder Risk-Zyklus notiert den aktuellen Wert;
+            # Treffer im 72-75-Band sagen, wie oft der Trim bei 72% NOCH
+            # gefeuert haette. Shadow-only: reine Messung, greift NICHT in
+            # die Cap ein. 31d Rolling-Window im JSON.
+            try:
+                if _drift:
+                    _ex_actual = _drift["actual_pct"]
+                elif equity > 0:
+                    _ex_actual = (sum(float(p.get("amount", 0) or 0)
+                                      for p in raw_positions) / equity * 100.0)
+                else:
+                    _ex_actual = 0.0
+                _ex_raw = state_repo.get("EXPOSURE_SHADOW") or ""
+                _ex_hist = json.loads(_ex_raw) if _ex_raw else {"p": []}
+                _ex_hist.setdefault("p", []).append((time.time(), round(_ex_actual, 2)))
+                _ex_cut = time.time() - 31 * 86400
+                _ex_hist["p"] = [pt for pt in _ex_hist["p"] if pt[0] >= _ex_cut]
+                state_repo.set("EXPOSURE_SHADOW", json.dumps(_ex_hist))
+            except Exception as _ex_shadow_exc:
+                logger.debug("RiskWorker: exposure shadow notiert: %s", _ex_shadow_exc)
+
             if _drift:
                 _dmsg = (
                     f"Exposure {_drift['actual_pct']:.1f}% > Cap "
