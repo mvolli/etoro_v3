@@ -294,9 +294,28 @@ def plan_core_sweep(
         if rsi is not None and rsi > rsi_overbought:
             reasons.append(f"{sym}: RSI {rsi:.0f} > {rsi_overbought:.0f} — nicht extended kaufen")
             continue
+        # fix/eligibility-tradability-learning (2026-09-18): der Planer war
+        # die EINZIGE Stelle ohne is_tradable-Filter — Discovery/Signal
+        # pruefen ihn, Core-Sweep nicht. Ein Broker-nicht-handelbarer Titel
+        # (allowOpenPosition=false) wanderte so ueber die Auto-Whitelist
+        # (24h-TTL) alle 24h zurueck und jeder Versuch endete FAILED:
+        # NSDQ100.FUT 22x + JPN225.FUT 15x + HKG50.FUT 3x, 0 Orders.
+        # is_tradable=NULL heisst "noch nie geprueft" -> fail-open (1).
+        if db is not None:
+            try:
+                _trow = db.fetchone(
+                    "SELECT is_tradable FROM instruments WHERE instrument_id = ?",
+                    (iid,),
+                )
+                if _trow is not None and _trow["is_tradable"] == 0:
+                    reasons.append(f"{sym}: is_tradable=0 (Broker) — SKIP")
+                    continue
+            except Exception:
+                pass  # Spalte fehlt / DB-Fehler -> fail-open
+
         # Delisted-Gate (fix/core-sweep-delisted 2026-08-07):
         # AI_2878 (instrument_id=2878) war 'delisted' auf Yahoo,
-        # aber Core-Sweep hat weiter darauf geplant → 16x FAILED
+        # aber Core-Sweep hat weiter darauf geplant → 16x FAILED.
         # "ID/Symbol MISMATCH". instruments.yahoo_status='delisted'
         # sofort überspringen.
         if db is not None:

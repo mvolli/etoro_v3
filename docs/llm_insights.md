@@ -2067,3 +2067,87 @@
 - Hohe Rejections bei CORE_SWEEP (79%) trotz 100% Success-Rate der ausgeführten Trades.
 
 **LLM-Fazit:** Keine strukturellen Ghost-Order-Probleme festgestellt; alle Exchanges stabil. Die HIGH-Conviction-Stufe von TREND_PULLBACK,GOLDEN_CROSS performt deutlich schlechter als MEDIUM und wird gedämpft. CORE_SWEEP zeigt hohe Rejections, was auf strenge eToro-Eligibility-Checks hindeutet, aber die ausgeführten Trades sind erfolgreich.
+
+## 2026-09-14 20:31 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/294)
+- `.PA`: 0% (0/59)
+- `.MI`: 0% (0/19)
+- `.DE`: 0% (0/32)
+- `_ASIA`: 0% (0/49)
+- `.L`: 0% (0/21) ← GEBLOCKT
+- `.ST`: 0% (0/14)
+- `.OL`: 0% (0/3) ← GEBLOCKT
+- `.ASX`: 0% (0/18)
+- `.MC`: 0% (0/3)
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS (HIGH) zeigt massive Verluste (-1.43% avg) im Vergleich zu MEDIUM (+0.51% avg)
+- CORE_SWEEP hat eine hohe Reject-Rate (78%) und niedrige Win-Rate (41%) trotz positiver Avg PnL
+
+**LLM-Fazit:** Keine strukturellen Ghost-Order-Probleme erkannt. Die Signal-Typen performen überwiegend stabil, wobei TREND_PULLBACK,GOLDEN_CROSS bei HIGH Conviction deutlich unterperformt und gedämpft wird. CORE_SWEEP zeigt eine hohe Ablehnungsrate, was auf enge eToro-Eligibility-Filter hindeutet.
+
+## 2026-09-15 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `.L`: 0% (0/26) ← GEBLOCKT
+- `_OTHER`: 0% (0/321)
+- `.MI`: 0% (0/19)
+- `.DE`: 0% (0/38)
+- `.PA`: 0% (0/69)
+- `_ASIA`: 0% (0/54)
+- `.ASX`: 0% (0/23)
+- `.ST`: 0% (0/9)
+- `.OL`: 0% (0/3) ← GEBLOCKT
+- `.MC`: 0% (0/2)
+
+**Anomalien:**
+- CORE_SWEEP shows negative avg PnL (-0.017%) despite high success rate, indicating poor risk-reward or exit timing.
+- TREND_PULLBACK,GOLDEN_CROSS at HIGH conviction has a severe negative avg PnL (-1.43%) compared to MEDIUM conviction (+0.51%).
+
+**LLM-Fazit:** Keine strukturellen Ghost-Order-Probleme erkannt; alle Exchanges stabil. CORE_SWEEP signal shows negative average PnL despite high execution success, suggesting exit optimization is needed. TREND_PULLBACK,GOLDEN_CROSS at HIGH conviction is underperforming significantly and has been dampened.
+
+## 2026-09-16 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/325)
+- `.MC`: 0% (0/8)
+- `.DE`: 0% (0/42)
+- `.PA`: 0% (0/71)
+- `.ST`: 0% (0/10)
+- `_ASIA`: 0% (0/60)
+- `.ASX`: 0% (0/26)
+- `.L`: 0% (0/44) ← GEBLOCKT
+- `_CRYPTO`: 0% (0/2)
+- `.CO`: 0% (0/2)
+- `.MI`: 0% (0/17)
+- `.OL`: 0% (0/3) ← GEBLOCKT
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS (HIGH) has a negative avg PnL of -1.43% despite a 26% win rate, indicating poor risk-reward or exit timing for high-conviction entries.
+- CORE_SWEEP shows a high reject rate (73%) and a low win rate (40%), suggesting entry filters may be too loose or market conditions are unfavorable for this pattern.
+
+**LLM-Fazit:** Portfolio ist im CAUTION-Regime stabil mit 9662 USD. Keine strukturellen Ghost-Order-Probleme bei tradbaren Instrumenten. Hauptproblem: TREND_PULLBACK,GOLDEN_CROSS in HIGH Conviction verliert Geld (-1.43% avg), daher wird diese Stufe gedämpft.
+
+## 2026-09-17 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/324)
+- `.PA`: 0% (0/73)
+- `.MC`: 0% (0/9)
+- `.DE`: 0% (0/44)
+- `.ST`: 0% (0/9)
+- `_ASIA`: 0% (0/66)
+- `.ASX`: 0% (0/33)
+- `.L`: 0% (0/44) ← GEBLOCKT
+- `_CRYPTO`: 0% (0/2)
+- `.CO`: 0% (0/2)
+- `.MI`: 0% (0/17)
+- `.OL`: 0% (0/3) ← GEBLOCKT
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS (HIGH) has a negative avg PnL (-1.43%) and low win rate (26%), indicating poor entry quality at high conviction.
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING shows a low win rate (27%) despite positive avg PnL, suggesting high variance and reliance on few large winners.
+
+**LLM-Fazit:** Keine strukturellen Ghost-Order-Probleme erkannt; alle Exchange-Raten sind stabil und niedrig. Das CAUTION-Regime ist aktiv, wobei das Signal 'TREND_PULLBACK,GOLDEN_CROSS' auf HIGH Conviction Ebene Verluste macht und gedämpft wird. Die Portfolio-Performance ist gemischt, mit einigen starken Gewinnern (7272.T, JASMY) aber auch signifikanten Verlusten (SAX.DE).

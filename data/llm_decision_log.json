@@ -1671,13 +1671,97 @@
     },
     "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal TREND_PULLBACK,GOLDEN_CROSS: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-09-15"
   },
   {
     "date": "2026-09-13",
     "timestamp": "2026-09-13T20:31:16.832888+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
+    "outcome": "Signal TREND_PULLBACK,GOLDEN_CROSS: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-15"
+  },
+  {
+    "date": "2026-09-14",
+    "timestamp": "2026-09-14T20:31:04.987052+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
+    "outcome": "Signal TREND_PULLBACK,GOLDEN_CROSS: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-15"
+  },
+  {
+    "date": "2026-09-15",
+    "timestamp": "2026-09-15T20:30:25.349641+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
+    "outcome": "Signal TREND_PULLBACK,GOLDEN_CROSS: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-16"
+  },
+  {
+    "date": "2026-09-15",
+    "timestamp": "2026-09-15T20:30:25.352593+00:00",
+    "type": "signal_weight",
+    "key": "CORE_SWEEP",
+    "old_value": 0.5,
+    "new_value": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "Negative average PnL (-0.017%) across 133 trades indicates the signal is not profitable on average, likely due to tight stops or early exits.",
+      "_ratchet_frozen": true,
+      "_proposed": 0.8,
+      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.5 -> 0.8 blockiert (n_closed=133/20, pnl_usd=-236.54, realisiert=+237.59 USD)"
+    },
+    "reason": "RATCHET-FROZEN: Lockerung 0.5 -> 0.8 blockiert (n_closed=133/20, pnl_usd=-236.54, realisiert=+237.59 USD)",
+    "baseline": null,
+    "outcome": "Signal CORE_SWEEP: 12 Trades, avg_pnl=-0.12% (Gewicht={'score_multiplier': 0.5, 'skip': False, 'reason': 'Negative average PnL (-0.017%) across 133 trades indicates the signal is not profitable on average, likely due to tight stops or early exits.', '_ratchet_frozen': True, '_proposed': 0.8, '_ratchet_reason': 'RATCHET-FROZEN: Lockerung 0.5 -> 0.8 blockiert (n_closed=133/20, pnl_usd=-236.54, realisiert=+237.59 USD)'})",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-16"
+  },
+  {
+    "date": "2026-09-16",
+    "timestamp": "2026-09-16T20:30:59.066042+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
+    "outcome": "Signal TREND_PULLBACK,GOLDEN_CROSS: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-17"
+  },
+  {
+    "date": "2026-09-17",
+    "timestamp": "2026-09-17T20:30:45.967698+00:00",
     "type": "signal_weight",
     "key": "TREND_PULLBACK,GOLDEN_CROSS",
     "old_value": 1.0,

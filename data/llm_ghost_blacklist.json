@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-09-13T20:31:16.821206+00:00",
-  "auto_expires_at": "2026-09-20T20:31:16.821219+00:00",
+  "updated_at": "2026-09-17T20:30:45.956668+00:00",
+  "auto_expires_at": "2026-09-24T20:30:45.956676+00:00",
   "exchanges": [
     ".L",
     ".OL",
@@ -11,32 +11,52 @@
   "symbols": [],
   "stats": {
     "_OTHER": {
-      "total": 286,
+      "total": 324,
       "ghost": 0,
       "rate": 0.0
     },
     ".PA": {
-      "total": 52,
+      "total": 73,
       "ghost": 0,
       "rate": 0.0
     },
-    ".L": {
-      "total": 21,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    ".ST": {
-      "total": 14,
+    ".MC": {
+      "total": 9,
       "ghost": 0,
       "rate": 0.0
     },
     ".DE": {
-      "total": 26,
+      "total": 44,
       "ghost": 0,
       "rate": 0.0
     },
-    ".OL": {
-      "total": 3,
+    ".ST": {
+      "total": 9,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    "_ASIA": {
+      "total": 66,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    ".ASX": {
+      "total": 33,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    ".L": {
+      "total": 44,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    "_CRYPTO": {
+      "total": 2,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    ".CO": {
+      "total": 2,
       "ghost": 0,
       "rate": 0.0
     },
@@ -45,26 +65,11 @@
       "ghost": 0,
       "rate": 0.0
     },
-    "_ASIA": {
-      "total": 53,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    ".ASX": {
-      "total": 19,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    ".HE": {
-      "total": 2,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    ".MC": {
-      "total": 4,
+    ".OL": {
+      "total": 3,
       "ghost": 0,
       "rate": 0.0
     }
   },
-  "reason": "Keine strukturellen Ghost-Order-Probleme festgestellt; alle Exchanges stabil. Die HIGH-Conviction-Stufe von TREND_PULLBACK,GOLDEN_CROSS performt deutlich schlechter als MEDIUM und wird gedämpft. CORE_SWEEP zeigt hohe Rejections, was auf strenge eToro-Eligibility-Checks hindeutet, aber die ausgeführten Trades sind erfolgreich."
+  "reason": "Keine strukturellen Ghost-Order-Probleme erkannt; alle Exchange-Raten sind stabil und niedrig. Das CAUTION-Regime ist aktiv, wobei das Signal 'TREND_PULLBACK,GOLDEN_CROSS' auf HIGH Conviction Ebene Verluste macht und gedämpft wird. Die Portfolio-Performance ist gemischt, mit einigen starken Gewinnern (7272.T, JASMY) aber auch signifikanten Verlusten (SAX.DE)."
 }

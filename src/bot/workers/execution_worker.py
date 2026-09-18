@@ -376,10 +376,28 @@ def is_internal_only_error(reason: str | None) -> bool:
     return bool(reason) and "visible internal only" in reason
 
 
+def is_not_eligible_error(reason: str | None) -> bool:
+    """Eligibility-Gate: allowOpenPosition=false — Instrument ist laut
+    eToro-Eligibility-Antwort dauerhaft NICHT handelbar (pure, testbar).
+
+    fix/eligibility-tradability-learning (2026-09-18): derselbe Lerner wie
+    fuer eToro-814, aber fuer die PREFLIGHT-Eligibility-Block. Ein Titel mit
+    allowOpenPosition=false wird von eToro bei JEDEM Open-Versuch mit dem
+    identischen Ergebnis abgewiesen — ohne Lerner markiert der
+    Execution-Werkzeug ihn nie is_tradable=0, und der Discovery-Auto-Whitelist
+    (24h-TTL) zaehlt ihn nur zurueck, was in einer Endlosschleife laeuft
+    (NSDQ100.FUT 22x + JPN225.FUT 15x + HKG50.FUT 3x FAILED, 0 Orders,
+    2026-07-29..2026-09-15).
+    """
+    return bool(reason) and "not eligible for real trading" in reason
+
+
 def _learn_from_rejection(db, instrument_id, symbol: str, reason: str | None) -> None:
-    """Aus Order-Ablehnungen lernen (fix/order-error-learning 2026-07-16):
+    """Aus Order-Ablehnungen lernen (fix/order-error-learning 2026-07-16,
+    fix/eligibility-tradability-learning 2026-09-18):
     720 -> instruments.min_position_amount (signal_worker sized dann gar nicht
-    erst darunter), 814 -> is_tradable=0 (Discovery/Signal filtern darauf).
+    erst darunter), 814 ODER Preflight-Eligibility allowOpenPosition=false
+    -> is_tradable=0 (Discovery/Signal/Core-Sweep filtern darauf).
     Best effort, wirft nie."""
     import logging as _logging
     log = _logging.getLogger(__name__)
@@ -394,14 +412,15 @@ def _learn_from_rejection(db, instrument_id, symbol: str, reason: str | None) ->
                 "ExecutionWorker: %s Broker-Minimum $%.0f gelernt (eToro 720)",
                 symbol, broker_min,
             )
-        if is_internal_only_error(reason):
+        if is_internal_only_error(reason) or is_not_eligible_error(reason):
             db.execute(
                 "UPDATE instruments SET is_tradable = 0, "
                 "tradability_checked_at = datetime('now') WHERE instrument_id = ?",
                 (instrument_id,),
             )
             log.info(
-                "ExecutionWorker: %s dauerhaft nicht handelbar (eToro 814) — is_tradable=0",
+                "ExecutionWorker: %s dauerhaft nicht handelbar (814 / "
+                "allowOpenPosition=false) — is_tradable=0",
                 symbol,
             )
     except Exception as exc:

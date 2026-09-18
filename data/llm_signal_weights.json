@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-09-13T20:31:16.834169+00:00",
-  "auto_expires_at": "2026-09-27T20:31:16.834177+00:00",
+  "updated_at": "2026-09-17T20:30:45.968931+00:00",
+  "auto_expires_at": "2026-10-01T20:30:45.968936+00:00",
   "adjustments": {
     "TREND_PULLBACK,GOLDEN_CROSS": {
       "score_multiplier": 1.0,
@@ -20,12 +20,15 @@
     "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": {
       "score_multiplier": 1.0,
       "skip": false,
-      "reason": "Post-26.07 (n=38, WR 47.4%, avg +5.04%, +$51): the ONLY positive-expectancy signal type in the book. MACD-turn confirmation is the differentiator. No dampening."
+      "reason": "Post-26.07 (2026-09-18 SQL: n=133, WR 27.1%, avg +0.19%, sum -$106.77): nur 2. beste Summe im Buch (nach TP+GC), hohe Varianz, Summe noch negativ. Multiplier 1.0 unveraendert — kein Lockerungs-Ratchet hier, aber Beobachtung: falls die Summe ueber >= 2 Laeufe weiter sinkt, Daempfung vorschlagen (nicht still umstellen)."
     },
     "CORE_SWEEP": {
       "score_multiplier": 0.5,
       "skip": false,
-      "reason": "Post-26.07 (n=113, WR 42.5%, avg +0.26%, sum -$181.18): near-breakeven edge, drag from size (biggest in book) + 21 full-SL hits. Dampening 0.5 kept. 2026-09-11 self-improvement: prior 0.0/skip=true (09-10 auto-run) was a ghost-double-count artifact (13 LATE-FILL-recovered trades counted as ghost_failed -> false '7/7 rejection'). Root cause fixed in llm_review_worker (_load_trading_data now filters status='FAILED' + prefix 'Ghost order%'); entry reverted to data-backed value."
+      "reason": "Post-26.07 (2026-09-18 SQL: n=158, WR 43.7%, avg +0.10%, sum -$218.51): nearer to breakeven, drag = size (biggest source in book) + long loss tail (META -11.9, 1024.HK -10.7, PNI.AX -10.5). Multiplier 0.5 unchanged (ratchet: lockerung blocked, n=158 >= 20 but pnl_usd < 0). 2026-09-18 self-improvement: is_tradable-learnung fuer allowOpenPosition=false (fix/eligibility-tradability-learning) stoppt die FAILED-Schleife NSDQ100/JPN225/HKG50.FUT (40 FAILED, 0 Orders).",
+      "_ratchet_frozen": true,
+      "_proposed": 0.8,
+      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.5 -> 0.8 blockiert (n_closed=133/20, pnl_usd=-236.54, realisiert=+237.59 USD)"
     },
     "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD": {
       "score_multiplier": 0.1,
@@ -44,10 +47,10 @@
     }
   },
   "strategy_notes": [
-    "Differentiate conviction levels for TREND_PULLBACK,GOLDEN_CROSS: MEDIUM is profitable, HIGH is losing. Apply conviction-specific weighting.",
-    "Monitor CORE_SWEEP rejection rate (79%): High rejections may indicate signal quality is good but execution constraints (liquidity/eligibility) are tight. No action needed on signal logic, but watch for slippage if rejections drop."
+    "HIGH conviction entries for trend-following signals (TREND_PULLBACK, GOLDEN_CROSS) are currently underperforming; consider stricter trend confirmation filters for HIGH conviction assignments.",
+    "MACD/BB signals have a low win rate but positive expectancy; ensure position sizing accounts for the high frequency of small losses before large wins."
   ],
   "conviction_issues": [
-    "TREND_PULLBACK,GOLDEN_CROSS HIGH conviction has a 26% win rate and negative average PnL, while MEDIUM has a 53% win rate and positive PnL. The HIGH filter is not adding value and is increasing risk."
+    "TREND_PULLBACK,GOLDEN_CROSS at HIGH conviction has a 26% win rate and negative average PnL, suggesting the conviction filter is too loose for this specific signal type."
   ]
 }
