@@ -87,9 +87,12 @@ trading:
     leverage: 2               # HARTER Deckel im Client: nie mehr als 2
     position_usd: 500.0       # feste Margin, keine Kelly-/Regime-Skalierung
     max_positions: 1          # gleichzeitig offene Rohstoffpositionen
-  max_trades_per_day: 0       # 0 = deaktiviert (2026-07-14, User-Entscheid). Runaway-Schutz
-                              # uebernehmen: Exposure-Gate 75%, cash_emergency_pct,
-                              # daily_loss_limit (Auto-Kill-Switch) und 3 Slots/15-min-Zyklus.
+  max_trades_per_day: 30      # fix/fee-churn-minhold (2026-09-20): Runaway-Schutz
+                              # re-aktiviert (war 0 = aus, 2026-07-14). Koerzt die
+                              # 90-170-Opens/Tag-Spirale — Fee-Dominanz war ~80% des
+                              # -4% Drawdown. Rest-Schutz (Exposure-Gate 75%,
+                              # cash_emergency_pct, daily_loss_limit, 3 Slots/Zyklus)
+                              # bleibt intakt. 0 = deaktiviert.
   max_slippage_pct: 1.5       # Max signal→execution price deviation for stocks/ETFs (%)
   max_slippage_pct_crypto: 3.0  # Max signal→execution price deviation for crypto (%)
   cash_target_min_pct: 15.0   # Minimum idle cash as % of portfolio equity
@@ -99,6 +102,16 @@ trading:
   block_mean_reversion_in_caution: true  # 2026-07-17: kein Messer-Fangen ausserhalb NORMAL  # fix/post-loss-cooldown: nach Verlust-Close X h kein Re-Entry (LUS1.DE-Muster)
   require_macd_confirmation_for_oversold: true  # 2026-07-20: Oversold ohne MACD-Wende = WR 8% (63 Trades) — Messer-Schutz
   liquidity_tiering: true     # feat/liquidity-tiering (2026-07-26): Market-Cap/ADV-Tier-Faktor im Kandidaten-Ranking (bot/core/liquidity.py)
+  fee_tiering:                # fix/fee-churn-minhold (2026-09-20): Fee-Tier-Bias im
+                              # Kandidaten-Ranking. 2%-Fee-Boersen (eToro-Fee-Schedule)
+                              # bekommen factor 0.70 im Sort-Key — sie verlieren den
+                              # Slot-Wettbewerb gegen 1%-Fee-Titel gleicher Signal-Qualitaet.
+                              # 34/89 offene Positionen sassen auf 2%-Fee-Titeln
+                              # (.AX 16 / .HK 11 / .T 7). 1.0 = deaktiviert.
+    enabled: true
+    factor: 0.70
+    fee_pct: 2.0
+    high_fee_suffixes: [.AX, .HK, .T]
   max_spread_pct_crypto: 3.0  # feat/crypto-247: Krypto-Spreads strukturell breiter
   deployment_boost: 1.25      # fix/cash-deployment (2026-07-15): boostet Positionsgroessen bei
                               # Cash-Ueberschuss (Gates: Regime-Whitelist unten + Makro-Scalar 1.0
@@ -128,11 +141,13 @@ trading:
   core_sweep:
     enabled: true             # SCHARF 2026-07-22: signal-agnostische Discovery (Option B)
     auto_discovery: true       # Discovery-Worker schreibt FRESH-Signale in Core-Sweep-Whitelist
-    reserve_target_pct: 15.0  # Cash-Ziel — Ueberschuss darueber wird abgesweept
+    reserve_target_pct: 18.0  # fix/fee-churn-minhold (2026-09-20): 15.0 -> 18.0
+                              # (Core-Sweep drosselt: weniger deployed Capital = weniger
+                              # churn; 49/71 Closes kamen aus Core-Sweep, WR 42%).
     reserve_floor_pct: 10.0   # Harter Boden: nie darunter sweepen (= cash_emergency)
     per_position_pct: 4.0     # Zielgroesse je Core-Position (% Equity)
     max_position_pct: 6.0     # Harter Deckel je Core-Titel (% Equity)
-    max_sweeps_per_run: 4     # "Zuegig" (User-Entscheid): bis N Core-Trades/Lauf
+    max_sweeps_per_run: 2     # fix/fee-churn-minhold (2026-09-20): 4 -> 2 (Drossel)
     rsi_overbought: 75.0      # Kein Sweep in einen Titel mit RSI darueber (nicht extended kaufen)
     reject_cooldown_after: 3  # Ab N REJECTED/FAILED Core-Sweep-Trades im Fenster -> Cooldown
     reject_cooldown_hours: 3.0  # Cooldown-Fenster in Stunden (0 = Check deaktivieren via cooldown_after)
@@ -391,6 +406,12 @@ sizing:                       # Position size as % of portfolio equity
   kelly_shrink_k0: 50.0
 
 trailing:                     # Dynamic profit-taking (runs each risk_worker cycle on LIVE PnL)
+  min_hold_hours: 24          # fix/fee-churn-minhold (2026-09-20): Schonfrist — keine
+                              # diskretionären Ausstiege (momentum-fade, profit-ladder,
+                              # full-exit, scalp, stale, SELL-Exit) solange Position < 24 h
+                              # alt (openDateTime, Broker-Wahrheit). Haertes SL bleibt live.
+                              # Koerzt same-day round-trips (118 in 11d ≈ -151 USD Fee).
+                              # 0 = deaktiviert. Fail-open bei kaputtem Timestamp.
   min_partial_close_usd: 10.0 # fix/min-partial-close (2026-08-12): Teilverkaeufe
                               # unter diesem Betrag werden uebersprungen UND als
                               # genommen gebucht. eToro weist Mini-Orders unter

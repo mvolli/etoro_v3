@@ -93,6 +93,44 @@ def is_quote_currency_volume(yf_symbol: Optional[str]) -> bool:
     return bool(yf_symbol) and yf_symbol.upper().endswith("-USD")
 
 
+# ── fix/fee-churn-minhold (2026-09-20): Fee-Tier-Bias ────────────────────────
+# eToro Fee-Schedule: bestimmte Boersen kosten 2.0% statt 1.0% pro Trade
+# (.AX, .HK, .T). 34/89 offene Positionen sassen auf genau diesen Titeln —
+# doppelte Fee pro Round-Trip ohne Edge-Vorteil. Der Bias faktorisiert den
+# 2%-Fee-Markt-Status direkt in den Kandidaten-Ranking (0.70x = nachrangig),
+# damit 1%-Fee-Titel gleicher Signal-Qualitaet die Slots gewinnen.
+FEE_TIER_DEFAULT_SUFFIXES: tuple[str, ...] = (".AX", ".HK", ".T")
+FEE_TIER_DEFAULT_FACTOR = 0.70
+
+
+def fee_tier_factor(symbol: Optional[str], cfg: Optional[dict] = None) -> float:
+    """Ranking-Faktor fuer 2%-Fee-Boersen (0.70x) vs. alle anderen (1.0x).
+
+    cfg ist der fee_tiering-Block aus trading.fee_tiering:
+    {enabled, factor, fee_pct, high_fee_suffixes}. Fehlende/ausgebaute
+    Konfiguration -> 1.0 neutral (Fail-open, Ranking-Feature darf den
+    Signalfluss nie verzerren). Uppercase-Suffix-Vergleich, identisch zum
+    currency_factor-Pattern.
+    """
+    if not symbol or not cfg or not cfg.get("enabled", True):
+        return 1.0
+    try:
+        factor = float(cfg.get("factor", FEE_TIER_DEFAULT_FACTOR))
+    except (TypeError, ValueError):
+        return 1.0
+    if factor >= 1.0:
+        return 1.0  # 1.0/fehlend = deaktiviert; nur < 1.0 dampft
+    try:
+        suffixes = [
+            s.upper() if s.startswith(".") else "." + s.upper()
+            for s in (cfg.get("high_fee_suffixes") or list(FEE_TIER_DEFAULT_SUFFIXES))
+        ]
+    except Exception:
+        return 1.0
+    suffix = "." + symbol.rsplit(".", 1)[-1].upper()
+    return factor if suffix in suffixes else 1.0
+
+
 def compute_adv_usd(df: Any, symbol: str, price: Optional[float] = None,
                     yf_symbol: Optional[str] = None) -> Optional[float]:
     """20d-Durchschnitts-Dollar-Volumen aus einem OHLCV-DataFrame (yfinance).

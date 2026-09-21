@@ -1457,6 +1457,23 @@ def main() -> None:
                 )
             except Exception:
                 _liquidity_map = {}
+        # fix/fee-churn-minhold (2026-09-20): sechster Term im Sort-Key —
+        # Fee-Tier-Bias. 2%-Fee-Boersen (.AX/.HK/.T) werden mit 0.70x
+        # nachrangig sortiert, damit 1%-Fee-Titel gleicher Signal-Qualitaet
+        # die Slots gewinnen (34/89 offene Positionen auf 2%-Fee-Titeln,
+        # doppelte Fee pro Round-Trip). Fail-open: cfg fehlt/ausgebaucht
+        # -> 1.0 neutral.
+        _fee_tier_cfg = cfg.get("trading", {}).get("fee_tiering") or {}
+        _fee_tier_map: dict[str, float] = {}
+        if bool(_fee_tier_cfg.get("enabled", False)):
+            try:
+                from bot.core.liquidity import fee_tier_factor
+                _fee_tier_map = {
+                    sym: fee_tier_factor(sym, _fee_tier_cfg)
+                    for _, sym in eligible
+                }
+            except Exception:
+                _fee_tier_map = {}
         eligible.sort(
             key=lambda t: (
                 float(t[0].get("score", 0))
@@ -1466,6 +1483,7 @@ def main() -> None:
                                                t[0].get("conviction"))
                 * _signal_age_factor(t[0].get("generated_at", ""), ttl_minutes=1440)
                 * _liquidity_map.get(t[0]["instrument_id"], 1.0)
+                * _fee_tier_map.get(t[1], 1.0)
                 * _signal_performance_decay(
                     t[0].get("signal_type", ""), db_path
                 )
@@ -1481,6 +1499,15 @@ def main() -> None:
                 "SignalWorker: Liquidity-Tiering daempft %d Kandidat(en): %s",
                 len(_dampened),
                 ", ".join(f"{sym}={f:.2f}" for sym, f in list(_dampened.items())[:8]),
+            )
+        _fee_dampened = {
+            sym: f for sym, f in _fee_tier_map.items() if f < 1.0
+        }
+        if _fee_dampened:
+            logger.info(
+                "SignalWorker: Fee-Tier-Bias daempft %d Kandidat(en): %s",
+                len(_fee_dampened),
+                ", ".join(f"{sym}={f:.2f}" for sym, f in list(_fee_dampened.items())[:8]),
             )
     
         # Deduplicate: keep only the highest-score signal per instrument_id

@@ -26,6 +26,25 @@ def days_held_from(opened_at: str | None, now: datetime | None = None) -> int | 
         return None
 
 
+def hours_held_from(opened_at: str | None, now: datetime | None = None) -> float | None:
+    """Stunden seit opened_at (ISO oder 'YYYY-MM-DD HH:MM:SS').
+
+    None bei fehlendem/unparsbarem Wert (fail-safe — ein kaputter Timestamp
+    darf nie als '0 Stunden' oder 'uralt' fehlinterpretiert werden).
+    fix/fee-churn-minhold (2026-09-20): Stufenlosere Variante von
+    days_held_from fuer die Min-Hold-Schonfrist bei Ausstiegen.
+    """
+    if not opened_at:
+        return None
+    try:
+        opened = datetime.fromisoformat(str(opened_at).replace(" ", "T"))
+        if opened.tzinfo is None:
+            opened = opened.replace(tzinfo=timezone.utc)
+        return ((now or datetime.now(timezone.utc)) - opened).total_seconds() / 3600.0
+    except Exception:
+        return None
+
+
 def enrich_signal_and_age(
     cur,
     positions: list[dict],

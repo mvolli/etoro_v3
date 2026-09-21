@@ -134,6 +134,21 @@ SCALP_MIN_PCT = 2.0
 SCALP_MAX_PCT = 5.0
 SCALP_CLOSE_PCT = 25
 
+# fix/fee-churn-minhold (2026-09-20): Schonfrist fuer junge Positionen.
+# Das -4%-Drawdown war zu ~80% Gebuehren: 118 Same-Day-Roundtrips (kaufen +
+# aussteigen am selben Tag) zahlten 2x Gebuehr fuer ~0 Edge. Die
+# diskretionaeren Gewinn-Mechaniken (BE-Enforcement, Momentum-Fade,
+# Profit-Leiter, Full-Exit, Scalp, Stale-Exit) koennen eine frische Position
+# innerhalb von Stunden wieder schliessen. Bis MIN_HOLD_HOURS nach dem
+# Einstieg duerfen diese diskretionaeren Exits nicht feuern.
+#
+# BEWUSST NICHT beruehrt: der harte Stop-Loss (evaluate_sl in risk_worker)
+# bleibt vollstaendig aktiv — Min-Hold drosselt NUR Gewinn-Nahme/Churn, nie
+# Verlustschutz. Ein fehlendes/kaputtes openDateTime faellt fail-open durch
+# (kein Gate) — dasselbe Muster wie Stale-Exit.
+# 0 = deaktiviert (Code-Default; config.yaml setzt 24h).
+MIN_HOLD_HOURS = 0.0
+
 
 # ── Stale-Exit (fix/stale-exit 2026-07-15) ───────────────────────────────────
 # Totes Kapital: Position lief nie (Peak < Fade-Arm-Schwelle), haengt seit
@@ -249,9 +264,15 @@ def apply_config(cfg: dict) -> None:
     global PROFIT_LADDER_ATR_SCALE, MIN_PARTIAL_CLOSE_USD
     global FULL_EXIT_ENABLED, FULL_EXIT_ATR_MULT, FULL_EXIT_MIN_PCT, FULL_EXIT_MAX_PCT
     global MIN_REMAINING_PCT
+    global MIN_HOLD_HOURS
     t = ((cfg or {}).get('trailing') or {})
     try:
         MIN_PARTIAL_CLOSE_USD = float(t.get('min_partial_close_usd', MIN_PARTIAL_CLOSE_USD))
+    except (TypeError, ValueError):
+        pass
+    # fix/fee-churn-minhold: Schonfrist fuer junge Positionen (0 = aus).
+    try:
+        MIN_HOLD_HOURS = max(0.0, float(t.get('min_hold_hours', MIN_HOLD_HOURS)))
     except (TypeError, ValueError):
         pass
     pl = (t.get('profit_ladder') or {})
@@ -839,6 +860,32 @@ def evaluate_trailing(
         effective_gate = BREAK_EVEN_TRIGGER_PCT
         if is_scalp:
             effective_gate = min(effective_gate, _scalp_rung(atr_pct)['threshold'])
+
+        # ── fix/fee-churn-minhold (2026-09-20): Schonfrist fuer junge Positions ──
+        # openDateTime ist die Broker-Wahrheit fuer den Einstiegszeitpunkt.
+        # Solange die Position junger als MIN_HOLD_HOURS ist, werden ALLE
+        # diskretionaeren Gewinn-Mechaniken (BE-Enforcement, Momentum-Fade,
+        # Profit-Leiter, Full-Exit, Scalp, Stale-Exit) unterdrueckt — sie
+        # waren der Haupttreiber der Same-Day-Roundtrips (118 in 10 Tagen,
+        # ~$151 Gebuehren fuer ~0 Edge). Der Peak-High-Water-Mark ist
+        # OBEN bereits fortgeschrieben, also gehen keine Daten verloren.
+        #
+        # Der harte Stop-Loss (evaluate_sl in risk_worker) laeuft in einem
+        # separaten Pfad und bleibt vollstendig aktiv — Min-Hold drosselt
+        # NUR Gewinn-Nahme/Churn, nie Verlustschutz.
+        #
+        # Fail-open: fehlendes/kaputtes openDateTime -> kein Gate (dasselbe
+        # Muster wie Stale-Exit). MIN_HOLD_HOURS <= 0 deaktiviert.
+        if MIN_HOLD_HOURS > 0.0:
+            from bot.core.position_meta import hours_held_from
+            _held_h = hours_held_from(pos.get('openDateTime'))
+            if _held_h is not None and _held_h < MIN_HOLD_HOURS:
+                logger.debug(
+                    '[trailing] %s: Min-Hold (%.0fh < %.0fh) — diskretionaere '
+                    'Exits unterdrueckt (SL bleibt aktiv)',
+                    symbol, _held_h, MIN_HOLD_HOURS,
+                )
+                continue
 
         def _fade_action() -> TrailingAction:
             return TrailingAction(

@@ -167,6 +167,24 @@ def evaluate_sell_exits(
         if not pos_id:
             continue
         symbol = pos.get("symbol") or str(iid)
+        # fix/fee-churn-minhold (2026-09-20): kein Überhitzungs-Exit auf eine
+        # Position, die ist jünger als die Min-Hold-Schonfrist — der Exit
+        # wäre eine Same-Day-Roundtrip (2x Gebuehr fuer ~0 Edge). Fail-open:
+        # fehlendes openDateTime -> kein Gate. 0/fehlend -> deaktiviert.
+        try:
+            from bot.core.trailing_stop import MIN_HOLD_HOURS
+            if MIN_HOLD_HOURS > 0.0:
+                from bot.core.position_meta import hours_held_from
+                _held_h = hours_held_from(pos.get("openDateTime"))
+                if _held_h is not None and _held_h < MIN_HOLD_HOURS:
+                    logger.info(
+                        "[sell_exits] %s: Min-Hold (%.0fh < %.0fh) — "
+                        "SELL-Exit unterdrueckt", symbol,
+                        _held_h, MIN_HOLD_HOURS,
+                    )
+                    continue
+        except Exception as exc:
+            logger.debug("[sell_exits] Min-Hold-Check fehlgeschlagen: %s", exc)
         seen_instruments.add(iid)
 
         actions.append(SellExitAction(
