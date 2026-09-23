@@ -166,6 +166,7 @@ def plan_core_sweep(
     max_exposure_pct: float | None = None,
     open_positions: list[dict] | None = None,
     correlation_gate: Any | None = None,
+    market_open: Any | None = None,
 ) -> tuple[list[SweepOrder], list[str]]:
     """Plane Core-Sweep-Orders fuer ueberschuessiges Cash.
 
@@ -203,6 +204,22 @@ def plan_core_sweep(
         Gate, verhaelt sich die Planung wie bisher (fail-open); wirft er,
         wird der Kandidat DURCHGELASSEN — eine Korrelations-Stoerung darf
         das Cash-Deployment nicht lahmlegen.
+
+    market_open
+        `market_open(instrument_id) -> bool | None` — injiziert (wie
+        correlation_gate) statt importiert, damit der Planer pur bleibt.
+        True/None = Kandidat bleibt; False = SKIP (Markt aktuell zu).
+        fix/core-sweep-market-open (2026-09-23): planen NUR in offene
+        Maerkte. Ohne diesen Filter plant der Bot ueber Nacht US-Titel,
+        die im execution_worker auf DEFER -> market-closed-TTL ->
+        REJECTED landen (273 'Markt >4h geschlossen — Signal veraltet'
+        Rejections in 30d, fast alle US-listed, in den US-closed
+        Stunden). SKIP statt Order ist kostenlos (not buying costs
+        nothing) und der Titel wird im naechsten Lauf wieder geplant,
+        sobald sein Markt offen ist. `market_open` None/abwesend =
+        fail-open (altes Verhalten); wirft er, wird der Kandidat
+        DURCHGELASSEN — ein Kalender-Fehler darf das Cash-Deployment
+        nicht lahmlegen.
     """
     cs = _cfg_block(cfg)
     reasons: list[str] = []
@@ -379,6 +396,24 @@ def plan_core_sweep(
                 # Fail-open: eine Korrelations-Stoerung (yfinance-Ausfall,
                 # Cache-Fehler) darf das Cash-Deployment nie blockieren.
                 reasons.append(f"{sym}: Korrelations-Check uebersprungen ({exc})")
+
+        # fix/core-sweep-market-open (2026-09-23): planen NUR in offene
+        # Maerkte. Injiziert statt importiert (wie correlation_gate); die
+        # eigentliche Boersenauflösung (resolve_market_fields +
+        # is_market_open) steht im signal_worker. Die execution_worker-
+        # BUY-Gate bleibt die fail-closed Letztlinie — hier ist es reine
+        # Effizienz, damit ueber Nacht keine US-Titel geplant werden, die
+        # nur auf DEFER -> market-closed-TTL -> REJECTED laufen.
+        if market_open is not None:
+            try:
+                if market_open(iid) is False:
+                    reasons.append(f"{sym}: market closed — SKIP (next run)")
+                    continue
+            except Exception as exc:
+                # Fail-open: ein Kalender-/Auflösungs-Fehler darf das
+                # Cash-Deployment nicht blockieren (BUY-Gate bleibt letzte
+                # Linie).
+                reasons.append(f"{sym}: market-open-Check uebersprungen ({exc})")
 
         candidates.append((sym, iid, atr_by_id.get(iid)))
 

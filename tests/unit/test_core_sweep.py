@@ -507,3 +507,86 @@ class TestRejectCooldown:
         orders, _ = plan_core_sweep(
             cfg, equity=10000, cash=6000, regime="NORMAL", db=None)
         assert len(orders) == 1
+
+
+# ── fix/core-sweep-market-open (2026-09-23) ──────────────────────────────────
+
+class TestMarketOpenPredicate:
+    """plan_core_sweep plant NUR in offene Maerkte (injiziert, fail-open).
+
+    30d-Beleg: 273/274 'Markt >4h geschlossen — Signal veraltet' Rejections
+    waren CORE_SWEEP — ueber Nacht geplante US-Titel, die im execution_worker
+    auf DEFER -> market-closed-TTL -> REJECTED laufen.
+    """
+
+    def test_closed_market_candidate_skipped(self):
+        """market_open -> False = SKIP, Reason genannt, kein Order."""
+        cfg = _make_cfg(whitelist={"AAPL": 1001, "MSFT": 1004})
+        orders, reasons = plan_core_sweep(
+            cfg, equity=10000, cash=6000, regime="NORMAL",
+            market_open=lambda iid: iid != 1001,  # AAPL(1001) zu
+        )
+        assert len(orders) == 1
+        assert orders[0].symbol == "MSFT"
+        assert any("market closed" in r and "AAPL" in r for r in reasons)
+
+    def test_none_return_fails_open(self):
+        """market_open -> None (unbekannt) = Kandidat bleibt (fail-open)."""
+        cfg = _make_cfg(whitelist={"AAPL": 1001})
+        orders, _ = plan_core_sweep(
+            cfg, equity=10000, cash=6000, regime="NORMAL",
+            market_open=lambda iid: None,
+        )
+        assert len(orders) == 1
+        assert orders[0].symbol == "AAPL"
+
+    def test_predicate_exception_fails_open(self):
+        """Exception im Predicate = Kandidat bleibt (fail-open; BUY-Gate
+        bleibt die Letztlinie)."""
+        cfg = _make_cfg(whitelist={"AAPL": 1001})
+
+        def _boom(iid):
+            raise RuntimeError("calendar down")
+
+        orders, reasons = plan_core_sweep(
+            cfg, equity=10000, cash=6000, regime="NORMAL",
+            market_open=_boom,
+        )
+        assert len(orders) == 1
+        assert any("market-open-Check uebersprungen" in r for r in reasons)
+
+    def test_no_predicate_keeps_old_behavior(self):
+        """market_open=None (abwesend) = exakt das alte Verhalten."""
+        cfg = _make_cfg(whitelist={"AAPL": 1001})
+        orders, _ = plan_core_sweep(
+            cfg, equity=10000, cash=6000, regime="NORMAL")
+        assert len(orders) == 1
+
+    def test_all_closed_yields_no_orders(self):
+        """Alle Kandidaten zu -> 0 Orders mit erklaerendem Reason."""
+        cfg = _make_cfg(whitelist={"AAPL": 1001, "MSFT": 1004})
+        orders, reasons = plan_core_sweep(
+            cfg, equity=10000, cash=6000, regime="NORMAL",
+            market_open=lambda iid: False,
+        )
+        assert orders == []
+        assert any("market closed" in r for r in reasons)
+
+    def test_closed_candidate_slot_goes_to_open_one(self):
+        """max_sweeps_per_run=2, erster Kandidat (ATR-sortiert) zu -> der
+        offene Titel bekommt den Slot statt eines toten DEFER."""
+        cfg = _make_cfg(
+            max_sweeps_per_run=2,
+            whitelist={"SPY": 3000, "AAPL": 1001, "MSFT": 1004},
+        )
+        atr_by_id = {3000: 1.0, 1001: 2.0, 1004: 3.0}
+        orders, reasons = plan_core_sweep(
+            cfg, equity=10000, cash=8000, regime="NORMAL",
+            atr_by_id=atr_by_id,
+            market_open=lambda iid: iid != 3000,  # SPY zu
+        )
+        symbols = [o.symbol for o in orders]
+        assert "SPY" not in symbols
+        assert "AAPL" in symbols
+        assert "MSFT" in symbols
+        assert any("SPY" in r and "market closed" in r for r in reasons)

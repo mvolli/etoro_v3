@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-09-17T20:30:45.968931+00:00",
-  "auto_expires_at": "2026-10-01T20:30:45.968936+00:00",
+  "updated_at": "2026-09-22T20:30:50.556669+00:00",
+  "auto_expires_at": "2026-10-06T20:30:50.556675+00:00",
   "adjustments": {
     "TREND_PULLBACK,GOLDEN_CROSS": {
       "score_multiplier": 1.0,
@@ -18,9 +18,12 @@
       "_note_conviction": "Typ erzeugt nur HIGH/MEDIUM (3931/530, 0 sonst). LOW/VERY_HIGH bleiben gedaempft, damit eine Aenderung im Scorer keine stille Lockerung wird."
     },
     "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": {
-      "score_multiplier": 1.0,
+      "score_multiplier": 0.6,
       "skip": false,
-      "reason": "Post-26.07 (2026-09-18 SQL: n=133, WR 27.1%, avg +0.19%, sum -$106.77): nur 2. beste Summe im Buch (nach TP+GC), hohe Varianz, Summe noch negativ. Multiplier 1.0 unveraendert — kein Lockerungs-Ratchet hier, aber Beobachtung: falls die Summe ueber >= 2 Laeufe weiter sinkt, Daempfung vorschlagen (nicht still umstellen)."
+      "reason": "Dip-Buy signal in CAUTION regime. High reject rate (64%) and recent losses (ELIS.PA -3.93%, MCD -3.54%). Slight dampening to reduce exposure to falling knives.",
+      "_ratchet_frozen": true,
+      "_proposed": 0.8,
+      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.6 -> 0.8 blockiert (n_closed=142/20, pnl_usd=-113.75, realisiert=-27.39 USD)"
     },
     "CORE_SWEEP": {
       "score_multiplier": 0.5,
@@ -47,10 +50,10 @@
     }
   },
   "strategy_notes": [
-    "HIGH conviction entries for trend-following signals (TREND_PULLBACK, GOLDEN_CROSS) are currently underperforming; consider stricter trend confirmation filters for HIGH conviction assignments.",
-    "MACD/BB signals have a low win rate but positive expectancy; ensure position sizing accounts for the high frequency of small losses before large wins."
+    "TREND_PULLBACK,GOLDEN_CROSS (HIGH) exhibits a 'high win rate, negative PnL' pattern, suggesting that winning trades are small while losing trades are large. Consider tightening stop-losses or reducing position size for HIGH conviction entries of this type.",
+    "CORE_SWEEP has a high reject rate (64%) and near-zero PnL. The signal may be generating too many marginal entries that are filtered out or closed quickly. Monitor if this leads to opportunity cost in the CAUTION regime."
   ],
   "conviction_issues": [
-    "TREND_PULLBACK,GOLDEN_CROSS at HIGH conviction has a 26% win rate and negative average PnL, suggesting the conviction filter is too loose for this specific signal type."
+    "TREND_PULLBACK,GOLDEN_CROSS (HIGH) has a negative average PnL of -1.43% with 23 losses vs 8 wins, indicating that the HIGH conviction filter is not effectively separating high-quality trades from low-quality ones for this signal type."
   ]
 }

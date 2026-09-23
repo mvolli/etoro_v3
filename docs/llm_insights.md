@@ -2151,3 +2151,113 @@
 - MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING shows a low win rate (27%) despite positive avg PnL, suggesting high variance and reliance on few large winners.
 
 **LLM-Fazit:** Keine strukturellen Ghost-Order-Probleme erkannt; alle Exchange-Raten sind stabil und niedrig. Das CAUTION-Regime ist aktiv, wobei das Signal 'TREND_PULLBACK,GOLDEN_CROSS' auf HIGH Conviction Ebene Verluste macht und gedämpft wird. Die Portfolio-Performance ist gemischt, mit einigen starken Gewinnern (7272.T, JASMY) aber auch signifikanten Verlusten (SAX.DE).
+
+## 2026-09-18 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/321)
+- `.DE`: 0% (0/48)
+- `.PA`: 0% (0/72)
+- `.ST`: 0% (0/10)
+- `.MC`: 0% (0/9)
+- `.ASX`: 0% (0/34)
+- `_ASIA`: 0% (0/72)
+- `.L`: 0% (0/44) ← GEBLOCKT
+- `_CRYPTO`: 0% (0/2)
+- `.CO`: 0% (0/2)
+- `.MI`: 0% (0/15)
+- `.OL`: 0% (0/3) ← GEBLOCKT
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS HIGH Conviction shows severe negative PnL (-1.43% avg) despite MEDIUM performing well (+0.51% avg).
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING has a low win rate (27%) but positive average PnL, indicating high variance or fat tails.
+
+**LLM-Fazit:** Portfolio im CAUTION-Regime stabil bei 9584 USD. Keine strukturellen Ghost-Order-Probleme erkannt. Hauptfokus: TREND_PULLBACK,GOLDEN_CROSS in HIGH Conviction verliert Geld und wird gedämpft, während MEDIUM Conviction profitabel bleibt.
+
+## 2026-09-19 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/321)
+- `.DE`: 0% (0/48)
+- `.PA`: 0% (0/72)
+- `.ST`: 0% (0/10)
+- `.MC`: 0% (0/9)
+- `.ASX`: 0% (0/34)
+- `_ASIA`: 0% (0/72)
+- `.L`: 0% (0/44) ← GEBLOCKT
+- `_CRYPTO`: 0% (0/2)
+- `.CO`: 0% (0/2)
+- `.MI`: 0% (0/15)
+- `.OL`: 0% (0/3) ← GEBLOCKT
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS (HIGH) zeigt massive Verluste (-1.43% avg) im CAUTION-Regime
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING hat hohe Reject-Rate (60%) und negative Avg-PnL (-0.19%)
+
+**LLM-Fazit:** Portfolio im CAUTION-Regime stabil, keine Ghost-Order-Probleme. TREND_PULLBACK,GOLDEN_CROSS (HIGH) und MACD-BB-Kombos performen schwach; Gewichtung angepasst, um Verluste im defensiven Umfeld zu minimieren.
+
+## 2026-09-20 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/280)
+- `.DE`: 0% (0/48)
+- `.PA`: 0% (0/72)
+- `.ST`: 0% (0/10)
+- `.MC`: 0% (0/9)
+- `.ASX`: 0% (0/34)
+- `_ASIA`: 0% (0/72)
+- `.L`: 0% (0/42) ← GEBLOCKT
+- `_CRYPTO`: 0% (0/2)
+- `.CO`: 0% (0/2)
+- `.MI`: 0% (0/15)
+- `.OL`: 0% (0/3) ← GEBLOCKT
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS (HIGH) zeigt massive Verluste (-1.43% avg) im CAUTION-Regime
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING hat hohe Reject-Rate (60%) und negative Avg-PnL trotz hoher Success-Rate
+
+**LLM-Fazit:** Portfolio im CAUTION-Regime stabil, keine Ghost-Order-Probleme. TREND_PULLBACK,GOLDEN_CROSS (HIGH) und MACD-BB-Kombos zeigen PnL-Schwächen, daher werden diese Signale gedämpft. Keine strukturellen Exchange-Blöcke aktiv.
+
+## 2026-09-21 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/224)
+- `.PA`: 0% (0/68)
+- `.ST`: 0% (0/16)
+- `.DE`: 0% (0/52)
+- `.MC`: 0% (0/10)
+- `.OL`: 0% (0/4) ← GEBLOCKT
+- `.CO`: 0% (0/3)
+- `.ASX`: 0% (0/39)
+- `_ASIA`: 0% (0/70)
+- `.L`: 0% (0/39) ← GEBLOCKT
+- `_CRYPTO`: 0% (0/2)
+- `.MI`: 0% (0/13)
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS (HIGH Conviction) zeigt massive Verluste (-1.43% avg PnL, 23L/8W) im CAUTION-Regime
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING hat hohe Reject-Rate (64%) und moderate Verluste (-3.93% max loss), typisch für Dip-Buy in CAUTION
+
+**LLM-Fazit:** Portfolio im CAUTION-Regime stabil (9522 USD). Keine Ghost-Order-Probleme bei tradbaren Instrumenten. Hauptproblem: HIGH-Conviction Trend-Signale verlieren stark, Dip-Buy-Signale werden häufig abgelehnt. Empfehlung: Dämpfen von HIGH-Conviction Trend-Signals und strikte Filter für Dip-Buys.
+
+## 2026-09-22 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/247)
+- `.DE`: 0% (0/51)
+- `.PA`: 0% (0/71)
+- `.ST`: 0% (0/19)
+- `.MC`: 0% (0/12)
+- `_ASIA`: 0% (0/68)
+- `.ASX`: 0% (0/46)
+- `.OL`: 0% (0/4) ← GEBLOCKT
+- `.CO`: 0% (0/3)
+- `.L`: 0% (0/39) ← GEBLOCKT
+- `_CRYPTO`: 0% (0/2)
+- `.MI`: 0% (0/12)
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS (HIGH) has a negative avg PnL of -1.43% despite a 0.86 success rate, indicating poor risk-reward or exit timing.
+- CORE_SWEEP shows a high reject rate (64%) and a slightly negative avg PnL (0.025%), suggesting entry filters may be too loose or market conditions are unfavorable for this signal.
+
+**LLM-Fazit:** Portfolio ist im CAUTION-Regime stabil mit 9482 USD. Keine strukturellen Ghost-Order-Probleme bei tradbaren Instrumenten. TREND_PULLBACK,GOLDEN_CROSS (HIGH) verliert Geld trotz hoher Success-Rate, daher wird die Conviction-Level-Weighting angepasst.

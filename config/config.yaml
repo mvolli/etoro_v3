@@ -149,6 +149,10 @@ trading:
     max_position_pct: 6.0     # Harter Deckel je Core-Titel (% Equity)
     max_sweeps_per_run: 2     # fix/fee-churn-minhold (2026-09-20): 4 -> 2 (Drossel)
     rsi_overbought: 75.0      # Kein Sweep in einen Titel mit RSI darueber (nicht extended kaufen)
+    market_open_only: true    # fix/core-sweep-market-open (2026-09-23): plane NUR in
+                              # offene Maerkte — ueber Nacht keine US-Titel, die nur auf
+                              # DEFER -> market-closed-TTL -> REJECTED laufen (273/274
+                              # stale-Rejections in 30d). fail-open, BUY-Gate bleibt Letztlinie.
     reject_cooldown_after: 3  # Ab N REJECTED/FAILED Core-Sweep-Trades im Fenster -> Cooldown
     reject_cooldown_hours: 3.0  # Cooldown-Fenster in Stunden (0 = Check deaktivieren via cooldown_after)
     regimes: ["NORMAL", "CAUTION"]  # Regime-Gate: pausiert in DEFENSIVE/CRITICAL

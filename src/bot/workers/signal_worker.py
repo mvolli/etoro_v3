@@ -2436,6 +2436,36 @@ def main() -> None:
             # also gegen den Stand NACH den Signal-Trades, nicht davor.
             from bot.core.risk import MAX_TOTAL_EXPOSURE_PCT as _cs_max_exp
             from bot.core.correlation import check_correlation_gate as _cs_corr
+            # fix/core-sweep-market-open (2026-09-23): Core-Sweep plant
+            # NUR in offene Maerkte. 30d-Beleg: 273/274 'Markt >4h
+            # geschlossen — Signal veraltet' Rejections waren CORE_SWEEP,
+            # fast alle US-listed (PG 20, AAPL 19, JPM 19, NVDA 19, V 19,
+            # KO 18, MSFT 18, SPY 16), in den US-closed Stunden 00-09 &
+             # 19-23 UTC. Ohne Market-Check plant der Bot ueber Nacht
+             # US-Titel, die im execution_worker auf DEFER ->
+             # market-closed-TTL -> REJECTED laufen: tote Rejections,
+             # verbrauchte Daily-Cap-Slots und Veto-LLM-Calls pro Titel.
+             # SKIP (keine Order) ist kostenlos und der Titel wird im
+             # naechsten Lauf wieder geplant, sobald sein Markt offen ist.
+             # fail_open=True + None->True: ein Kalender-/Auflösungs-Fehler
+             # darf das Cash-Deployment nie blockieren; die
+             # execution_worker BUY-Gate (fail_open=False) bleibt die
+             # fail-closed Letztlinie.
+            # Config: trading.core_sweep.market_open_only (default true).
+            _cs_market_open_only = bool(
+                (cfg.get("trading", {}).get("core_sweep", {}) or {}).get(
+                    "market_open_only", True))
+            _cs_market_open = None
+            if _cs_market_open_only:
+                def _cs_market_open(instrument_id: int) -> bool:
+                    _mfp = _resolve_mf(db, instrument_id)
+                    if not _mfp:
+                        return True  # Zeile fehlt -> fail-open
+                    _sym, _yfs, _cat = _mfp
+                    if not _sym:
+                        return True
+                    return bool(
+                        is_market_open(_sym, _yfs, _cat, fail_open=True))
             _sweep_orders, _sweep_reasons = plan_core_sweep(
                 cfg, equity=equity, cash=cash_estimate, regime=regime,
                 held_instrument_ids=_held_ids, atr_by_id=_atr_by_id, rsi_by_id=_rsi_by_id,
@@ -2444,6 +2474,7 @@ def main() -> None:
                 max_exposure_pct=_cs_max_exp,
                 open_positions=open_positions,
                 correlation_gate=_cs_corr,
+                market_open=_cs_market_open,
             )
             if _sweep_reasons:
                 logger.info("SignalWorker: %s", _sweep_reasons[0])
