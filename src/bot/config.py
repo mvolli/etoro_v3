@@ -2,6 +2,7 @@
 """Config loader for V3 — reads config/config.yaml + .env API keys."""
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -25,6 +26,30 @@ def _load_env(path: Path) -> dict[str, str]:
         key, _, val = line.partition("=")
         result[key.strip()] = val.strip().strip('"').strip("'")
     return result
+
+
+HERMES_ENV_PATH = Path.home() / ".hermes" / ".env"
+
+
+def load_hermes_env(log: Optional[logging.Logger] = None) -> bool:
+    """Export ~/.hermes/.env into os.environ without overriding existing vars.
+
+    Values are taken verbatim (only whitespace-stripped, quotes kept) — this is
+    the exact semantics the cron workers have always used. Returns False if the
+    file is missing; `log`, if given, then gets a warning.
+    """
+    if not HERMES_ENV_PATH.exists():
+        if log is not None:
+            log.warning(".env not found at %s — relying on existing environment", HERMES_ENV_PATH)
+        return False
+    with open(HERMES_ENV_PATH) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            os.environ.setdefault(key.strip(), value.strip())
+    return True
 
 
 @dataclass

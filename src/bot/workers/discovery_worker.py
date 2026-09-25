@@ -531,21 +531,6 @@ def _load_config() -> dict:
         return yaml.safe_load(fh) or {}
 
 
-def _load_env() -> None:
-    """Load environment variables from ~/.hermes/.env if present."""
-    env_path = Path.home() / ".hermes" / ".env"
-    if not env_path.exists():
-        logger.debug(".env not found at %s — relying on existing environment", env_path)
-        return
-    with open(env_path) as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, _, value = line.partition("=")
-            os.environ.setdefault(key.strip(), value.strip())
-
-
 def _load_instrument_map() -> dict[int, str]:
     """
     Load instrument_map.json directly from data/.
@@ -812,7 +797,8 @@ def main() -> int:
         t_start = time.monotonic()
 
         # ── 1. Setup ──────────────────────────────────────────────────────────────
-        _load_env()
+        from bot.config import load_hermes_env
+        load_hermes_env()
         cfg = _load_config()
     
         from bot.db.connection import DB

@@ -38,6 +38,10 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   Spot-Incident. Discovery/Watchlist arbeiten im yfinance-Namespace —
   Schreiber Richtung Trading-Pfad (z.B. `core_sweep_whitelist`) muessen
   vorher kanonisieren.
+- **`.env`-Ladung der Worker nur über `bot.config.load_hermes_env()`**
+  (refactor/dedupe-load-env 2026-09-25): ersetzte 10 identische `_load_env()`-
+  Kopien. Semantik unverändert: `os.environ.setdefault`, Werte nur whitespace-
+  gestrippt (Quotes bleiben — anders als `config._load_env`, das sie entfernt).
 - Worker-Wrapper liegen in `~/.hermes/scripts/v3_*.sh` — Script-Änderungen
   in `scripts/` müssen dorthin kopiert werden, sonst läuft der Cron alt.
 - Trade-Event-Ledger `trade_events` (feat/pnl-nachreport, 2026-07-28):

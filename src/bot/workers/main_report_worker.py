@@ -48,19 +48,6 @@ NEWS_MAX_AGE_H = 48
 CHART_TOP_N = 12
 
 
-def _load_env() -> None:
-    env_path = Path.home() / ".hermes" / ".env"
-    if not env_path.exists():
-        return
-    with open(env_path) as fh:
-        for line in fh:
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            k, _, v = line.partition("=")
-            os.environ.setdefault(k.strip(), v.strip())
-
-
 # ── Persistenz ────────────────────────────────────────────────────────────────
 
 def _ensure_schema(conn: sqlite3.Connection) -> None:
@@ -281,7 +268,8 @@ def _fmt_mover(m: dict) -> str:
 
 
 def run(dry_run: bool = False) -> int:
-    _load_env()
+    from bot.config import load_hermes_env
+    load_hermes_env()
     from bot.api.client import ClientConfig, EToroClient
     from bot.core.main_portfolio import (aggregate_by, build_snapshot,
                                          diff_snapshots, top_positions)
