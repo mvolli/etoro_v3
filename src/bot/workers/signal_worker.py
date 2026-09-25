@@ -1517,11 +1517,15 @@ def _load_sector_map(cfg: dict, signal_repo) -> dict[str, str]:
                     "WHERE sector IS NOT NULL AND sector != '' AND sector != 'unknown'"
                 ) or [])
             }
-            logger.info("SignalWorker: Sektor-Map aktiv (%d Instrumente)", len(_sector_map))
+            logger.info(
+                "SignalWorker: Sektor-Map geladen (%d Instrumente) — NICHT im "
+                "Kauf-Gate verdrahtet, nur ASSET_CLASS_MAP + 20%%-Default wirken",
+                len(_sector_map),
+            )
         except Exception as _sec_exc:
-            # Fail-open: fehlt die Spalte oder kippt die Query, verhaelt
-            # sich das Gate wie vor dem Backfill.
-            logger.warning("SignalWorker: Sektor-Map nicht ladbar (%s) — Gate fail-open", _sec_exc)
+            # Fail-open. Aendert am Kaufverhalten nichts, solange die Map
+            # nicht verdrahtet ist (docs/sector-gate-truth).
+            logger.warning("SignalWorker: Sektor-Map nicht ladbar (%s)", _sec_exc)
             _sector_map = {}
     return _sector_map
 
@@ -2045,9 +2049,12 @@ def main() -> None:
         # ASSET_CLASS_MAP deckt ~65 US-Ticker ab; gemessen fielen 74.2% des
         # Equity fail-open durch das Gate. instruments.sector (yfinance,
         # befuellt von scripts/sync_instrument_sectors.py) schliesst die Luecke.
-        # BEWUSST per Default AUS: erst wenn der Backfill durch ist und die
-        # Sektor-Verteilung des Buchs gemessen wurde, ist ein 20%-Cap eine
-        # informierte Entscheidung statt eines Blindflugs.
+        # Stand 2026-09-25 (docs/sector-gate-truth): enforce_db_sectors ist
+        # seit 2026-08-12 true, die Map wird geladen — aber NICHT verwendet.
+        # check_buy_gate reicht kein sector_by_symbol an check_asset_class_gate
+        # weiter; beim Kauf wirken nur ASSET_CLASS_MAP + 20%-Default. Das
+        # Anschliessen ist ein neues scharfes Gate im Kaufpfad und wartet auf
+        # Messung + VoLLi-Entscheid (siehe config.yaml sector_limits).
         _sector_map = _load_sector_map(cfg, signal_repo)
 
         # feat/region-damper (2026-08-12): market_region ist bereits gepflegt,
