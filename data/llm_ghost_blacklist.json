@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-09-17T20:30:45.956668+00:00",
-  "auto_expires_at": "2026-09-24T20:30:45.956676+00:00",
+  "updated_at": "2026-09-25T20:31:03.055472+00:00",
+  "auto_expires_at": "2026-10-02T20:31:03.055483+00:00",
   "exchanges": [
     ".L",
     ".OL",
@@ -11,65 +11,55 @@
   "symbols": [],
   "stats": {
     "_OTHER": {
-      "total": 324,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    ".PA": {
-      "total": 73,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    ".MC": {
-      "total": 9,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    ".DE": {
-      "total": 44,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    ".ST": {
-      "total": 9,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    "_ASIA": {
-      "total": 66,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    ".ASX": {
-      "total": 33,
+      "total": 149,
       "ghost": 0,
       "rate": 0.0
     },
     ".L": {
-      "total": 44,
+      "total": 36,
       "ghost": 0,
       "rate": 0.0
     },
-    "_CRYPTO": {
-      "total": 2,
+    ".ST": {
+      "total": 25,
       "ghost": 0,
       "rate": 0.0
     },
-    ".CO": {
-      "total": 2,
+    ".PA": {
+      "total": 47,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    ".MC": {
+      "total": 15,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    ".DE": {
+      "total": 38,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    "_ASIA": {
+      "total": 78,
       "ghost": 0,
       "rate": 0.0
     },
     ".MI": {
-      "total": 17,
+      "total": 10,
       "ghost": 0,
       "rate": 0.0
     },
-    ".OL": {
-      "total": 3,
+    ".CO": {
+      "total": 5,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    ".ASX": {
+      "total": 43,
       "ghost": 0,
       "rate": 0.0
     }
   },
-  "reason": "Keine strukturellen Ghost-Order-Probleme erkannt; alle Exchange-Raten sind stabil und niedrig. Das CAUTION-Regime ist aktiv, wobei das Signal 'TREND_PULLBACK,GOLDEN_CROSS' auf HIGH Conviction Ebene Verluste macht und gedämpft wird. Die Portfolio-Performance ist gemischt, mit einigen starken Gewinnern (7272.T, JASMY) aber auch signifikanten Verlusten (SAX.DE)."
+  "reason": "Portfolio ist im CAUTION-Regime stabil, aber die Signal-Qualität leidet. TREND_PULLBACK,GOLDEN_CROSS (HIGH) und MACD-BB-Kombos zeigen hohe Verlustquoten und werden gedämpft. Keine strukturellen Ghost-Order-Probleme erkannt."
 }

@@ -170,6 +170,51 @@ def _backfill_outcomes(entries: list[dict]) -> None:
         logger.debug("[%s] Outcome-Backfill uebersprungen: %s", WORKER_NAME, exc)
 
 
+def _signal_rejected(db, trade: dict) -> None:
+    """Markiert das Signal des abgelehnten Trades ebenfalls als REJECTED.
+
+    fix/veto-signal-status (2026-09-25): der Veto-Pfad setzte nur den TRADE
+    auf REJECTED, das Signal blieb CONSUMED. Damit merkte sich nichts, dass
+    diese Konstellation nicht durchgeht — `has_fresh_signal` blockt auf
+    status IN ('FRESH','REJECTED'), CONSUMED faellt durch. Der data_worker
+    erzeugte dasselbe Signal auf unveraendertem Zustand neu, der Veto
+    verbrannte erneut einen LLM-Call und einen der knappen Kandidaten-Slots.
+
+    Gemessen am 2026-09-25 ueber 14 Tage: 198 "LLM-Reduce unter Min-Buy"-
+    Ablehnungen auf 80 Instrumenten (2,5 je Instrument), und in ALLEN 198
+    Faellen stand das Signal danach auf CONSUMED.
+
+    Der Reduce-Fall ist dabei weitgehend vorherbestimmt: REDUCE_MIN_PCT/MAX
+    = 25/75, min_buy_usd = 50. Ein Trade am $50-Floor landet bei JEDER
+    erlaubten Reduktion darunter ($12,50-$37,50); erst ab $66,67 ueberlebt
+    wenigstens ein 75-%-Reduce. Die 198 Faelle lagen bei $50,00-$99,30
+    (Ø $70,11) — also genau in der Zone, in der die Ablehnung feststeht,
+    bevor die LLM ueberhaupt gefragt wird.
+
+    Der signal_worker kennt diese Konvention laengst (`update_signal_status
+    (signal_id, "REJECTED")` an 8 Stellen, u. a. `_reject_below_floor_impl`
+    fuer exakt denselben Fall "Betrag unter Floor"). Der Veto-Worker war der
+    Ausreisser; hier wird die bestehende Konvention nachgezogen, kein neuer
+    Mechanismus gebaut.
+
+    Wirkung: `has_fresh_signal` blockt die Neuerzeugung bis zum Signal-TTL
+    (60 min). Transiente Gruende heilen danach automatisch — dieselbe
+    Semantik wie fix/rejected-signal-dedup (2026-07-20, ART.L: 12 identische
+    Zeilen an einem Vormittag).
+
+    Fail-open: ein Fehler hier darf den Veto-Lauf nie kippen. Die
+    Trade-Ablehnung ist bereits geschrieben und bleibt gueltig.
+    """
+    sid = trade.get("signal_id")
+    if not sid:
+        return
+    try:
+        db.execute("UPDATE signals SET status='REJECTED' WHERE id=?", (sid,))
+    except Exception:
+        logger.debug("[%s] Signal-Status nicht gesetzt (Trade bleibt abgelehnt)",
+                     WORKER_NAME, exc_info=True)
+
+
 def _apply_decision(db, trade: dict, decision: dict, min_buy: float) -> str:
     """Wendet eine validierte LLM-Entscheidung race-safe an.
     Rueckgabe: 'VETO' | 'REDUCE' | 'APPROVE' | 'NOOP' (Race verloren/ungueltig)."""
@@ -184,7 +229,10 @@ def _apply_decision(db, trade: dict, decision: dict, min_buy: float) -> str:
             "AND (order_id IS NULL OR order_id = '')",
             (f"LLM-Veto: {reason}", trade_id),
         )
-        return "VETO" if cur.rowcount else "NOOP"
+        if cur.rowcount:
+            _signal_rejected(db, trade)
+            return "VETO"
+        return "NOOP"
 
     if action == "REDUCE":
         try:
@@ -200,7 +248,10 @@ def _apply_decision(db, trade: dict, decision: dict, min_buy: float) -> str:
                 "AND (order_id IS NULL OR order_id = '')",
                 (f"LLM-Reduce unter Min-Buy: {reason}", trade_id),
             )
-            return "VETO" if cur.rowcount else "NOOP"
+            if cur.rowcount:
+                _signal_rejected(db, trade)
+                return "VETO"
+            return "NOOP"
         cur = db.execute(
             "UPDATE trades SET amount_usd=? WHERE id=? AND status='APPROVED' "
             "AND (order_id IS NULL OR order_id = '')",
@@ -269,6 +320,7 @@ def main() -> int:
 
         trades = [dict(r) for r in db.fetchall("""
             SELECT t.id, t.symbol, t.instrument_id, t.amount_usd, t.signal_price,
+                   t.signal_id,
                    s.signal_type, s.conviction, s.score, s.rsi, s.bb_pct,
                    i.yfinance_symbol
             FROM trades t

@@ -2261,3 +2261,68 @@
 - CORE_SWEEP shows a high reject rate (64%) and a slightly negative avg PnL (0.025%), suggesting entry filters may be too loose or market conditions are unfavorable for this signal.
 
 **LLM-Fazit:** Portfolio ist im CAUTION-Regime stabil mit 9482 USD. Keine strukturellen Ghost-Order-Probleme bei tradbaren Instrumenten. TREND_PULLBACK,GOLDEN_CROSS (HIGH) verliert Geld trotz hoher Success-Rate, daher wird die Conviction-Level-Weighting angepasst.
+
+## 2026-09-23 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/268)
+- `.MI`: 0% (0/11)
+- `.MC`: 0% (0/14)
+- `_ASIA`: 0% (0/79)
+- `.CO`: 0% (0/5)
+- `.L`: 0% (0/40) ← GEBLOCKT
+- `.DE`: 0% (0/51)
+- `.ASX`: 0% (0/46)
+- `.PA`: 0% (0/69)
+- `.ST`: 0% (0/19)
+- `.OL`: 0% (0/4) ← GEBLOCKT
+- `_CRYPTO`: 0% (0/2)
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS (HIGH Conviction) zeigt massive Verluste (-1.43% avg PnL, 23/31 Losses) im CAUTION-Regime
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING hat hohe Reject-Rate (68%) und moderate Verluste, typisch für Dip-Buy in CAUTION
+
+**LLM-Fazit:** Portfolio im CAUTION-Regime mit 9361 USD. Keine strukturellen Ghost-Order-Probleme erkannt. Hauptproblem: HIGH Conviction Trend-Pullback-Signale verlieren stark, daher wird diese Stufe gedämpft. Dip-Buy Signale bleiben aktiv, da MACD-Wende-Filter greift.
+
+## 2026-09-24 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/260)
+- `.PA`: 0% (0/75)
+- `.ST`: 0% (0/21)
+- `_ASIA`: 0% (0/88)
+- `.MI`: 0% (0/11)
+- `.MC`: 0% (0/14)
+- `.CO`: 0% (0/5)
+- `.L`: 0% (0/40) ← GEBLOCKT
+- `.DE`: 0% (0/48)
+- `.ASX`: 0% (0/45)
+- `.OL`: 0% (0/4) ← GEBLOCKT
+- `_CRYPTO`: 0% (0/2)
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS (HIGH) zeigt massive Verluste (-1.43% avg) trotz 100% Success-Rate, deutet auf Exit-Problem oder Sizing-Fehler hin.
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING hat hohe Reject-Rate (68%) und negative Avg-PnL (-0.11%), was auf schlechte Entry-Quality oder Slippage hindeutet.
+- Kürzliche Trades zeigen mehrere Verluste mit hold_d < 1 Tag (z.B. EMEIS.PA, SMCP.PA), was auf Slippage oder Timing-Probleme bei Entry hindeutet.
+
+**LLM-Fazit:** Portfolio im CAUTION-Regime mit 9263 USD. Keine strukturellen Ghost-Order-Probleme, aber TREND_PULLBACK,GOLDEN_CROSS (HIGH) verliert stark trotz hoher Erfolgsquote, was auf Exit-Probleme hindeutet. MACD-Signale zeigen hohe Reject-Raten und negative PnL, Entry-Quality sollte überprüft werden.
+
+## 2026-09-25 20:31 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/149)
+- `.L`: 0% (0/36) ← GEBLOCKT
+- `.ST`: 0% (0/25)
+- `.PA`: 0% (0/47)
+- `.MC`: 0% (0/15)
+- `.DE`: 0% (0/38)
+- `_ASIA`: 0% (0/78)
+- `.MI`: 0% (0/10)
+- `.CO`: 0% (0/5)
+- `.ASX`: 0% (0/43)
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS (HIGH) has a 26% win rate and -1.43% avg PnL, indicating severe overconfidence in high-conviction trend entries.
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING shows a 29% win rate and -0.31% avg PnL, consistent with dip-buying in a CAUTION regime without sufficient trend confirmation.
+
+**LLM-Fazit:** Portfolio ist im CAUTION-Regime stabil, aber die Signal-Qualität leidet. TREND_PULLBACK,GOLDEN_CROSS (HIGH) und MACD-BB-Kombos zeigen hohe Verlustquoten und werden gedämpft. Keine strukturellen Ghost-Order-Probleme erkannt.

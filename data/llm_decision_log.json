@@ -1771,6 +1771,228 @@
     },
     "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
     "baseline": null,
+    "outcome": "Signal TREND_PULLBACK,GOLDEN_CROSS: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-21"
+  },
+  {
+    "date": "2026-09-18",
+    "timestamp": "2026-09-18T20:30:46.715023+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
+    "outcome": "Signal TREND_PULLBACK,GOLDEN_CROSS: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-21"
+  },
+  {
+    "date": "2026-09-19",
+    "timestamp": "2026-09-19T20:30:37.965434+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
+    "outcome": "Signal TREND_PULLBACK,GOLDEN_CROSS: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-21"
+  },
+  {
+    "date": "2026-09-19",
+    "timestamp": "2026-09-19T20:30:37.967232+00:00",
+    "type": "signal_weight",
+    "key": "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING",
+    "old_value": 1.0,
+    "new_value": {
+      "score_multiplier": 0.6,
+      "skip": false,
+      "reason": "High reject rate (60%) and negative average PnL indicate poor entry quality or market friction in current conditions."
+    },
+    "reason": "High reject rate (60%) and negative average PnL indicate poor entry quality or market friction in current conditions.",
+    "baseline": null,
+    "outcome": "Signal MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROV: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-21"
+  },
+  {
+    "date": "2026-09-20",
+    "timestamp": "2026-09-20T20:30:53.110705+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
+    "outcome": "Signal TREND_PULLBACK,GOLDEN_CROSS: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-21"
+  },
+  {
+    "date": "2026-09-20",
+    "timestamp": "2026-09-20T20:30:53.112631+00:00",
+    "type": "signal_weight",
+    "key": "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING",
+    "old_value": 0.6,
+    "new_value": {
+      "score_multiplier": 0.6,
+      "skip": false,
+      "reason": "High reject rate (60%) and negative avg PnL (0.19% is low for MEDIUM conviction) suggest entry quality issues or slippage.",
+      "_ratchet_frozen": true,
+      "_proposed": 0.7,
+      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.6 -> 0.7 blockiert (n_closed=133/20, pnl_usd=-106.77, realisiert=-20.94 USD)"
+    },
+    "reason": "RATCHET-FROZEN: Lockerung 0.6 -> 0.7 blockiert (n_closed=133/20, pnl_usd=-106.77, realisiert=-20.94 USD)",
+    "baseline": null,
+    "outcome": "Signal MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROV: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-21"
+  },
+  {
+    "date": "2026-09-21",
+    "timestamp": "2026-09-21T20:30:54.696553+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
+    "outcome": "Signal TREND_PULLBACK,GOLDEN_CROSS: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-22"
+  },
+  {
+    "date": "2026-09-21",
+    "timestamp": "2026-09-21T20:30:54.698752+00:00",
+    "type": "signal_weight",
+    "key": "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING",
+    "old_value": 0.6,
+    "new_value": {
+      "score_multiplier": 0.6,
+      "skip": false,
+      "reason": "Dip-Buy signal in CAUTION regime. High reject rate (64%) and recent losses (ELIS.PA -3.93%, MCD -3.54%). Slight dampening to reduce exposure to falling knives.",
+      "_ratchet_frozen": true,
+      "_proposed": 0.8,
+      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.6 -> 0.8 blockiert (n_closed=142/20, pnl_usd=-113.75, realisiert=-27.39 USD)"
+    },
+    "reason": "RATCHET-FROZEN: Lockerung 0.6 -> 0.8 blockiert (n_closed=142/20, pnl_usd=-113.75, realisiert=-27.39 USD)",
+    "baseline": null,
+    "outcome": "Signal MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROV: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-22"
+  },
+  {
+    "date": "2026-09-22",
+    "timestamp": "2026-09-22T20:30:50.555368+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
+    "outcome": "Signal TREND_PULLBACK,GOLDEN_CROSS: 1 Trades, avg_pnl=-0.25% (Gewicht={'action': 'LOCKED_OUT_BY_GUARD', 'reason': \"entry secured by 'VoLLi 2026-09-11'\"})",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-23"
+  },
+  {
+    "date": "2026-09-23",
+    "timestamp": "2026-09-23T20:30:35.759332+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
+    "outcome": "Signal TREND_PULLBACK,GOLDEN_CROSS: 1 Trades, avg_pnl=-0.25% (Gewicht={'action': 'LOCKED_OUT_BY_GUARD', 'reason': \"entry secured by 'VoLLi 2026-09-11'\"})",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-24"
+  },
+  {
+    "date": "2026-09-24",
+    "timestamp": "2026-09-24T20:30:27.111938+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
+    "outcome": "Signal TREND_PULLBACK,GOLDEN_CROSS: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-25"
+  },
+  {
+    "date": "2026-09-24",
+    "timestamp": "2026-09-24T20:30:27.113822+00:00",
+    "type": "signal_weight",
+    "key": "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING",
+    "old_value": 0.6,
+    "new_value": {
+      "score_multiplier": 0.6,
+      "skip": false,
+      "reason": "Hohe Reject-Rate (68%) und negative Avg-PnL (-0.11%) deuten auf schlechte Entry-Quality oder Slippage. Dampfen leicht.",
+      "_ratchet_frozen": true,
+      "_proposed": 0.8,
+      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.6 -> 0.8 blockiert (n_closed=172/20, pnl_usd=-142.58, realisiert=-53.11 USD)"
+    },
+    "reason": "RATCHET-FROZEN: Lockerung 0.6 -> 0.8 blockiert (n_closed=172/20, pnl_usd=-142.58, realisiert=-53.11 USD)",
+    "baseline": null,
+    "outcome": "Signal MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROV: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-25"
+  },
+  {
+    "date": "2026-09-25",
+    "timestamp": "2026-09-25T20:31:03.074925+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-09-25",
+    "timestamp": "2026-09-25T20:31:03.077254+00:00",
+    "type": "signal_weight",
+    "key": "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING",
+    "old_value": 0.6,
+    "new_value": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "29% win rate and -0.31% avg PnL. Dip-buying signals are underperforming in CAUTION regime. Dampening to reduce frequency of falling-knife entries."
+    },
+    "reason": "29% win rate and -0.31% avg PnL. Dip-buying signals are underperforming in CAUTION regime. Dampening to reduce frequency of falling-knife entries.",
+    "baseline": null,
     "outcome": null,
     "outcome_grade": null,
     "outcome_date": null

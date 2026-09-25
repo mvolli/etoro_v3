@@ -3,14 +3,14 @@
     "param": "sl.default_pct",
     "old_value": 3.0,
     "new_value": 3.5,
-    "hypothesis": "Raising the stop-loss to 3.5% prevents premature exits on normal volatility in EU-Smallcaps, allowing winning trades to develop and improving the average PnL per trade.",
-    "started_at": "2026-09-06T03:00:51.517805+00:00",
-    "start_equity": 8170.509999999999,
+    "hypothesis": "Raising the stop-loss to 3.5% prevents premature exits on normal volatility in EU-Smallcaps, allowing trades to recover from noise and improve the average PnL per trade.",
+    "started_at": "2026-09-20T03:00:56.817602+00:00",
+    "start_equity": 9586.09,
     "baseline": {
-      "n": 166,
-      "win_rate": 0.452,
-      "avg_pnl_pct": 1.797,
-      "sum_pnl_usd": -78.57
+      "n": 274,
+      "win_rate": 0.365,
+      "avg_pnl_pct": 0.551,
+      "sum_pnl_usd": -191.52
     }
   },
   "history": [
@@ -76,6 +76,29 @@
         "win_rate": 0.474,
         "avg_pnl_pct": 2.341,
         "sum_pnl_usd": -28.25
+      }
+    },
+    {
+      "param": "sl.default_pct",
+      "old_value": 3.0,
+      "new_value": 3.5,
+      "hypothesis": "Raising the stop-loss to 3.5% prevents premature exits on normal volatility in EU-Smallcaps, allowing winning trades to develop and improving the average PnL per trade.",
+      "started_at": "2026-09-06T03:00:51.517805+00:00",
+      "start_equity": 8170.509999999999,
+      "baseline": {
+        "n": 166,
+        "win_rate": 0.452,
+        "avg_pnl_pct": 1.797,
+        "sum_pnl_usd": -78.57
+      },
+      "ended_at": "2026-09-20T03:00:56.819601+00:00",
+      "decision": "ROLLBACK",
+      "decision_note": "avg_pnl -2.90pp vs Baseline (Hard-Rule)",
+      "result_metrics": {
+        "n": 172,
+        "win_rate": 0.291,
+        "avg_pnl_pct": -1.107,
+        "sum_pnl_usd": -174.61
       }
     }
   ]

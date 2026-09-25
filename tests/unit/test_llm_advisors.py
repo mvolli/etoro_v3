@@ -208,7 +208,7 @@ def test_category_unknown_and_empty():
 
 # ── Review-Runde 2: Deadline + Config-Eindeutigkeit + atomarer Write ─────────
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from bot.workers.trade_veto_worker import _seconds_until_execution
 
@@ -707,27 +707,35 @@ def _ghost_schema(db):
 def _ghost_db(tmp_path):
     db = DB(db_path=tmp_path / "ghost.db")
     _ghost_schema(db)
+    # fix/ghost-fixture-window-rot (2026-09-25): die Timestamps waren hart
+    # auf 2026-09-10 fixiert, _collect_data laesst aber nur Zeilen innerhalb
+    # von ANALYSIS_WINDOW_DAYS (14d) zu — am 15. Tag nach dem Commit fielen
+    # alle 4 Trades aus dem Fenster und die Ghost-Tests brachen (0 rows).
+    # Alle Timestamps sind jetzt relativ zu "now" (innerhalb des Fensters).
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    def ts(hours_ago: float) -> str:
+        return (now - timedelta(hours=hours_ago)).strftime("%Y-%m-%d %H:%M:%S")
     rows = [
         # 1: echter Ghost-Failure (FAILED, Prafix "Ghost order") -> zaehlt
         (1, 101, "AAA", 1, "FAILED",
          "Ghost order: orderId=123 but position never materialized (failure #1, blacklist: none)",
-         "2026-09-10 08:00:00"),
+         ts(3)),
         # 2/3: LATE-FILL-recovered -> status CLOSED/ACTIVE, Prafix "LATE ...
         # recovered:" -> duerfen NICHT zaehlen (auch wenn LIKE '%Ghost order%'
         # treffe)
         (2, 102, "BBB", 1, "CLOSED",
          "LATE FILL recovered: Ghost order: orderId=234 but position never materialized (failure #1, blacklist: none)",
-         "2026-09-10 08:05:00"),
+         ts(2)),
         (3, 103, "CCC", 1, "ACTIVE",
          "LATE-FILL MULTI recovered: Ghost order: orderId=345 but position never materialized (failure #2, blacklist: none)",
-         "2026-09-10 08:10:00"),
+         ts(1.5)),
         # 4: normal CLOSED ohne Ghost-Grund
-        (4, 104, "DDD", 2, "CLOSED", None, "2026-09-10 09:00:00"),
+        (4, 104, "DDD", 2, "CLOSED", None, ts(1)),
     ]
     for r in rows:
         db.execute("INSERT INTO trades VALUES (?,?,?,?,?,?,?)", r)
-    db.execute("INSERT INTO signals VALUES (1, 'CORE_SWEEP', 'MEDIUM', '2026-09-10 07:00:00')")
-    db.execute("INSERT INTO signals VALUES (2, 'TREND_PULLBACK,GOLDEN_CROSS', 'MEDIUM', '2026-09-10 07:00:00')")
+    db.execute("INSERT INTO signals VALUES (1, 'CORE_SWEEP', 'MEDIUM', %s)" % repr(ts(4)))
+    db.execute("INSERT INTO signals VALUES (2, 'TREND_PULLBACK,GOLDEN_CROSS', 'MEDIUM', %s)" % repr(ts(4)))
     for iid, sym in ((101, "AAA"), (102, "BBB"), (103, "CCC"), (104, "DDD")):
         db.execute("INSERT INTO instruments VALUES (?,?,1)", (iid, sym))
     db.execute("INSERT INTO system_state VALUES ('CURRENT_REGIME', 'NORMAL')")
@@ -774,11 +782,16 @@ def test_ghost_stats_leer_wohne_failed_ghostruns(tmp_path):
     import bot.workers.llm_review_worker as lrw
     db = DB(db_path=tmp_path / "g2.db")
     _ghost_schema(db)
+    # fix/ghost-fixture-window-rot (2026-09-25): relative dates — vorher
+    # 2026-09-10, das ausserhalb des 14d-Analysis-Fensters laeuft (Test
+    # passierte nur durch Zufall, da die Erwartung ebenfalls leer war).
+    _now = datetime.now(timezone.utc).replace(tzinfo=None)
+    _ts = lambda h: (_now - timedelta(hours=h)).strftime("%Y-%m-%d %H:%M:%S")
     db.execute(
-        "INSERT INTO trades VALUES (1,101,'AAA',1,'CLOSED',?,'2026-09-10 08:00:00')",
-        ("LATE FILL recovered: Ghost order: orderId=999",),
+        "INSERT INTO trades VALUES (1,101,'AAA',1,'CLOSED',?,?)",
+        ("LATE FILL recovered: Ghost order: orderId=999", _ts(1)),
     )
-    db.execute("INSERT INTO signals VALUES (1,'CORE_SWEEP','MEDIUM','2026-09-10 07:00:00')")
+    db.execute("INSERT INTO signals VALUES (1,'CORE_SWEEP','MEDIUM',%s)" % repr(_ts(2)))
     db.execute("INSERT INTO instruments VALUES (101,'AAA',1)")
     data = lrw._collect_data(db.db_path)
     assert data["ghost_signal_stats"] == {}, (

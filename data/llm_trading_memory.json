@@ -839,13 +839,30 @@
         "MACD_TURN+BB_LOW bleibt auf 0.6 (ratchet-frozen, SUM -122.45); beobachten ob n_closed=20-Schwelle fuer Lockerung irgendwann erfuellt ist."
       ],
       "tests": "1539 passed (volle Suite, /usr/bin/python3), 7 warnings, 31.04s"
+    },
+    {
+      "date": "2026-09-25T20:50:00Z",
+      "type": "self_improvement",
+      "changes": [
+        "fix/veto-signal-status: trade_veto_worker marks the signal REJECTED when it REJECTs a trade (VETO or REDUCE-under-min-buy). Before: signal stayed CONSUMED, so has_fresh_signal() never blocked and the signal_worker re-fired the same signal after the 2h rebuy cooldown while the LLM position kept being <50% -> new APPROVED trade -> vetoed again. Evidenz: 232 'LLM-Reduce unter Min-Buy'-Rejects ueber 90 Instrumente in 14d, ~140 davon bei amount < 50 USD (sicher <50%); 162x signal war noch CONSUMED. Now: signal REJECTED -> has_fresh_signal() blocks 60 min (same block the MR-Sperre already relies on). Saves ~232x/14d of LLM calls + trade-INSERT churn.",
+        "test-rot fix (test_llm_advisors.py _ghost_db): ghost-Fixture-Timestamps waren hart auf 2026-09-10 fixiert, _collect_data laesst aber nur ANALYSIS_WINDOW_DAYS (14d) zu -> ab 2026-09-25 fielen alle Trades aus dem Fenster und 2 Ghost-Tests brachen. Timestamps jetzt relativ zu now. Regel-1-konform (tmp_path, keine Live-DB)."
+      ],
+      "analysis": {
+        "portfolio_state": "CAUTION, DD 7.88% (peak 90,013.22 / equity 83,216.82), risk_scalar 0.75, assets 87,062.34, 76 offene Positionen (76 ACTIVE-Trades, 0 FAILED/REJECTED).",
+        "closed_trades_since_2026_07_26": {
+          "n": 453,
+          "wr_pct": 36.9,
+          "avg_pct": -0.25,
+          "sum_usd": -474.99,
+          "worst_cluster": "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING n=184 WR 28.8% avg -0.31% sum -165.29",
+          "conviction": "MEDIUM n=422 WR 37.0% sum -443.32 | HIGH n=31 WR 35.5% sum -31.67"
+        },
+        "tp_gc_check": "VoLLi-Eintrag TREND_PULLBACK,GOLDEN_CROSS intakt (score 1.0, by_conviction alle 0.25, _decided_by 'VoLLi 2026-09-11'). 2026-09-25 LLM-Review hat MACD_TURN auf 0.5 gesenkt und die Datei neu geschrieben, den geschuetzten Eintrag aber nicht angefasst (Code-Guard OK).",
+        "next_focus": "(1) MACD_TURN+BB_LOW-Cluster bleibt groesster PnL-Drager (-165.29, WR 28.8%) — dipbuy_regime-Gate (2026-09-11) hat WR 13.9%->32.9% verbessert, aber der Cluster blutet trotzdem; naechste Idee: Entry-Quality-Schwelle fuer 'Sturz ohne Boden' (vortag < -2.5% ohne Stabilisierung) hochziehen. (2) Pruefen, ob der REDUCE-Loop trotz Signal-REJECTED-Breaker in den naechsten 14d spuerbar zurueckgeht (Ziel: <30 statt 232 Rejects). (3) Kein Gewichts-Drift: git diff HEAD -- data/llm_signal_weights.json muss leer bleiben."
+      }
     }
   ],
   "decision_outcomes": [
-    "signal_weight/GOLDEN_CROSS: Signal GOLDEN_CROSS: 18 Trades, avg_pnl=-0.23% (Gewicht={'score_multiplier': 0.2, 'skip': False, 'reason': '0% Success Rate bei allen 8 abgeschlossenen Trades.'})",
-    "config/sl.default_pct: Nach sl.default_pct=2.5: avg_pnl=-1.43%, win_rate=30% (70 Trades)",
-    "ghost_blacklist/.DE: Ghost-Blacklist '.DE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
-    "ghost_blacklist/.HE: Ghost-Blacklist '.HE': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
     "ghost_blacklist/.ST: Ghost-Blacklist '.ST': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
     "ghost_blacklist/_FOREX: Ghost-Blacklist '_FOREX': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
     "ghost_blacklist/_FUT: Ghost-Blacklist '_FUT': 0 Ghost-Failures nach Einfuehrung (erwartet: 0)",
@@ -941,42 +958,13 @@
     "signal_weight/TREND_PULLBACK,GOLDEN_CROSS: Signal TREND_PULLBACK,GOLDEN_CROSS: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
     "signal_weight/MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING: Signal MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROV: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
     "signal_weight/TREND_PULLBACK,GOLDEN_CROSS: Signal TREND_PULLBACK,GOLDEN_CROSS: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "signal_weight/MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING: Signal MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROV: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "signal_weight/TREND_PULLBACK,GOLDEN_CROSS: Signal TREND_PULLBACK,GOLDEN_CROSS: 1 Trades, avg_pnl=-0.25% (Gewicht={'action': 'LOCKED_OUT_BY_GUARD', 'reason': \"entry secured by 'VoLLi 2026-09-11'\"})",
+    "signal_weight/TREND_PULLBACK,GOLDEN_CROSS: Signal TREND_PULLBACK,GOLDEN_CROSS: 1 Trades, avg_pnl=-0.25% (Gewicht={'action': 'LOCKED_OUT_BY_GUARD', 'reason': \"entry secured by 'VoLLi 2026-09-11'\"})",
+    "signal_weight/TREND_PULLBACK,GOLDEN_CROSS: Signal TREND_PULLBACK,GOLDEN_CROSS: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
     "signal_weight/MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING: Signal MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROV: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert"
   ],
   "runs": [
-    {
-      "date": "2026-08-20",
-      "closed_trades": 100,
-      "insights": 2,
-      "adjustments": [
-        "CORE_SWEEP",
-        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD",
-        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD",
-        "TREND_PULLBACK,GOLDEN_CROSS"
-      ]
-    },
-    {
-      "date": "2026-08-22",
-      "closed_trades": 100,
-      "insights": 2,
-      "adjustments": [
-        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD",
-        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD",
-        "CORE_SWEEP",
-        "TREND_PULLBACK,GOLDEN_CROSS"
-      ]
-    },
-    {
-      "date": "2026-08-23",
-      "closed_trades": 100,
-      "insights": 2,
-      "adjustments": [
-        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD,RSI_EXTREME_OVERSOLD",
-        "BB_LOWER_RSI_OVERSOLD,BB_EXTREME_RSI_OVERSOLD",
-        "CORE_SWEEP",
-        "TREND_PULLBACK,GOLDEN_CROSS"
-      ]
-    },
     {
       "date": "2026-08-24",
       "closed_trades": 100,
@@ -1206,6 +1194,32 @@
       "adjustments": [
         "TREND_PULLBACK,GOLDEN_CROSS"
       ]
+    },
+    {
+      "date": "2026-09-23",
+      "closed_trades": 100,
+      "insights": 2,
+      "adjustments": [
+        "TREND_PULLBACK,GOLDEN_CROSS"
+      ]
+    },
+    {
+      "date": "2026-09-24",
+      "closed_trades": 100,
+      "insights": 2,
+      "adjustments": [
+        "TREND_PULLBACK,GOLDEN_CROSS",
+        "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING"
+      ]
+    },
+    {
+      "date": "2026-09-25",
+      "closed_trades": 100,
+      "insights": 2,
+      "adjustments": [
+        "TREND_PULLBACK,GOLDEN_CROSS",
+        "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING"
+      ]
     }
   ],
   "signal_insights": {
@@ -1397,18 +1411,6 @@
     ],
     "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": [
       {
-        "date": "2026-07-26",
-        "score_multiplier": 0.5,
-        "skip": false,
-        "reason": "Hohe Ghost-Rate (44%) und negativer avg_pnl (-2.29%)."
-      },
-      {
-        "date": "2026-07-27",
-        "score_multiplier": 0.5,
-        "skip": false,
-        "reason": "avg_pnl -2.29 bei 88% Verlustrate (8/9 CLOSED). Falscher Entry-Timing im Rauschen."
-      },
-      {
         "date": "2026-07-28",
         "score_multiplier": 0.7,
         "skip": false,
@@ -1458,6 +1460,20 @@
         "by_conviction": {},
         "skip": false,
         "reason": "Dip-Buy signal in CAUTION regime. High reject rate (64%) and recent losses (ELIS.PA -3.93%, MCD -3.54%). Slight dampening to reduce exposure to falling knives."
+      },
+      {
+        "date": "2026-09-24",
+        "score_multiplier": 0.8,
+        "by_conviction": {},
+        "skip": false,
+        "reason": "Hohe Reject-Rate (68%) und negative Avg-PnL (-0.11%) deuten auf schlechte Entry-Quality oder Slippage. Dampfen leicht."
+      },
+      {
+        "date": "2026-09-25",
+        "score_multiplier": 0.5,
+        "by_conviction": {},
+        "skip": false,
+        "reason": "29% win rate and -0.31% avg PnL. Dip-buying signals are underperforming in CAUTION regime. Dampening to reduce frequency of falling-knife entries."
       }
     ],
     "MACD_TURN_BELOW_SMA20": [
@@ -1477,33 +1493,6 @@
       }
     ],
     "TREND_PULLBACK,GOLDEN_CROSS": [
-      {
-        "date": "2026-09-13",
-        "score_multiplier": 1.0,
-        "by_conviction": {
-          "HIGH": 0.5
-        },
-        "skip": false,
-        "reason": "HIGH Conviction shows significant negative PnL (-1.43%) and low win rate (26%) compared to MEDIUM (+0.51%, 53% WR). Dampening HIGH to reduce exposure to this specific failure mode."
-      },
-      {
-        "date": "2026-09-14",
-        "score_multiplier": 1.0,
-        "by_conviction": {
-          "HIGH": 0.25
-        },
-        "skip": false,
-        "reason": "HIGH Conviction shows significant losses (-1.43% avg) compared to MEDIUM (+0.51% avg), indicating poor entry quality at this conviction level."
-      },
-      {
-        "date": "2026-09-15",
-        "score_multiplier": 1.0,
-        "by_conviction": {
-          "HIGH": 0.5
-        },
-        "skip": false,
-        "reason": "HIGH conviction variant has negative avg PnL (-1.43%) with 23 losses vs 8 wins, while MEDIUM conviction is profitable. Dampening HIGH conviction specifically."
-      },
       {
         "date": "2026-09-16",
         "score_multiplier": 1.0,
@@ -1566,6 +1555,33 @@
         },
         "skip": false,
         "reason": "HIGH conviction trades show negative avg PnL (-1.43%) despite high success rate, indicating poor risk-reward. Dampening HIGH conviction to reduce exposure to this specific failure mode."
+      },
+      {
+        "date": "2026-09-23",
+        "score_multiplier": 1.0,
+        "by_conviction": {
+          "HIGH": 0.25
+        },
+        "skip": false,
+        "reason": "HIGH Conviction variant shows -1.43% avg PnL and 74% loss rate (23/31), indicating poor entry quality in current regime. MEDIUM variant is profitable (+0.28% avg), so only dampen HIGH."
+      },
+      {
+        "date": "2026-09-24",
+        "score_multiplier": 1.0,
+        "by_conviction": {
+          "HIGH": 0.5
+        },
+        "skip": false,
+        "reason": "HIGH Conviction zeigt massive Verluste (-1.43% avg) trotz 100% Success-Rate, deutet auf Exit-Problem oder Sizing-Fehler hin. Dampfen HIGH-Conviction-Entries."
+      },
+      {
+        "date": "2026-09-25",
+        "score_multiplier": 1.0,
+        "by_conviction": {
+          "HIGH": 0.25
+        },
+        "skip": false,
+        "reason": "HIGH conviction tier has 26% win rate and -1.43% avg PnL, significantly underperforming MEDIUM tier (+0.27% avg PnL). Dampening HIGH tier to reduce exposure to false breakouts."
       }
     ],
     "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20": [
@@ -1721,21 +1737,22 @@
     ]
   },
   "strategy_notes": [
-    "Stale-Exit 00006.HK: GOOD (+1.0% seit Exit)",
-    "Stale-Exit NG.L: GOOD (-0.3% seit Exit)",
-    "HTRO.ST Verlust zeigt: Kein Peak = Entry-Fehler, nicht Exit-Problem. Signal muss strenger werden.",
-    "TREND_PULLBACK,GOLDEN_CROSS signals need better exit logic as they win often but lose money on average.",
-    "Stale-Exit PG: GOOD (-0.1% seit Exit)",
-    "2026-08-24: Conviction-Leiter abgeflacht (HIGH/VERY_HIGH 7/6 -> 5/5 auf MEDIUM-Base): HIGH war einziger groesster Drag (-269 USD, WR 31%), VERY_Hight WR 10.9%. MACD_TURN-Combos in MEDIUM = einzige profitabel Signaltyp-Familie (avg +10.28% seit 08-10). TP+GC auf 0.25x gedaeempft (payoff 0.84, WR 25% < 45.8% breakeven).",
-    "2026-08-25 (Zäsur-Korrektur): Die 2026-08-24-Entscheidung 'Conviction-Leiter abgeflacht' ruhte auf conviction_split_FULL_HISTORY — d.h. auf PRE-Fix-Daten. fix/combo-conviction-min (d0a07d7, 2026-07-26) hat Combo-Conviction auf die SCHWAECHSTE Komponente umgestellt; seither existieren KEINE VERY_HIGH-Trades mehr (davor: VERY_HIGH n=55, WR 10.9%, Ø ~546 USD). REGEL (Pflicht): Jede Handelsdaten-Auswertung (WR, Conviction, Sizing-Evidenz) erst ab created_at >= 2026-07-26 filtern ODER Phase explizit trennen (vorher→nachher WR: 19.1% → 34.4%). Die very_high_pct 7→5-Kalibrierung wurde also auf Daten gestützt, die das Fix nicht mehr produziert — als zukünftige Evidenz untauglich, als Historie korrekt.",
-    "2026-08-26 PFLICHT-LAUF 26.07-Zaesur: Der LLM-Review-Auto-Run 2026-08-24 20:31 lief VOR dem ersten Zaesur-Pflichtlauf und kalibrierte TP+GC 0.5 + oversold-combo 0.2 auf PRE-Fix-Daten — derselbe Overfitting-Fehler wie 56b6c04 (VERY_HIGH n=55 WR 10.9% Pre-Fix als Evidenz). Gewichte re-asserted auf die post-fix-basierten Werte. Regel: auto-weight-updates muessen immer created_at>='2026-07-26' filtern.",
     "CORE_SWEEP has a 100% success rate for executed trades but a 76% rejection rate, suggesting the filter is working but the remaining entries are still slightly negative on average.",
     "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING remains the only consistently profitable signal type (Avg PnL +5.04%).",
     "2026-08-28 Self-Improvement-Run: (1) DATA-QUALITY (neue Finding): 8002.T Triple (Trades 819/824/828, oeffnet 2026-07-29, HARD-SL -3.07..-3.27% pro entry/exit) zeigt pnl_usd +0.20/+0.26/+0.35 USD aus API-history netProfit, ABER pnl_pct -3.16/-3.27/-3.07% aus openRate/closeRate — DIVERGENZ >2pp. GEPRUEFT LIVE AN API-History: NICHT kaputt, sondern echtes FX-Phaenomen. 8002.T ist JPY-notiert: openRate/closeRate stehen in JPY, netProfit in USD-Kontowahrung. JPY-Wertung +3.5% (USD/JPY 163.9 -> 157.5 in 5.5d (-3.9%, via yfinance USDJPY=X)) hat die -3.16% Kursbewegung komplett kompensiert -> netProfit +0.31/+0.2/+0.33 USD = WIRKLICHES Ergebnis. pnl_pct (price-derived, -3.16%) ist Kursbewegung, NICHT Konto-PnL. FOLGE: pnl_pct ist fuer FX-notierte Aktien KEIN Gewinnmargen-Mass — pnl_usd ist die Ground Truth. Empfehlung: fuer |pnl_pct - pnl_usd/investment*100| > 1.5pp (FX-bedeckt) einen Flag 'fx_denominated' setzen, damit WR-Auswertungen auf pnl_usd bleiben (schon jetzt der Fall) aber Ø-PnL/avg_pct nicht mit Kursbewegung verreckt werden. (2) SIGNAL: TREND_PULLBACK,GOLDEN_CROSS Post-26.07 (n=31, WR 25.8% (pnl_pct-Basis; 35.5% auf pnl_usd-Basis — 3 FX-gedeckte Gewinne bei JPY/CHF-titels), avg -1.43% [-1.70% w/o 8002.T], -$31.67, payoff 0.31, 6 full-SL hits) — Entry-RSI 49-55, kein Trend-Strength-Filter. MACD_TURN+BB_LOW (n=40, WR 50.0% [20/40], avg +5.30%, +$54.52, payoff 6.9, 2 SL hits) bleibt einzige positive Edge. (3) CONV: post-26.07 MEDIUM n=140 WR 45.7% vs HIGH n=31 WR 25.8% (pnl_pct-Basis; pnl_usd-Basis: HIGH 35.5%) (Δ20pp) — dokumentiert, NICHT acted on (VoLLi HOLD bis ~2026-09-07 + new-regime basis). (4) HEALTH: alle 8 Worker läuft, watchdog clean, weights diff HEAD==tree (0.25/1.0/0.5/0.1/0.2). No src/ code change this run (data only).",
     "Stale-Exit V: GOOD (-1.0% seit Exit)",
     "Stale-Exit IBE.MC: GOOD (-0.3% seit Exit)",
     "Recent losses with short holding periods (<1 day) indicate potential slippage or market timing issues, which should be monitored for correlation with specific exchanges or volatility regimes.",
-    "Core-Sweep-FAILED-Schleife (NSDQ100/JPN225/HKG50.FUT, 40 FAILED/0 Orders): Luecke war die EINZIGE is_tradable-Filterlose Stelle (plan_core_sweep) + Lerner kannte nur 814, nicht allowOpenPosition=false. Fix 2026-09-18 (fix/eligibility-tradability-learning); Planer skippt jetzt is_tradable=0, Lerner markiert beide Quellen. Guard-Eintrag (VoLLi 2026-09-11) intakt."
+    "Core-Sweep-FAILED-Schleife (NSDQ100/JPN225/HKG50.FUT, 40 FAILED/0 Orders): Luecke war die EINZIGE is_tradable-Filterlose Stelle (plan_core_sweep) + Lerner kannte nur 814, nicht allowOpenPosition=false. Fix 2026-09-18 (fix/eligibility-tradability-learning); Planer skippt jetzt is_tradable=0, Lerner markiert beide Quellen. Guard-Eintrag (VoLLi 2026-09-11) intakt.",
+    "Stale-Exit EXA.PA: GOOD (+0.2% seit Exit)",
+    "Stale-Exit VU.PA: MISSED_UPSIDE (+10.2% seit Exit)",
+    "Stale-Exit INVE-A.ST: GOOD (+0.2% seit Exit)",
+    "Stale-Exit EXA.PA: GOOD (+0.2% seit Exit)",
+    "Stale-Exit AAPL: GOOD (-0.9% seit Exit)",
+    "Stale-Exit SPG: GOOD (-0.1% seit Exit)",
+    "Stale-Exit PHP.L: GOOD (-1.9% seit Exit)",
+    "Stale-Exit KO: GOOD (+1.1% seit Exit)",
+    "Stale-Exit MCD: GOOD (-5.5% seit Exit)"
   ],
   "config_history": [
     {
@@ -1809,54 +1826,6 @@
     }
   ],
   "ghost_rate_history": [
-    {
-      "ts": "2026-08-20T20:30:22.506677+00:00",
-      "rates": {
-        "_OTHER": 0.03,
-        ".ST": 0.0,
-        ".L": 0.0,
-        ".PA": 0.0,
-        ".OL": 0.0,
-        "_ASIA": 0.0,
-        "_CRYPTO": 0.0,
-        ".ASX": 0.0,
-        ".MI": 0.0,
-        ".DE": 0.0,
-        ".HE": 0.0
-      }
-    },
-    {
-      "ts": "2026-08-22T20:32:11.790147+00:00",
-      "rates": {
-        "_OTHER": 0.04,
-        ".ST": 0.0,
-        ".L": 0.0,
-        ".PA": 0.0,
-        ".OL": 0.0,
-        "_ASIA": 0.0,
-        "_CRYPTO": 0.0,
-        ".ASX": 0.0,
-        ".MI": 0.0,
-        ".DE": 0.0,
-        ".HE": 0.0
-      }
-    },
-    {
-      "ts": "2026-08-23T20:30:35.477526+00:00",
-      "rates": {
-        "_OTHER": 0.04,
-        ".L": 0.0,
-        ".ST": 0.0,
-        ".PA": 0.0,
-        ".OL": 0.0,
-        "_ASIA": 0.0,
-        "_CRYPTO": 0.0,
-        ".ASX": 0.0,
-        ".MI": 0.0,
-        ".DE": 0.0,
-        ".HE": 0.0
-      }
-    },
     {
       "ts": "2026-08-24T20:31:02.517391+00:00",
       "rates": {
@@ -2270,6 +2239,55 @@
         ".L": 0.0,
         "_CRYPTO": 0.0,
         ".MI": 0.0
+      }
+    },
+    {
+      "ts": "2026-09-23T20:30:35.747810+00:00",
+      "rates": {
+        "_OTHER": 0.0,
+        ".MI": 0.0,
+        ".MC": 0.0,
+        "_ASIA": 0.0,
+        ".CO": 0.0,
+        ".L": 0.0,
+        ".DE": 0.0,
+        ".ASX": 0.0,
+        ".PA": 0.0,
+        ".ST": 0.0,
+        ".OL": 0.0,
+        "_CRYPTO": 0.0
+      }
+    },
+    {
+      "ts": "2026-09-24T20:30:27.100707+00:00",
+      "rates": {
+        "_OTHER": 0.0,
+        ".PA": 0.0,
+        ".ST": 0.0,
+        "_ASIA": 0.0,
+        ".MI": 0.0,
+        ".MC": 0.0,
+        ".CO": 0.0,
+        ".L": 0.0,
+        ".DE": 0.0,
+        ".ASX": 0.0,
+        ".OL": 0.0,
+        "_CRYPTO": 0.0
+      }
+    },
+    {
+      "ts": "2026-09-25T20:31:03.056499+00:00",
+      "rates": {
+        "_OTHER": 0.0,
+        ".L": 0.0,
+        ".ST": 0.0,
+        ".PA": 0.0,
+        ".MC": 0.0,
+        ".DE": 0.0,
+        "_ASIA": 0.0,
+        ".MI": 0.0,
+        ".CO": 0.0,
+        ".ASX": 0.0
       }
     }
   ]

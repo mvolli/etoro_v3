@@ -48,6 +48,21 @@ trading:
   # ausschliesslich mit HIGH/VERY_HIGH befuellt werden.
   candidate_slots: 5
 
+  # feat/signal-news-pull (2026-09-12): synchroner, regelbasierter News-Check
+  # fuer die Kandidaten eines Zyklus, direkt vor der Kaufentscheidung.
+  # Grund: 93,4 % der 211 Epochen-Trades liefen auf Signalen, die NACH dem
+  # letzten stuendlichen news_flags_worker-Lauf geboren wurden (Ø 3,0 min von
+  # Signalgeburt zu Freigabe). Der stuendliche Worker kann ein Symbol vor
+  # seinem ERSTEN Kauf strukturell nicht sehen.
+  # Nur Earnings-Termin + Analysten-Kursziel — deterministisch, kein LLM auf
+  # dem Geld-Pfad. Wirkt asymmetrisch wie alle Flags: AVOID = Kandidat raus,
+  # CAUTION = halbe Groesse, nie eine Vergroesserung.
+  signal_news_pull: true
+  # Harter Wall-Clock-Deckel ueber den GESAMTEN Pull. Ab :03 bleiben bis zum
+  # Execution-Slot (:06) rund 180 s, wovon der Worker heute ~40 s braucht.
+  # Bei Ueberschreitung: Teilergebnis + Warnung, nie ein verpasster Slot.
+  signal_news_pull_budget_s: 45.0
+
   # feat/rebuy-cooldown (2026-08-24): Nachkauf desselben Instruments erst nach
   # N Stunden. Ausloeser: LEG.DE, IBE.MC, MAU.PA (3x!) und 6753.T wurden
   # mehrfach gekauft, immer exakt einen 15-Minuten-Zyklus auseinander. Die
@@ -118,7 +133,6 @@ trading:
     per_position_pct: 4.0     # Zielgroesse je Core-Position (% Equity)
     max_position_pct: 6.0     # Harter Deckel je Core-Titel (% Equity)
     max_sweeps_per_run: 4     # "Zuegig" (User-Entscheid): bis N Core-Trades/Lauf
-    max_days: 60              # Laengerer Stale-Horizont als Small-Caps (dort 20)
     rsi_overbought: 75.0      # Kein Sweep in einen Titel mit RSI darueber (nicht extended kaufen)
     reject_cooldown_after: 3  # Ab N REJECTED/FAILED Core-Sweep-Trades im Fenster -> Cooldown
     reject_cooldown_hours: 3.0  # Cooldown-Fenster in Stunden (0 = Check deaktivieren via cooldown_after)
@@ -167,6 +181,24 @@ trading:
         # ein Block wuerde die Klemme auf min_size_mult umgehen UND die
         # Datensammlung fuer diesen Cluster beenden. 0.25 = kleinste
         # zugelassene Groesse, Trade findet statt und liefert ein Ergebnis.
+        size_mult: 0.25
+      dipbuy_regime:         # Dip-Buys in CAUTION/DEFENSIVE brauchen Trend-Bestaetigung
+        # feat/dipbuy-regime-gate (2026-09-11): New-Regime-Evidenz
+        # (created_at >= 2026-08-24 13:16, beide Aenderungen live):
+        # Cluster n=75 WR 16.0% avg -1.94% SUM -126.08 vs Alt-Regime
+        # (07-26..08-24) n=43 WR 46.5% +49.63. SOFT-Gate (kein Block,
+        # Anti-Brake), fail-open ohne Trend-Daten, CORE_SWEEP ausgenommen
+        # (geht ueber core_sweep_regime).
+        enabled: true
+        applies_to:
+          - BB_LOWER_RSI_OVERSOLD
+          - BB_EXTREME_RSI_OVERSOLD
+          - RSI_EXTREME_OVERSOLD
+          - MACD_TURN_BELOW_SMA20
+          - BB_LOW_MACD_IMPROVING
+        allowed_regimes: ["NORMAL", "CAUTION"]
+        trend_override: true
+        min_roc_5d_pct: -12.0
         size_mult: 0.25
       dipbuy_trend:           # Dip-Buys brauchen ROC5d > min (soft 0.5x)
         enabled: true
@@ -319,17 +351,34 @@ sizing:                       # Position size as % of portfolio equity
   # Base ist kalibriert (243 Closed Trades, 90d), damit das trade-gewichtete
   # Mittel ~0.30 ergibt = das Risiko-Niveau, auf dem das Konto getestet ist.
   kelly_min_trades: 25        # 10→25: Samples mit n=10 verdienen keinen Boost mehr
-  kelly_base: 0.49            # Kalibrierung → gewichtetes Mittel ~0.30
+  # Nachkalibriert 2026-09-09 (Entscheid VoLLi): der Signalmix hatte das
+  # gewichtete Mittel von 0.3011 (22.08.) auf 0.4630 getrieben = +54 %
+  # Positionsgroesse ohne Ideenaenderung. 0.3099 stellt exakt 0.3000 her
+  # (numerisch geloest ueber 390 Trades im Kelly-Fenster). Die Spreizung
+  # bleibt: jeder Cluster faellt um 0.180, Bandbreite 0.210 .. 0.359.
+  # ACHTUNG: dieser Wert ist ein Punkt in der Zeit, keine Konstante —
+  # der Vol-Guard in pnl_reconcile.py meldet die naechste Drift.
+  kelly_base: 0.3681          # Kalibrierung → gewichtetes Mittel 0.3000
+                              # MIT aktivem Split. Ohne Split waeren es 0.3099 —
+                              # der Split allein haette das Mittel auf 0.2596
+                              # gedrueckt, also 13.5 % kleiner als entschieden.
   kelly_scale: 0.45           # Steigung auf die Kelly-Fraktion
   kelly_min_factor: 0.15      # Floor: proven Lossbringer schrumpfen (vorher 0.5)
-  kelly_max_factor: 0.94      # Cap = base + scale (natuerliche Grenze bei kelly=1.0)
+  kelly_max_factor: 0.8181    # = base + scale; kelly ist auf [-1,1] geklemmt,
+                              # also ist das die natuerliche Obergrenze
   # feat/kelly-asset-class-split (2026-09-05): Krypto-Trades duerfen nicht
   # die Groesse fuer Aktien-Trades desselben Signal-Clusters setzen.
   # Gemessen am Dip-Cluster MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING:
   #   Krypto n=9 Ø +16.52% | Aktien n=72 Ø +0.08%  -> Faktor 0.573 (hoechster)
   # Die 9 Krypto-Trades lagen im Fenster XRP +45.2% / BTC +24.3% = Beta.
   # Default AUS (Blue/Green) — erst nach Auswertung scharfschalten.
-  kelly_asset_class_split: false
+  kelly_asset_class_split: true   # scharf seit 2026-09-09 (Entscheid VoLLi)
+  # feat/sizing-drift-guard (2026-09-09, Karpathy-Loop Vol-Guard):
+  # kelly_base ist ein Punkt-in-der-Zeit-Wert. Am 2026-08-22 lag das
+  # trade-gewichtete Mittel bei 0.3011; am 2026-09-09 bei 0.463 = +54 %
+  # Positionsgroesse, ohne dass jemand eine Idee geaendert hatte.
+  kelly_target_mean: 0.30      # Risikoniveau, auf dem das Konto getestet ist
+  kelly_drift_band_pct: 15.0   # Abweichung, ab der gemeldet wird
   # feat/kelly-shrinkage (2026-08-24): Empirical-Bayes-Schrumpfung ersetzt die
   # harte Schwelle. Bisher wurde die eigene Schaetzung ab kelly_min_trades zu
   # 100 % geglaubt und darunter gar nicht — eine Klippe genau im Bereich der
