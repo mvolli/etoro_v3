@@ -42,6 +42,13 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   (refactor/dedupe-load-env 2026-09-25): ersetzte 10 identische `_load_env()`-
   Kopien. Semantik unverändert: `os.environ.setdefault`, Werte nur whitespace-
   gestrippt (Quotes bleiben — anders als `config._load_env`, das sie entfernt).
+- **`signal_worker.main()` ist in Phasen-Funktionen zerlegt** (refactor/signal-worker-phases
+  2026-09-25): Vorfilter `_filter_eligible`, Ranking `_rank_eligible`, Slots
+  `_select_candidates`, News-Pull `_pull_candidate_news`, Core-Sweep `_run_core_sweep`.
+  Der Kandidaten-Loop (Sizing-Kette, Floors, Gate, `trade_repo.create`) steht bewusst
+  weiter in `main()` — mehrere Tests pruefen dort die Quelltext-REIHENFOLGE
+  (Dust-Floor vor Order, Bump-Stellen). Verhalten gegen den Vorstand per
+  Old-vs-New-Lauf auf identischen DB-Kopien verifiziert (9 Szenarien, identisch).
 - Worker-Wrapper liegen in `~/.hermes/scripts/v3_*.sh` — Script-Änderungen
   in `scripts/` müssen dorthin kopiert werden, sonst läuft der Cron alt.
 - Trade-Event-Ledger `trade_events` (feat/pnl-nachreport, 2026-07-28):
