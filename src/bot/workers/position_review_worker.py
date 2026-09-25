@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import sys
 import time
 import urllib.request
@@ -178,19 +177,6 @@ def _format_recent_outcomes(outcomes: list) -> str:
         d_s   = f"{o['outcome_pnl_delta']:+.1f}pp" if o.get("outcome_pnl_delta") is not None else ""
         lines.append(f"  {o['recommendation']} {o['symbol']} @ {pnl_s} -> {d_s} -> {o['outcome_grade']}")
     return "\n".join(lines)
-
-
-def _load_env() -> None:
-    env_path = Path.home() / ".hermes" / ".env"
-    if not env_path.exists():
-        return
-    with open(env_path) as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, _, value = line.partition("=")
-            os.environ.setdefault(key.strip(), value.strip())
 
 
 def _discord(fn_name: str, **kwargs) -> None:
@@ -673,7 +659,8 @@ def main() -> int:
             return 0
 
         t0 = time.time()
-        _load_env()
+        from bot.config import load_hermes_env
+        load_hermes_env()
         cfg = load_config()
         db_path = PROJECT_ROOT / cfg.db.path if hasattr(cfg, "db") else PROJECT_ROOT / "data" / "trading.db"
 

@@ -62,20 +62,6 @@ TUNABLE_PARAMS: dict[str, dict] = {
 }
 
 
-def _load_env() -> None:
-    env_path = Path.home() / ".hermes" / ".env"
-    if not env_path.exists():
-        return
-    import os
-    with open(env_path) as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, _, value = line.partition("=")
-            os.environ.setdefault(key.strip(), value.strip())
-
-
 def _read_state() -> dict:
     try:
         if STATE_PATH.exists():
@@ -191,7 +177,8 @@ def main() -> int:
             return 0
 
         t0 = time.monotonic()
-        _load_env()
+        from bot.config import load_hermes_env
+        load_hermes_env()
 
         from bot.db.connection import DB
         from bot.db.repo import StateRepo
