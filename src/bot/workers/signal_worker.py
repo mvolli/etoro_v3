@@ -1399,21 +1399,27 @@ def _select_candidates(cfg: dict, eligible: list[tuple[dict, str]],
     # Wer ihn anfasst: erst zaehlen, wie viele Kandidaten pro Zyklus
     # tatsaechlich anstehen, dann entscheiden.
     _base_slots = int(cfg.get("trading", {}).get("candidate_slots", 5))
-    candidates = unique_candidates[:max(1, _base_slots)]
+    _n_base = max(1, _base_slots)
+    candidates = unique_candidates[:_n_base]
     try:
         _cash_max_pct = float(cfg.get("trading", {}).get("cash_target_max_pct", 30.0))
         _cash_pct = (cash_estimate / equity * 100.0) if equity > 0 else 0.0
         if _cash_pct > _cash_max_pct:
+            # fix/extra-slot-overlap (2026-09-25): Extra-Slots kommen aus dem
+            # Rest HINTER den Basis-Slots. Hier stand fest [3:] — ein Rest aus
+            # der Zeit mit 3 Basis-Slots. Mit candidate_slots=5 lagen Platz 4/5
+            # dadurch doppelt in der Liste: dasselbe Instrument wurde im selben
+            # Lauf zweimal approved (und das Rohstoff-Limit so umgangen).
             _extra = [
-                (_s, _sym) for _s, _sym in unique_candidates[3:]
+                (_s, _sym) for _s, _sym in unique_candidates[_n_base:]
                 if (_s.get("conviction") or "").upper() in ("HIGH", "VERY_HIGH")
             ][:2]
             if _extra:
                 candidates = candidates + _extra
                 logger.info(
-                    "SignalWorker: Adaptive Slots 3->%d (Cash %.1f%% > %.1f%%, "
+                    "SignalWorker: Adaptive Slots %d->%d (Cash %.1f%% > %.1f%%, "
                     "Extra-Slots nur HIGH+): %s",
-                    len(candidates), _cash_pct, _cash_max_pct,
+                    _n_base, len(candidates), _cash_pct, _cash_max_pct,
                     ", ".join(_sym for _s, _sym in _extra),
                 )
     except Exception:
