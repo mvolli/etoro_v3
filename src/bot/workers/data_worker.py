@@ -42,7 +42,7 @@ from bot.db.repo import SignalRepo, PortfolioRepo
 from bot.core.signals import generate_signal, compute_indicators
 from bot.core import entry_quality
 from bot.core.corporate_actions import ConfirmBudget
-from bot.core.market_hours import is_market_open, get_market_status, CRYPTO_SYMBOLS, get_instrument_market_key
+from bot.core.market_hours import is_market_open, get_market_status
 from bot.api.instruments import get_instrument_map, symbol_to_id
 
 logger = logging.getLogger(__name__)
@@ -63,7 +63,7 @@ def _post(fn_name: str, **kwargs) -> None:
     try:
         if _DE and hasattr(_DE, fn_name):
             getattr(_DE, fn_name)(**kwargs)
-    except Exception as _e:
+    except Exception:
         pass
 
 # ── constants ─────────────────────────────────────────────────────────────────
@@ -394,7 +394,6 @@ def _batch_fetch(
         )
 
         batch_success = False
-        failed_in_batch: list[str] = []
 
         for attempt in range(MAX_BATCH_RETRIES + 1):
             try:
@@ -614,7 +613,6 @@ def _update_portfolio_prices(
     alias_to_original: dict[str, str],
 ) -> None:
     """Update current_price in portfolio_snapshot for positions we have fresh data for."""
-    import sqlite3 as _sqlite3
 
     portfolio_repo = PortfolioRepo(db)
     try:

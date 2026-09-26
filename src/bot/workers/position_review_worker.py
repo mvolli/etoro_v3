@@ -306,7 +306,6 @@ def _build_prompt(data: dict, market_ctx: dict | None = None, recent_outcomes: l
         rsi  = p.get("rsi")
         bb   = p.get("bb_pct")
         mcd  = p.get("macd_hist")
-        sma20 = p.get("sma20")
         sma50 = p.get("sma50")
         vol_r = p.get("vol_ratio")
         cur_price = p.get("current_price") or p.get("_live_price")
@@ -664,7 +663,7 @@ def main() -> int:
         cfg = load_config()
         db_path = PROJECT_ROOT / cfg.db.path if hasattr(cfg, "db") else PROJECT_ROOT / "data" / "trading.db"
 
-        print(f"[position_review] Sammle Positions-Daten...")
+        print("[position_review] Sammle Positions-Daten...")
         data = _collect_data(db_path)
 
         if not data["positions"]:

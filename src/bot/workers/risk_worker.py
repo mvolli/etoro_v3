@@ -193,7 +193,7 @@ def main() -> None:
         apply_config(cfg)  # fix/risk-config-wiring: SL-Schwellen/Limits aus config.yaml
         apply_regime_config(cfg)  # fix/regime-config-wiring: Drawdown-Regime-Schwellen
         from bot.db.connection import DB
-        from bot.db.repo import LogRepo, PortfolioRepo, StateRepo
+        from bot.db.repo import LogRepo, StateRepo
     
         db_path = PROJECT_ROOT / cfg["db"]["path"]
         busy_timeout = cfg["db"].get("busy_timeout_ms", 5000)
@@ -204,7 +204,6 @@ def main() -> None:
         client_cfg = ClientConfig.from_dict(cfg.get("api", {}))
         client = EToroClient(api_key=api_key, user_key=user_key, config=client_cfg)
     
-        portfolio_repo = PortfolioRepo(db)
         state_repo = StateRepo(db)
         log_repo = LogRepo(db)
 

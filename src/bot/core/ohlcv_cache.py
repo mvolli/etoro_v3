@@ -585,7 +585,7 @@ def ensure_ohlcv(conn, instrument_id: int, yf_symbol: str, required_days: int = 
         if resolved and resolved != yf_symbol:
             _persist_resolution(conn, instrument_id, yf_symbol, resolved)
         # STORE
-        stored = store_ohlcv(conn, instrument_id, df)
+        store_ohlcv(conn, instrument_id, df)
         update_yahoo_status(conn, instrument_id, yf_symbol, success=True)
         
         c = conn.cursor()

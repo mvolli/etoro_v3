@@ -22,7 +22,6 @@ from __future__ import annotations
 import http.client
 import json
 import os
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -575,12 +574,11 @@ def post_heartbeat_embed(
         cb_state = cb_status.get("state", "UNKNOWN")
         cb_failures = cb_status.get("failure_count", 0)
         cb_errors = cb_status.get("error_counts", {})
-        cb_uptime = cb_status.get("uptime_seconds", 0)
 
         if cb_state == "OPEN":
             cb_str = f"🔴 OPEN (failures: {cb_failures})"
         elif cb_state == "HALF_OPEN":
-            cb_str = f"🟡 HALF_OPEN (test mode)"
+            cb_str = "🟡 HALF_OPEN (test mode)"
         elif cb_active:
             cb_str = f"🔴 AKTIV (failures: {cb_failures})"
         else:
@@ -1023,7 +1021,7 @@ def post_trade_filled_embed(
 
     embed = {
         "title":       f"{emoji} {action} — {resolve_instrument_display(symbol)}",
-        "description": f"Order erfolgreich ausgeführt",
+        "description": "Order erfolgreich ausgeführt",
         "color":       color,
         "fields":      fields,
         "footer":      {"text": "eToro RoBoCop · Trade Execution"},
@@ -1612,7 +1610,7 @@ def post_kill_switch_embed(
         "description": (
             "Der Kill Switch ist aktiv. **Alle neuen BUYs sind blockiert.**\n"
             "Bestehende Positionen werden weiterhin per SL überwacht.\n\n"
-            f"**Deaktivieren:** `rm data/kill_switch.flag` (im Projekt-Root)"
+            "**Deaktivieren:** `rm data/kill_switch.flag` (im Projekt-Root)"
         ),
         "color":       COLOR_RED,
         "fields": [

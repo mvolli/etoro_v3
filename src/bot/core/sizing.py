@@ -45,7 +45,6 @@ kelly_min_factor / kelly_max_factor.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
 

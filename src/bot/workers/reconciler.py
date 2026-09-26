@@ -39,7 +39,7 @@ import yaml  # type: ignore[import]
 
 from bot.api.client import APIError, ClientConfig, EToroClient
 from bot.api.instruments import get_instrument_map
-from bot.core.regime import detect_regime, update_regime
+from bot.core.regime import update_regime
 from bot.db.connection import DB
 from bot.db.repo import LogRepo, PortfolioRepo, StateRepo, TradeRepo
 
@@ -1704,7 +1704,7 @@ def main() -> int:
                 "peak_equity":        peak_equity,
                 "position_count":     position_count,
                 "regime":             regime,
-                "regime_reason":      regime_reason if 'regime_reason' in dir() else "",
+                "regime_reason":      "",  # nie gesetzt; Feld bleibt fuer Log-Kompatibilitaet
                 "run_at":             now_str,
             },
         )

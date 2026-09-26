@@ -832,7 +832,7 @@ def _post(fn_name: str, **kwargs) -> None:
     try:
         if _DE and hasattr(_DE, fn_name):
             getattr(_DE, fn_name)(**kwargs)
-    except Exception as _e:
+    except Exception:
         pass
 
 

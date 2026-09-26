@@ -134,7 +134,6 @@ def run_earnings_exit(db, state_repo, client, positions: list[dict], cfg: dict) 
         if not should_trigger(days, exposure_pct, cfg):
             continue
         pos_id = str(p.get("positionID"))
-        marker_key = f"{pos_id}:{days}d" if days is not None else pos_id
         if markers.get(pos_id):
             continue  # dieser Termin ist schon de-risked
         pnl = float((p.get("unrealizedPnL") or {}).get("pnL") or 0.0)
