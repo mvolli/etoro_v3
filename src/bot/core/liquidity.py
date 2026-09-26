@@ -94,12 +94,22 @@ def is_quote_currency_volume(yf_symbol: Optional[str]) -> bool:
 
 
 # ── fix/fee-churn-minhold (2026-09-20): Fee-Tier-Bias ────────────────────────
-# eToro Fee-Schedule: bestimmte Boersen kosten 2.0% statt 1.0% pro Trade
-# (.AX, .HK, .T). 34/89 offene Positionen sassen auf genau diesen Titeln —
+# eToro Fee-Schedule: bestimmte Boersen kosten 2.0% statt 1.0% pro Trade.
+# fix/fee-tier-asx-namespace (2026-09-26): die Liste stand in der
+# YFINANCE-Schreibweise (".AX"), der signal_worker uebergibt aber das
+# BOT-Symbol. In instruments stehen 437 Titel auf ".ASX" und genau EINER auf
+# ".AX" — der Daempfer verfehlte damit alle australischen Werte. Gemessen am
+# 2026-09-26 gegen portfolio_snapshot.broker_fee_pct (Broker-Wahrheit seit
+# feat/broker-fee-capture): genau drei Endungen tragen 2.0 % —
+# .HK (11 Positionen, $736), .ASX (10, $615), .T (6, $474). 10 von 27
+# Hochgebuehren-Positionen liefen also mit voller Gewichtung. ".AX" bleibt
+# zusaetzlich drin, falls ein Instrument doch unter der yfinance-Form gefuehrt
+# wird; es kostet nichts.
+# (.HK, .ASX, .T). 34/89 offene Positionen sassen auf genau diesen Titeln —
 # doppelte Fee pro Round-Trip ohne Edge-Vorteil. Der Bias faktorisiert den
 # 2%-Fee-Markt-Status direkt in den Kandidaten-Ranking (0.70x = nachrangig),
 # damit 1%-Fee-Titel gleicher Signal-Qualitaet die Slots gewinnen.
-FEE_TIER_DEFAULT_SUFFIXES: tuple[str, ...] = (".AX", ".HK", ".T")
+FEE_TIER_DEFAULT_SUFFIXES: tuple[str, ...] = (".ASX", ".HK", ".T", ".AX")
 FEE_TIER_DEFAULT_FACTOR = 0.70
 
 

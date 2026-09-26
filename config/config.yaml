@@ -111,7 +111,7 @@ trading:
     enabled: true
     factor: 0.70
     fee_pct: 2.0
-    high_fee_suffixes: [.AX, .HK, .T]
+    high_fee_suffixes: [.ASX, .HK, .T, .AX]
   max_spread_pct_crypto: 3.0  # feat/crypto-247: Krypto-Spreads strukturell breiter
   deployment_boost: 1.25      # fix/cash-deployment (2026-07-15): boostet Positionsgroessen bei
                               # Cash-Ueberschuss (Gates: Regime-Whitelist unten + Makro-Scalar 1.0
