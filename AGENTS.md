@@ -213,14 +213,17 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
 ## Portfolio-Grenzen (Stand 2026-08-12)
 
 Vier Ebenen im Signal-Pfad (`check_buy_gate` bzw. Region als Damper im
-signal_worker). **Core-Sweep prüft davon nur Gesamt-Exposure** (plus Korrelation
-und Cash) — `plan_core_sweep` kennt weder Sektor noch Region noch Instrument-Limit,
-und `execution_worker` ruft `check_buy_gate` nicht auf (nachgeprüft 2026-09-25).
+signal_worker). **Core-Sweep** (seit feat/core-sweep-buy-gate 2026-09-26):
+Exposure + Korrelation in `plan_core_sweep`, Instrument/Sektor/Region über
+`signal_worker._core_sweep_portfolio_gate()` direkt vor `trade_repo.create`
+(fail-closed; Block ⇒ synthetisches CORE_SWEEP-Signal REJECTED). Bewusst NICHT
+das ganze `check_buy_gate` (Conviction/Pyramiding/SL-Qualität sind Signal-Semantik).
+Vorher (bis 2026-09-26) kannte der Sweep nur Exposure/Korrelation/Cash.
 
 | Ebene | Grenze | Verhalten bei Überschreitung |
 |-------|--------|------------------------------|
 | Gesamt-Exposure | 75 % (`MAX_TOTAL_EXPOSURE_PCT`) | Pre-Trade-Block **+ Post-Trade-Auto-Trim** (LIFO, `risk.exposure_auto_trim`) |
-| Sektor | 20 % (`sector_limits.max_per_sector_pct`) | Block (nur Signal-Pfad). Quelle: `ASSET_CLASS_MAP` (Vorrang) + `instruments.sector` seit 2026-09-26 (s.u.) |
+| Sektor | 20 % (`sector_limits.max_per_sector_pct`) | Block (Signal-Pfad + Core-Sweep). Quelle: `ASSET_CLASS_MAP` (Vorrang) + `instruments.sector` seit 2026-09-26 (s.u.) |
 | Region | Soft 35 % / Hard 50 % (`region_limits`) | Sizing-Damper, erst über Hard-Cap Block |
 | Instrument | 10 % Default (`INSTRUMENT_LIMITS`) | Block + LIFO-Trim |
 

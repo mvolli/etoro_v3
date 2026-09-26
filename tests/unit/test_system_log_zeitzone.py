@@ -18,6 +18,7 @@ diese Abfragen die Beweisfuehrung tragen sollten.
 from __future__ import annotations
 
 import sqlite3
+from datetime import datetime
 
 import pytest
 
@@ -36,6 +37,22 @@ CREATE TABLE system_log (
 """
 
 
+def _abstand_s(a: str, b: str) -> float:
+    """Abstand zweier SQLite-Zeitstempel in Sekunden.
+
+    fix/zeitzone-test-sekundenrace (2026-09-26): Die Tests verglichen die
+    Zeitstempel exakt. Faellt zwischen Schreiben und Nachlesen (bzw. zwischen
+    den beiden Schreibwegen) ein Sekundenwechsel, wurden sie sporadisch rot,
+    ohne dass der Code falsch war. Geprueft wird der eigentliche Fehler —
+    eine Verschiebung um die Zeitzone, also Stunden — mit 2 s Toleranz.
+    """
+    fmt = "%Y-%m-%d %H:%M:%S"
+    return abs((datetime.strptime(a, fmt) - datetime.strptime(b, fmt)).total_seconds())
+
+
+_TOLERANZ_S = 2.0
+
+
 @pytest.fixture
 def db(tmp_path):
     p = tmp_path / "t.db"
@@ -52,11 +69,11 @@ def test_write_setzt_ts_selbst_und_nicht_den_default(db):
     row = db.fetchone(
         "SELECT ts, datetime('now') AS jetzt,"
         " datetime('now','utc') AS default_wert FROM system_log")
-    assert row["ts"] == row["jetzt"]
+    assert _abstand_s(row["ts"], row["jetzt"]) <= _TOLERANZ_S
     # Nur dort aussagekraeftig, wo die Testmaschine nicht auf UTC steht —
     # auf einer UTC-Maschine fallen beide Werte zusammen.
-    if row["jetzt"] != row["default_wert"]:
-        assert row["ts"] != row["default_wert"]
+    if _abstand_s(row["jetzt"], row["default_wert"]) > _TOLERANZ_S:
+        assert _abstand_s(row["ts"], row["default_wert"]) > _TOLERANZ_S
 
 
 def test_beide_schreibwege_stimmen_ueberein(db):
@@ -67,7 +84,7 @@ def test_beide_schreibwege_stimmen_ueberein(db):
         " VALUES (datetime('now'), ?, ?, ?, ?)",
         ("INFO", "discord_embeds", "b", None))
     rows = db.fetchall("SELECT worker, ts FROM system_log ORDER BY id")
-    assert rows[0]["ts"] == rows[1]["ts"]
+    assert _abstand_s(rows[0]["ts"], rows[1]["ts"]) <= _TOLERANZ_S
 
 
 def test_details_werden_weiterhin_als_json_abgelegt(db):

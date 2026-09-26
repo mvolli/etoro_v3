@@ -1545,6 +1545,61 @@ def _load_region_map(signal_repo) -> dict[str, str]:
     return _region_by_symbol
 
 
+def _core_sweep_portfolio_gate(
+    symbol: str, amount: float, equity: float, open_positions: list[dict],
+    sector_by_symbol: dict[str, str] | None, region_by_symbol: dict[str, str] | None,
+    dust_floor: float,
+) -> tuple[bool, float, str]:
+    """Portfolio-Grenzen fuer eine Core-Sweep-Order (feat/core-sweep-buy-gate).
+
+    Dieselben drei Ebenen wie im Signal-Pfad, in derselben Reihenfolge:
+      1. Instrument-Limit  (risk.check_instrument_limit_gate)
+      2. Anlageklasse/Sektor (risk.check_asset_class_gate, inkl. DB-Sektoren)
+      3. Regionen-Damper   (risk.region_size_factor: 0 = Block, <1 = kleiner)
+    Nach dem Damper gilt der Dust-Floor wie am Ende der Signal-Kette.
+    Bewusst NICHT das ganze check_buy_gate: Conviction-, Pyramiding- und
+    SL-Qualitaets-Gate sind Signal-Semantik, Exposure und Korrelation prueft
+    plan_core_sweep bereits.
+
+    Returns (allowed, amount, reason). Fail-CLOSED: ein Fehler blockt die
+    Order — nicht kaufen kostet nichts.
+    """
+    try:
+        from bot.core.risk import (
+            check_asset_class_gate, check_instrument_limit_gate, region_size_factor,
+        )
+        _cur = sum(
+            float(p.get("amount_usd") or 0.0) for p in open_positions
+            if str(p.get("symbol", "")).upper() == symbol.upper()
+        )
+        for _g in (
+            check_instrument_limit_gate(symbol, amount, _cur, equity),
+            check_asset_class_gate(symbol, amount, equity, open_positions,
+                                   sector_by_symbol or None),
+        ):
+            if not _g.allowed:
+                return False, amount, "; ".join(_g.reasons)
+        if region_by_symbol and equity > 0:
+            _reg = region_by_symbol.get(symbol.upper())
+            if _reg:
+                _reg_usd = sum(
+                    float(p.get("amount_usd") or 0.0) for p in open_positions
+                    if region_by_symbol.get(str(p.get("symbol", "")).upper()) == _reg
+                )
+                _rf, _rreason = region_size_factor(_reg_usd / equity * 100.0)
+                if _rf == 0.0:
+                    return False, amount, _rreason
+                if _rf < 1.0:
+                    amount = round(amount * _rf, 2)
+                    if amount < dust_floor:
+                        return False, amount, (
+                            f"{_rreason} -> ${amount:.2f} < Dust-Floor ${dust_floor:.2f}")
+                    return True, amount, _rreason
+        return True, amount, "ok"
+    except Exception as _exc:
+        return False, amount, f"Portfolio-Gate-Fehler (fail-closed): {_exc}"
+
+
 def _run_core_sweep(
     *, cfg: dict, db, trade_repo, signal_repo, log_repo,
     equity: float, regime: str, regime_params: dict,
@@ -1552,6 +1607,8 @@ def _run_core_sweep(
     _news_flags: dict, approved_trades_info: list[dict],
     approved_count: int, cash_estimate: float, total_exposure: float,
     position_count: int,
+    sector_by_symbol: dict[str, str] | None = None,
+    region_by_symbol: dict[str, str] | None = None,
 ) -> tuple[int, float, float, int]:
     """Core-Sweep-Pass (5b). Haengt Freigaben an approved_trades_info an und
     gibt die fortgeschriebenen Zaehler (approved_count, cash_estimate,
@@ -1659,6 +1716,7 @@ def _run_core_sweep(
             logger.info("SignalWorker: %s", _sweep_reasons[0])
         _cs_live = _cs_enabled(cfg)
         _cs_news_skipped: list[str] = []
+        _cs_gate_blocked: list[str] = []
         for _o in _sweep_orders:
             # feat/core-sweep-news (2026-08-24): News-Flags gelten auch hier.
             # Der Sweep lief bisher an ihnen vorbei — am 24.08. kaufte er
@@ -1796,6 +1854,30 @@ def _run_core_sweep(
                         )
             except Exception:
                 logger.debug("entry_quality: core-sweep gate fehlgeschlagen (fail-open)", exc_info=True)
+            # feat/core-sweep-buy-gate (2026-09-26): Instrument-, Sektor- und
+            # Regionen-Grenze wie im Signal-Pfad. Vorher kannte der Sweep nur
+            # Exposure, Korrelation und Cash — der Pfad, aus dem zeitweise
+            # 41 von 57 offenen Trades stammten, hatte keine Klumpen-Grenze.
+            # Nach dem Sizing, weil die Grenzen am Endbetrag haengen; das
+            # synthetische Signal existiert da schon -> bei Block REJECTED.
+            _cs_ok, _cs_amt, _cs_gate_reason = _core_sweep_portfolio_gate(
+                _o.symbol, _cs_amt, equity, open_positions,
+                sector_by_symbol, region_by_symbol,
+                _dust_floor_usd(regime, float(cfg.get("trading", {}).get("min_buy_usd", 50.0))),
+            )
+            if not _cs_ok:
+                _cs_gate_blocked.append(f"{_o.symbol}: {_cs_gate_reason}")
+                logger.info("SignalWorker: Core-Sweep %s geblockt — %s",
+                            _o.symbol, _cs_gate_reason)
+                if _cs_sig_id is not None:
+                    try:
+                        signal_repo.update_signal_status(_cs_sig_id, "REJECTED")
+                    except Exception:
+                        pass
+                continue
+            if _cs_gate_reason != "ok":
+                logger.info("SignalWorker: Core-Sweep %s — %s ($%.2f)",
+                            _o.symbol, _cs_gate_reason, _cs_amt)
             _cs_tid = trade_repo.create(
                 instrument_id=_o.instrument_id, symbol=_o.symbol, direction="BUY",
                 amount_usd=_cs_amt, stop_loss_pct=_cs_sl,
@@ -1813,6 +1895,9 @@ def _run_core_sweep(
             total_exposure += _cs_amt
             position_count += 1
             _held_ids.add(_o.instrument_id)
+            # feat/core-sweep-buy-gate: Folge-Orders desselben Laufs sehen
+            # diese Position in Instrument-/Sektor-/Regionen-Summen.
+            open_positions.append({"symbol": _o.symbol, "amount_usd": _cs_amt})
             approved_trades_info.append({
                 "symbol": _o.symbol, "amount_usd": _cs_amt,
                 "signal_type": "CORE_SWEEP", "conviction": "CORE",
@@ -1835,6 +1920,12 @@ def _run_core_sweep(
                 "INFO", "signal_worker",
                 f"Core-Sweep: {len(_cs_news_skipped)} Titel wegen News-AVOID uebersprungen",
                 {"symbols": _cs_news_skipped[:12]},
+            )
+        if _cs_gate_blocked:
+            log_repo.write(
+                "INFO", "signal_worker",
+                f"Core-Sweep: {len(_cs_gate_blocked)} Order(s) an Portfolio-Grenzen geblockt",
+                {"blocked": _cs_gate_blocked[:12]},
             )
     except Exception as _cs_exc:
         logger.warning("SignalWorker: Core-Sweep-Pass uebersprungen: %s", _cs_exc)
@@ -2800,6 +2891,7 @@ def main() -> None:
             approved_trades_info=approved_trades_info,
             approved_count=approved_count, cash_estimate=cash_estimate,
             total_exposure=total_exposure, position_count=position_count,
+            sector_by_symbol=_sector_map, region_by_symbol=_region_by_symbol,
         )
 
         try:
