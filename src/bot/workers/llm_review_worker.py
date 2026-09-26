@@ -22,6 +22,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from typing import Any
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -34,6 +35,12 @@ if str(SRC_DIR) not in sys.path:
 
 GHOST_BLACKLIST_PATH = PROJECT_ROOT / "data" / "llm_ghost_blacklist.json"
 INSIGHTS_PATH = PROJECT_ROOT / "docs" / "llm_insights.md"
+# fix/cfg-load-order (2026-09-26): stand bis heute erst ~130 Zeilen tiefer.
+# Der CFG-Load unten lief dadurch in einen NameError, den `except` still
+# schluckte -> CFG war IMMER {} und trading.signal_weight_ratchet sowie
+# memory.qmd aus der config.yaml wirkten nie (nur die Code-Defaults, die
+# zufaellig mit der Config uebereinstimmten).
+CONFIG_YAML_PATH = PROJECT_ROOT / "config" / "config.yaml"
 
 # feat/qmd-memory: Config einmalig laden (fuer QMD-Settings in _call_llm_once)
 try:
@@ -165,7 +172,6 @@ def _evaluate_stale_exits(min_age_h: float = 72.0) -> int:
         return graded
     except Exception:
         return 0
-CONFIG_YAML_PATH = PROJECT_ROOT / "config" / "config.yaml"
 DECISION_LOG_PATH = PROJECT_ROOT / "data" / "llm_decision_log.json"   # Signal-Weights laenger gueltig als Ghost-Liste      # ab 60% Ghost-Rate → Exchange blockieren
 
 # ── Discord Embeds ─────────────────────────────────────────────────────────────
