@@ -515,17 +515,15 @@ sector_limits:
   # einzigen Verkauf, verhindert aber weiteres Anwachsen der groessten Klumpen.
   # Anteil des Buchs ohne jede Sektor-Grenze: 74.2% -> 0%.
   #
-  # KORREKTUR 2026-09-25 (docs/sector-gate-truth): Die zwei Zeilen oben gelten
-  # NICHT fuer den Kaufpfad. signal_worker laedt die Map zwar, aber
-  # risk.check_buy_gate ruft check_asset_class_gate(symbol, buy_amount,
-  # equity, open_positions) OHNE sector_by_symbol auf — die Map kommt dort nie
-  # an, seit es sie gibt. Beim Kauf wirken nur ASSET_CLASS_MAP (~65 US-Ticker)
-  # und der 20%-Default fuer Klassen ohne eigenen Eintrag. Die Map nutzen nur
-  # concentration_monitor (Ueberwachung) und main_report_worker (Report).
-  # Core-Sweep (plan_core_sweep) prueft ueberhaupt keine Sektor-Grenze.
-  # Anschliessen = neues scharfes Gate im Kaufpfad -> erst messen, was heute
-  # darueber laege, dann VoLLi-Entscheid. Bis dahin aendert dieser Schalter
-  # am Kaufverhalten NICHTS.
+  # KORREKTUR 2026-09-25/26: Die zwei Zeilen oben galten vom 12.08. bis
+  # 26.09. NICHT fuer den Kaufpfad — check_buy_gate reichte die Map nie an
+  # check_asset_class_gate weiter (docs/sector-gate-truth). Seit
+  # feat/sector-gate-wiring (2026-09-26) ist sie angeschlossen: im
+  # Signal-Pfad laufen Symbole ausserhalb ASSET_CLASS_MAP gegen ihren
+  # DB-Sektor (max_per_sector_pct). Gemessen vor dem Anschluss: kein Topf
+  # ueber Limit, fail-open-Anteil 52.2% -> 4.3% (13 Toepfe). Core-Sweep
+  # (plan_core_sweep) prueft weiterhin KEINE Sektor-Grenze.
+  # false = Gate wie vorher (nur ASSET_CLASS_MAP + 20%-Default).
   enforce_db_sectors: true
 
 region_limits:                # feat/region-damper (2026-08-12)

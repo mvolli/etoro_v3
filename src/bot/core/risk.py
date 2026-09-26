@@ -881,8 +881,13 @@ def check_buy_gate(
     entry_price: float = 0.0,
     sl_price: float = 0.0,
     max_fragments: int | None = None,
+    sector_by_symbol: dict[str, str] | None = None,
 ) -> GateResult:
     """Master gate V5 — all rules in sequence. Returns on first block.
+
+    *sector_by_symbol* (feat/sector-gate-wiring 2026-09-26): {SYMBOL: sector}
+    aus instruments.sector, durchgereicht an check_asset_class_gate. None =
+    Verhalten wie vorher (nur ASSET_CLASS_MAP + 20%-Default).
 
     V5 additions:
     - check_conviction_gate: regime-dependent minimum signal strength
@@ -905,7 +910,8 @@ def check_buy_gate(
         check_exposure_gate(total_exposed, equity, buy_amount),
         check_sl_gate(has_stop_loss),
         check_sl_quality_gate(entry_price, sl_price, symbol),  # V5: SL quality
-        check_asset_class_gate(symbol, buy_amount, equity, open_positions),
+        check_asset_class_gate(symbol, buy_amount, equity, open_positions,
+                               sector_by_symbol),
         check_correlation_gate_risk(symbol, open_positions),  # V5: correlation — last (slowest)
     ]
 
