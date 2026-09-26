@@ -171,6 +171,1066 @@ def _load_config() -> dict:
         return yaml.safe_load(f)
 
 
+def _run_sl_checks(db, client, state_repo, log_repo, raw_positions: list[dict]
+                   ) -> tuple[int, int, int, list[dict]]:
+    """Schritt 3: Stop-Loss je Position (evaluate_sl), CLOSE inkl.
+    Verifikation, PENDING-Pfad und gedrosselter Alerts.
+
+    Rueckgabe (checked, closed, sl_warnings, positions_summary).
+    """
+    from bot.api.client import APIError
+    from bot.core.risk import evaluate_sl
+
+    checked_count = 0
+    closed_count = 0
+    sl_warning_count = 0
+    positions_summary: list[dict] = []
+    for pos in raw_positions:
+        checked_count += 1
+
+        position_id = (
+            pos.get("positionID")
+            or pos.get("positionId")
+            or pos.get("id")
+            or pos.get("position_id")
+        )
+        instrument_id = (
+            pos.get("instrumentID")
+            or pos.get("instrumentId")
+            or pos.get("instrument_id")
+        )
+        symbol = pos.get("symbol") or ""
+        if not symbol and instrument_id is not None:
+            # Payload carries no symbol — resolve via portfolio_snapshot,
+            # then instruments table (raw IDs in Discord/logs vermeiden)
+            try:
+                _sym_row = db.fetchone(
+                    "SELECT symbol FROM portfolio_snapshot "
+                    "WHERE instrument_id = ? AND symbol IS NOT NULL "
+                    "ORDER BY last_synced DESC LIMIT 1",
+                    (int(instrument_id),),
+                )
+                if not _sym_row:
+                    _sym_row = db.fetchone(
+                        "SELECT symbol FROM instruments "
+                        "WHERE instrument_id = ? AND symbol IS NOT NULL",
+                        (int(instrument_id),),
+                    )
+                if _sym_row:
+                    symbol = _sym_row["symbol"]
+            except Exception:
+                pass
+        if not symbol:
+            symbol = str(instrument_id)
+
+        # Extract pnl_pct: unrealizedPnL.pnLPct or flat pnLPct
+        unrealized = pos.get("unrealizedPnL") or {}
+        if isinstance(unrealized, dict):
+            raw_pnl_pct = unrealized.get("pnLPct") or unrealized.get("pnlPct") or 0.0
+        else:
+            raw_pnl_pct = float(unrealized) if unrealized else 0.0
+
+        # Fallback: flat field on position
+        if raw_pnl_pct == 0.0:
+            raw_pnl_pct = (
+                pos.get("pnLPct")
+                or pos.get("pnlPct")
+                or pos.get("unrealized_pnl_pct")
+                or 0.0
+            )
+
+        try:
+            raw_pnl_pct = float(raw_pnl_pct)
+        except (TypeError, ValueError):
+            raw_pnl_pct = 0.0
+
+        # fix/autonomy-hardening: the old "abs < 1.0 → ×100" heuristic was
+        # a real false-positive path — a genuine −0.8% position became
+        # −80% and was closed instantly. Primary source is now the
+        # rate-derived PnL (openRate vs. live closeRate, long-only bot);
+        # the raw API field is the fallback and is taken AS-IS (eToro
+        # reports pnLPct in percent). Ambiguous small values are logged
+        # instead of being silently rescaled.
+        pnl_pct = raw_pnl_pct
+        _open_rate = float(pos.get("openRate", 0) or 0)
+        _close_rate = 0.0
+        if isinstance(unrealized, dict):
+            _close_rate = float(unrealized.get("closeRate", 0) or 0)
+        if _close_rate <= 0:
+            _close_rate = float(pos.get("closeRate", 0) or pos.get("currentRate", 0) or 0)
+
+        if _open_rate > 0 and _close_rate > 0:
+            rate_pnl_pct = (_close_rate / _open_rate - 1.0) * 100.0
+            if raw_pnl_pct != 0.0 and abs(rate_pnl_pct - raw_pnl_pct) > 1.0:
+                logger.warning(
+                    "RiskWorker: %s PnL-Diskrepanz — API=%.2f%% vs. ratenbasiert=%.2f%% "
+                    "(nutze ratenbasiert)",
+                    symbol, raw_pnl_pct, rate_pnl_pct,
+                )
+            pnl_pct = rate_pnl_pct
+        elif raw_pnl_pct != 0.0 and abs(raw_pnl_pct) < 1.0:
+            logger.info(
+                "RiskWorker: %s PnL %.4f%% ist klein — wird als Prozentwert "
+                "interpretiert (keine ×100-Reskalierung mehr)",
+                symbol, raw_pnl_pct,
+            )
+
+        sl_action = evaluate_sl(pnl_pct)
+
+        if sl_action.action == "CLOSE":
+            # hotfix/risk-worker-position-id: never send a close order
+            # without a valid position id — the API rejects 'None' with
+            # HTTP 400 and the position stays open while looking handled.
+            if not position_id or str(position_id).lower() == "none":
+                logger.error(
+                    "RiskWorker: SL CLOSE für %s NICHT ausführbar — position_id fehlt "
+                    "im API-Payload (Felder: %s)",
+                    symbol, sorted(pos.keys()),
+                )
+                log_repo.write(
+                    "ERROR",
+                    "risk_worker",
+                    f"SL CLOSE blockiert: {symbol} ohne position_id (pnl={pnl_pct:.2f}%)",
+                    {"payload_keys": sorted(pos.keys()), "pnl_pct": pnl_pct},
+                )
+                _discord(
+                    "post_alert_embed",
+                    title="🔴 RiskWorker: SL-Close ohne position_id",
+                    description=(
+                        f"{symbol}: SL bei {pnl_pct:.2f}% ausgelöst, aber API-Payload "
+                        f"enthält keine positionID — Position bleibt offen, manuelle Prüfung!"
+                    ),
+                    severity="CRITICAL",
+                )
+                continue
+
+            logger.warning(
+                "RiskWorker: SL CLOSE triggered for %s (pos=%s) — %s",
+                symbol, position_id, sl_action.reason,
+            )
+            log_repo.write(
+                "WARN",
+                "risk_worker",
+                f"SL CLOSE: {symbol} position {position_id}",
+                {"reason": sl_action.reason, "pnl_pct": pnl_pct},
+            )
+
+            try:
+                client.close_position(position_id, instrument_id)
+
+                # ── Verify the full-close actually took effect ──────────────
+                from bot.core.trailing_stop import verify_full_close
+                verified, detail, _pnl_data = verify_full_close(client, int(instrument_id or 0), str(position_id))
+
+                # ── Extract PnL data for DB + embed (always available) ────
+                upnl = pos.get("unrealizedPnL") or {}
+                close_price = float(upnl.get("closeRate", 0) if isinstance(upnl, dict) else 0)
+                pnl_usd_est = float(upnl.get("pnL", 0) if isinstance(upnl, dict) else 0)
+
+                if verified:
+                    closed_count += 1
+                    logger.warning("RiskWorker: %s", detail)
+                    # fix/sl-close-unverified-dedupe: verified close resets
+                    # any leftover unverified-alert state for this position.
+                    _clear_unverified_close_state(state_repo, str(position_id))
+                    # Remove from local portfolio snapshot
+                    db.execute(
+                        "DELETE FROM portfolio_snapshot WHERE api_position_id = ?",
+                        (str(position_id),),
+                    )
+                    logger.warning(
+                        "RiskWorker: Closed position %s (%s) — pnl=%.2f%%",
+                        position_id, symbol, pnl_pct,
+                    )
+                    # ── Update trade record with verified close data ───────
+                    try:
+                        db.execute(
+                            """UPDATE trades SET status='CLOSED', exit_price=?, pnl_usd=?, pnl_pct=?, 
+                               closed_at=datetime('now'), verification_status='VERIFIED'
+                               WHERE api_position_id=? AND status IN ('ACTIVE','SUBMITTING','CONFIRMED')""",
+                            (close_price, pnl_usd_est, pnl_pct, str(position_id)),
+                        )
+                    except Exception as _db_exc:
+                        logger.debug("Trade DB update failed: %s", _db_exc)
+
+                    # ── Discord: CLOSE Embed → #etoro-trades ────────────────
+                    try:
+                        try:
+                            from bot.core.candle_chart import trade_story_png
+                            import sys as _sys
+                            from pathlib import Path as _P
+                            _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
+                            import discord_embeds as _DE_st
+                            _DE_st.attach_chart(trade_story_png(
+                                client, pos.get("instrumentID"), symbol,
+                                entry=float(pos.get("openRate", 0) or 0) or None,
+                                exit_price=close_price,
+                                opened_at=pos.get("openDateTime"),
+                            ))
+                        except Exception:
+                            pass
+                        _close_ok = _discord(
+                            "post_position_closed_embed",
+                            symbol=symbol,
+                            amount_usd=float(pos.get("amount", 0)),
+                            position_id=str(position_id),
+                            entry_price=float(pos.get("openRate", 0)),
+                            close_price=close_price,
+                            pnl_usd=pnl_usd_est,
+                            pnl_pct=pnl_pct,
+                            reason=sl_action.reason,
+                        )
+                        from bot.core.event_log import record_posted_event
+                        record_posted_event(
+                            db, _DE, symbol=symbol, event_type="CLOSE",
+                            source="risk_sl", post_result=_close_ok,
+                            position_id=str(position_id),
+                            instrument_id=int(pos.get("instrumentID") or 0) or None,
+                            price=close_price or None,
+                            amount_usd=float(pos.get("amount", 0)),
+                            pnl_usd=pnl_usd_est, pnl_pct=pnl_pct,
+                            pnl_source="derived", reason=sl_action.reason,
+                            chart_posted=True, reported_final=False,
+                        )
+                    except Exception as _emb_exc:
+                        logger.debug("Discord close embed failed: %s", _emb_exc)
+                else:
+                    # ── UNVERIFIED: still send embed + save estimated PnL ───
+                    # fix/sl-close-unverified-dedupe (2026-08-21): per-position
+                    # cap + cooldown on the CRITICAL alert (was: 1 ERROR +
+                    # 1 CRITICAL embed every 5-min cycle per stuck position).
+                    _alert_due, _uv_count = _unverified_close_alert_due(
+                        state_repo, str(position_id), symbol)
+                    if _alert_due:
+                        logger.error("RiskWorker: SL-Close NOT verified — %s", detail)
+                        log_repo.write(
+                            "ERROR",
+                            "risk_worker",
+                            f"SL-Close unverified: {symbol} ({position_id}) — {detail}",
+                        )
+                    else:
+                        logger.warning(
+                            "RiskWorker: SL-Close still unverified (%s, %s Alert(s) bereits "
+                            "gesendet — weitere gedrosselt) — %s",
+                            symbol, _uv_count, detail,
+                        )
+                        log_repo.write(
+                            "WARN",
+                            "risk_worker",
+                            f"SL-Close unverified (gedrosselt, {_uv_count} Alert(s) gesendet): "
+                            f"{symbol} ({position_id}) — {detail}",
+                        )
+
+                    # ── Save estimated PnL to DB (PENDING verification) ────
+                    try:
+                        db.execute(
+                            """UPDATE trades SET status='CLOSED', exit_price=?, pnl_usd=?, pnl_pct=?, 
+                               closed_at=datetime('now'), verification_status='PENDING'
+                               WHERE api_position_id=? AND status IN ('ACTIVE','SUBMITTING','CONFIRMED')""",
+                            (close_price, pnl_usd_est, pnl_pct, str(position_id)),
+                        )
+                    except Exception as _db_exc:
+                        logger.debug("Trade DB update (PENDING) failed: %s", _db_exc)
+
+                    # fix/sl-close-unverified-dedupe (2026-08-21): the
+                    # provisional CLOSE embed to #etoro-trades AND the
+                    # CRITICAL alert BOTH used to fire every 5-min cycle
+                    # (2600.HK: 105 embeds + 105 alerts in ~11h). Gate both
+                    # behind the per-position dedupe — post the provisional
+                    # close + alert at most SL_UNVERIFIED_MAX_ALERTS times
+                    # per position (6h cooldown), downgrade CRITICAL→WARNING
+                    # after the first hit. The PENDING trade record above is
+                    # idempotent and the Reconciler finalizes it.
+                    if _alert_due:
+                        # ── Discord: Provisional CLOSE Embed → #etoro-trades ────
+                        try:
+                            try:
+                                from bot.core.candle_chart import trade_story_png
+                                import sys as _sys
+                                from pathlib import Path as _P
+                                _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
+                                import discord_embeds as _DE_st
+                                _DE_st.attach_chart(trade_story_png(
+                                    client, pos.get("instrumentID"), symbol,
+                                    entry=float(pos.get("openRate", 0) or 0) or None,
+                                    exit_price=close_price,
+                                    opened_at=pos.get("openDateTime"),
+                                ))
+                            except Exception:
+                                pass
+                            _close_ok = _discord(
+                                "post_position_closed_embed",
+                                symbol=symbol,
+                                amount_usd=float(pos.get("amount", 0)),
+                                position_id=str(position_id),
+                                entry_price=float(pos.get("openRate", 0)),
+                                close_price=close_price,
+                                pnl_usd=pnl_usd_est,
+                                pnl_pct=pnl_pct,
+                                reason=f"{sl_action.reason} (⚠️ PnL geschätzt — Reconciler finalisiert)",
+                            )
+                            from bot.core.event_log import record_posted_event
+                            record_posted_event(
+                                db, _DE, symbol=symbol, event_type="CLOSE",
+                                source="risk_sl", post_result=_close_ok,
+                                position_id=str(position_id),
+                                instrument_id=int(pos.get("instrumentID") or 0) or None,
+                                price=close_price or None,
+                                amount_usd=float(pos.get("amount", 0)),
+                                pnl_usd=pnl_usd_est, pnl_pct=pnl_pct,
+                                pnl_source="derived",
+                                reason=f"{sl_action.reason} (unverifiziert)",
+                                chart_posted=True, reported_final=False,
+                            )
+                        except Exception as _emb_exc:
+                            logger.debug("Discord provisional close embed failed: %s", _emb_exc)
+
+                        # ── Additional alert for unverified status ──────────────
+                        # CRITICAL on the first hit, then WARNING (state is
+                        # already persisted in trades.verification_status and
+                        # the Reconciler finalizes it — no CRITICAL spam).
+                        _sev = "CRITICAL" if _uv_count <= 1 else "WARNING"
+                        _emoji = "🔴" if _sev == "CRITICAL" else "🟡"
+                        _discord(
+                            "post_alert_embed",
+                            title=f"{_emoji} SL-Close unverifiziert"
+                            + ("" if _uv_count <= 1 else f" (#{_uv_count}, gedrosselt)"),
+                            description=(
+                                f"{symbol}: {detail} — Embed mit geschätztem PnL gesendet, "
+                                f"Reconciler wird finalisieren. "
+                                f"(max. {SL_UNVERIFIED_MAX_ALERTS} Alerts, Cooldown "
+                                f"{SL_UNVERIFIED_COOLDOWN_HOURS}h)"
+                            ),
+                            severity=_sev,
+                        )
+                    else:
+                        logger.info(
+                            "RiskWorker: SL-Close unverified alert+embed suppressed for %s "
+                            "(count=%s) — PENDING record saved, Reconciler finalisiert",
+                            symbol, _uv_count,
+                        )
+            except APIError as exc:
+                logger.error(
+                    "RiskWorker: Failed to close position %s — %s", position_id, exc
+                )
+                log_repo.write(
+                    "ERROR",
+                    "risk_worker",
+                    f"Failed to close position {position_id} ({symbol}): {exc}",
+                )
+
+        elif sl_action.action == "WARNING":
+            sl_warning_count += 1
+            logger.info(
+                "RiskWorker: SL WARNING for %s (pos=%s) — %s",
+                symbol, position_id, sl_action.reason,
+            )
+            log_repo.write(
+                "INFO",
+                "risk_worker",
+                f"SL WARNING: {symbol} position {position_id}",
+                {"reason": sl_action.reason, "pnl_pct": pnl_pct},
+            )
+
+        # ── Collect position summary for embed ────────────────────────────
+        positions_summary.append({
+            "symbol": symbol,
+            "pnl_pct": pnl_pct,
+            "amount_usd": float(pos.get("amount", 0)),
+            "trailing_status": sl_action.reason if sl_action.action in ("WARNING", "CLOSE") else "",
+        })
+    return checked_count, closed_count, sl_warning_count, positions_summary
+
+
+def _apply_kill_switch(state_repo, log_repo, regime: str) -> str:
+    """Schritt 4: Daily-Auto-Clear, aktiver Kill-Switch erzwingt CRITICAL.
+    Gibt das (ggf. auf CRITICAL gesetzte) Regime zurueck.
+    """
+    from bot.core.kill_switch import (
+        is_kill_switch_active,
+        get_reason as get_kill_switch_reason,
+        auto_clear_if_new_day,
+    )
+    # fix/kill-switch-daily-auto-reset: ein DAILY-Loss-Trip cleared am
+    # naechsten UTC-Tag automatisch — weekly/monthly/manual NIE.
+    _cleared, _clear_detail = auto_clear_if_new_day()
+    if _cleared:
+        logger.warning('RiskWorker: %s', _clear_detail)
+        log_repo.write('WARNING', 'kill_switch', _clear_detail)
+        _discord(
+            'post_alert_embed',
+            title='🟢 Kill-Switch auto-cleared (neuer Handelstag)',
+            description=_clear_detail,
+            severity='WARNING',
+        )
+    if is_kill_switch_active():
+        _ks_reason = get_kill_switch_reason() or 'Manual kill switch'
+        logger.warning('RiskWorker: KILL SWITCH ACTIVE — forcing CRITICAL regime (%s)', _ks_reason)
+        # fix/autonomy-hardening: capture the regime BEFORE overwriting it,
+        # otherwise the embed always showed CRITICAL→CRITICAL.
+        _old_regime = state_repo.get_regime() or 'UNKNOWN'
+        state_repo.set_regime('CRITICAL')
+        state_repo.set('RISK_SCALAR', '0.25')
+        log_repo.write('WARNING', 'kill_switch', f'Kill switch active: {_ks_reason}')
+        # Post Discord alert (best-effort)
+        # Try kill switch embed first; fall back to regime change embed
+        if _DE and hasattr(_DE, 'post_kill_switch_embed'):
+            _discord('post_kill_switch_embed', reason=_ks_reason)
+        else:
+            _discord(
+                'post_regime_change_embed',
+                old_regime=_old_regime,
+                new_regime='CRITICAL',
+                drawdown_pct=0.0,
+                equity=state_repo.get_equity() or 0.0,
+                peak_equity=state_repo.get_equity() or 0.0,
+                reason=f'🔴 KILL SWITCH AKTIV: {_ks_reason}',
+            )
+        print(f'RiskWorker: KILL SWITCH — CRITICAL regime forced ({_ks_reason})')
+        regime = 'CRITICAL'
+        # Fall through: still run SL checks on existing positions (already done above)
+    return regime
+
+
+def _resolve_equity(state_repo, log_repo, portfolio: dict) -> float:
+    """Equity aus dem State, sonst aus dem API-Payload (fail-closed: 0.0)."""
+    equity = state_repo.get_equity()
+    if equity <= 0.0:
+        # Fall back to portfolio equity from the API response if available.
+        # fix/autonomy-hardening: NO fabricated $10,000 default anymore —
+        # if equity is genuinely unknown, we skip regime/drawdown math
+        # (fail-closed) instead of computing it on a fantasy number.
+        equity = float(
+            portfolio.get("equity")
+            or portfolio.get("totalEquity")
+            or portfolio.get("netEquity")
+            or 0.0
+        )
+        if equity > 0.0:
+            state_repo.set("CURRENT_EQUITY", str(equity))
+        else:
+            logger.error(
+                "RiskWorker: Equity unbekannt (State leer, API-Payload ohne Equity) "
+                "— Regime-Update übersprungen (fail-closed)"
+            )
+            log_repo.write("ERROR", "risk_worker",
+                           "Equity unbekannt — Regime-Update übersprungen (fail-closed)")
+    return equity
+
+
+def _check_loss_limits(cfg: dict, state_repo, log_repo, equity: float, regime: str) -> str:
+    """Tages-/Wochen-/Monats-Verlustgrenzen; loest ggf. den Auto-Kill-Switch
+    aus und gibt dann CRITICAL zurueck, sonst das uebergebene Regime.
+    """
+    from bot.core.kill_switch import is_kill_switch_active
+
+    # ── fix/autonomy-hardening: Daily-Loss Auto-Kill-Switch ───────────────────
+    # Regime scaling only reduces sizing; nothing previously STOPPED the
+    # bot automatically. Track day-start equity (UTC) and trip the kill
+    # switch when the intraday drop exceeds risk.daily_loss_limit_pct.
+    if equity > 0.0:
+        from datetime import datetime as _dt, timezone as _tz
+        from bot.core.risk import (
+            check_daily_loss_breach,
+            check_trailing_loss_breach,
+            DAILY_LOSS_LIMIT_PCT_DEFAULT,
+            WEEKLY_LOSS_LIMIT_PCT_DEFAULT,
+            MONTHLY_LOSS_LIMIT_PCT_DEFAULT,
+        )
+        from bot.core.regime import get_rolling_peak
+        from bot.core import kill_switch as _ks
+
+        _today = _dt.now(_tz.utc).strftime("%Y-%m-%d")
+        _day_date = state_repo.get("DAY_START_DATE")
+        if _day_date != _today:
+            state_repo.set("DAY_START_DATE", _today)
+            state_repo.set("DAY_START_EQUITY", str(equity))
+            logger.info("RiskWorker: neuer Handelstag %s — DAY_START_EQUITY=%.2f", _today, equity)
+
+        _risk_cfg = cfg.get("risk", {})
+        _day_start_equity = state_repo.get_float("DAY_START_EQUITY", 0.0)
+
+        # Evaluate all three horizons. Weekly/monthly use the trailing
+        # equity high (7d / 30d) from equity_history via get_rolling_peak,
+        # so they measure max drawdown over the window, not intraday.
+        # fix/multi-horizon-loss-limits.
+        _daily_limit = float(_risk_cfg.get("daily_loss_limit_pct", DAILY_LOSS_LIMIT_PCT_DEFAULT))
+        _weekly_limit = float(_risk_cfg.get("weekly_loss_limit_pct", WEEKLY_LOSS_LIMIT_PCT_DEFAULT))
+        _monthly_limit = float(_risk_cfg.get("monthly_loss_limit_pct", MONTHLY_LOSS_LIMIT_PCT_DEFAULT))
+
+        _breaches: list[str] = []
+
+        _d_breached, _day_pnl_pct = check_daily_loss_breach(
+            _day_start_equity, equity, _daily_limit
+        )
+        if _d_breached:
+            _breaches.append(
+                f"Tagesverlust {_day_pnl_pct:.2f}% > -{_daily_limit:.1f}% "
+                f"(Start ${_day_start_equity:.2f} → ${equity:.2f})"
+            )
+
+        try:
+            _week_peak = get_rolling_peak(state_repo.db, equity, days=7)
+            _month_peak = get_rolling_peak(state_repo.db, equity, days=30)
+        except Exception as _peak_exc:
+            logger.warning("RiskWorker: get_rolling_peak fehlgeschlagen (%s) — "
+                           "Wochen/Monats-Check übersprungen", _peak_exc)
+            _week_peak = _month_peak = 0.0
+
+        _w_breached, _week_dd = check_trailing_loss_breach(_week_peak, equity, _weekly_limit)
+        if _w_breached:
+            _breaches.append(
+                f"Wochenverlust {_week_dd:.2f}% > -{_weekly_limit:.1f}% "
+                f"(7-Tage-Hoch ${_week_peak:.2f} → ${equity:.2f})"
+            )
+
+        _m_breached, _month_dd = check_trailing_loss_breach(_month_peak, equity, _monthly_limit)
+        if _m_breached:
+            _breaches.append(
+                f"Monatsverlust {_month_dd:.2f}% > -{_monthly_limit:.1f}% "
+                f"(30-Tage-Hoch ${_month_peak:.2f} → ${equity:.2f})"
+            )
+
+        if _breaches and not is_kill_switch_active():
+            _reason = "AUTO: " + " | ".join(_breaches)
+            # Scope = schwerster ausgeloester Horizont. Nur ein REINER
+            # Daily-Trip bekommt scope='daily' (Auto-Clear am naechsten
+            # UTC-Tag) — sobald weekly/monthly beteiligt ist, bleibt der
+            # Kill-Switch bis zur manuellen Pruefung stehen.
+            if _m_breached:
+                _scope = "monthly"
+            elif _w_breached:
+                _scope = "weekly"
+            else:
+                _scope = "daily"
+            logger.critical("RiskWorker: %s — Kill Switch wird aktiviert (scope=%s)", _reason, _scope)
+            _ks.activate(_reason, scope=_scope)
+            state_repo.set_regime("CRITICAL")
+            state_repo.set("RISK_SCALAR", "0.25")
+            log_repo.write("CRITICAL", "risk_worker", f"Auto-Kill-Switch ({_scope}): {_reason}")
+            _reactivation_note = (
+                "Auto-Reset am nächsten UTC-Handelstag."
+                if _scope == "daily"
+                else "Reaktivierung: `rm data/kill_switch.flag` nach manueller Prüfung."
+            )
+            _discord(
+                "post_alert_embed",
+                title="🛑 AUTO-KILL-SWITCH ausgelöst",
+                description=(
+                    f"{_reason}\n"
+                    f"Alle neuen Trades gestoppt. {_reactivation_note}"
+                ),
+                severity="CRITICAL",
+            )
+            regime = "CRITICAL"
+    return regime
+
+
+def _update_regime_step(state_repo, log_repo, equity: float) -> str:
+    """Schritt 5: Regime aktualisieren — ausser bei aktivem Kill-Switch
+    (CRITICAL) oder unbekannter Equity (letztes bekanntes Regime).
+    """
+    from bot.core.kill_switch import is_kill_switch_active
+    from bot.core.regime import update_regime
+
+    if equity > 0.0 and not is_kill_switch_active():
+        previous_regime = state_repo.get_regime()
+        regime, regime_changed = update_regime(state_repo, equity)
+
+        if regime_changed:
+            logger.info("RiskWorker: Regime changed → %s (equity=%.2f)", regime, equity)
+            log_repo.write(
+                "INFO",
+                "risk_worker",
+                f"Regime change → {regime}",
+                {"equity": equity},
+            )
+            _discord(
+                'post_regime_change_embed',
+                old_regime=previous_regime or 'UNKNOWN',
+                new_regime=regime,
+                drawdown_pct=float(state_repo.get("DRAWDOWN_PCT") or 0.0),
+                reason=state_repo.get("DRAWDOWN_REASON") or f"Regime changed to {regime}",
+            )
+    else:
+        # Kill switch forces CRITICAL — do not allow update_regime() to
+        # overwrite. If we got here because equity is unknown (fail-closed
+        # skip), keep the last known regime instead of forcing CRITICAL.
+        if is_kill_switch_active():
+            regime = 'CRITICAL'
+        else:
+            regime = state_repo.get_regime() or 'NORMAL'
+        regime_changed = False
+    return regime
+
+
+def _run_concentration(cfg: dict, db, client, state_repo, log_repo,
+                       raw_positions: list[dict], equity: float) -> tuple[int, int, int]:
+    """Post-Trade: Instrument-Konzentration (Close), Asset-Klassen-Drift
+    (Warnung), Exposure-Shadow und Exposure-Auto-Trim.
+
+    Rueckgabe (closed_add, conc_closed, conc_warned) — auch nach einem
+    abgefangenen Fehler mitten im Block.
+    """
+    from bot.core.kill_switch import is_kill_switch_active
+
+    closed_count = 0
+    conc_closed = 0
+    conc_warned = 0
+    try:
+        from bot.core.concentration_monitor import (
+            check_concentration_violations,
+            close_concentration_excess,
+            check_asset_class_violations,
+        )
+        # Load instrument map for symbol resolution
+        instrument_map: dict = {}
+        try:
+            import json
+            map_path = PROJECT_ROOT / "data" / "instrument_map.json"
+            if map_path.exists():
+                raw = json.loads(map_path.read_text())
+                data = raw.get("map", raw)
+                instrument_map = {
+                    int(k): v for k, v in data.items()
+                    if not k.startswith("_") and str(k).isdigit()
+                }
+        except Exception:
+            pass
+
+        violations = check_concentration_violations(raw_positions, equity, instrument_map)
+        if violations:
+            conc_stats = close_concentration_excess(client, violations, db=db)
+            conc_closed += conc_stats["closed"]
+            conc_warned += conc_stats["warned"]
+            if conc_stats["closed"] > 0:
+                closed_count += conc_stats["closed"]
+                logger.warning(
+                    "RiskWorker: Concentration violations fixed: %d closed, %d warned",
+                    conc_stats["closed"], conc_stats["warned"],
+                )
+            elif conc_stats["warned"] > 0:
+                logger.info(
+                    "RiskWorker: %d concentration warnings (below immediate threshold)",
+                    conc_stats["warned"],
+                )
+
+        # fix/asset-class-concentration (audit H7): detect asset-class
+        # drift post-trade (price appreciation past a sector cap). Warn
+        # only — no auto-close; surfaces for a human rebalance decision.
+        #
+        # Unification (2026-09-11): der Monitor auflöst die Asset-Klasse
+        # jetzt mit resolve_asset_class wie das Pre-Trade-Gate — kuratiertes
+        # ASSET_CLASS_MAP plus DB-Sektor-Fallback. Die Sektor-Map wird NUR
+        # dann gespeist, wenn sector_limits.enforce_db_sectors aktiv ist —
+        # derselbe Schalter wie im Gate, damit Pre- und Post-Trade
+        # identisch grenzen. In der LIVE-Config ist der Schalter AN —
+        # der Monitor warnt daher jetzt auch bei DB-Sektor-Drift
+        # (WARN-only: kein Auto-Close, keine Geld-Wirkung; das Geld-
+        # wirksame Pre-Trade-Gate bleibt unverändert). Nur ohne Flag
+        # → Verhalten exakt wie zuvor.
+        _ac_sector_map: dict = {}
+        if bool((cfg.get("sector_limits", {}) or {}).get("enforce_db_sectors", False)):
+            try:
+                _ac_sector_map = {
+                    str(r["symbol"]).upper(): str(r["sector"])
+                    for r in (db.fetchall(
+                        "SELECT symbol, sector FROM instruments "
+                        "WHERE sector IS NOT NULL AND sector != '' AND sector != 'unknown'"
+                    ) or [])
+                }
+                logger.info("RiskWorker: Asset-Class-Sektor-Map aktiv (%d Instrumente)",
+                            len(_ac_sector_map))
+            except Exception as _ac_sec_exc:
+                logger.warning("RiskWorker: Sektor-Map nicht ladbar (%s) — Asset-Class-Monitor fail-open",
+                               _ac_sec_exc)
+                _ac_sector_map = {}
+        ac_violations = check_asset_class_violations(
+            raw_positions, equity, instrument_map, _ac_sector_map)
+        for _acv in ac_violations:
+            _acmsg = (
+                f"{_acv['asset_class']} at {_acv['actual_pct']:.1f}% "
+                f"(limit {_acv['limit_pct']:.0f}%, {_acv['breach_pct']:.1f}% over) — "
+                f"{', '.join(_acv['symbols'])}"
+            )
+            logger.warning("RiskWorker: asset-class concentration drift — %s", _acmsg)
+            log_repo.write("WARN", "risk_worker",
+                           f"Asset-Klassen-Konzentration: {_acmsg}", _acv)
+            _discord(
+                "post_alert_embed",
+                title="⚠️ Asset-Klassen-Konzentration über Limit",
+                description=(
+                    f"{_acmsg}\n\nKein Auto-Close — Rebalancing ist eine "
+                    f"manuelle Entscheidung. Prüfen, ob Position(en) getrimmt werden sollen."
+                ),
+                severity="WARNING",
+            )
+        # fix/exposure-drift-monitor (2026-08-12): Gesamt-Exposure gegen
+        # den Cap. check_exposure_gate ist ein reines PRE-Trade-Gate —
+        # nach dem Einstieg pruefte NICHTS das Gesamt-Exposure erneut.
+        # Richtung beachten: amount ist eingesetztes Kapital, nicht
+        # Marktwert, das Verhaeltnis steigt also bei FALLENDER Equity.
+        # AUTO-TRIM (User-Entscheid 2026-08-12): der Bot korrigiert selbst.
+        # Ein Trading-Bot, der eine erkannte Grenzverletzung nur meldet,
+        # nimmt dem Betreiber die Entscheidung nicht ab — er verschiebt sie.
+        # Abschaltbar ueber risk.exposure_auto_trim: false (dann warn-only).
+        try:
+            from bot.core.concentration_monitor import check_total_exposure_drift
+            from bot.core.risk import MAX_TOTAL_EXPOSURE_PCT as _exp_cap
+            _drift = check_total_exposure_drift(raw_positions, equity, _exp_cap)
+        except Exception as _drift_exc:
+            _drift = None
+            logger.debug("RiskWorker: exposure drift check skipped: %s", _drift_exc)
+
+        # feat/exposure-shadow (2026-09-17): Die Headroom-Entscheidung
+        # (75% -> 72%?) braucht die Exposure-VERTEILUNG, nicht nur die
+        # Trim-Events. Jeder Risk-Zyklus notiert den aktuellen Wert;
+        # Treffer im 72-75-Band sagen, wie oft der Trim bei 72% NOCH
+        # gefeuert haette. Shadow-only: reine Messung, greift NICHT in
+        # die Cap ein. 31d Rolling-Window im JSON.
+        try:
+            if _drift:
+                _ex_actual = _drift["actual_pct"]
+            elif equity > 0:
+                _ex_actual = (sum(float(p.get("amount", 0) or 0)
+                                  for p in raw_positions) / equity * 100.0)
+            else:
+                _ex_actual = 0.0
+            _ex_raw = state_repo.get("EXPOSURE_SHADOW") or ""
+            _ex_hist = json.loads(_ex_raw) if _ex_raw else {"p": []}
+            _ex_hist.setdefault("p", []).append((time.time(), round(_ex_actual, 2)))
+            _ex_cut = time.time() - 31 * 86400
+            _ex_hist["p"] = [pt for pt in _ex_hist["p"] if pt[0] >= _ex_cut]
+            state_repo.set("EXPOSURE_SHADOW", json.dumps(_ex_hist))
+        except Exception as _ex_shadow_exc:
+            logger.debug("RiskWorker: exposure shadow notiert: %s", _ex_shadow_exc)
+
+        if _drift:
+            _dmsg = (
+                f"Exposure {_drift['actual_pct']:.1f}% > Cap "
+                f"{_drift['limit_pct']:.0f}% ({_drift['breach_pct']:.1f}pp darueber) — "
+                f"${_drift['total_amount']:.0f} investiert bei ${_drift['equity']:.0f} "
+                f"Equity, Ueberhang ${_drift['excess_amount']:.0f} "
+                f"({_drift['position_count']} Positionen)"
+            )
+            logger.warning("RiskWorker: total exposure drift — %s", _dmsg)
+            log_repo.write("WARN", "risk_worker",
+                           f"Gesamt-Exposure ueber Cap: {_dmsg}", _drift)
+
+            _auto_trim = bool((cfg.get("risk", {}) or {}).get("exposure_auto_trim", True))
+            # Kill-Switch hat Vorrang: aktiv = keine neuen Orders, auch
+            # keine korrigierenden. Der Trim ist eine Handelsaktion.
+            if _auto_trim and not is_kill_switch_active():
+                from bot.core.concentration_monitor import (
+                    plan_exposure_trim, close_exposure_excess,
+                )
+                # fix/exposure-trim-market-hours: Positionen an
+                # geschlossenen Boersen ueberspringen. Ohne den Guard traf
+                # LIFO 2883.HK bei zu HK-Boerse — 165s Timeout pro Lauf,
+                # Exposure sank nie.
+                def _trim_market_open(_iid: int) -> bool:
+                    try:
+                        from bot.core.market_hours import (
+                            is_market_open, resolve_market_fields,
+                        )
+                        # Einziger Aufrufer, der auch das Symbol aus der
+                        # instruments-Zeile braucht — er hat nur die ID.
+                        _mf = resolve_market_fields(db, _iid)
+                        if not _mf:
+                            return True  # fail-open: Zeile fehlt
+                        return is_market_open(_mf[0], _mf[1], _mf[2])
+                    except Exception:
+                        return True  # fail-open
+
+                _trim_plan = plan_exposure_trim(
+                    raw_positions, equity, _exp_cap, instrument_map,
+                    is_market_open_fn=_trim_market_open)
+                _trim_stats = close_exposure_excess(
+                    client, _trim_plan, _drift, db=db)
+                closed_count += _trim_stats["closed"]
+                _trim_done = _trim_stats["closed"] + _trim_stats["pending"]
+                if not _trim_plan:
+                    logger.info(
+                        "RiskWorker: Exposure %.1f%% ueber Cap, aber keine "
+                        "Position mit offenem Markt — Trim vertagt",
+                        _drift["actual_pct"])
+                if _trim_done > 0:
+                    _tmsg = (
+                        f"Exposure-Auto-Trim: {_trim_stats['closed']} geschlossen"
+                        + (f", {_trim_stats['pending']} unverifiziert (PENDING)"
+                           if _trim_stats["pending"] else "")
+                        + f", ${_trim_stats['freed_usd']:.0f} freigesetzt "
+                          f"({_drift['actual_pct']:.1f}% → Ziel ≤{_drift['limit_pct']:.0f}%)"
+                    )
+                    logger.warning("RiskWorker: %s", _tmsg)
+                    log_repo.write("WARN", "risk_worker", _tmsg, _trim_stats)
+                    _discord(
+                        "post_alert_embed",
+                        title="🔄 Exposure-Auto-Trim ausgeführt",
+                        description=f"{_dmsg}\n\n{_tmsg}\n\nPolicy: LIFO (neueste zuerst).",
+                        severity="WARNING",
+                    )
+                for _terr in _trim_stats["errors"]:
+                    logger.error("RiskWorker: Trim-Fehler — %s", _terr)
+                    log_repo.write("ERROR", "risk_worker", f"Exposure-Trim: {_terr}")
+            else:
+                # Nur wenn der Bot NICHT handeln darf, wird gemeldet.
+                # Throttle: der Zustand haelt tagelang an, ungedrosselt
+                # waeren es ~288 Embeds/Tag.
+                try:
+                    from datetime import datetime as _ed_dt, timezone as _ed_tz
+                    _ed_last = state_repo.get("EXPOSURE_DRIFT_EMBED_AT") or ""
+                    _ed_due = True
+                    if _ed_last:
+                        _ed_prev = _ed_dt.fromisoformat(_ed_last)
+                        if _ed_prev.tzinfo is None:
+                            _ed_prev = _ed_prev.replace(tzinfo=_ed_tz.utc)
+                        _ed_due = (_ed_dt.now(_ed_tz.utc) - _ed_prev).total_seconds() >= 6 * 3600
+                    if _ed_due:
+                        state_repo.set("EXPOSURE_DRIFT_EMBED_AT",
+                                       _ed_dt.now(_ed_tz.utc).isoformat())
+                        _discord(
+                            "post_alert_embed",
+                            title="⚠️ Gesamt-Exposure über Cap (Auto-Trim aus)",
+                            description=(
+                                f"{_dmsg}\n\nAuto-Trim ist deaktiviert bzw. der "
+                                f"Kill-Switch aktiv — es wird nicht korrigiert."
+                            ),
+                            severity="WARNING",
+                        )
+                except Exception:
+                    pass
+    except Exception as _conc_exc:
+        logger.debug("RiskWorker: Concentration check skipped: %s", _conc_exc)
+    return closed_count, conc_closed, conc_warned
+
+
+def _run_trailing(cfg: dict, db, db_path, client, state_repo, log_repo,
+                  raw_positions: list[dict], regime: str
+                  ) -> tuple[int, int, list[str], int]:
+    """Trailing Stop / Profit-Taking inkl. KI-Advisor und gedrosseltem
+    Fehler-Embed. Rueckgabe (break_evens, partials, errors, closed_add).
+    """
+    trailing_be_count = 0
+    trailing_partial_count = 0
+    trailing_error_list: list[str] = []
+    closed_count = 0
+    try:
+        from bot.core.trailing_stop import (
+            apply_config as apply_trailing_config,
+            cleanup_position_state,
+            evaluate_trailing,
+            execute_trailing_actions,
+        )
+        apply_trailing_config(cfg)  # wire trailing.momentum_fade / trailing.scalp
+
+        # Stale State-Zeilen geschlossener Positionen entsorgen
+        _live_ids = {
+            str(p.get("positionID") or p.get("positionId") or "")
+            for p in raw_positions
+        }
+        cleanup_position_state(db, _live_ids)
+
+        trailing_actions = evaluate_trailing(raw_positions, regime=regime, db=db)
+        if trailing_actions:
+            # ── KI-Profit-Advisor: close_pct per Trigger individuell kalibrieren ──
+            try:
+                from bot.core.llm_profit_advisor import advise_close_pct as _advise
+                adjusted = []
+                for _act in trailing_actions:
+                    if _act.action in ('PARTIAL_CLOSE', 'MOMENTUM_FADE') and _act.close_pct > 0:
+                        _adj_pct, _adj_reason = _advise(
+                            symbol=_act.symbol,
+                            trigger=_act.action,
+                            pnl_pct=_act.pnl_pct,
+                            default_close_pct=_act.close_pct,
+                            regime=regime,
+                            position_id=_act.position_id,
+                            instrument_id=_act.instrument_id,
+                            db_path=db_path,
+                        )
+                        if _adj_pct == 0.0:
+                            logger.info('[risk] KI-Advisor: %s %s UEBERSPRUNGEN — %s',
+                                        _act.action, _act.symbol, _adj_reason)
+                            continue  # Trigger ignorieren — Trend intakt
+                        _act.close_pct = _adj_pct
+                        _act.reason = _act.reason + ' [KI: %.0f%% — %s]' % (_adj_pct, _adj_reason)
+                    adjusted.append(_act)
+                trailing_actions = adjusted
+            except Exception as _adv_exc:
+                logger.debug('[risk] KI-Advisor nicht verfuegbar: %s', _adv_exc)
+
+            ts_stats = execute_trailing_actions(client, trailing_actions, regime=regime, db=db)
+            trailing_be_count += ts_stats.get('break_evens', 0)
+            trailing_partial_count += ts_stats['partial_closes']
+            if ts_stats['partial_closes'] > 0 or ts_stats.get('be_closes', 0) > 0:
+                logger.info('RiskWorker: Trailing Stop: %d partial closes (%d momentum-fades), %d BE-closes, %d break-evens',
+                           ts_stats['partial_closes'], ts_stats.get('momentum_fades', 0),
+                           ts_stats.get('be_closes', 0), ts_stats['break_evens'])
+                closed_count += ts_stats.get('be_closes', 0)
+            if ts_stats.get('errors'):
+                for err in ts_stats['errors']:
+                    trailing_error_list.append(str(err))
+                    logger.warning('RiskWorker: Trailing Stop error: %s', err)
+                log_repo.write(
+                    'WARN',
+                    'risk_worker',
+                    f"Trailing Stop: {len(ts_stats['errors'])} partial-close error(s)",
+                    {'errors': ts_stats['errors']},
+                )
+                # fix/trailing-error-throttle (2026-08-12): Ein
+                # unverifizierter Close wiederholt sich per Design jeden
+                # 5-min-Lauf (BE_CLOSE ist Verlustschutz — der Retry MUSS
+                # bleiben). Ungedrosselt ergab das ~288 identische Embeds
+                # pro Tag; 9633.HK hat so seit 2026-08-10 gemeldet.
+                # BEWUSST nur gedrosselt, nicht unterdrueckt: ein
+                # unverifizierter Close bei OFFENER Boerse ist ein echtes
+                # Signal. Signatur-basiert, damit ein NEUER Fehler sofort
+                # durchkommt und nicht hinter dem alten wartet.
+                import hashlib as _hl
+                _sig = _hl.md5(
+                    "|".join(sorted(str(e) for e in ts_stats['errors']))
+                    .encode('utf-8')).hexdigest()[:12]
+                _due = True
+                try:
+                    from datetime import datetime as _te_dt, timezone as _te_tz
+                    _prev = state_repo.get('TRAILING_ERR_EMBED') or ''
+                    _psig, _, _pts = _prev.partition('@')
+                    if _psig == _sig and _pts:
+                        _pdt = _te_dt.fromisoformat(_pts)
+                        if _pdt.tzinfo is None:
+                            _pdt = _pdt.replace(tzinfo=_te_tz.utc)
+                        _due = (_te_dt.now(_te_tz.utc) - _pdt).total_seconds() >= 6 * 3600
+                    if _due:
+                        state_repo.set(
+                            'TRAILING_ERR_EMBED',
+                            f"{_sig}@{_te_dt.now(_te_tz.utc).isoformat()}")
+                except Exception:
+                    _due = True  # fail-open: im Zweifel melden
+                if _due:
+                    _discord(
+                        'post_alert_embed',
+                        title=f"🟠 Trailing Stop: {len(ts_stats['errors'])} Fehler",
+                        description=(
+                            "Gewinne wurden NICHT teilweise realisiert.\n"
+                            + "\n".join(f'• {e}' for e in ts_stats['errors'])
+                            + "\n\n_Wiederholt sich der Fehler, meldet der Bot "
+                              "erst in 6 h erneut — der Retry laeuft weiter._"
+                        ),
+                        severity='WARNING',
+                        dry_run=False,
+                    )
+    except Exception as _ts_exc:
+        logger.error('RiskWorker: Trailing stop failed: %s', _ts_exc)
+        log_repo.write('ERROR', 'risk_worker', f'Trailing stop crashed: {_ts_exc}')
+    return trailing_be_count, trailing_partial_count, trailing_error_list, closed_count
+
+
+def _run_exit_monitor(cfg: dict, db, client, state_repo, log_repo,
+                      raw_positions: list[dict]) -> None:
+    # fix/sell-signal-exits: FRESH SELL/OVERBOUGHT-Signale auf gehaltene
+    # Instrumente → Partial-Close (Gewinnmitnahme bei Überhitzung).
+    # Vorher wurden SELL-Signale generiert und gespeichert, aber von
+    # keinem Worker konsumiert.
+    # P2 Exit-Signal-Monitor (1H, Stunden-Gate): schreibt SELL-Signale
+    # fuer kippende Trends der offenen Positionen; process_sell_exits
+    # konsumiert sie direkt im Anschluss (feat/exit-monitor-1h).
+    try:
+        from bot.core.exit_monitor import run_exit_monitor
+        _em = run_exit_monitor(db, state_repo, raw_positions, cfg, client=client)
+        if _em.get("signals"):
+            log_repo.write(
+                "INFO", "risk_worker",
+                f"Exit-Monitor 1H: {_em['signals']} SELL-Signal(e) "
+                f"({_em['scanned']} Positionen gescannt)",
+                {"symbols": _em.get("symbols")},
+            )
+            # feat/candle-charts: Kerzen des (ersten) Kipps anhaengen
+            try:
+                _hits = _em.get("hits") or []
+                if _hits:
+                    from bot.core.candle_chart import render_candles_png
+                    import sys as _sys
+                    from pathlib import Path as _P
+                    _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
+                    import discord_embeds as _DE_ch
+                    _iid0, _sym0 = _hits[0]
+                    _DE_ch.attach_chart(render_candles_png(
+                        client.get_candles(int(_iid0), "OneHour", 60),
+                        f"{_sym0} — 1H Trend-Kipp",
+                    ))
+            except Exception:
+                pass
+            _discord(
+                "post_alert_embed",
+                title=f"📉 1H-Trend-Kipp: {', '.join(_em.get('symbols', []))[:200]}",
+                description=(
+                    "MACD-Bear-Cross + RSI<50 auf Stundenkerzen — "
+                    "SELL-Signal erzeugt; Gewinnmitnahme erfolgt nur bei "
+                    "profitabler Position (sell_exits, 50% Partial)."
+                ),
+                severity="INFO",
+            )
+    except Exception as _em_exc:
+        logger.warning("RiskWorker: exit_monitor failed: %s", _em_exc)
+
+
+def _run_sell_exits(client, db, log_repo, raw_positions: list[dict]) -> int:
+    """SELL-Signal-Exits (Partial-Close). Gibt die Anzahl Closes zurueck."""
+    sell_exit_closed = 0
+    try:
+        from bot.core.sell_exits import process_sell_exits
+        from bot.db.repo import SignalRepo as _SignalRepo
+        sell_stats = process_sell_exits(client, _SignalRepo(db), raw_positions, db=db)
+        if sell_stats['closed'] > 0:
+            sell_exit_closed += sell_stats['closed']
+            logger.info('RiskWorker: SELL-Exits: %d Partial-Close(s) ausgeführt',
+                        sell_stats['closed'])
+            log_repo.write('INFO', 'risk_worker',
+                           f"SELL-Exits: {sell_stats['closed']} Partial-Close(s)")
+        if sell_stats.get('errors'):
+            for err in sell_stats['errors']:
+                logger.warning('RiskWorker: SELL-Exit error: %s', err)
+            log_repo.write('WARN', 'risk_worker',
+                           f"SELL-Exits: {len(sell_stats['errors'])} Fehler",
+                           {'errors': sell_stats['errors']})
+    except Exception as _se_exc:
+        logger.error('RiskWorker: SELL-Exits failed: %s', _se_exc)
+        log_repo.write('ERROR', 'risk_worker', f'SELL-Exits crashed: {_se_exc}')
+    return sell_exit_closed
+
+
+def _run_earnings_exit(cfg: dict, db, client, state_repo, log_repo,
+                       raw_positions: list[dict]) -> int:
+    closed_count = 0
+    # Earnings-Exit (feat/earnings-exit, 1x taeglich via Gate): bestehende
+    # grosse Positionen vor Earnings de-risken — After-Hours-Gaps umgehen
+    # den SL (ROKU-Fallstudie aus dem OSS-Vergleich).
+    try:
+        from bot.core.earnings_exit import run_earnings_exit
+        _ee = run_earnings_exit(db, state_repo, client, raw_positions, cfg)
+        if _ee.get("actions"):
+            closed_count = int(_ee.get("closed") or 0)
+            log_repo.write(
+                "INFO", "risk_worker",
+                f"Earnings-Exit: {_ee['actions']} Aktion(en), {_ee['closed']} ausgefuehrt",
+                {"symbols": _ee.get("symbols")},
+            )
+            _discord(
+                "post_alert_embed",
+                title=f"📅 Earnings-Exit: {', '.join(_ee.get('symbols', []))[:200]}",
+                description=(
+                    f"{_ee['actions']} Position(en) vor Earnings de-risked "
+                    f"({_ee['closed']} Teilverkaeufe bestaetigt) — "
+                    f"After-Hours-Gap-Schutz."
+                ),
+                severity="WARNING",
+            )
+    except Exception as _ee_exc:
+        logger.warning('RiskWorker: earnings_exit failed: %s', _ee_exc)
+    return closed_count
+
+
 def main() -> None:
     # ── Worker lock: prevent overlapping cron invocations ────────────────────
     from bot.core.worker_lock import worker_lock
@@ -187,8 +1247,7 @@ def main() -> None:
         cfg = _load_config()
     
         from bot.api.client import APIError, ClientConfig, EToroClient
-        from bot.core.regime import update_regime
-        from bot.core.risk import apply_config, evaluate_sl
+        from bot.core.risk import apply_config
         from bot.core.regime import apply_config as apply_regime_config
         apply_config(cfg)  # fix/risk-config-wiring: SL-Schwellen/Limits aus config.yaml
         apply_regime_config(cfg)  # fix/regime-config-wiring: Drawdown-Regime-Schwellen
@@ -219,17 +1278,7 @@ def main() -> None:
         import time as _time_dur
         _t_run_start = _time_dur.monotonic()
 
-        closed_count = 0
-        checked_count = 0
-        sl_warning_count = 0
-        trailing_be_count = 0
-        trailing_partial_count = 0
-        trailing_error_list: list[str] = []
-        sell_exit_closed = 0
-        conc_closed = 0
-        conc_warned = 0
         regime = "NORMAL"
-        positions_summary: list[dict] = []
     
         # ── 2. Fetch live positions from eToro ────────────────────────────────────
         try:
@@ -258,988 +1307,38 @@ def main() -> None:
         # lowercase-first lookups returned None for EVERY position, so SL
         # closes were fired as close_position(None, ...) → HTTP 400.
         # Same extraction order as reconciler._build_snapshot_record().
-        for pos in raw_positions:
-            checked_count += 1
-    
-            position_id = (
-                pos.get("positionID")
-                or pos.get("positionId")
-                or pos.get("id")
-                or pos.get("position_id")
-            )
-            instrument_id = (
-                pos.get("instrumentID")
-                or pos.get("instrumentId")
-                or pos.get("instrument_id")
-            )
-            symbol = pos.get("symbol") or ""
-            if not symbol and instrument_id is not None:
-                # Payload carries no symbol — resolve via portfolio_snapshot,
-                # then instruments table (raw IDs in Discord/logs vermeiden)
-                try:
-                    _sym_row = db.fetchone(
-                        "SELECT symbol FROM portfolio_snapshot "
-                        "WHERE instrument_id = ? AND symbol IS NOT NULL "
-                        "ORDER BY last_synced DESC LIMIT 1",
-                        (int(instrument_id),),
-                    )
-                    if not _sym_row:
-                        _sym_row = db.fetchone(
-                            "SELECT symbol FROM instruments "
-                            "WHERE instrument_id = ? AND symbol IS NOT NULL",
-                            (int(instrument_id),),
-                        )
-                    if _sym_row:
-                        symbol = _sym_row["symbol"]
-                except Exception:
-                    pass
-            if not symbol:
-                symbol = str(instrument_id)
-    
-            # Extract pnl_pct: unrealizedPnL.pnLPct or flat pnLPct
-            unrealized = pos.get("unrealizedPnL") or {}
-            if isinstance(unrealized, dict):
-                raw_pnl_pct = unrealized.get("pnLPct") or unrealized.get("pnlPct") or 0.0
-            else:
-                raw_pnl_pct = float(unrealized) if unrealized else 0.0
-    
-            # Fallback: flat field on position
-            if raw_pnl_pct == 0.0:
-                raw_pnl_pct = (
-                    pos.get("pnLPct")
-                    or pos.get("pnlPct")
-                    or pos.get("unrealized_pnl_pct")
-                    or 0.0
-                )
-    
-            try:
-                raw_pnl_pct = float(raw_pnl_pct)
-            except (TypeError, ValueError):
-                raw_pnl_pct = 0.0
-
-            # fix/autonomy-hardening: the old "abs < 1.0 → ×100" heuristic was
-            # a real false-positive path — a genuine −0.8% position became
-            # −80% and was closed instantly. Primary source is now the
-            # rate-derived PnL (openRate vs. live closeRate, long-only bot);
-            # the raw API field is the fallback and is taken AS-IS (eToro
-            # reports pnLPct in percent). Ambiguous small values are logged
-            # instead of being silently rescaled.
-            pnl_pct = raw_pnl_pct
-            _open_rate = float(pos.get("openRate", 0) or 0)
-            _close_rate = 0.0
-            if isinstance(unrealized, dict):
-                _close_rate = float(unrealized.get("closeRate", 0) or 0)
-            if _close_rate <= 0:
-                _close_rate = float(pos.get("closeRate", 0) or pos.get("currentRate", 0) or 0)
-
-            if _open_rate > 0 and _close_rate > 0:
-                rate_pnl_pct = (_close_rate / _open_rate - 1.0) * 100.0
-                if raw_pnl_pct != 0.0 and abs(rate_pnl_pct - raw_pnl_pct) > 1.0:
-                    logger.warning(
-                        "RiskWorker: %s PnL-Diskrepanz — API=%.2f%% vs. ratenbasiert=%.2f%% "
-                        "(nutze ratenbasiert)",
-                        symbol, raw_pnl_pct, rate_pnl_pct,
-                    )
-                pnl_pct = rate_pnl_pct
-            elif raw_pnl_pct != 0.0 and abs(raw_pnl_pct) < 1.0:
-                logger.info(
-                    "RiskWorker: %s PnL %.4f%% ist klein — wird als Prozentwert "
-                    "interpretiert (keine ×100-Reskalierung mehr)",
-                    symbol, raw_pnl_pct,
-                )
-
-            sl_action = evaluate_sl(pnl_pct)
-    
-            if sl_action.action == "CLOSE":
-                # hotfix/risk-worker-position-id: never send a close order
-                # without a valid position id — the API rejects 'None' with
-                # HTTP 400 and the position stays open while looking handled.
-                if not position_id or str(position_id).lower() == "none":
-                    logger.error(
-                        "RiskWorker: SL CLOSE für %s NICHT ausführbar — position_id fehlt "
-                        "im API-Payload (Felder: %s)",
-                        symbol, sorted(pos.keys()),
-                    )
-                    log_repo.write(
-                        "ERROR",
-                        "risk_worker",
-                        f"SL CLOSE blockiert: {symbol} ohne position_id (pnl={pnl_pct:.2f}%)",
-                        {"payload_keys": sorted(pos.keys()), "pnl_pct": pnl_pct},
-                    )
-                    _discord(
-                        "post_alert_embed",
-                        title="🔴 RiskWorker: SL-Close ohne position_id",
-                        description=(
-                            f"{symbol}: SL bei {pnl_pct:.2f}% ausgelöst, aber API-Payload "
-                            f"enthält keine positionID — Position bleibt offen, manuelle Prüfung!"
-                        ),
-                        severity="CRITICAL",
-                    )
-                    continue
-
-                logger.warning(
-                    "RiskWorker: SL CLOSE triggered for %s (pos=%s) — %s",
-                    symbol, position_id, sl_action.reason,
-                )
-                log_repo.write(
-                    "WARN",
-                    "risk_worker",
-                    f"SL CLOSE: {symbol} position {position_id}",
-                    {"reason": sl_action.reason, "pnl_pct": pnl_pct},
-                )
-    
-                try:
-                    client.close_position(position_id, instrument_id)
-
-                    # ── Verify the full-close actually took effect ──────────────
-                    from bot.core.trailing_stop import verify_full_close
-                    verified, detail, _pnl_data = verify_full_close(client, int(instrument_id or 0), str(position_id))
-                    
-                    # ── Extract PnL data for DB + embed (always available) ────
-                    upnl = pos.get("unrealizedPnL") or {}
-                    close_price = float(upnl.get("closeRate", 0) if isinstance(upnl, dict) else 0)
-                    pnl_usd_est = float(upnl.get("pnL", 0) if isinstance(upnl, dict) else 0)
-                    
-                    if verified:
-                        closed_count += 1
-                        logger.warning("RiskWorker: %s", detail)
-                        # fix/sl-close-unverified-dedupe: verified close resets
-                        # any leftover unverified-alert state for this position.
-                        _clear_unverified_close_state(state_repo, str(position_id))
-                        # Remove from local portfolio snapshot
-                        db.execute(
-                            "DELETE FROM portfolio_snapshot WHERE api_position_id = ?",
-                            (str(position_id),),
-                        )
-                        logger.warning(
-                            "RiskWorker: Closed position %s (%s) — pnl=%.2f%%",
-                            position_id, symbol, pnl_pct,
-                        )
-                        # ── Update trade record with verified close data ───────
-                        try:
-                            db.execute(
-                                """UPDATE trades SET status='CLOSED', exit_price=?, pnl_usd=?, pnl_pct=?, 
-                                   closed_at=datetime('now'), verification_status='VERIFIED'
-                                   WHERE api_position_id=? AND status IN ('ACTIVE','SUBMITTING','CONFIRMED')""",
-                                (close_price, pnl_usd_est, pnl_pct, str(position_id)),
-                            )
-                        except Exception as _db_exc:
-                            logger.debug("Trade DB update failed: %s", _db_exc)
-                        
-                        # ── Discord: CLOSE Embed → #etoro-trades ────────────────
-                        try:
-                            try:
-                                from bot.core.candle_chart import trade_story_png
-                                import sys as _sys
-                                from pathlib import Path as _P
-                                _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
-                                import discord_embeds as _DE_st
-                                _DE_st.attach_chart(trade_story_png(
-                                    client, pos.get("instrumentID"), symbol,
-                                    entry=float(pos.get("openRate", 0) or 0) or None,
-                                    exit_price=close_price,
-                                    opened_at=pos.get("openDateTime"),
-                                ))
-                            except Exception:
-                                pass
-                            _close_ok = _discord(
-                                "post_position_closed_embed",
-                                symbol=symbol,
-                                amount_usd=float(pos.get("amount", 0)),
-                                position_id=str(position_id),
-                                entry_price=float(pos.get("openRate", 0)),
-                                close_price=close_price,
-                                pnl_usd=pnl_usd_est,
-                                pnl_pct=pnl_pct,
-                                reason=sl_action.reason,
-                            )
-                            from bot.core.event_log import record_posted_event
-                            record_posted_event(
-                                db, _DE, symbol=symbol, event_type="CLOSE",
-                                source="risk_sl", post_result=_close_ok,
-                                position_id=str(position_id),
-                                instrument_id=int(pos.get("instrumentID") or 0) or None,
-                                price=close_price or None,
-                                amount_usd=float(pos.get("amount", 0)),
-                                pnl_usd=pnl_usd_est, pnl_pct=pnl_pct,
-                                pnl_source="derived", reason=sl_action.reason,
-                                chart_posted=True, reported_final=False,
-                            )
-                        except Exception as _emb_exc:
-                            logger.debug("Discord close embed failed: %s", _emb_exc)
-                    else:
-                        # ── UNVERIFIED: still send embed + save estimated PnL ───
-                        # fix/sl-close-unverified-dedupe (2026-08-21): per-position
-                        # cap + cooldown on the CRITICAL alert (was: 1 ERROR +
-                        # 1 CRITICAL embed every 5-min cycle per stuck position).
-                        _alert_due, _uv_count = _unverified_close_alert_due(
-                            state_repo, str(position_id), symbol)
-                        if _alert_due:
-                            logger.error("RiskWorker: SL-Close NOT verified — %s", detail)
-                            log_repo.write(
-                                "ERROR",
-                                "risk_worker",
-                                f"SL-Close unverified: {symbol} ({position_id}) — {detail}",
-                            )
-                        else:
-                            logger.warning(
-                                "RiskWorker: SL-Close still unverified (%s, %s Alert(s) bereits "
-                                "gesendet — weitere gedrosselt) — %s",
-                                symbol, _uv_count, detail,
-                            )
-                            log_repo.write(
-                                "WARN",
-                                "risk_worker",
-                                f"SL-Close unverified (gedrosselt, {_uv_count} Alert(s) gesendet): "
-                                f"{symbol} ({position_id}) — {detail}",
-                            )
-                        
-                        # ── Save estimated PnL to DB (PENDING verification) ────
-                        try:
-                            db.execute(
-                                """UPDATE trades SET status='CLOSED', exit_price=?, pnl_usd=?, pnl_pct=?, 
-                                   closed_at=datetime('now'), verification_status='PENDING'
-                                   WHERE api_position_id=? AND status IN ('ACTIVE','SUBMITTING','CONFIRMED')""",
-                                (close_price, pnl_usd_est, pnl_pct, str(position_id)),
-                            )
-                        except Exception as _db_exc:
-                            logger.debug("Trade DB update (PENDING) failed: %s", _db_exc)
-                        
-                        # fix/sl-close-unverified-dedupe (2026-08-21): the
-                        # provisional CLOSE embed to #etoro-trades AND the
-                        # CRITICAL alert BOTH used to fire every 5-min cycle
-                        # (2600.HK: 105 embeds + 105 alerts in ~11h). Gate both
-                        # behind the per-position dedupe — post the provisional
-                        # close + alert at most SL_UNVERIFIED_MAX_ALERTS times
-                        # per position (6h cooldown), downgrade CRITICAL→WARNING
-                        # after the first hit. The PENDING trade record above is
-                        # idempotent and the Reconciler finalizes it.
-                        if _alert_due:
-                            # ── Discord: Provisional CLOSE Embed → #etoro-trades ────
-                            try:
-                                try:
-                                    from bot.core.candle_chart import trade_story_png
-                                    import sys as _sys
-                                    from pathlib import Path as _P
-                                    _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
-                                    import discord_embeds as _DE_st
-                                    _DE_st.attach_chart(trade_story_png(
-                                        client, pos.get("instrumentID"), symbol,
-                                        entry=float(pos.get("openRate", 0) or 0) or None,
-                                        exit_price=close_price,
-                                        opened_at=pos.get("openDateTime"),
-                                    ))
-                                except Exception:
-                                    pass
-                                _close_ok = _discord(
-                                    "post_position_closed_embed",
-                                    symbol=symbol,
-                                    amount_usd=float(pos.get("amount", 0)),
-                                    position_id=str(position_id),
-                                    entry_price=float(pos.get("openRate", 0)),
-                                    close_price=close_price,
-                                    pnl_usd=pnl_usd_est,
-                                    pnl_pct=pnl_pct,
-                                    reason=f"{sl_action.reason} (⚠️ PnL geschätzt — Reconciler finalisiert)",
-                                )
-                                from bot.core.event_log import record_posted_event
-                                record_posted_event(
-                                    db, _DE, symbol=symbol, event_type="CLOSE",
-                                    source="risk_sl", post_result=_close_ok,
-                                    position_id=str(position_id),
-                                    instrument_id=int(pos.get("instrumentID") or 0) or None,
-                                    price=close_price or None,
-                                    amount_usd=float(pos.get("amount", 0)),
-                                    pnl_usd=pnl_usd_est, pnl_pct=pnl_pct,
-                                    pnl_source="derived",
-                                    reason=f"{sl_action.reason} (unverifiziert)",
-                                    chart_posted=True, reported_final=False,
-                                )
-                            except Exception as _emb_exc:
-                                logger.debug("Discord provisional close embed failed: %s", _emb_exc)
-
-                            # ── Additional alert for unverified status ──────────────
-                            # CRITICAL on the first hit, then WARNING (state is
-                            # already persisted in trades.verification_status and
-                            # the Reconciler finalizes it — no CRITICAL spam).
-                            _sev = "CRITICAL" if _uv_count <= 1 else "WARNING"
-                            _emoji = "🔴" if _sev == "CRITICAL" else "🟡"
-                            _discord(
-                                "post_alert_embed",
-                                title=f"{_emoji} SL-Close unverifiziert"
-                                + ("" if _uv_count <= 1 else f" (#{_uv_count}, gedrosselt)"),
-                                description=(
-                                    f"{symbol}: {detail} — Embed mit geschätztem PnL gesendet, "
-                                    f"Reconciler wird finalisieren. "
-                                    f"(max. {SL_UNVERIFIED_MAX_ALERTS} Alerts, Cooldown "
-                                    f"{SL_UNVERIFIED_COOLDOWN_HOURS}h)"
-                                ),
-                                severity=_sev,
-                            )
-                        else:
-                            logger.info(
-                                "RiskWorker: SL-Close unverified alert+embed suppressed for %s "
-                                "(count=%s) — PENDING record saved, Reconciler finalisiert",
-                                symbol, _uv_count,
-                            )
-                except APIError as exc:
-                    logger.error(
-                        "RiskWorker: Failed to close position %s — %s", position_id, exc
-                    )
-                    log_repo.write(
-                        "ERROR",
-                        "risk_worker",
-                        f"Failed to close position {position_id} ({symbol}): {exc}",
-                    )
-    
-            elif sl_action.action == "WARNING":
-                sl_warning_count += 1
-                logger.info(
-                    "RiskWorker: SL WARNING for %s (pos=%s) — %s",
-                    symbol, position_id, sl_action.reason,
-                )
-                log_repo.write(
-                    "INFO",
-                    "risk_worker",
-                    f"SL WARNING: {symbol} position {position_id}",
-                    {"reason": sl_action.reason, "pnl_pct": pnl_pct},
-                )
-
-            # ── Collect position summary for embed ────────────────────────────
-            positions_summary.append({
-                "symbol": symbol,
-                "pnl_pct": pnl_pct,
-                "amount_usd": float(pos.get("amount", 0)),
-                "trailing_status": sl_action.reason if sl_action.action in ("WARNING", "CLOSE") else "",
-            })
+        (checked_count, closed_count, sl_warning_count,
+         positions_summary) = _run_sl_checks(db, client, state_repo, log_repo, raw_positions)
 
         # ── 4. Kill Switch check (V5) — BEFORE regime detection ──────────────────
-        from bot.core.kill_switch import (
-            is_kill_switch_active,
-            get_reason as get_kill_switch_reason,
-            auto_clear_if_new_day,
-        )
-        # fix/kill-switch-daily-auto-reset: ein DAILY-Loss-Trip cleared am
-        # naechsten UTC-Tag automatisch — weekly/monthly/manual NIE.
-        _cleared, _clear_detail = auto_clear_if_new_day()
-        if _cleared:
-            logger.warning('RiskWorker: %s', _clear_detail)
-            log_repo.write('WARNING', 'kill_switch', _clear_detail)
-            _discord(
-                'post_alert_embed',
-                title='🟢 Kill-Switch auto-cleared (neuer Handelstag)',
-                description=_clear_detail,
-                severity='WARNING',
-            )
-        if is_kill_switch_active():
-            _ks_reason = get_kill_switch_reason() or 'Manual kill switch'
-            logger.warning('RiskWorker: KILL SWITCH ACTIVE — forcing CRITICAL regime (%s)', _ks_reason)
-            # fix/autonomy-hardening: capture the regime BEFORE overwriting it,
-            # otherwise the embed always showed CRITICAL→CRITICAL.
-            _old_regime = state_repo.get_regime() or 'UNKNOWN'
-            state_repo.set_regime('CRITICAL')
-            state_repo.set('RISK_SCALAR', '0.25')
-            log_repo.write('WARNING', 'kill_switch', f'Kill switch active: {_ks_reason}')
-            # Post Discord alert (best-effort)
-            # Try kill switch embed first; fall back to regime change embed
-            if _DE and hasattr(_DE, 'post_kill_switch_embed'):
-                _discord('post_kill_switch_embed', reason=_ks_reason)
-            else:
-                _discord(
-                    'post_regime_change_embed',
-                    old_regime=_old_regime,
-                    new_regime='CRITICAL',
-                    drawdown_pct=0.0,
-                    equity=state_repo.get_equity() or 0.0,
-                    peak_equity=state_repo.get_equity() or 0.0,
-                    reason=f'🔴 KILL SWITCH AKTIV: {_ks_reason}',
-                )
-            print(f'RiskWorker: KILL SWITCH — CRITICAL regime forced ({_ks_reason})')
-            regime = 'CRITICAL'
-            # Fall through: still run SL checks on existing positions (already done above)
+        from bot.core.kill_switch import is_kill_switch_active
+        regime = _apply_kill_switch(state_repo, log_repo, regime)
 
         # ── 5. Update regime (skipped if kill switch forced CRITICAL) ─────────────
-        equity = state_repo.get_equity()
-        if equity <= 0.0:
-            # Fall back to portfolio equity from the API response if available.
-            # fix/autonomy-hardening: NO fabricated $10,000 default anymore —
-            # if equity is genuinely unknown, we skip regime/drawdown math
-            # (fail-closed) instead of computing it on a fantasy number.
-            equity = float(
-                portfolio.get("equity")
-                or portfolio.get("totalEquity")
-                or portfolio.get("netEquity")
-                or 0.0
-            )
-            if equity > 0.0:
-                state_repo.set("CURRENT_EQUITY", str(equity))
-            else:
-                logger.error(
-                    "RiskWorker: Equity unbekannt (State leer, API-Payload ohne Equity) "
-                    "— Regime-Update übersprungen (fail-closed)"
-                )
-                log_repo.write("ERROR", "risk_worker",
-                               "Equity unbekannt — Regime-Update übersprungen (fail-closed)")
+        equity = _resolve_equity(state_repo, log_repo, portfolio)
 
-        # ── fix/autonomy-hardening: Daily-Loss Auto-Kill-Switch ───────────────────
-        # Regime scaling only reduces sizing; nothing previously STOPPED the
-        # bot automatically. Track day-start equity (UTC) and trip the kill
-        # switch when the intraday drop exceeds risk.daily_loss_limit_pct.
-        if equity > 0.0:
-            from datetime import datetime as _dt, timezone as _tz
-            from bot.core.risk import (
-                check_daily_loss_breach,
-                check_trailing_loss_breach,
-                DAILY_LOSS_LIMIT_PCT_DEFAULT,
-                WEEKLY_LOSS_LIMIT_PCT_DEFAULT,
-                MONTHLY_LOSS_LIMIT_PCT_DEFAULT,
-            )
-            from bot.core.regime import get_rolling_peak
-            from bot.core import kill_switch as _ks
+        regime = _check_loss_limits(cfg, state_repo, log_repo, equity, regime)
 
-            _today = _dt.now(_tz.utc).strftime("%Y-%m-%d")
-            _day_date = state_repo.get("DAY_START_DATE")
-            if _day_date != _today:
-                state_repo.set("DAY_START_DATE", _today)
-                state_repo.set("DAY_START_EQUITY", str(equity))
-                logger.info("RiskWorker: neuer Handelstag %s — DAY_START_EQUITY=%.2f", _today, equity)
-
-            _risk_cfg = cfg.get("risk", {})
-            _day_start_equity = state_repo.get_float("DAY_START_EQUITY", 0.0)
-
-            # Evaluate all three horizons. Weekly/monthly use the trailing
-            # equity high (7d / 30d) from equity_history via get_rolling_peak,
-            # so they measure max drawdown over the window, not intraday.
-            # fix/multi-horizon-loss-limits.
-            _daily_limit = float(_risk_cfg.get("daily_loss_limit_pct", DAILY_LOSS_LIMIT_PCT_DEFAULT))
-            _weekly_limit = float(_risk_cfg.get("weekly_loss_limit_pct", WEEKLY_LOSS_LIMIT_PCT_DEFAULT))
-            _monthly_limit = float(_risk_cfg.get("monthly_loss_limit_pct", MONTHLY_LOSS_LIMIT_PCT_DEFAULT))
-
-            _breaches: list[str] = []
-
-            _d_breached, _day_pnl_pct = check_daily_loss_breach(
-                _day_start_equity, equity, _daily_limit
-            )
-            if _d_breached:
-                _breaches.append(
-                    f"Tagesverlust {_day_pnl_pct:.2f}% > -{_daily_limit:.1f}% "
-                    f"(Start ${_day_start_equity:.2f} → ${equity:.2f})"
-                )
-
-            try:
-                _week_peak = get_rolling_peak(state_repo.db, equity, days=7)
-                _month_peak = get_rolling_peak(state_repo.db, equity, days=30)
-            except Exception as _peak_exc:
-                logger.warning("RiskWorker: get_rolling_peak fehlgeschlagen (%s) — "
-                               "Wochen/Monats-Check übersprungen", _peak_exc)
-                _week_peak = _month_peak = 0.0
-
-            _w_breached, _week_dd = check_trailing_loss_breach(_week_peak, equity, _weekly_limit)
-            if _w_breached:
-                _breaches.append(
-                    f"Wochenverlust {_week_dd:.2f}% > -{_weekly_limit:.1f}% "
-                    f"(7-Tage-Hoch ${_week_peak:.2f} → ${equity:.2f})"
-                )
-
-            _m_breached, _month_dd = check_trailing_loss_breach(_month_peak, equity, _monthly_limit)
-            if _m_breached:
-                _breaches.append(
-                    f"Monatsverlust {_month_dd:.2f}% > -{_monthly_limit:.1f}% "
-                    f"(30-Tage-Hoch ${_month_peak:.2f} → ${equity:.2f})"
-                )
-
-            if _breaches and not is_kill_switch_active():
-                _reason = "AUTO: " + " | ".join(_breaches)
-                # Scope = schwerster ausgeloester Horizont. Nur ein REINER
-                # Daily-Trip bekommt scope='daily' (Auto-Clear am naechsten
-                # UTC-Tag) — sobald weekly/monthly beteiligt ist, bleibt der
-                # Kill-Switch bis zur manuellen Pruefung stehen.
-                if _m_breached:
-                    _scope = "monthly"
-                elif _w_breached:
-                    _scope = "weekly"
-                else:
-                    _scope = "daily"
-                logger.critical("RiskWorker: %s — Kill Switch wird aktiviert (scope=%s)", _reason, _scope)
-                _ks.activate(_reason, scope=_scope)
-                state_repo.set_regime("CRITICAL")
-                state_repo.set("RISK_SCALAR", "0.25")
-                log_repo.write("CRITICAL", "risk_worker", f"Auto-Kill-Switch ({_scope}): {_reason}")
-                _reactivation_note = (
-                    "Auto-Reset am nächsten UTC-Handelstag."
-                    if _scope == "daily"
-                    else "Reaktivierung: `rm data/kill_switch.flag` nach manueller Prüfung."
-                )
-                _discord(
-                    "post_alert_embed",
-                    title="🛑 AUTO-KILL-SWITCH ausgelöst",
-                    description=(
-                        f"{_reason}\n"
-                        f"Alle neuen Trades gestoppt. {_reactivation_note}"
-                    ),
-                    severity="CRITICAL",
-                )
-                regime = "CRITICAL"
-
-        if equity > 0.0 and not is_kill_switch_active():
-            previous_regime = state_repo.get_regime()
-            regime, regime_changed = update_regime(state_repo, equity)
-
-            if regime_changed:
-                logger.info("RiskWorker: Regime changed → %s (equity=%.2f)", regime, equity)
-                log_repo.write(
-                    "INFO",
-                    "risk_worker",
-                    f"Regime change → {regime}",
-                    {"equity": equity},
-                )
-                _discord(
-                    'post_regime_change_embed',
-                    old_regime=previous_regime or 'UNKNOWN',
-                    new_regime=regime,
-                    drawdown_pct=float(state_repo.get("DRAWDOWN_PCT") or 0.0),
-                    reason=state_repo.get("DRAWDOWN_REASON") or f"Regime changed to {regime}",
-                )
-        else:
-            # Kill switch forces CRITICAL — do not allow update_regime() to
-            # overwrite. If we got here because equity is unknown (fail-closed
-            # skip), keep the last known regime instead of forcing CRITICAL.
-            if is_kill_switch_active():
-                regime = 'CRITICAL'
-            else:
-                regime = state_repo.get_regime() or 'NORMAL'
-            regime_changed = False
+        regime = _update_regime_step(state_repo, log_repo, equity)
     
         # ── P3 V5: Post-Trade Concentration Monitoring ────────────────────────────
-        try:
-            from bot.core.concentration_monitor import (
-                check_concentration_violations,
-                close_concentration_excess,
-                check_asset_class_violations,
-            )
-            # Load instrument map for symbol resolution
-            instrument_map: dict = {}
-            try:
-                import json
-                map_path = PROJECT_ROOT / "data" / "instrument_map.json"
-                if map_path.exists():
-                    raw = json.loads(map_path.read_text())
-                    data = raw.get("map", raw)
-                    instrument_map = {
-                        int(k): v for k, v in data.items()
-                        if not k.startswith("_") and str(k).isdigit()
-                    }
-            except Exception:
-                pass
-    
-            violations = check_concentration_violations(raw_positions, equity, instrument_map)
-            if violations:
-                conc_stats = close_concentration_excess(client, violations, db=db)
-                conc_closed += conc_stats["closed"]
-                conc_warned += conc_stats["warned"]
-                if conc_stats["closed"] > 0:
-                    closed_count += conc_stats["closed"]
-                    logger.warning(
-                        "RiskWorker: Concentration violations fixed: %d closed, %d warned",
-                        conc_stats["closed"], conc_stats["warned"],
-                    )
-                elif conc_stats["warned"] > 0:
-                    logger.info(
-                        "RiskWorker: %d concentration warnings (below immediate threshold)",
-                        conc_stats["warned"],
-                    )
-
-            # fix/asset-class-concentration (audit H7): detect asset-class
-            # drift post-trade (price appreciation past a sector cap). Warn
-            # only — no auto-close; surfaces for a human rebalance decision.
-            #
-            # Unification (2026-09-11): der Monitor auflöst die Asset-Klasse
-            # jetzt mit resolve_asset_class wie das Pre-Trade-Gate — kuratiertes
-            # ASSET_CLASS_MAP plus DB-Sektor-Fallback. Die Sektor-Map wird NUR
-            # dann gespeist, wenn sector_limits.enforce_db_sectors aktiv ist —
-            # derselbe Schalter wie im Gate, damit Pre- und Post-Trade
-            # identisch grenzen. In der LIVE-Config ist der Schalter AN —
-            # der Monitor warnt daher jetzt auch bei DB-Sektor-Drift
-            # (WARN-only: kein Auto-Close, keine Geld-Wirkung; das Geld-
-            # wirksame Pre-Trade-Gate bleibt unverändert). Nur ohne Flag
-            # → Verhalten exakt wie zuvor.
-            _ac_sector_map: dict = {}
-            if bool((cfg.get("sector_limits", {}) or {}).get("enforce_db_sectors", False)):
-                try:
-                    _ac_sector_map = {
-                        str(r["symbol"]).upper(): str(r["sector"])
-                        for r in (db.fetchall(
-                            "SELECT symbol, sector FROM instruments "
-                            "WHERE sector IS NOT NULL AND sector != '' AND sector != 'unknown'"
-                        ) or [])
-                    }
-                    logger.info("RiskWorker: Asset-Class-Sektor-Map aktiv (%d Instrumente)",
-                                len(_ac_sector_map))
-                except Exception as _ac_sec_exc:
-                    logger.warning("RiskWorker: Sektor-Map nicht ladbar (%s) — Asset-Class-Monitor fail-open",
-                                   _ac_sec_exc)
-                    _ac_sector_map = {}
-            ac_violations = check_asset_class_violations(
-                raw_positions, equity, instrument_map, _ac_sector_map)
-            for _acv in ac_violations:
-                _acmsg = (
-                    f"{_acv['asset_class']} at {_acv['actual_pct']:.1f}% "
-                    f"(limit {_acv['limit_pct']:.0f}%, {_acv['breach_pct']:.1f}% over) — "
-                    f"{', '.join(_acv['symbols'])}"
-                )
-                logger.warning("RiskWorker: asset-class concentration drift — %s", _acmsg)
-                log_repo.write("WARN", "risk_worker",
-                               f"Asset-Klassen-Konzentration: {_acmsg}", _acv)
-                _discord(
-                    "post_alert_embed",
-                    title="⚠️ Asset-Klassen-Konzentration über Limit",
-                    description=(
-                        f"{_acmsg}\n\nKein Auto-Close — Rebalancing ist eine "
-                        f"manuelle Entscheidung. Prüfen, ob Position(en) getrimmt werden sollen."
-                    ),
-                    severity="WARNING",
-                )
-            # fix/exposure-drift-monitor (2026-08-12): Gesamt-Exposure gegen
-            # den Cap. check_exposure_gate ist ein reines PRE-Trade-Gate —
-            # nach dem Einstieg pruefte NICHTS das Gesamt-Exposure erneut.
-            # Richtung beachten: amount ist eingesetztes Kapital, nicht
-            # Marktwert, das Verhaeltnis steigt also bei FALLENDER Equity.
-            # AUTO-TRIM (User-Entscheid 2026-08-12): der Bot korrigiert selbst.
-            # Ein Trading-Bot, der eine erkannte Grenzverletzung nur meldet,
-            # nimmt dem Betreiber die Entscheidung nicht ab — er verschiebt sie.
-            # Abschaltbar ueber risk.exposure_auto_trim: false (dann warn-only).
-            try:
-                from bot.core.concentration_monitor import check_total_exposure_drift
-                from bot.core.risk import MAX_TOTAL_EXPOSURE_PCT as _exp_cap
-                _drift = check_total_exposure_drift(raw_positions, equity, _exp_cap)
-            except Exception as _drift_exc:
-                _drift = None
-                logger.debug("RiskWorker: exposure drift check skipped: %s", _drift_exc)
-
-            # feat/exposure-shadow (2026-09-17): Die Headroom-Entscheidung
-            # (75% -> 72%?) braucht die Exposure-VERTEILUNG, nicht nur die
-            # Trim-Events. Jeder Risk-Zyklus notiert den aktuellen Wert;
-            # Treffer im 72-75-Band sagen, wie oft der Trim bei 72% NOCH
-            # gefeuert haette. Shadow-only: reine Messung, greift NICHT in
-            # die Cap ein. 31d Rolling-Window im JSON.
-            try:
-                if _drift:
-                    _ex_actual = _drift["actual_pct"]
-                elif equity > 0:
-                    _ex_actual = (sum(float(p.get("amount", 0) or 0)
-                                      for p in raw_positions) / equity * 100.0)
-                else:
-                    _ex_actual = 0.0
-                _ex_raw = state_repo.get("EXPOSURE_SHADOW") or ""
-                _ex_hist = json.loads(_ex_raw) if _ex_raw else {"p": []}
-                _ex_hist.setdefault("p", []).append((time.time(), round(_ex_actual, 2)))
-                _ex_cut = time.time() - 31 * 86400
-                _ex_hist["p"] = [pt for pt in _ex_hist["p"] if pt[0] >= _ex_cut]
-                state_repo.set("EXPOSURE_SHADOW", json.dumps(_ex_hist))
-            except Exception as _ex_shadow_exc:
-                logger.debug("RiskWorker: exposure shadow notiert: %s", _ex_shadow_exc)
-
-            if _drift:
-                _dmsg = (
-                    f"Exposure {_drift['actual_pct']:.1f}% > Cap "
-                    f"{_drift['limit_pct']:.0f}% ({_drift['breach_pct']:.1f}pp darueber) — "
-                    f"${_drift['total_amount']:.0f} investiert bei ${_drift['equity']:.0f} "
-                    f"Equity, Ueberhang ${_drift['excess_amount']:.0f} "
-                    f"({_drift['position_count']} Positionen)"
-                )
-                logger.warning("RiskWorker: total exposure drift — %s", _dmsg)
-                log_repo.write("WARN", "risk_worker",
-                               f"Gesamt-Exposure ueber Cap: {_dmsg}", _drift)
-
-                _auto_trim = bool((cfg.get("risk", {}) or {}).get("exposure_auto_trim", True))
-                # Kill-Switch hat Vorrang: aktiv = keine neuen Orders, auch
-                # keine korrigierenden. Der Trim ist eine Handelsaktion.
-                if _auto_trim and not is_kill_switch_active():
-                    from bot.core.concentration_monitor import (
-                        plan_exposure_trim, close_exposure_excess,
-                    )
-                    # fix/exposure-trim-market-hours: Positionen an
-                    # geschlossenen Boersen ueberspringen. Ohne den Guard traf
-                    # LIFO 2883.HK bei zu HK-Boerse — 165s Timeout pro Lauf,
-                    # Exposure sank nie.
-                    def _trim_market_open(_iid: int) -> bool:
-                        try:
-                            from bot.core.market_hours import (
-                                is_market_open, resolve_market_fields,
-                            )
-                            # Einziger Aufrufer, der auch das Symbol aus der
-                            # instruments-Zeile braucht — er hat nur die ID.
-                            _mf = resolve_market_fields(db, _iid)
-                            if not _mf:
-                                return True  # fail-open: Zeile fehlt
-                            return is_market_open(_mf[0], _mf[1], _mf[2])
-                        except Exception:
-                            return True  # fail-open
-
-                    _trim_plan = plan_exposure_trim(
-                        raw_positions, equity, _exp_cap, instrument_map,
-                        is_market_open_fn=_trim_market_open)
-                    _trim_stats = close_exposure_excess(
-                        client, _trim_plan, _drift, db=db)
-                    closed_count += _trim_stats["closed"]
-                    _trim_done = _trim_stats["closed"] + _trim_stats["pending"]
-                    if not _trim_plan:
-                        logger.info(
-                            "RiskWorker: Exposure %.1f%% ueber Cap, aber keine "
-                            "Position mit offenem Markt — Trim vertagt",
-                            _drift["actual_pct"])
-                    if _trim_done > 0:
-                        _tmsg = (
-                            f"Exposure-Auto-Trim: {_trim_stats['closed']} geschlossen"
-                            + (f", {_trim_stats['pending']} unverifiziert (PENDING)"
-                               if _trim_stats["pending"] else "")
-                            + f", ${_trim_stats['freed_usd']:.0f} freigesetzt "
-                              f"({_drift['actual_pct']:.1f}% → Ziel ≤{_drift['limit_pct']:.0f}%)"
-                        )
-                        logger.warning("RiskWorker: %s", _tmsg)
-                        log_repo.write("WARN", "risk_worker", _tmsg, _trim_stats)
-                        _discord(
-                            "post_alert_embed",
-                            title="🔄 Exposure-Auto-Trim ausgeführt",
-                            description=f"{_dmsg}\n\n{_tmsg}\n\nPolicy: LIFO (neueste zuerst).",
-                            severity="WARNING",
-                        )
-                    for _terr in _trim_stats["errors"]:
-                        logger.error("RiskWorker: Trim-Fehler — %s", _terr)
-                        log_repo.write("ERROR", "risk_worker", f"Exposure-Trim: {_terr}")
-                else:
-                    # Nur wenn der Bot NICHT handeln darf, wird gemeldet.
-                    # Throttle: der Zustand haelt tagelang an, ungedrosselt
-                    # waeren es ~288 Embeds/Tag.
-                    try:
-                        from datetime import datetime as _ed_dt, timezone as _ed_tz
-                        _ed_last = state_repo.get("EXPOSURE_DRIFT_EMBED_AT") or ""
-                        _ed_due = True
-                        if _ed_last:
-                            _ed_prev = _ed_dt.fromisoformat(_ed_last)
-                            if _ed_prev.tzinfo is None:
-                                _ed_prev = _ed_prev.replace(tzinfo=_ed_tz.utc)
-                            _ed_due = (_ed_dt.now(_ed_tz.utc) - _ed_prev).total_seconds() >= 6 * 3600
-                        if _ed_due:
-                            state_repo.set("EXPOSURE_DRIFT_EMBED_AT",
-                                           _ed_dt.now(_ed_tz.utc).isoformat())
-                            _discord(
-                                "post_alert_embed",
-                                title="⚠️ Gesamt-Exposure über Cap (Auto-Trim aus)",
-                                description=(
-                                    f"{_dmsg}\n\nAuto-Trim ist deaktiviert bzw. der "
-                                    f"Kill-Switch aktiv — es wird nicht korrigiert."
-                                ),
-                                severity="WARNING",
-                            )
-                    except Exception:
-                        pass
-        except Exception as _conc_exc:
-            logger.debug("RiskWorker: Concentration check skipped: %s", _conc_exc)
+        _c_closed, conc_closed, conc_warned = _run_concentration(
+            cfg, db, client, state_repo, log_repo, raw_positions, equity)
+        closed_count += _c_closed
     
         # ── V5: Trailing Stop / Profit-Taking ─────────────────────────────────────
-        try:
-            from bot.core.trailing_stop import (
-                apply_config as apply_trailing_config,
-                cleanup_position_state,
-                evaluate_trailing,
-                execute_trailing_actions,
-            )
-            apply_trailing_config(cfg)  # wire trailing.momentum_fade / trailing.scalp
-
-            # Stale State-Zeilen geschlossener Positionen entsorgen
-            _live_ids = {
-                str(p.get("positionID") or p.get("positionId") or "")
-                for p in raw_positions
-            }
-            cleanup_position_state(db, _live_ids)
-
-            trailing_actions = evaluate_trailing(raw_positions, regime=regime, db=db)
-            if trailing_actions:
-                # ── KI-Profit-Advisor: close_pct per Trigger individuell kalibrieren ──
-                try:
-                    from bot.core.llm_profit_advisor import advise_close_pct as _advise
-                    adjusted = []
-                    for _act in trailing_actions:
-                        if _act.action in ('PARTIAL_CLOSE', 'MOMENTUM_FADE') and _act.close_pct > 0:
-                            _adj_pct, _adj_reason = _advise(
-                                symbol=_act.symbol,
-                                trigger=_act.action,
-                                pnl_pct=_act.pnl_pct,
-                                default_close_pct=_act.close_pct,
-                                regime=regime,
-                                position_id=_act.position_id,
-                                instrument_id=_act.instrument_id,
-                                db_path=db_path,
-                            )
-                            if _adj_pct == 0.0:
-                                logger.info('[risk] KI-Advisor: %s %s UEBERSPRUNGEN — %s',
-                                            _act.action, _act.symbol, _adj_reason)
-                                continue  # Trigger ignorieren — Trend intakt
-                            _act.close_pct = _adj_pct
-                            _act.reason = _act.reason + ' [KI: %.0f%% — %s]' % (_adj_pct, _adj_reason)
-                        adjusted.append(_act)
-                    trailing_actions = adjusted
-                except Exception as _adv_exc:
-                    logger.debug('[risk] KI-Advisor nicht verfuegbar: %s', _adv_exc)
-
-                ts_stats = execute_trailing_actions(client, trailing_actions, regime=regime, db=db)
-                trailing_be_count += ts_stats.get('break_evens', 0)
-                trailing_partial_count += ts_stats['partial_closes']
-                if ts_stats['partial_closes'] > 0 or ts_stats.get('be_closes', 0) > 0:
-                    logger.info('RiskWorker: Trailing Stop: %d partial closes (%d momentum-fades), %d BE-closes, %d break-evens',
-                               ts_stats['partial_closes'], ts_stats.get('momentum_fades', 0),
-                               ts_stats.get('be_closes', 0), ts_stats['break_evens'])
-                    closed_count += ts_stats.get('be_closes', 0)
-                if ts_stats.get('errors'):
-                    for err in ts_stats['errors']:
-                        trailing_error_list.append(str(err))
-                        logger.warning('RiskWorker: Trailing Stop error: %s', err)
-                    log_repo.write(
-                        'WARN',
-                        'risk_worker',
-                        f"Trailing Stop: {len(ts_stats['errors'])} partial-close error(s)",
-                        {'errors': ts_stats['errors']},
-                    )
-                    # fix/trailing-error-throttle (2026-08-12): Ein
-                    # unverifizierter Close wiederholt sich per Design jeden
-                    # 5-min-Lauf (BE_CLOSE ist Verlustschutz — der Retry MUSS
-                    # bleiben). Ungedrosselt ergab das ~288 identische Embeds
-                    # pro Tag; 9633.HK hat so seit 2026-08-10 gemeldet.
-                    # BEWUSST nur gedrosselt, nicht unterdrueckt: ein
-                    # unverifizierter Close bei OFFENER Boerse ist ein echtes
-                    # Signal. Signatur-basiert, damit ein NEUER Fehler sofort
-                    # durchkommt und nicht hinter dem alten wartet.
-                    import hashlib as _hl
-                    _sig = _hl.md5(
-                        "|".join(sorted(str(e) for e in ts_stats['errors']))
-                        .encode('utf-8')).hexdigest()[:12]
-                    _due = True
-                    try:
-                        from datetime import datetime as _te_dt, timezone as _te_tz
-                        _prev = state_repo.get('TRAILING_ERR_EMBED') or ''
-                        _psig, _, _pts = _prev.partition('@')
-                        if _psig == _sig and _pts:
-                            _pdt = _te_dt.fromisoformat(_pts)
-                            if _pdt.tzinfo is None:
-                                _pdt = _pdt.replace(tzinfo=_te_tz.utc)
-                            _due = (_te_dt.now(_te_tz.utc) - _pdt).total_seconds() >= 6 * 3600
-                        if _due:
-                            state_repo.set(
-                                'TRAILING_ERR_EMBED',
-                                f"{_sig}@{_te_dt.now(_te_tz.utc).isoformat()}")
-                    except Exception:
-                        _due = True  # fail-open: im Zweifel melden
-                    if _due:
-                        _discord(
-                            'post_alert_embed',
-                            title=f"🟠 Trailing Stop: {len(ts_stats['errors'])} Fehler",
-                            description=(
-                                "Gewinne wurden NICHT teilweise realisiert.\n"
-                                + "\n".join(f'• {e}' for e in ts_stats['errors'])
-                                + "\n\n_Wiederholt sich der Fehler, meldet der Bot "
-                                  "erst in 6 h erneut — der Retry laeuft weiter._"
-                            ),
-                            severity='WARNING',
-                            dry_run=False,
-                        )
-        except Exception as _ts_exc:
-            logger.error('RiskWorker: Trailing stop failed: %s', _ts_exc)
-            log_repo.write('ERROR', 'risk_worker', f'Trailing stop crashed: {_ts_exc}')
+        (trailing_be_count, trailing_partial_count, trailing_error_list,
+         _t_closed) = _run_trailing(cfg, db, db_path, client, state_repo, log_repo,
+                                    raw_positions, regime)
+        closed_count += _t_closed
 
         # ── SELL-Signal-Exits (Bible V4 SELL Rule 1) ──────────────────────────────
-        # fix/sell-signal-exits: FRESH SELL/OVERBOUGHT-Signale auf gehaltene
-        # Instrumente → Partial-Close (Gewinnmitnahme bei Überhitzung).
-        # Vorher wurden SELL-Signale generiert und gespeichert, aber von
-        # keinem Worker konsumiert.
-        # P2 Exit-Signal-Monitor (1H, Stunden-Gate): schreibt SELL-Signale
-        # fuer kippende Trends der offenen Positionen; process_sell_exits
-        # konsumiert sie direkt im Anschluss (feat/exit-monitor-1h).
-        try:
-            from bot.core.exit_monitor import run_exit_monitor
-            _em = run_exit_monitor(db, state_repo, raw_positions, cfg, client=client)
-            if _em.get("signals"):
-                log_repo.write(
-                    "INFO", "risk_worker",
-                    f"Exit-Monitor 1H: {_em['signals']} SELL-Signal(e) "
-                    f"({_em['scanned']} Positionen gescannt)",
-                    {"symbols": _em.get("symbols")},
-                )
-                # feat/candle-charts: Kerzen des (ersten) Kipps anhaengen
-                try:
-                    _hits = _em.get("hits") or []
-                    if _hits:
-                        from bot.core.candle_chart import render_candles_png
-                        import sys as _sys
-                        from pathlib import Path as _P
-                        _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
-                        import discord_embeds as _DE_ch
-                        _iid0, _sym0 = _hits[0]
-                        _DE_ch.attach_chart(render_candles_png(
-                            client.get_candles(int(_iid0), "OneHour", 60),
-                            f"{_sym0} — 1H Trend-Kipp",
-                        ))
-                except Exception:
-                    pass
-                _discord(
-                    "post_alert_embed",
-                    title=f"📉 1H-Trend-Kipp: {', '.join(_em.get('symbols', []))[:200]}",
-                    description=(
-                        "MACD-Bear-Cross + RSI<50 auf Stundenkerzen — "
-                        "SELL-Signal erzeugt; Gewinnmitnahme erfolgt nur bei "
-                        "profitabler Position (sell_exits, 50% Partial)."
-                    ),
-                    severity="INFO",
-                )
-        except Exception as _em_exc:
-            logger.warning("RiskWorker: exit_monitor failed: %s", _em_exc)
+        _run_exit_monitor(cfg, db, client, state_repo, log_repo, raw_positions)
 
-        try:
-            from bot.core.sell_exits import process_sell_exits
-            from bot.db.repo import SignalRepo as _SignalRepo
-            sell_stats = process_sell_exits(client, _SignalRepo(db), raw_positions, db=db)
-            if sell_stats['closed'] > 0:
-                sell_exit_closed += sell_stats['closed']
-                closed_count += sell_stats['closed']
-                logger.info('RiskWorker: SELL-Exits: %d Partial-Close(s) ausgeführt',
-                            sell_stats['closed'])
-                log_repo.write('INFO', 'risk_worker',
-                               f"SELL-Exits: {sell_stats['closed']} Partial-Close(s)")
-            if sell_stats.get('errors'):
-                for err in sell_stats['errors']:
-                    logger.warning('RiskWorker: SELL-Exit error: %s', err)
-                log_repo.write('WARN', 'risk_worker',
-                               f"SELL-Exits: {len(sell_stats['errors'])} Fehler",
-                               {'errors': sell_stats['errors']})
-        except Exception as _se_exc:
-            logger.error('RiskWorker: SELL-Exits failed: %s', _se_exc)
-            log_repo.write('ERROR', 'risk_worker', f'SELL-Exits crashed: {_se_exc}')
+        sell_exit_closed = _run_sell_exits(client, db, log_repo, raw_positions)
+        closed_count += sell_exit_closed
 
-        # Earnings-Exit (feat/earnings-exit, 1x taeglich via Gate): bestehende
-        # grosse Positionen vor Earnings de-risken — After-Hours-Gaps umgehen
-        # den SL (ROKU-Fallstudie aus dem OSS-Vergleich).
-        try:
-            from bot.core.earnings_exit import run_earnings_exit
-            _ee = run_earnings_exit(db, state_repo, client, raw_positions, cfg)
-            if _ee.get("actions"):
-                closed_count += int(_ee.get("closed") or 0)
-                log_repo.write(
-                    "INFO", "risk_worker",
-                    f"Earnings-Exit: {_ee['actions']} Aktion(en), {_ee['closed']} ausgefuehrt",
-                    {"symbols": _ee.get("symbols")},
-                )
-                _discord(
-                    "post_alert_embed",
-                    title=f"📅 Earnings-Exit: {', '.join(_ee.get('symbols', []))[:200]}",
-                    description=(
-                        f"{_ee['actions']} Position(en) vor Earnings de-risked "
-                        f"({_ee['closed']} Teilverkaeufe bestaetigt) — "
-                        f"After-Hours-Gap-Schutz."
-                    ),
-                    severity="WARNING",
-                )
-        except Exception as _ee_exc:
-            logger.warning('RiskWorker: earnings_exit failed: %s', _ee_exc)
+        closed_count += _run_earnings_exit(cfg, db, client, state_repo, log_repo, raw_positions)
 
         # ── 5. Summary + Discord Embed ────────────────────────────────────────────
         logger.info("RiskWorker: checked %d positions, closed %d, regime=%s", checked_count, closed_count, regime)
