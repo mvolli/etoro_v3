@@ -212,12 +212,15 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
 
 ## Portfolio-Grenzen (Stand 2026-08-12)
 
-Vier Ebenen, alle im `check_buy_gate`-Pfad UND im Core-Sweep:
+Vier Ebenen im Signal-Pfad (`check_buy_gate` bzw. Region als Damper im
+signal_worker). **Core-Sweep prüft davon nur Gesamt-Exposure** (plus Korrelation
+und Cash) — `plan_core_sweep` kennt weder Sektor noch Region noch Instrument-Limit,
+und `execution_worker` ruft `check_buy_gate` nicht auf (nachgeprüft 2026-09-25).
 
 | Ebene | Grenze | Verhalten bei Überschreitung |
 |-------|--------|------------------------------|
 | Gesamt-Exposure | 75 % (`MAX_TOTAL_EXPOSURE_PCT`) | Pre-Trade-Block **+ Post-Trade-Auto-Trim** (LIFO, `risk.exposure_auto_trim`) |
-| Sektor | 20 % (`sector_limits.max_per_sector_pct`) | Block. Quelle: `instruments.sector` (yfinance) |
+| Sektor | 20 % (`sector_limits.max_per_sector_pct`) | Block — **aber nur über `ASSET_CLASS_MAP` (~65 US-Ticker) + 20 %-Default.** `instruments.sector` erreicht das Kauf-Gate NICHT (s.u.) |
 | Region | Soft 35 % / Hard 50 % (`region_limits`) | Sizing-Damper, erst über Hard-Cap Block |
 | Instrument | 10 % Default (`INSTRUMENT_LIMITS`) | Block + LIFO-Trim |
 
@@ -225,6 +228,15 @@ Vier Ebenen, alle im `check_buy_gate`-Pfad UND im Core-Sweep:
   `plan_core_sweep` bekommt `total_exposed`/`max_exposure_pct` (deckelt
   `deployable` als Sizing-Input) und `correlation_gate` (injiziert). Wer dort
   Kandidaten hinzufügt, muss beide Argumente durchreichen.
+- **DB-Sektoren sind im Kaufpfad NICHT verdrahtet** (docs/sector-gate-truth,
+  2026-09-25). `sector_limits.enforce_db_sectors: true` lädt im signal_worker
+  nur die Map; `check_buy_gate` → `check_asset_class_gate(symbol, buy_amount,
+  equity, open_positions)` bekommt kein `sector_by_symbol`. Genutzt wird die
+  Map nur von `concentration_monitor` und `main_report_worker`. Der
+  Config-Kommentar „74.2 % → 0 %“ galt nie für den Kauf. Anschließen ist ein
+  neues scharfes Gate → erst messen, was heute über 20 % läge, dann
+  VoLLi-Entscheid. Ein Code-Kommentar ist keine Quelle für den Ist-Zustand —
+  den Config-Wert und den Aufrufpfad nachsehen.
 - **`instruments.sector`** füllt `scripts/sync_instrument_sectors.py`
   (yfinance, ~5,6 s/Symbol, 200/Run, TTL 90 d, Priorität: gehalten → Whitelist
   → nie geprüft). Forex/Rohstoff/Index/Krypto hat yfinance KEINE Sektoren —
