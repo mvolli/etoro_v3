@@ -171,6 +171,60 @@ def _load_config() -> dict:
         return yaml.safe_load(f)
 
 
+def _post_sl_close_embed(db, client, pos: dict, symbol: str, position_id,
+                         close_price: float, pnl_usd_est: float, pnl_pct: float,
+                         *, embed_reason: str, record_reason: str, what: str) -> None:
+    """Close-Embed nach #trades (mit Trade-Story-Chart) + trade_events-Zeile.
+
+    Vorher zweimal wortgleich in _run_sl_checks (verifizierter und
+    unverifizierter SL-Close), nur die Begruendungstexte unterschieden sich.
+    Best-effort: jeder Fehler wird nur geloggt.
+
+    Der Chart geht an die EIGENE discord_embeds-Instanz (per sys.path
+    geladen) — genau wie vorher; siehe AGENTS.md zu den One-Shot-Slots.
+    """
+    try:
+        try:
+            from bot.core.candle_chart import trade_story_png
+            import sys as _sys
+            from pathlib import Path as _P
+            _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
+            import discord_embeds as _DE_st
+            _DE_st.attach_chart(trade_story_png(
+                client, pos.get("instrumentID"), symbol,
+                entry=float(pos.get("openRate", 0) or 0) or None,
+                exit_price=close_price,
+                opened_at=pos.get("openDateTime"),
+            ))
+        except Exception:
+            pass
+        _close_ok = _discord(
+            "post_position_closed_embed",
+            symbol=symbol,
+            amount_usd=float(pos.get("amount", 0)),
+            position_id=str(position_id),
+            entry_price=float(pos.get("openRate", 0)),
+            close_price=close_price,
+            pnl_usd=pnl_usd_est,
+            pnl_pct=pnl_pct,
+            reason=embed_reason,
+        )
+        from bot.core.event_log import record_posted_event
+        record_posted_event(
+            db, _DE, symbol=symbol, event_type="CLOSE",
+            source="risk_sl", post_result=_close_ok,
+            position_id=str(position_id),
+            instrument_id=int(pos.get("instrumentID") or 0) or None,
+            price=close_price or None,
+            amount_usd=float(pos.get("amount", 0)),
+            pnl_usd=pnl_usd_est, pnl_pct=pnl_pct,
+            pnl_source="derived", reason=record_reason,
+            chart_posted=True, reported_final=False,
+        )
+    except Exception as _emb_exc:
+        logger.debug("Discord %s failed: %s", what, _emb_exc)
+
+
 def _run_sl_checks(db, client, state_repo, log_repo, raw_positions: list[dict]
                    ) -> tuple[int, int, int, list[dict]]:
     """Schritt 3: Stop-Loss je Position (evaluate_sl), CLOSE inkl.
@@ -354,46 +408,13 @@ def _run_sl_checks(db, client, state_repo, log_repo, raw_positions: list[dict]
                         logger.debug("Trade DB update failed: %s", _db_exc)
 
                     # ── Discord: CLOSE Embed → #etoro-trades ────────────────
-                    try:
-                        try:
-                            from bot.core.candle_chart import trade_story_png
-                            import sys as _sys
-                            from pathlib import Path as _P
-                            _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
-                            import discord_embeds as _DE_st
-                            _DE_st.attach_chart(trade_story_png(
-                                client, pos.get("instrumentID"), symbol,
-                                entry=float(pos.get("openRate", 0) or 0) or None,
-                                exit_price=close_price,
-                                opened_at=pos.get("openDateTime"),
-                            ))
-                        except Exception:
-                            pass
-                        _close_ok = _discord(
-                            "post_position_closed_embed",
-                            symbol=symbol,
-                            amount_usd=float(pos.get("amount", 0)),
-                            position_id=str(position_id),
-                            entry_price=float(pos.get("openRate", 0)),
-                            close_price=close_price,
-                            pnl_usd=pnl_usd_est,
-                            pnl_pct=pnl_pct,
-                            reason=sl_action.reason,
-                        )
-                        from bot.core.event_log import record_posted_event
-                        record_posted_event(
-                            db, _DE, symbol=symbol, event_type="CLOSE",
-                            source="risk_sl", post_result=_close_ok,
-                            position_id=str(position_id),
-                            instrument_id=int(pos.get("instrumentID") or 0) or None,
-                            price=close_price or None,
-                            amount_usd=float(pos.get("amount", 0)),
-                            pnl_usd=pnl_usd_est, pnl_pct=pnl_pct,
-                            pnl_source="derived", reason=sl_action.reason,
-                            chart_posted=True, reported_final=False,
-                        )
-                    except Exception as _emb_exc:
-                        logger.debug("Discord close embed failed: %s", _emb_exc)
+                    _post_sl_close_embed(
+                        db, client, pos, symbol, position_id, close_price,
+                        pnl_usd_est, pnl_pct,
+                        embed_reason=sl_action.reason,
+                        record_reason=sl_action.reason,
+                        what="close embed",
+                    )
                 else:
                     # ── UNVERIFIED: still send embed + save estimated PnL ───
                     # fix/sl-close-unverified-dedupe (2026-08-21): per-position
@@ -443,47 +464,13 @@ def _run_sl_checks(db, client, state_repo, log_repo, raw_positions: list[dict]
                     # idempotent and the Reconciler finalizes it.
                     if _alert_due:
                         # ── Discord: Provisional CLOSE Embed → #etoro-trades ────
-                        try:
-                            try:
-                                from bot.core.candle_chart import trade_story_png
-                                import sys as _sys
-                                from pathlib import Path as _P
-                                _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
-                                import discord_embeds as _DE_st
-                                _DE_st.attach_chart(trade_story_png(
-                                    client, pos.get("instrumentID"), symbol,
-                                    entry=float(pos.get("openRate", 0) or 0) or None,
-                                    exit_price=close_price,
-                                    opened_at=pos.get("openDateTime"),
-                                ))
-                            except Exception:
-                                pass
-                            _close_ok = _discord(
-                                "post_position_closed_embed",
-                                symbol=symbol,
-                                amount_usd=float(pos.get("amount", 0)),
-                                position_id=str(position_id),
-                                entry_price=float(pos.get("openRate", 0)),
-                                close_price=close_price,
-                                pnl_usd=pnl_usd_est,
-                                pnl_pct=pnl_pct,
-                                reason=f"{sl_action.reason} (⚠️ PnL geschätzt — Reconciler finalisiert)",
-                            )
-                            from bot.core.event_log import record_posted_event
-                            record_posted_event(
-                                db, _DE, symbol=symbol, event_type="CLOSE",
-                                source="risk_sl", post_result=_close_ok,
-                                position_id=str(position_id),
-                                instrument_id=int(pos.get("instrumentID") or 0) or None,
-                                price=close_price or None,
-                                amount_usd=float(pos.get("amount", 0)),
-                                pnl_usd=pnl_usd_est, pnl_pct=pnl_pct,
-                                pnl_source="derived",
-                                reason=f"{sl_action.reason} (unverifiziert)",
-                                chart_posted=True, reported_final=False,
-                            )
-                        except Exception as _emb_exc:
-                            logger.debug("Discord provisional close embed failed: %s", _emb_exc)
+                        _post_sl_close_embed(
+                            db, client, pos, symbol, position_id, close_price,
+                            pnl_usd_est, pnl_pct,
+                            embed_reason=f"{sl_action.reason} (⚠️ PnL geschätzt — Reconciler finalisiert)",
+                            record_reason=f"{sl_action.reason} (unverifiziert)",
+                            what="provisional close embed",
+                        )
 
                         # ── Additional alert for unverified status ──────────────
                         # CRITICAL on the first hit, then WARNING (state is
