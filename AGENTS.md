@@ -49,6 +49,17 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   weiter in `main()` — mehrere Tests pruefen dort die Quelltext-REIHENFOLGE
   (Dust-Floor vor Order, Bump-Stellen). Verhalten gegen den Vorstand per
   Old-vs-New-Lauf auf identischen DB-Kopien verifiziert (9 Szenarien, identisch).
+- **`risk_worker.main()` ist in Phasen zerlegt** (refactor/risk-worker-phases
+  2026-09-26): `_run_sl_checks` → `_apply_kill_switch` → `_resolve_equity` →
+  `_check_loss_limits` → `_update_regime_step` → `_run_concentration` →
+  `_run_trailing` → `_run_exit_monitor` → `_run_sell_exits` → `_run_earnings_exit`.
+  Zaehler kommen als Rueckgabewerte zurueck (auch nach abgefangenem Fehler).
+  SL-Close-Embed + Ledger nur noch in `_post_sl_close_embed()`.
+- **`signal_worker.main()` hat einen E2E-Test** (`tests/integration/
+  test_signal_worker_e2e.py`): laeuft gegen eine synthetische DB, ist
+  hermetisch (worker_lock-No-op, Kill-Switch/yfinance/Discord gesperrt) und
+  stellt die von apply_config beschriebenen Modul-Globals danach wieder her.
+  Neue Kaufpfad-Logik bitte dort als Szenario absichern, nicht als Quelltext-Test.
 - Worker-Wrapper liegen in `~/.hermes/scripts/v3_*.sh` — Script-Änderungen
   in `scripts/` müssen dorthin kopiert werden, sonst läuft der Cron alt.
 - Trade-Event-Ledger `trade_events` (feat/pnl-nachreport, 2026-07-28):
@@ -463,7 +474,7 @@ open_position() →  allowEntryOrders=false → {"success": False, "error": "...
 execution_worker → allowEntryOrders in block_error → DEFER (bleibt APPROVED)
 ```
 
-**data_worker** behält `is_market_open()` (Zeile ~758): Live-Preissignale brauchen
+**data_worker** behält `is_market_open()` (in `run()`: Tier-2-Fetch und BUY-Signal-Store): Live-Preissignale brauchen
 offene Märkte für valide yfinance-Daten.
 
 ### DEFER-Regel

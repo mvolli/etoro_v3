@@ -44,7 +44,6 @@ EXISTS`` and runs once per worker start (best-effort, fail-open).
 from __future__ import annotations
 
 import logging
-import sqlite3
 from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)

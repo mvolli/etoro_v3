@@ -79,7 +79,7 @@ def _post(fn_name: str, **kwargs):
                 _DE.attach_chart(_png)
         if _DE and hasattr(_DE, fn_name):
             return getattr(_DE, fn_name)(**kwargs)
-    except Exception as _e:
+    except Exception:
         pass
     return None
 

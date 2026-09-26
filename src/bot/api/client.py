@@ -226,7 +226,7 @@ class EToroClient:
     ) -> requests.Response:
         t0 = time.perf_counter()
         # eToro requires a unique x-request-id per call
-        import uuid, hashlib
+        import hashlib
         req_id = hashlib.md5(f"{url}{time.time()}".encode()).hexdigest()
         resp = self._session.get(
             url, params=params, timeout=self._timeout,
@@ -748,7 +748,6 @@ class EToroClient:
         from pathlib import Path
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
         from bot.core.risk import calculate_sl_price, check_sl_quality_gate
-        from bot.core.market_hours import is_market_open
 
         _symbol_for_preflight = symbol or str(instrument_id)
 
@@ -850,7 +849,6 @@ class EToroClient:
             else:
                 # Instrument not in eligibilities — check notFoundInstrumentIds
                 not_found = eligibility_resp.get("notFoundInstrumentIds", [])
-                not_found_sym = eligibility_resp.get("notFoundSymbols", [])
                 if instrument_id in not_found:
                     logger.warning(
                         "open_position BLOCKED: instrument %s not found by eToro API",
