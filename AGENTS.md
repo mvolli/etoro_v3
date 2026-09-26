@@ -220,7 +220,7 @@ und `execution_worker` ruft `check_buy_gate` nicht auf (nachgeprüft 2026-09-25)
 | Ebene | Grenze | Verhalten bei Überschreitung |
 |-------|--------|------------------------------|
 | Gesamt-Exposure | 75 % (`MAX_TOTAL_EXPOSURE_PCT`) | Pre-Trade-Block **+ Post-Trade-Auto-Trim** (LIFO, `risk.exposure_auto_trim`) |
-| Sektor | 20 % (`sector_limits.max_per_sector_pct`) | Block — **aber nur über `ASSET_CLASS_MAP` (~65 US-Ticker) + 20 %-Default.** `instruments.sector` erreicht das Kauf-Gate NICHT (s.u.) |
+| Sektor | 20 % (`sector_limits.max_per_sector_pct`) | Block (nur Signal-Pfad). Quelle: `ASSET_CLASS_MAP` (Vorrang) + `instruments.sector` seit 2026-09-26 (s.u.) |
 | Region | Soft 35 % / Hard 50 % (`region_limits`) | Sizing-Damper, erst über Hard-Cap Block |
 | Instrument | 10 % Default (`INSTRUMENT_LIMITS`) | Block + LIFO-Trim |
 
@@ -228,15 +228,16 @@ und `execution_worker` ruft `check_buy_gate` nicht auf (nachgeprüft 2026-09-25)
   `plan_core_sweep` bekommt `total_exposed`/`max_exposure_pct` (deckelt
   `deployable` als Sizing-Input) und `correlation_gate` (injiziert). Wer dort
   Kandidaten hinzufügt, muss beide Argumente durchreichen.
-- **DB-Sektoren sind im Kaufpfad NICHT verdrahtet** (docs/sector-gate-truth,
-  2026-09-25). `sector_limits.enforce_db_sectors: true` lädt im signal_worker
-  nur die Map; `check_buy_gate` → `check_asset_class_gate(symbol, buy_amount,
-  equity, open_positions)` bekommt kein `sector_by_symbol`. Genutzt wird die
-  Map nur von `concentration_monitor` und `main_report_worker`. Der
-  Config-Kommentar „74.2 % → 0 %“ galt nie für den Kauf. Anschließen ist ein
-  neues scharfes Gate → erst messen, was heute über 20 % läge, dann
-  VoLLi-Entscheid. Ein Code-Kommentar ist keine Quelle für den Ist-Zustand —
-  den Config-Wert und den Aufrufpfad nachsehen.
+- **DB-Sektoren im Kauf-Gate seit 2026-09-26** (feat/sector-gate-wiring).
+  Vom 12.08. bis 26.09. stand `enforce_db_sectors: true`, aber `check_buy_gate`
+  reichte die Map nie an `check_asset_class_gate` weiter — der Config-Kommentar
+  „74.2 % → 0 %“ galt in der Zeit nicht für den Kauf (docs/sector-gate-truth).
+  Jetzt: signal_worker → `check_buy_gate(..., sector_by_symbol=_sector_map or
+  None)`. Leere Map (Schalter aus / Query-Fehler) = altes Verhalten. Messung
+  vor dem Anschluss: kein Topf über Limit, fail-open 52.2 % → 4.3 %, 13 Töpfe.
+  Regression: `tests/unit/test_sector_gate_wiring.py`. Lehre: Ein
+  Code-Kommentar ist keine Quelle für den Ist-Zustand — Config-Wert und
+  Aufrufpfad nachsehen.
 - **`instruments.sector`** füllt `scripts/sync_instrument_sectors.py`
   (yfinance, ~5,6 s/Symbol, 200/Run, TTL 90 d, Priorität: gehalten → Whitelist
   → nie geprüft). Forex/Rohstoff/Index/Krypto hat yfinance KEINE Sektoren —

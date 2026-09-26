@@ -1518,14 +1518,13 @@ def _load_sector_map(cfg: dict, signal_repo) -> dict[str, str]:
                 ) or [])
             }
             logger.info(
-                "SignalWorker: Sektor-Map geladen (%d Instrumente) — NICHT im "
-                "Kauf-Gate verdrahtet, nur ASSET_CLASS_MAP + 20%%-Default wirken",
+                "SignalWorker: Sektor-Map aktiv im Kauf-Gate (%d Instrumente)",
                 len(_sector_map),
             )
         except Exception as _sec_exc:
-            # Fail-open. Aendert am Kaufverhalten nichts, solange die Map
-            # nicht verdrahtet ist (docs/sector-gate-truth).
-            logger.warning("SignalWorker: Sektor-Map nicht ladbar (%s)", _sec_exc)
+            # Fail-open: ohne Map faellt das Gate auf ASSET_CLASS_MAP +
+            # 20%-Default zurueck (Verhalten vor feat/sector-gate-wiring).
+            logger.warning("SignalWorker: Sektor-Map nicht ladbar (%s) — Gate fail-open", _sec_exc)
             _sector_map = {}
     return _sector_map
 
@@ -2082,12 +2081,14 @@ def main() -> None:
         # ASSET_CLASS_MAP deckt ~65 US-Ticker ab; gemessen fielen 74.2% des
         # Equity fail-open durch das Gate. instruments.sector (yfinance,
         # befuellt von scripts/sync_instrument_sectors.py) schliesst die Luecke.
-        # Stand 2026-09-25 (docs/sector-gate-truth): enforce_db_sectors ist
-        # seit 2026-08-12 true, die Map wird geladen — aber NICHT verwendet.
-        # check_buy_gate reicht kein sector_by_symbol an check_asset_class_gate
-        # weiter; beim Kauf wirken nur ASSET_CLASS_MAP + 20%-Default. Das
-        # Anschliessen ist ein neues scharfes Gate im Kaufpfad und wartet auf
-        # Messung + VoLLi-Entscheid (siehe config.yaml sector_limits).
+        # feat/sector-gate-wiring (2026-09-26): bis hierher wurde die Map nur
+        # geladen und nie an check_buy_gate uebergeben (docs/sector-gate-truth).
+        # Jetzt geht sie als sector_by_symbol ins Asset-Class-Gate: Symbole
+        # ausserhalb ASSET_CLASS_MAP laufen gegen ihren DB-Sektor (20%-Cap)
+        # statt fail-open durch. Nur Signal-Pfad — Core-Sweep kennt kein
+        # Sektor-Gate. Messung vor dem Anschluss (VoLLi): kein Topf ueber
+        # Limit, fail-open-Anteil 52.2% -> 4.3%, 13 Toepfe nach
+        # resolve_asset_class. Wirkung = reine Zukunftsbegrenzung.
         _sector_map = _load_sector_map(cfg, signal_repo)
 
         # feat/region-damper (2026-08-12): market_region ist bereits gepflegt,
@@ -2516,6 +2517,9 @@ def main() -> None:
                 sl_price=gate_sl_price,
                 max_fragments=int(cfg.get("trading", {}).get(
                     "max_fragments_per_instrument", 3)),  # Bible: Fragment-Limit
+                # feat/sector-gate-wiring: leer (enforce_db_sectors=false oder
+                # Query-Fehler) -> None -> Gate wie vor dem Anschluss.
+                sector_by_symbol=_sector_map or None,
             )
     
             if gate.allowed:
