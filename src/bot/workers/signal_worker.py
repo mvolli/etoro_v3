@@ -842,18 +842,1000 @@ def _load_config() -> dict:
         return yaml.safe_load(f)
 
 
-def _load_env() -> None:
-    env_path = Path.home() / ".hermes" / ".env"
-    if not env_path.exists():
-        logger.warning(".env not found at %s — relying on existing environment", env_path)
-        return
-    with open(env_path) as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
+def _load_llm_inputs() -> tuple[dict, dict, dict]:
+    """LLM-Ghost-Blacklist, Signal-Weights und News-Flags laden (+ Logzeilen)."""
+    # ── LLM Blacklist & Signal Weights (fix/llm-blacklist-wiring:
+    #    beide Load-Funktionen existierten, wurden aber nie in main()
+    #    aufgerufen — LLM-Blocklist und Signal-Weights waren toter Code) ──
+    _llm_blacklist = _load_llm_ghost_blacklist()
+    _llm_signal_weights = _load_llm_signal_weights()
+    if _llm_blacklist:
+        logger.info(
+            "SignalWorker: LLM-Blackload geladen — %d Exchanges, %d Symbole, %d Stats",
+            len(_llm_blacklist.get("exchanges", [])),
+            len(_llm_blacklist.get("symbols", [])),
+            len(_llm_blacklist.get("stats", {})),
+        )
+    if _llm_signal_weights:
+        logger.info("SignalWorker: LLM-Signal-Weights geladen")
+
+    _news_flags = _load_llm_news_flags()
+    if _news_flags:
+        logger.info(
+            "SignalWorker: %d News-Risk-Flag(s) aktiv: %s",
+            len(_news_flags), ", ".join(list(_news_flags)[:6]),
+        )
+    return _llm_blacklist, _llm_signal_weights, _news_flags
+
+
+def _make_price_client(cfg: dict):
+    # ── API-Client für Pre-Trade-Preischeck (fix/slippage-precheck) ───────────
+    # Best-effort: ohne Client/Keys läuft der Worker wie bisher — das
+    # Execution-Gate bleibt die letzte Verteidigungslinie.
+    _price_client = None
+    try:
+        from bot.api.client import ClientConfig, EToroClient
+        _api_key = os.environ.get("ETORO_BOT_API_KEY", "")
+        _user_key = os.environ.get("ETORO_BOT_USER_KEY", "")
+        if _api_key and _user_key:
+            _price_client = EToroClient(
+                api_key=_api_key, user_key=_user_key,
+                config=ClientConfig.from_dict(cfg.get("api", {})),
+            )
+    except Exception as _pc_exc:
+        logger.warning("SignalWorker: Preis-Client nicht verfügbar (%s) — Pre-Check übersprungen", _pc_exc)
+    return _price_client
+
+
+def _filter_buy_signals(db, all_signals: list[dict]) -> list[dict]:
+    """Nur BUY-Signale, ohne Instrumente mit is_tradable=0."""
+    # Filter to BUY signals only: exclude SELL signals (signal_type contains 'SELL' or 'OVERBOUGHT')
+    buy_signals = [
+        s for s in all_signals
+        if 'SELL' not in (s.get('signal_type') or '').upper()
+           and 'OVERBOUGHT' not in (s.get('signal_type') or '').upper()
+    ]
+
+    # Filter non-tradable instruments (is_tradable=0) — single bulk query.
+    # is_tradable=NULL means never checked → allow (fail-open).
+    if buy_signals:
+        _iids = [s["instrument_id"] for s in buy_signals if s.get("instrument_id")]
+        if _iids:
+            _placeholders = ",".join("?" * len(_iids))
+            _blocked = {
+                r["instrument_id"]
+                for r in db.fetchall(
+                    f"SELECT instrument_id FROM instruments"
+                    f" WHERE instrument_id IN ({_placeholders}) AND is_tradable = 0",
+                    _iids,
+                )
+            }
+            if _blocked:
+                _before = len(buy_signals)
+                buy_signals = [s for s in buy_signals if s.get("instrument_id") not in _blocked]
+                logger.info(
+                    "SignalWorker: %d Signal(e) wegen is_tradable=0 herausgefiltert",
+                    _before - len(buy_signals),
+                )
+    return buy_signals
+
+
+def _count_trades_today(db) -> int:
+    """Heute (UTC) angelegte Trades, ohne REJECTED/FAILED."""
+    row = db.fetchone(
+        "SELECT COUNT(*) AS n FROM trades "
+        "WHERE created_at >= date('now') "
+        "AND status NOT IN ('REJECTED','FAILED')",
+    )
+    trades_today = int(
+        (row["n"] if isinstance(row, dict) else row[0]) if row else 0
+    )
+    return trades_today
+
+
+def _apply_llm_macro_scalar(state_repo, buy_aggressiveness: float) -> tuple[float, float | None]:
+    """Daempft buy_aggressiveness mit dem LLM-Makro-Scalar.
+
+    Rueckgabe (aggressiveness, macro). macro ist None, wenn schon das Lesen
+    des State scheiterte — der Deployment-Boost wird dann wie bisher
+    uebersprungen (vorher: NameError im fail-open-try).
+    """
+    _macro = None
+    try:
+        _macro_raw = state_repo.get("LLM_MACRO_SCALAR")
+        _macro_at = state_repo.get("LLM_MACRO_SET_AT") or ""
+        _macro = 1.0
+        if _macro_raw and _macro_at:
+            _at = _dt.fromisoformat(_macro_at)
+            if _at.tzinfo is None:
+                _at = _at.replace(tzinfo=_tz.utc)
+            if (_dt.now(_tz.utc) - _at).total_seconds() <= 26 * 3600:
+                _macro = max(0.5, min(1.0, float(_macro_raw)))
+        if _macro < 1.0:
+            buy_aggressiveness *= _macro
+            logger.info(
+                "SignalWorker: LLM-Makro-Scalar %.2f aktiv — aggressiveness=%.2f (%s)",
+                _macro, buy_aggressiveness,
+                (state_repo.get("LLM_MACRO_REASON") or "")[:80],
+            )
+    except Exception as _mx:
+        logger.debug("SignalWorker: Makro-Scalar uebersprungen: %s", _mx)
+    return buy_aggressiveness, _macro
+
+
+def _resolve_symbol(db, portfolio_repo, instrument_id: int) -> str:
+    """Look up ticker symbol for an instrument_id (signals table has none)."""
+    try:
+        inst_row = db.fetchone(
+            "SELECT symbol FROM instruments WHERE instrument_id=?",
+            (instrument_id,),
+        )
+        if inst_row:
+            return inst_row["symbol"] if isinstance(inst_row, dict) else inst_row[0]
+    except Exception:
+        pass
+    snap = portfolio_repo.get_by_instrument(instrument_id)
+    if snap:
+        sym = snap[0].get("symbol", "")
+        if sym:
+            return sym
+    return str(instrument_id)
+
+
+def _resolve_market_fields(db, instrument_id: int) -> tuple[str, str]:
+    """yfinance_symbol + market_hours-Kategorie fuer den Market-Check.
+    Ohne yf_symbol wuerde z.B. ein Forex-Symbol (EURJPY) als US-Aktie
+    eingestuft und faelschlich an US-Boersenzeiten gebunden.
+
+    Duennes Adapter um market_hours.resolve_market_fields() — das
+    Signal-Symbol steht hier schon fest, gebraucht werden nur die
+    beiden Zusatzfelder."""
+    from bot.core.market_hours import resolve_market_fields as _resolve_mf
+    _mf = _resolve_mf(db, instrument_id)
+    return (_mf[1], _mf[2]) if _mf else ("", "")
+
+
+def _open_signal_categories(db) -> dict[str, int]:
+    """Anzahl offener Positionen je Signal-Kategorie (Diversity-Gate)."""
+    _open_signal_cats: dict[str, int] = {}
+    try:
+        # fix/diversity-fanout (2026-07-14): COUNT(*) zaehlte JOIN-Paare —
+        # DISTINCT api_position_id zaehlt echte Positionen (konsistent zum
+        # Nenner position_count).
+        _cat_rows = db.fetchall("""
+            SELECT sig.signal_type, COUNT(DISTINCT ps.api_position_id) as n
+            FROM portfolio_snapshot ps
+            JOIN trades t ON t.instrument_id = ps.instrument_id AND t.status = 'ACTIVE'
+            JOIN signals sig ON sig.id = t.signal_id
+            GROUP BY sig.signal_type
+        """)
+        for _r in _cat_rows:
+            _cat = _get_signal_category(str(_r["signal_type"]))
+            _open_signal_cats[_cat] = _open_signal_cats.get(_cat, 0) + int(_r["n"])
+    except Exception as _dg_exc:
+        logger.debug("SignalWorker: Diversity-Gate Daten nicht verfuegbar: %s", _dg_exc)
+    return _open_signal_cats
+
+
+def _commodity_state(db, cfg: dict) -> tuple[dict, set[int], int]:
+    # feat/commodity (2026-08-24): Rohstoffe sind ein bewusst kleines
+    # Experiment — max. 1 Position, feste Groesse. Es gibt bisher KEINE
+    # verwertbare Evidenz (6 geschlossene Trades, alle exakt 0.0 %), das
+    # Limit haelt das Risiko klein und sammelt trotzdem Datenpunkte.
+    _comm_cfg = ((cfg.get("trading", {}) or {}).get("commodity", {}) or {})
+    _comm_ids: set[int] = set()
+    _comm_open = 0
+    try:
+        _comm_ids = {
+            r["instrument_id"] for r in db.fetchall(
+                "SELECT instrument_id FROM instruments WHERE asset_class = 'commodity'")
+        }
+        _comm_open = len(db.fetchall(
+            "SELECT p.instrument_id FROM portfolio_snapshot p "
+            "JOIN instruments i ON i.instrument_id = p.instrument_id "
+            "WHERE i.asset_class = 'commodity'"))
+    except Exception:
+        _comm_ids, _comm_open = set(), 0
+    return _comm_cfg, _comm_ids, _comm_open
+
+
+def _filter_eligible(
+    *, db, cfg: dict, trade_repo, signal_repo, portfolio_repo,
+    buy_signals: list[dict], _llm_blacklist: dict, _llm_signal_weights: dict,
+    _news_flags: dict, _open_signal_cats: dict[str, int], position_count: int,
+    _comm_cfg: dict, _comm_ids: set[int], _comm_open: int,
+    signal_type_cooldown_minutes: int,
+) -> tuple[list[tuple[dict, str]], dict[str, list[str]], list[str]]:
+    """Vorfilter VOR Ranking/Slicing (V5 fix, siehe Kommentar in main()).
+
+    Rueckgabe (eligible, skip_map, skipped_diversity). REJECT-Zweige setzen
+    den Signalstatus direkt; Skip-Zweige lassen das Signal FRESH.
+    """
+    from bot.core.market_hours import is_market_open
+
+    skipped_diversity: list[str] = []
+    eligible: list[tuple[dict, str]] = []  # (signal, symbol) — open market, not blacklisted
+    # feat/eligible-counters (2026-08-24): Der Filter verschluckte 17 von 18
+    # frischen Signalen, ohne zu sagen woran. Ohne diese Zaehler bleibt nur
+    # Raten — pro Lauf steht jetzt in einer Zeile, welcher Zweig wie viele
+    # Kandidaten aussortiert hat, mit Beispielsymbolen.
+    from collections import defaultdict as _dd
+    _skip: dict[str, list[str]] = _dd(list)
+
+    # feat/rebuy-cooldown (2026-08-24): Nachkauf desselben Instruments erst
+    # nach N Stunden. Grund: LEG.DE, IBE.MC, MAU.PA und 6753.T wurden je
+    # zwei- bis dreimal gekauft, immer EXAKT einen 15-Minuten-Zyklus
+    # auseinander. Die bestehende Sperre (get_approved_instrument_ids)
+    # deckt nur status='APPROVED' ab — "Instrumente, die auf Ausfuehrung
+    # warten". Die Bestaetigung erfolgt aber rund 3 Minuten nach der
+    # Freigabe, der naechste Zyklus kommt nach 15: das Fenster der Sperre
+    # ist zu diesem Zeitpunkt immer schon geschlossen, und eine ACTIVE
+    # Position blockiert nichts.
+    #
+    # Bewusst zeitbasiert statt "nur eine Position je Instrument":
+    # Nachkaufen soll erlaubt bleiben, nur nicht im Minutentakt.
+    #
+    # created_at ist UTC (approved_at dagegen lokal — die beiden NICHT
+    # mischen, sonst verrutscht der Vergleich um zwei Stunden).
+    _rebuy_h = float((cfg.get("trading", {}) or {}).get("rebuy_cooldown_hours", 6.0))
+    _recent_buys: set[int] = set()
+    if _rebuy_h > 0:
+        try:
+            # fix/rebuy-cooldown-closed (2026-09-17): Die Sperre deckte
+            # nur status IN ('APPROVED','SUBMITTING','ACTIVE') ab. Ein
+            # Exposure-Auto-Trim, der die Position GANZ schliesst
+            # (min_remaining_pct: 50), setzt den Trade aber auf CLOSED —
+            # und fiel damit aus dem Filter: das naechste FRESH-Signal
+            # kaufte denselben Namen sofort wieder (9531.T dreimal in
+            # 3 Tagen; GFRD.L 8 Min; 5101.T 77 Min). CLOSED-Trades
+            # zaehlen jetzt mit, gemaessen an closed_at — der Zeitpunkt,
+            # zu dem die Position wirklich wieder verfuegbar war.
+            from bot.core.rebuy_cooldown import recent_buy_instrument_ids
+            _recent_buys = recent_buy_instrument_ids(db, _rebuy_h)
+        except Exception:
+            _recent_buys = set()
+
+
+    # APPROVED-Check: Instrumente mit bereits APPROVED-Trade vorab laden
+    _approved_ids: set[int] = set()
+    try:
+        _approved_ids = trade_repo.get_approved_instrument_ids()
+    except Exception:
+        _approved_ids = set()  # fail-open wenn Methode fehlt
+    for signal in buy_signals:
+        instrument_id = signal["instrument_id"]
+        signal_id = signal.get("id")
+
+        # Ghost blacklist check — skip blacklisted instruments
+        if trade_repo.is_instrument_blacklisted(instrument_id):
+            ghost_count = trade_repo.get_ghost_failure_count(instrument_id)
+            logger.info(
+                "SignalWorker: %s BLACKLISTED (%d consecutive ghost failures) — skipping",
+                instrument_id, ghost_count,
+            )
+            signal_repo.update_signal_status(signal_id, "REJECTED")
+            # fix (2026-08-24): hier fehlte das continue — ein gesperrtes
+            # Instrument wurde als REJECTED markiert, lief aber weiter durch
+            # den Filter und konnte trotzdem im eligible-Pool landen.
+            _skip["ghost_blacklist"].append(str(instrument_id))
+            continue
+
+        # APPROVED-Check: kein neues Signal fuer Instrument mit
+        # bereits APPROVED-Trade (fix/duplicate-instrument-approval 2026-07-27)
+        # Vorher: execution_worker markierte Duplikate als REJECTED,
+        # aber signal_worker generierte sie trotzdem — 83/176 REJECTED.
+        if instrument_id in _approved_ids:
+            logger.info(
+                "SignalWorker: instrument_id %d hat bereits APPROVED-Trade — SKIP",
+                instrument_id,
+            )
+            signal_repo.update_signal_status(signal_id, "REJECTED")
+            _skip["bereits_approved"].append(str(instrument_id))
+            continue
+
+        symbol = _resolve_symbol(db, portfolio_repo, instrument_id)
+
+        # feat/rebuy-cooldown: frisch gekauft -> kein Nachkauf.
+        # Skip statt REJECT: nach Ablauf der Sperrfrist ist das Signal
+        # sofort wieder Kandidat, sofern es dann noch gilt.
+        if instrument_id in _recent_buys:
+            _skip["nachkauf_cooldown"].append(symbol)
+            continue
+
+        # feat/commodity: hoechstens N Rohstoffpositionen gleichzeitig.
+        # Skip statt REJECT — schliesst die offene Position, ist das
+        # Signal sofort wieder Kandidat.
+        if instrument_id in _comm_ids:
+            if not _comm_cfg.get("enabled", False):
+                _skip["commodity_aus"].append(symbol)
                 continue
-            key, _, value = line.partition("=")
-            os.environ.setdefault(key.strip(), value.strip())
+            if _comm_open >= int(_comm_cfg.get("max_positions", 1)):
+                _skip["commodity_limit"].append(symbol)
+                continue
+
+        if _is_llm_ghost_blocked(symbol, _llm_blacklist):
+            logger.info("SignalWorker: %s LLM-Exchange-Blacklist", symbol)
+            signal_repo.update_signal_status(signal_id, "REJECTED")
+            _skip["llm_exchange_blacklist"].append(symbol)
+            continue
+
+        # LLM Signal-Type Blacklist (deaktivierte Signal-Typen)
+        _sig_type = signal.get("signal_type", "")
+        _sig_skip, _sig_reason = _is_signal_type_skipped(_sig_type, _llm_signal_weights)
+        if _sig_skip:
+            logger.info("SignalWorker: %s Signal-Typ gesperrt (%s): %s",
+                        symbol, _sig_type[:40], _sig_reason[:60])
+            signal_repo.update_signal_status(signal_id, "REJECTED")
+            _skip["llm_signaltyp_gesperrt"].append(symbol)
+            continue
+
+        # Signal-Type Cooldown (fix/signal-type-cooldown: gleiche
+        # signal_type auf gleichem Instrument braucht Mindestdauer)
+        _sig_type = signal.get("signal_type", "")
+        if signal_type_cooldown_minutes > 0:
+            if signal_repo.has_recent_signal(
+                instrument_id, _sig_type, signal_type_cooldown_minutes
+            ):
+                logger.info(
+                    "SignalWorker: %s signal_type '%s' im Cooldown (%d min) — REJECTED",
+                    symbol, _sig_type[:60], signal_type_cooldown_minutes,
+                )
+                signal_repo.update_signal_status(signal_id, "REJECTED")
+                _skip["signaltyp_cooldown"].append(symbol)
+                continue
+
+        # Slippage-Blacklist: Instrumente mit >=3 Slippage-Rejects in 7d
+        # werden hier herausgefiltert (NICHT erst im Kandidaten-Loop),
+        # damit sie keine der 3 wertvollen Kandidaten-Slots blockieren.
+        if trade_repo.is_slippage_blacklisted(instrument_id):
+            logger.info(
+                "SignalWorker: %s Slippage-Blacklist (eligible-Filter) — Signal REJECTED",
+                symbol,
+            )
+            signal_repo.update_signal_status(signal_id, "REJECTED")
+            _skip["slippage_blacklist"].append(symbol)
+            continue
+
+        # Diversity-Precheck (fix/diversity-slot-guard, 2026-07-15):
+        # Kandidaten, deren Kategorie bereits an der 45%-Kappe ist,
+        # wuerden im Gate deterministisch geblockt — sie duerfen keinen
+        # der 3-5 knappen Slots belegen (Vorfall 2026-07-15: alle 5
+        # Slots an MIXED/TF-Kandidaten verschwendet, 0 Trades trotz
+        # Pool). Skip statt REJECT: gibt ein Exit Kapazitaet frei, ist
+        # das Signal (TTL 24h) sofort wieder Kandidat.
+        _pre_cat = _get_signal_category(signal.get("signal_type", ""))
+        if (_pre_cat != "UNKNOWN" and position_count > 0
+                and _max_fraction_for(_pre_cat) < 1.0
+                and _open_signal_cats.get(_pre_cat, 0) / position_count
+                    >= _max_fraction_for(_pre_cat)):
+            skipped_diversity.append(f"{symbol}({_pre_cat})")
+            _skip["diversity_kappe"].append(symbol)
+            continue
+
+        # News/Earnings-Risk-Flag (fix/llm-news-flags): AVOID → Signal
+        # ueberspringen, bleibt FRESH (Flag-TTL 12h laeuft vor Signal-TTL
+        # 24h ab — das Ereignis kann vorbeigehen). Kein REJECT.
+        _nf = _news_flags.get(symbol)
+        if _nf and _nf.get("flag") == "AVOID":
+            logger.info(
+                "SignalWorker: %s News-Flag AVOID (%s) — uebersprungen",
+                symbol, (_nf.get("reason") or "")[:80],
+            )
+            _skip["news_avoid"].append(symbol)
+            continue
+
+        # Market hours (fix/market-hours-slot-guard): Signale geschlossener
+        # Boersen bleiben FRESH (kein REJECT — sie werden gueltig, sobald
+        # der Markt oeffnet, z.B. EU-Preload ueber Nacht), belegen aber
+        # keinen der 3 knappen Kandidaten-Slots pro 15-min-Zyklus.
+        # allowEntryOrders in open_position() bleibt die letzte
+        # Verteidigungslinie fuer Feiertage/Halts, die der statische
+        # Kalender nicht kennt.
+        _yf_sym, _mh_category = _resolve_market_fields(db, instrument_id)
+        if not is_market_open(symbol, _yf_sym, _mh_category, fail_open=False):
+            _skip["markt_geschlossen"].append(f"{symbol}[{_mh_category}]")
+            continue
+
+        eligible.append((signal, symbol))
+    return eligible, _skip, skipped_diversity
+
+
+def _log_eligible_summary(log_repo, n_in: int, eligible: list, _skip: dict,
+                          skipped_diversity: list[str]) -> None:
+    # feat/eligible-counters: eine Zeile pro Lauf, warum aussortiert wurde.
+    _in = n_in
+    _out = len(eligible)
+    if _in:
+        _parts = " ".join(
+            f"{k}={len(v)}" for k, v in sorted(_skip.items(), key=lambda kv: -len(kv[1]))
+        ) or "keine"
+        logger.info(
+            "SignalWorker: eligible-Filter %d Signale -> %d Kandidaten | %s",
+            _in, _out, _parts,
+        )
+        for _k, _v in sorted(_skip.items(), key=lambda kv: -len(kv[1]))[:4]:
+            logger.info("SignalWorker:   %s (%d): %s", _k, len(_v), ", ".join(_v[:8]))
+        try:
+            log_repo.write(
+                "INFO", "signal_worker",
+                f"eligible-Filter: {_in} -> {_out} | {_parts}",
+                {"skip_counts": {k: len(v) for k, v in _skip.items()}},
+            )
+        except Exception:
+            pass
+
+    if skipped_diversity:
+        logger.info(
+            "SignalWorker: %d Kandidat(en) am Diversity-Precheck uebersprungen "
+            "(Kategorie an 45%%-Kappe, Signal bleibt FRESH): %s",
+            len(skipped_diversity), ", ".join(skipped_diversity[:6]),
+        )
+
+
+def _rank_eligible(cfg: dict, db, db_path, eligible: list[tuple[dict, str]],
+                   _llm_signal_weights: dict) -> None:
+    """Sortiert eligible in-place nach geboostetem Score (absteigend)."""
+    from bot.core.risk import get_score_boost
+
+    # Sort by boosted score descending — only among OPEN, non-blacklisted
+    # signals. get_score_boost gewichtet nach Anlageklasse; die Deckel
+    # selbst bleiben davon unberuehrt (ASSET_CLASS_LIMITS in risk.py
+    # greift weiter unten am Gate).
+    #
+    # ACHTUNG (2026-08-29): Hier stand bis heute, der Boost bevorzuge
+    # Aktien/ETFs GEGENUEBER Krypto. Das stimmt seit dem 2026-08-24 nicht
+    # mehr — CRYPTO wurde von 0.85 auf 1.15 gehoben und liegt damit
+    # gleichauf mit Aktien (DEFAULT_STOCK_SCORE_BOOST 1.15). Der veraltete
+    # Kommentar hat die Ursachensuche zum Wochenend-Stillstand zunaechst in
+    # die falsche Richtung geschickt: die Vermutung "Krypto wird
+    # wegsortiert" war seit fuenf Tagen nicht mehr zutreffend. Gemessen
+    # entstehen am Wochenende 5.5 Krypto-Kaufsignale pro Tag gegen 4.9
+    # werktags — die Klasse laeuft, sie ist nur klein.
+    #
+    # feat/liquidity-tiering (2026-07-26): fuenfter Term im Sort-Key —
+    # Market-Cap/ADV-Tier-Faktor [0.6..1.1] aus instruments. High-Runner
+    # gewinnen die knappen Slots, Micro-Caps werden nachrangig sortiert
+    # (nicht geblockt). Unbekannt = 1.0 neutral, fail-open.
+    _liquidity_map: dict[int, float] = {}
+    if bool(cfg.get("trading", {}).get("liquidity_tiering", True)):
+        try:
+            from bot.core.liquidity import load_liquidity_map
+            _liquidity_map = load_liquidity_map(
+                db, [s["instrument_id"] for s, _ in eligible]
+            )
+        except Exception:
+            _liquidity_map = {}
+    # fix/fee-churn-minhold (2026-09-20): sechster Term im Sort-Key —
+    # Fee-Tier-Bias. 2%-Fee-Boersen (.AX/.HK/.T) werden mit 0.70x
+    # nachrangig sortiert, damit 1%-Fee-Titel gleicher Signal-Qualitaet
+    # die Slots gewinnen (34/89 offene Positionen auf 2%-Fee-Titeln,
+    # doppelte Fee pro Round-Trip). Fail-open: cfg fehlt/ausgebaucht
+    # -> 1.0 neutral.
+    _fee_tier_cfg = cfg.get("trading", {}).get("fee_tiering") or {}
+    _fee_tier_map: dict[str, float] = {}
+    if bool(_fee_tier_cfg.get("enabled", False)):
+        try:
+            from bot.core.liquidity import fee_tier_factor
+            _fee_tier_map = {
+                sym: fee_tier_factor(sym, _fee_tier_cfg)
+                for _, sym in eligible
+            }
+        except Exception:
+            _fee_tier_map = {}
+    eligible.sort(
+        key=lambda t: (
+            float(t[0].get("score", 0))
+            * get_score_boost(t[1])
+            * _get_signal_score_multiplier(t[0].get("signal_type", ""),
+                                           _llm_signal_weights,
+                                           t[0].get("conviction"))
+            * _signal_age_factor(t[0].get("generated_at", ""), ttl_minutes=1440)
+            * _liquidity_map.get(t[0]["instrument_id"], 1.0)
+            * _fee_tier_map.get(t[1], 1.0)
+            * _signal_performance_decay(
+                t[0].get("signal_type", ""), db_path
+            )
+        ),
+        reverse=True,
+    )
+    _dampened = {
+        sym: f for (s, sym) in eligible
+        if (f := _liquidity_map.get(s["instrument_id"], 1.0)) < 1.0
+    }
+    if _dampened:
+        logger.info(
+            "SignalWorker: Liquidity-Tiering daempft %d Kandidat(en): %s",
+            len(_dampened),
+            ", ".join(f"{sym}={f:.2f}" for sym, f in list(_dampened.items())[:8]),
+        )
+    _fee_dampened = {
+        sym: f for sym, f in _fee_tier_map.items() if f < 1.0
+    }
+    if _fee_dampened:
+        logger.info(
+            "SignalWorker: Fee-Tier-Bias daempft %d Kandidat(en): %s",
+            len(_fee_dampened),
+            ", ".join(f"{sym}={f:.2f}" for sym, f in list(_fee_dampened.items())[:8]),
+        )
+
+
+def _select_candidates(cfg: dict, eligible: list[tuple[dict, str]],
+                      cash_estimate: float, equity: float) -> list[tuple[dict, str]]:
+    """Ein Kandidat je Instrument, Basis-Slots + ggf. HIGH+-Extra-Slots."""
+    # Deduplicate: keep only the highest-score signal per instrument_id
+    seen_instruments = set()
+    unique_candidates: list[tuple[dict, str]] = []
+    for signal, symbol in eligible:
+        inst_id = signal["instrument_id"]
+        if inst_id not in seen_instruments:
+            seen_instruments.add(inst_id)
+            unique_candidates.append((signal, symbol))
+
+    # Adaptive Kandidaten-Slots (fix/adaptive-slots): 3 Standard. 5 wenn
+    # Kapital brach liegt (cash > cash_target_max_pct der Equity) UND der
+    # Pool >= 4 HIGH/VERY_HIGH-Kandidaten hat — an starken Signaltagen
+    # soll ueberschuessiges Cash arbeiten, ohne die Qualitaetsschwelle zu
+    # senken. Alle nachgelagerten Gates (Exposure, Cash-Floor, Kelly,
+    # Diversity, Slippage) gelten unveraendert pro Kandidat.
+    # fix/cash-deployment (2026-07-15, Umbau der adaptiven Slots):
+    # vorher nahmen die Extra-Slots einfach Top-4/5 des Pools — Slot 4/5
+    # konnten MEDIUM-Kandidaten sein, die >=4-HIGH+-Bedingung war nur
+    # ein Proxy. Jetzt: Basis 3 Slots fuer alle; bei Cash-Ueberschuss
+    # werden Slots 4-5 AUSSCHLIESSLICH mit HIGH/VERY_HIGH aus dem Rest
+    # befuellt — Qualitaet der Extra-Slots ist strukturell garantiert,
+    # eine Mindestanzahl-Schwelle ist damit ueberfluessig.
+    # 2026-08-24: Basis-Slots konfigurierbar (war fest 3).
+    # KORREKTUR 2026-08-25: Die urspruengliche Begruendung war falsch. Sie
+    # lautete, 97-99 % der Signale liefen ungenutzt in die TTL, weil pro
+    # Zyklus nur 3 Kandidaten geprueft wuerden — der Durchsatz sei der
+    # bindende Engpass. Nachgemessen: von 930 Signalen in drei Tagen waren
+    # 897 VERKAUFSsignale (791x BB_UPPER_RSI_OVERBOUGHT). Der signal_worker
+    # ist der Kauf-Pfad und verwirft sie regulaer; nur 33 waren ueberhaupt
+    # kauffaehig. Ein Zyklus mit freien Slots protokollierte evaluated=1 —
+    # die Slots banden also nicht. Es gibt schlicht wenige Kaufgelegenheiten.
+    # Der Wert 5 steht damit OHNE belegte Grundlage; er ist vermutlich
+    # wirkungslos (alle nachgelagerten Gates gelten unveraendert pro
+    # Kandidat), aber niemand hat ihn nach der Widerlegung neu begruendet.
+    # Wer ihn anfasst: erst zaehlen, wie viele Kandidaten pro Zyklus
+    # tatsaechlich anstehen, dann entscheiden.
+    _base_slots = int(cfg.get("trading", {}).get("candidate_slots", 5))
+    _n_base = max(1, _base_slots)
+    candidates = unique_candidates[:_n_base]
+    try:
+        _cash_max_pct = float(cfg.get("trading", {}).get("cash_target_max_pct", 30.0))
+        _cash_pct = (cash_estimate / equity * 100.0) if equity > 0 else 0.0
+        if _cash_pct > _cash_max_pct:
+            # fix/extra-slot-overlap (2026-09-25): Extra-Slots kommen aus dem
+            # Rest HINTER den Basis-Slots. Hier stand fest [3:] — ein Rest aus
+            # der Zeit mit 3 Basis-Slots. Mit candidate_slots=5 lagen Platz 4/5
+            # dadurch doppelt in der Liste: dasselbe Instrument wurde im selben
+            # Lauf zweimal approved (und das Rohstoff-Limit so umgangen).
+            _extra = [
+                (_s, _sym) for _s, _sym in unique_candidates[_n_base:]
+                if (_s.get("conviction") or "").upper() in ("HIGH", "VERY_HIGH")
+            ][:2]
+            if _extra:
+                candidates = candidates + _extra
+                logger.info(
+                    "SignalWorker: Adaptive Slots %d->%d (Cash %.1f%% > %.1f%%, "
+                    "Extra-Slots nur HIGH+): %s",
+                    _n_base, len(candidates), _cash_pct, _cash_max_pct,
+                    ", ".join(_sym for _s, _sym in _extra),
+                )
+    except Exception:
+        pass
+    return candidates
+
+
+def _pull_candidate_news(cfg: dict, db, candidates: list[tuple[dict, str]],
+                        _news_flags: dict, _skip: dict) -> list[tuple[dict, str]]:
+    """Synchroner Regel-News-Pull fuer die feststehenden Kandidaten.
+
+    Mutiert _news_flags und _skip; gibt die (ggf. um AVOID gekuerzte)
+    Kandidatenliste zurueck.
+    """
+    # ── feat/signal-news-pull (2026-09-12) ───────────────────────────────
+    # Gemessen: 93,4 % der 211 Epochen-Trades liefen auf Signalen, die NACH
+    # dem letzten stuendlichen News-Lauf geboren wurden (Ø 3,0 min von
+    # Signalgeburt zu Freigabe — Signal und Kauf im selben Zyklus). Der
+    # stuendliche news_flags_worker kann ein Symbol vor seinem ERSTEN Kauf
+    # strukturell nicht sehen. Hier stehen die <= 5 Kandidaten fest, also
+    # wird genau fuer sie synchron nachgezogen.
+    #
+    # Nur die regelbasierten Kriterien (Earnings-Termin, Analysten-
+    # Kursziel) — deterministisch, kein LLM-Round-Trip auf dem Geld-Pfad.
+    # Hartes Wall-Clock-Budget: bis zum Execution-Slot (:06) bleiben ab
+    # :03 rund 180 s, wovon der Worker heute ~40 s braucht.
+    # Fail-open in jeder Richtung: Fehler oder Zeitueberschreitung
+    # bedeuten "keine zusaetzlichen Flags", nie "kauf trotzdem".
+    if candidates and bool(cfg.get("trading", {}).get("signal_news_pull", True)):
+        try:
+            from bot.workers.news_flags_worker import (
+                pull_regel_flags, staerkeres_flag,
+            )
+            _budget = float(cfg.get("trading", {}).get("signal_news_pull_budget_s", 45.0))
+            _entries = []
+            for _sig, _sym in candidates:
+                _iid = _sig.get("instrument_id")
+                _yf, _ = _resolve_market_fields(db, _iid)
+                _ac = None
+                try:
+                    _acr = db.fetchone(
+                        "SELECT asset_class FROM instruments WHERE instrument_id=?",
+                        (_iid,))
+                    _ac = _acr["asset_class"] if _acr else None
+                except Exception:
+                    pass
+                _entries.append({"symbol": _sym, "yf": _yf or _sym,
+                                 "asset_class": _ac})
+            _neu, _abgebrochen = pull_regel_flags(_entries, budget_s=_budget)
+            for _sym, _flag in _neu.items():
+                _news_flags[_sym] = staerkeres_flag(_news_flags.get(_sym), _flag)
+
+            # AVOID SOFORT durchsetzen — vor jedem Logging. Das Pool-Gate
+            # weiter oben ist zum Zeitpunkt der Kandidatenwahl bereits
+            # gelaufen, hier ist die letzte Stelle, an der ein Flag den
+            # Kauf noch verhindern kann. Zwischen Verschmelzung und
+            # Durchsetzung darf nichts stehen, das werfen koennte.
+            _raus = [
+                _sym for _sig, _sym in candidates
+                if (_news_flags.get(_sym) or {}).get("flag") == "AVOID"
+            ]
+            if _raus:
+                candidates = [
+                    (_sig, _sym) for _sig, _sym in candidates if _sym not in _raus
+                ]
+                _skip["news_avoid"].extend(_raus)
+
+            if _neu:
+                logger.info(
+                    "SignalWorker: News-Pull ergab %d Flag(s) fuer %d "
+                    "Kandidaten (%d verworfen): %s",
+                    len(_neu), len(_entries), len(_raus),
+                    ", ".join(f"{k}={v['flag']}" for k, v in _neu.items()),
+                )
+            else:
+                logger.info("SignalWorker: News-Pull ohne Flag (%d Kandidaten)",
+                            len(_entries))
+            if _abgebrochen:
+                logger.warning("SignalWorker: News-Pull lief ins Zeitbudget "
+                               "(%.0fs) — Teilergebnis", _budget)
+        except Exception as _np_exc:
+            logger.warning("SignalWorker: News-Pull uebersprungen (%s) — "
+                           "Kandidaten laufen unveraendert", _np_exc)
+    return candidates
+
+
+def _load_sector_map(cfg: dict, signal_repo) -> dict[str, str]:
+    _sector_map: dict[str, str] = {}
+    if bool((cfg.get("sector_limits", {}) or {}).get("enforce_db_sectors", False)):
+        try:
+            _sector_map = {
+                str(r["symbol"]).upper(): str(r["sector"])
+                for r in (signal_repo.db.fetchall(
+                    "SELECT symbol, sector FROM instruments "
+                    "WHERE sector IS NOT NULL AND sector != '' AND sector != 'unknown'"
+                ) or [])
+            }
+            logger.info("SignalWorker: Sektor-Map aktiv (%d Instrumente)", len(_sector_map))
+        except Exception as _sec_exc:
+            # Fail-open: fehlt die Spalte oder kippt die Query, verhaelt
+            # sich das Gate wie vor dem Backfill.
+            logger.warning("SignalWorker: Sektor-Map nicht ladbar (%s) — Gate fail-open", _sec_exc)
+            _sector_map = {}
+    return _sector_map
+
+
+def _load_region_map(signal_repo) -> dict[str, str]:
+    _region_by_symbol: dict[str, str] = {}
+    try:
+        _region_by_symbol = {
+            str(r["symbol"]).upper(): str(r["market_region"])
+            for r in (signal_repo.db.fetchall(
+                "SELECT symbol, market_region FROM instruments "
+                "WHERE market_region IS NOT NULL AND market_region != ''"
+            ) or [])
+        }
+    except Exception as _reg_exc:
+        logger.warning("SignalWorker: Regionen-Map nicht ladbar (%s) — Damper aus", _reg_exc)
+        _region_by_symbol = {}
+    return _region_by_symbol
+
+
+def _run_core_sweep(
+    *, cfg: dict, db, trade_repo, signal_repo, log_repo,
+    equity: float, regime: str, regime_params: dict,
+    open_positions_raw: list[dict], open_positions: list[dict],
+    _news_flags: dict, approved_trades_info: list[dict],
+    approved_count: int, cash_estimate: float, total_exposure: float,
+    position_count: int,
+) -> tuple[int, float, float, int]:
+    """Core-Sweep-Pass (5b). Haengt Freigaben an approved_trades_info an und
+    gibt die fortgeschriebenen Zaehler (approved_count, cash_estimate,
+    total_exposure, position_count) zurueck — auch nach einem Fehler
+    mitten im Pass, genau wie vorher die Locals in main().
+    """
+    try:
+        from bot.core.core_sweep import plan_core_sweep, is_enabled as _cs_enabled
+        _held_ids = set()
+        for _p in open_positions_raw:
+            try:
+                _held_ids.add(int(_p.get("instrument_id")))
+            except (TypeError, ValueError):
+                pass
+        # fix/core-sweep-duplicate-approval (2026-07-29): _held_ids kannte
+        # bisher NUR offene Positionen. Ein Instrument mit bereits
+        # APPROVED-Trade wurde deshalb jeden 15-min-Zyklus erneut
+        # eingeplant, und der execution_worker verwarf es als
+        # "Duplicate instrument_id in same execution batch" — 143 von 143
+        # Duplikat-Rejects der letzten 3 Tage stammten aus CORE_SWEEP.
+        # Der normale Signalpfad hat diesen Guard seit
+        # fix/duplicate-instrument-approval (2026-07-27) bereits.
+        # BEWUSST frisch abgefragt statt _approved_ids (Zeile ~654)
+        # wiederzuverwenden: das Set stammt von VOR der Signal-Schleife,
+        # die selbst Trades anlegt — und die Core-Sweep-Whitelist wird aus
+        # genau denselben starken FRESH-Signalen gefuellt, ein Instrument
+        # in beiden Pfaden ist also der Normalfall, nicht die Ausnahme.
+        try:
+            _held_ids |= trade_repo.get_approved_instrument_ids(
+                ("APPROVED", "SUBMITTING")
+            )
+        except Exception:
+            pass  # fail-open: execution_worker-Guard bleibt letzte Linie
+        _wl = (cfg.get("trading", {}).get("core_sweep", {}) or {}).get("whitelist", {}) or {}
+        _wl_ids = []
+        for _v in _wl.values():
+            try:
+                _wl_ids.append(int(_v))
+            except (TypeError, ValueError):
+                pass
+        _atr_by_id, _rsi_by_id = {}, {}
+        if _wl_ids:
+            _ph = ",".join("?" for _ in _wl_ids)
+            for _r in (signal_repo.db.fetchall(
+                    f"SELECT instrument_id, atr_pct FROM instruments "
+                    f"WHERE instrument_id IN ({_ph})", tuple(_wl_ids)) or []):
+                if _r["atr_pct"] is not None:
+                    _atr_by_id[int(_r["instrument_id"])] = float(_r["atr_pct"])
+            for _r in (signal_repo.db.fetchall(
+                    f"SELECT instrument_id, MAX(generated_at) AS g, rsi FROM signals "
+                    f"WHERE instrument_id IN ({_ph}) AND rsi IS NOT NULL "
+                    f"GROUP BY instrument_id", tuple(_wl_ids)) or []):
+                if _r["rsi"] is not None:
+                    _rsi_by_id[int(_r["instrument_id"])] = float(_r["rsi"])
+        # fix/core-sweep-portfolio-gates (2026-08-12): Core-Sweep sieht ab
+        # jetzt dieselben Portfolio-Grenzen wie der regulaere Signalpfad.
+        # total_exposure ist hier bereits um die in dieser Schleife
+        # approbierten Buys hochgezaehlt (Zeile ~1295) — der Sweep plant
+        # also gegen den Stand NACH den Signal-Trades, nicht davor.
+        from bot.core.risk import MAX_TOTAL_EXPOSURE_PCT as _cs_max_exp
+        from bot.core.correlation import check_correlation_gate as _cs_corr
+        # fix/core-sweep-market-open (2026-09-23): Core-Sweep plant NUR in
+        # offene Maerkte. 30d-Beleg: 273/274 "Markt >4h geschlossen — Signal
+        # veraltet"-Rejections waren CORE_SWEEP, fast alle US-listed (PG 20,
+        # AAPL 19, JPM 19, NVDA 19, V 19, KO 18, MSFT 18, SPY 16), in den
+        # US-closed Stunden 00-09 & 19-23 UTC. Ohne Market-Check plant der Bot
+        # ueber Nacht US-Titel, die im execution_worker auf DEFER ->
+        # market-closed-TTL -> REJECTED laufen: tote Rejections, verbrauchte
+        # Daily-Cap-Slots und Veto-LLM-Calls pro Titel. SKIP (keine Order) ist
+        # kostenlos, der Titel wird im naechsten Lauf wieder geplant, sobald
+        # sein Markt offen ist.
+        # fail_open=True + None->True: ein Kalender-/Aufloesungsfehler darf das
+        # Cash-Deployment nie blockieren; das execution_worker-BUY-Gate
+        # (fail_open=False) bleibt die fail-closed Letztlinie.
+        # Config: trading.core_sweep.market_open_only (default true).
+        # (Bei der Aufloesung des PR-#1-Merges 2026-09-26 aus main() in diese
+        # Funktion portiert — der Refactor hatte den Pass verschoben.)
+        _cs_market_open_only = bool(
+            (cfg.get("trading", {}).get("core_sweep", {}) or {}).get(
+                "market_open_only", True))
+        _cs_market_open = None
+        if _cs_market_open_only:
+            from bot.core.market_hours import resolve_market_fields as _cs_mf
+            from bot.core.market_hours import is_market_open as _cs_is_open
+
+            def _cs_market_open(instrument_id: int) -> bool:
+                _mfp = _cs_mf(db, instrument_id)
+                if not _mfp:
+                    return True  # Zeile fehlt -> fail-open
+                _sym, _yfs, _cat = _mfp
+                if not _sym:
+                    return True
+                return bool(_cs_is_open(_sym, _yfs, _cat, fail_open=True))
+        _sweep_orders, _sweep_reasons = plan_core_sweep(
+            cfg, equity=equity, cash=cash_estimate, regime=regime,
+            held_instrument_ids=_held_ids, atr_by_id=_atr_by_id, rsi_by_id=_rsi_by_id,
+            db=signal_repo.db,
+            total_exposed=total_exposure,
+            max_exposure_pct=_cs_max_exp,
+            open_positions=open_positions,
+            correlation_gate=_cs_corr,
+            market_open=_cs_market_open,
+        )
+        if _sweep_reasons:
+            logger.info("SignalWorker: %s", _sweep_reasons[0])
+        _cs_live = _cs_enabled(cfg)
+        _cs_news_skipped: list[str] = []
+        for _o in _sweep_orders:
+            # feat/core-sweep-news (2026-08-24): News-Flags gelten auch hier.
+            # Der Sweep lief bisher an ihnen vorbei — am 24.08. kaufte er
+            # NVDA (AVOID: Earnings am 26.08.) und JNJ (CAUTION: Talc-
+            # Rechtsrisiko) fuer je 162.30 USD, waehrend derselbe Titel im
+            # Signal-Pfad blockiert worden waere.
+            # Begruendung fuer die Ausnahme war stets "kein Signal-Trade" —
+            # das traegt bei Kelly und Veto, aber nicht hier: Earnings in
+            # zwei Tagen sind ein EREIGNISrisiko und betreffen jeden Kauf,
+            # unabhaengig vom Pfad.
+            _cs_nf = _news_flags.get(_o.symbol) or {}
+            if _cs_nf.get("flag") == "AVOID":
+                _cs_news_skipped.append(_o.symbol)
+                logger.info(
+                    "SignalWorker: Core-Sweep %s uebersprungen — News-Flag AVOID (%s)",
+                    _o.symbol, (_cs_nf.get("reason") or "")[:70],
+                )
+                continue
+            if not _cs_live:
+                logger.info(
+                    "SignalWorker: [DRY] Core-Sweep wuerde $%.2f in %s (id=%s) deployen",
+                    _o.amount_usd, _o.symbol, _o.instrument_id)
+                log_repo.write("INFO", "signal_worker",
+                               f"[DRY] Core-Sweep: ${_o.amount_usd:.2f} {_o.symbol}")
+                continue
+            from bot.core.risk import adaptive_sl_pct as _cs_adaptive
+            _cs_sl = _cs_adaptive(
+                float(cfg.get("sl", {}).get("default_pct", 3.0)),
+                _atr_by_id.get(_o.instrument_id),
+                multiple=float(cfg.get("sl", {}).get("atr_multiple", 1.5)),
+                max_pct=float(cfg.get("sl", {}).get("max_pct", 6.0)),
+            )
+            # feat/core-sweep-signal-tag (2026-07-26): synthetisches
+            # CONSUMED-Signal 'CORE_SWEEP' statt signal_id=None — vorher
+            # waren Core-Sweep-Trades fuer Scorecard, Kelly und jede
+            # trades-JOIN-signals-Analyse unsichtbar (Cash-Deployment-
+            # Pfad hatte keine Lernschleife).
+            _cs_sig_id = None
+            try:
+                _cs_sig_id = signal_repo.create(
+                    instrument_id=_o.instrument_id,
+                    signal_type="CORE_SWEEP",
+                    conviction="MEDIUM",
+                    score=0.0,
+                    rsi=_rsi_by_id.get(_o.instrument_id),
+                    ttl_minutes=5,
+                )
+                signal_repo.update_signal_status(_cs_sig_id, "CONSUMED")
+            except Exception:
+                _cs_sig_id = None
+            # feat/entry-quality (2026-08-22) SHADOW-Modus: Core-Sweep-
+            # Regime-Gate loggen + entry_quality_events recorden, OHNE die
+            # Order zu aendern. Volle Indikatoren sind hier nicht
+            # verfuegbar (Sweep plant gegen _atr_by_id/_rsi_by_id) — das
+            # core_sweep_regime-Gate braucht nur das Regime; der
+            # Trend-Override faellt fail-open aus (keine Daten = kein
+            # Override). Basis der Phase-1-Shadow-Auswertung
+            # (CORE_SWEEP-Regime-Druck: -$171 Drag).
+            # PHASE 2: _cs_amt traegt den ggf. herunterskalierten Betrag.
+            # Wird vor dem Gate gesetzt, damit ein Fehler im Gate den
+            # urspruenglichen Betrag unveraendert laesst (fail-open).
+            _cs_amt = _o.amount_usd
+
+            # feat/core-sweep-news: CAUTION halbiert, wie im Signal-Pfad.
+            if _cs_nf.get("flag") == "CAUTION":
+                _cs_amt = round(_cs_amt * 0.5, 2)
+                logger.info(
+                    "SignalWorker: Core-Sweep %s News-Flag CAUTION — Groesse "
+                    "halbiert auf $%.2f (%s)",
+                    _o.symbol, _cs_amt, (_cs_nf.get("reason") or "")[:60],
+                )
+
+            # feat/core-sweep-kelly (2026-08-24): Der Sweep war der EINZIGE
+            # Kaufpfad ohne Kelly-Skalierung — er bekam implizit Faktor 1.0,
+            # waehrend jeder Signal-Trade nach seinem gemessenen Edge
+            # dimensioniert wurde. Gemessen an 73 geschlossenen Sweep-Trades:
+            # WR 32.9 %, avg -0.99 %, -171 USD Ergebnis — bei der GROESSTEN
+            # Durchschnittsgroesse im ganzen Bestand (234 USD gegen 67 USD
+            # bei den besten Signalen). Der Sweep hat mit n=73 zugleich die
+            # belastbarste Stichprobe ueberhaupt, die Schrumpfung greift hier
+            # also am wenigsten. Fail-open: Fehler laesst den Betrag stehen.
+            try:
+                from bot.core.sizing import kelly_size_factor as _cs_ksf
+                from bot.core import entry_quality as _cs_eq
+                _cs_kf = _cs_ksf("CORE_SWEEP", db)
+                if _cs_kf < 1.0:
+                    _cs_amt, _cs_floored = _cs_eq.apply_sizing(
+                        _cs_amt, _cs_kf,
+                        float(regime_params.get("signal_floor_usd", 50.0)),
+                    )
+                    logger.info(
+                        "SignalWorker: CORE-SWEEP KELLY %s: factor=%.3f "
+                        "$%.2f -> $%.2f%s",
+                        _o.symbol, _cs_kf, _o.amount_usd, _cs_amt,
+                        " [auf Signal-Floor angehoben]" if _cs_floored else "",
+                    )
+            except Exception:
+                logger.debug("core-sweep kelly fehlgeschlagen (fail-open)",
+                             exc_info=True)
+            try:
+                from bot.core import entry_quality as _eq
+                _eq_ev_cs = _eq.evaluate(
+                    cfg, symbol=_o.symbol, signal_type="CORE_SWEEP",
+                    indicators={}, regime=regime or "NORMAL",
+                    is_core_sweep=True,
+                )
+                _eq_mode = str(
+                    ((cfg.get("trading", {}) or {}).get("entry_quality", {}) or {}).get("mode", "shadow")
+                ).lower()
+                _eq_cs_applied = bool(_eq_ev_cs.hits) and _eq_mode == "live"
+                _eq.ensure_table(db)
+                _eq.record(
+                    db, _eq_ev_cs, mode=_eq_mode, applied=_eq_cs_applied,
+                    signal_id=_cs_sig_id, instrument_id=_o.instrument_id,
+                    is_core_sweep=True,
+                )
+                if _eq_ev_cs.hits:
+                    if _eq_cs_applied:
+                        _cs_amt, _cs_floored = _eq.apply_sizing(
+                            _cs_amt, _eq_ev_cs.size_mult,
+                            float(regime_params.get("signal_floor_usd", 50.0)),
+                        )
+                        logger.info(
+                            "SignalWorker: ENTRY-QUALITY CORE_SWEEP %s (live, %s): %s "
+                            "-> size_mult=%.2f $%.2f -> $%.2f%s",
+                            _o.symbol, regime, _eq_ev_cs.reasons,
+                            _eq_ev_cs.size_mult, _o.amount_usd, _cs_amt,
+                            " [auf Signal-Floor angehoben]" if _cs_floored else "",
+                        )
+                    else:
+                        logger.info(
+                            "SignalWorker: ENTRY-QUALITY CORE_SWEEP %s (shadow, %s): %s%s",
+                            _o.symbol, regime, _eq_ev_cs.reasons,
+                            " WOULD-BLOCK" if _eq_ev_cs.blocked else "",
+                        )
+            except Exception:
+                logger.debug("entry_quality: core-sweep gate fehlgeschlagen (fail-open)", exc_info=True)
+            _cs_tid = trade_repo.create(
+                instrument_id=_o.instrument_id, symbol=_o.symbol, direction="BUY",
+                amount_usd=_cs_amt, stop_loss_pct=_cs_sl,
+                signal_id=_cs_sig_id, signal_price=None,
+            )
+            from datetime import datetime as _csdt, timezone as _cstz
+            trade_repo.update_status(
+                _cs_tid, "APPROVED",
+                approved_at=_csdt.now(_cstz.utc).strftime("%Y-%m-%d %H:%M:%S"))
+            approved_count += 1
+            cash_estimate -= _cs_amt
+            # fix/core-sweep-portfolio-gates: Exposure mitfuehren wie im
+            # Signalpfad (Zeile ~1295), damit spaetere Leser im selben Lauf
+            # den Stand INKL. Sweep sehen.
+            total_exposure += _cs_amt
+            position_count += 1
+            _held_ids.add(_o.instrument_id)
+            approved_trades_info.append({
+                "symbol": _o.symbol, "amount_usd": _cs_amt,
+                "signal_type": "CORE_SWEEP", "conviction": "CORE",
+                "score": 0.0, "signal_price": None,
+            })
+            logger.info(
+                "SignalWorker: CORE-SWEEP APPROVED #%d — %s $%.2f (SL %.2f%%)",
+                _cs_tid, _o.symbol, _cs_amt, _cs_sl)
+            log_repo.write(
+                "INFO", "signal_worker",
+                f"Core-Sweep APPROVED: {_o.symbol} BUY ${_cs_amt:.2f}",
+                {"trade_id": _cs_tid, "instrument_id": _o.instrument_id})
+        if _cs_news_skipped:
+            logger.info(
+                "SignalWorker: Core-Sweep — %d Titel wegen News-Flag AVOID "
+                "uebersprungen: %s",
+                len(_cs_news_skipped), ", ".join(_cs_news_skipped[:8]),
+            )
+            log_repo.write(
+                "INFO", "signal_worker",
+                f"Core-Sweep: {len(_cs_news_skipped)} Titel wegen News-AVOID uebersprungen",
+                {"symbols": _cs_news_skipped[:12]},
+            )
+    except Exception as _cs_exc:
+        logger.warning("SignalWorker: Core-Sweep-Pass uebersprungen: %s", _cs_exc)
+    return approved_count, cash_estimate, total_exposure, position_count
 
 
 def main() -> None:
@@ -870,15 +1852,12 @@ def main() -> None:
         _t_run_start = _time_dur.monotonic()
 
         # ── 1. Setup ──────────────────────────────────────────────────────────────
-        _load_env()
+        from bot.config import load_hermes_env
+        load_hermes_env(logger)
         cfg = _load_config()
     
-        from bot.core.market_hours import (
-            is_market_open, resolve_market_fields as _resolve_mf,
-        )
-        from bot.core.regime import get_regime_params
         from bot.core.regime import apply_config as apply_regime_config
-        from bot.core.risk import apply_config, check_buy_gate, get_score_boost
+        from bot.core.risk import apply_config, check_buy_gate
         apply_config(cfg)  # fix/risk-config-wiring: Limits/Schwellen aus config.yaml
         # fix/regime-min-conviction-config (2026-08-28): regime.apply_config lief
         # nur im risk_worker (Regime-ERKENNUNG). get_min_conviction() unten liest
@@ -903,27 +1882,7 @@ def main() -> None:
         state_repo = StateRepo(db)
         log_repo = LogRepo(db)
 
-        # ── LLM Blacklist & Signal Weights (fix/llm-blacklist-wiring:
-        #    beide Load-Funktionen existierten, wurden aber nie in main()
-        #    aufgerufen — LLM-Blocklist und Signal-Weights waren toter Code) ──
-        _llm_blacklist = _load_llm_ghost_blacklist()
-        _llm_signal_weights = _load_llm_signal_weights()
-        if _llm_blacklist:
-            logger.info(
-                "SignalWorker: LLM-Blackload geladen — %d Exchanges, %d Symbole, %d Stats",
-                len(_llm_blacklist.get("exchanges", [])),
-                len(_llm_blacklist.get("symbols", [])),
-                len(_llm_blacklist.get("stats", {})),
-            )
-        if _llm_signal_weights:
-            logger.info("SignalWorker: LLM-Signal-Weights geladen")
-
-        _news_flags = _load_llm_news_flags()
-        if _news_flags:
-            logger.info(
-                "SignalWorker: %d News-Risk-Flag(s) aktiv: %s",
-                len(_news_flags), ", ".join(list(_news_flags)[:6]),
-            )
+        _llm_blacklist, _llm_signal_weights, _news_flags = _load_llm_inputs()
 
         # ── Signal-Type Cooldown pro Instrument (fix/signal-type-cooldown:
         #    BB_EXTREME_RSI_OVERSOLD feuerte 146x mit 70% Fail-Rate —
@@ -936,21 +1895,7 @@ def main() -> None:
             "SignalWorker: Signal-Type-Cooldown = %d min", SIGNAL_TYPE_COOLDOWN_MINUTES
         )
 
-        # ── API-Client für Pre-Trade-Preischeck (fix/slippage-precheck) ───────────
-        # Best-effort: ohne Client/Keys läuft der Worker wie bisher — das
-        # Execution-Gate bleibt die letzte Verteidigungslinie.
-        _price_client = None
-        try:
-            from bot.api.client import ClientConfig, EToroClient
-            _api_key = os.environ.get("ETORO_BOT_API_KEY", "")
-            _user_key = os.environ.get("ETORO_BOT_USER_KEY", "")
-            if _api_key and _user_key:
-                _price_client = EToroClient(
-                    api_key=_api_key, user_key=_user_key,
-                    config=ClientConfig.from_dict(cfg.get("api", {})),
-                )
-        except Exception as _pc_exc:
-            logger.warning("SignalWorker: Preis-Client nicht verfügbar (%s) — Pre-Check übersprungen", _pc_exc)
+        _price_client = _make_price_client(cfg)
 
         # ── Heartbeat (dead-man's switch) — before kill-switch exit so an
         #    active kill switch does not look like a dead worker ─────────────
@@ -980,34 +1925,7 @@ def main() -> None:
     
         # ── 3. Fetch fresh BUY signals — filtered by regime min conviction ────────
         all_signals = signal_repo.get_fresh(min_conviction=min_conviction_for_regime)
-        # Filter to BUY signals only: exclude SELL signals (signal_type contains 'SELL' or 'OVERBOUGHT')
-        buy_signals = [
-            s for s in all_signals
-            if 'SELL' not in (s.get('signal_type') or '').upper()
-               and 'OVERBOUGHT' not in (s.get('signal_type') or '').upper()
-        ]
-
-        # Filter non-tradable instruments (is_tradable=0) — single bulk query.
-        # is_tradable=NULL means never checked → allow (fail-open).
-        if buy_signals:
-            _iids = [s["instrument_id"] for s in buy_signals if s.get("instrument_id")]
-            if _iids:
-                _placeholders = ",".join("?" * len(_iids))
-                _blocked = {
-                    r["instrument_id"]
-                    for r in db.fetchall(
-                        f"SELECT instrument_id FROM instruments"
-                        f" WHERE instrument_id IN ({_placeholders}) AND is_tradable = 0",
-                        _iids,
-                    )
-                }
-                if _blocked:
-                    _before = len(buy_signals)
-                    buy_signals = [s for s in buy_signals if s.get("instrument_id") not in _blocked]
-                    logger.info(
-                        "SignalWorker: %d Signal(e) wegen is_tradable=0 herausgefiltert",
-                        _before - len(buy_signals),
-                    )
+        buy_signals = _filter_buy_signals(db, all_signals)
 
         if not buy_signals:
             logger.info("SignalWorker: no fresh BUY signals with %s+ conviction", min_conviction_for_regime)
@@ -1073,14 +1991,7 @@ def main() -> None:
         # every watchlist symbol at once).
         max_trades_per_day = int(cfg.get("trading", {}).get("max_trades_per_day", 12))
         if max_trades_per_day > 0:
-            row = db.fetchone(
-                "SELECT COUNT(*) AS n FROM trades "
-                "WHERE created_at >= date('now') "
-                "AND status NOT IN ('REJECTED','FAILED')",
-            )
-            trades_today = int(
-                (row["n"] if isinstance(row, dict) else row[0]) if row else 0
-            )
+            trades_today = _count_trades_today(db)
             if trades_today >= max_trades_per_day:
                 msg = (f"Tageslimit erreicht: {trades_today}/{max_trades_per_day} "
                        f"Trades heute — keine weiteren Approvals bis Mitternacht UTC")
@@ -1115,25 +2026,7 @@ def main() -> None:
         # vom macro_regime_worker (taeglich 08:00 CEST). Nur daempfend
         # [0.5..1.0], TTL 26h — fehlt/veraltet/unparsbar → 1.0 (fail-open).
         # Das regelbasierte Regime bleibt unangetastet; wirkt multiplikativ.
-        try:
-            _macro_raw = state_repo.get("LLM_MACRO_SCALAR")
-            _macro_at = state_repo.get("LLM_MACRO_SET_AT") or ""
-            _macro = 1.0
-            if _macro_raw and _macro_at:
-                _at = _dt.fromisoformat(_macro_at)
-                if _at.tzinfo is None:
-                    _at = _at.replace(tzinfo=_tz.utc)
-                if (_dt.now(_tz.utc) - _at).total_seconds() <= 26 * 3600:
-                    _macro = max(0.5, min(1.0, float(_macro_raw)))
-            if _macro < 1.0:
-                buy_aggressiveness *= _macro
-                logger.info(
-                    "SignalWorker: LLM-Makro-Scalar %.2f aktiv — aggressiveness=%.2f (%s)",
-                    _macro, buy_aggressiveness,
-                    (state_repo.get("LLM_MACRO_REASON") or "")[:80],
-                )
-        except Exception as _mx:
-            logger.debug("SignalWorker: Makro-Scalar uebersprungen: %s", _mx)
+        buy_aggressiveness, _macro = _apply_llm_macro_scalar(state_repo, buy_aggressiveness)
     
         # ── 5. Rank & filter candidates BEFORE slicing to top-3 ────────────────────
         # V5 fix: market-open and blacklist checks used to run *inside* the loop
@@ -1143,499 +2036,31 @@ def main() -> None:
         # starving open/tradable equity markets of any chance to be evaluated —
         # even though their signals sat unused in the FRESH pool until the 6h TTL
         # expired. Filtering BEFORE ranking+slicing fixes this.
-    
-        def _resolve_symbol(instrument_id: int) -> str:
-            """Look up ticker symbol for an instrument_id (signals table has none)."""
-            try:
-                inst_row = db.fetchone(
-                    "SELECT symbol FROM instruments WHERE instrument_id=?",
-                    (instrument_id,),
-                )
-                if inst_row:
-                    return inst_row["symbol"] if isinstance(inst_row, dict) else inst_row[0]
-            except Exception:
-                pass
-            snap = portfolio_repo.get_by_instrument(instrument_id)
-            if snap:
-                sym = snap[0].get("symbol", "")
-                if sym:
-                    return sym
-            return str(instrument_id)
-    
-        def _resolve_market_fields(instrument_id: int) -> tuple[str, str]:
-            """yfinance_symbol + market_hours-Kategorie fuer den Market-Check.
-            Ohne yf_symbol wuerde z.B. ein Forex-Symbol (EURJPY) als US-Aktie
-            eingestuft und faelschlich an US-Boersenzeiten gebunden.
-
-            Duennes Adapter um market_hours.resolve_market_fields() — das
-            Signal-Symbol steht hier schon fest, gebraucht werden nur die
-            beiden Zusatzfelder."""
-            _mf = _resolve_mf(db, instrument_id)
-            return (_mf[1], _mf[2]) if _mf else ("", "")
 
         # Diversity-Gate: Kategorie-Verteilung aller offenen Positionen —
         # VOR dem eligible-Loop, damit der Precheck unten Kandidaten an der
         # Kappe gar nicht erst in die knappen Slots laesst (fix/diversity-
         # slot-guard, 2026-07-15).
-        _open_signal_cats: dict[str, int] = {}
-        try:
-            # fix/diversity-fanout (2026-07-14): COUNT(*) zaehlte JOIN-Paare —
-            # DISTINCT api_position_id zaehlt echte Positionen (konsistent zum
-            # Nenner position_count).
-            _cat_rows = db.fetchall("""
-                SELECT sig.signal_type, COUNT(DISTINCT ps.api_position_id) as n
-                FROM portfolio_snapshot ps
-                JOIN trades t ON t.instrument_id = ps.instrument_id AND t.status = 'ACTIVE'
-                JOIN signals sig ON sig.id = t.signal_id
-                GROUP BY sig.signal_type
-            """)
-            for _r in _cat_rows:
-                _cat = _get_signal_category(str(_r["signal_type"]))
-                _open_signal_cats[_cat] = _open_signal_cats.get(_cat, 0) + int(_r["n"])
-        except Exception as _dg_exc:
-            logger.debug("SignalWorker: Diversity-Gate Daten nicht verfuegbar: %s", _dg_exc)
+        _open_signal_cats = _open_signal_categories(db)
 
-        skipped_closed: list[str] = []
-        skipped_diversity: list[str] = []
-        eligible: list[tuple[dict, str]] = []  # (signal, symbol) — open market, not blacklisted
-        # feat/eligible-counters (2026-08-24): Der Filter verschluckte 17 von 18
-        # frischen Signalen, ohne zu sagen woran. Ohne diese Zaehler bleibt nur
-        # Raten — pro Lauf steht jetzt in einer Zeile, welcher Zweig wie viele
-        # Kandidaten aussortiert hat, mit Beispielsymbolen.
-        from collections import defaultdict as _dd
-        _skip: dict[str, list[str]] = _dd(list)
-
-        # feat/commodity (2026-08-24): Rohstoffe sind ein bewusst kleines
-        # Experiment — max. 1 Position, feste Groesse. Es gibt bisher KEINE
-        # verwertbare Evidenz (6 geschlossene Trades, alle exakt 0.0 %), das
-        # Limit haelt das Risiko klein und sammelt trotzdem Datenpunkte.
-        # feat/rebuy-cooldown (2026-08-24): Nachkauf desselben Instruments erst
-        # nach N Stunden. Grund: LEG.DE, IBE.MC, MAU.PA und 6753.T wurden je
-        # zwei- bis dreimal gekauft, immer EXAKT einen 15-Minuten-Zyklus
-        # auseinander. Die bestehende Sperre (get_approved_instrument_ids)
-        # deckt nur status='APPROVED' ab — "Instrumente, die auf Ausfuehrung
-        # warten". Die Bestaetigung erfolgt aber rund 3 Minuten nach der
-        # Freigabe, der naechste Zyklus kommt nach 15: das Fenster der Sperre
-        # ist zu diesem Zeitpunkt immer schon geschlossen, und eine ACTIVE
-        # Position blockiert nichts.
-        #
-        # Bewusst zeitbasiert statt "nur eine Position je Instrument":
-        # Nachkaufen soll erlaubt bleiben, nur nicht im Minutentakt.
-        #
-        # created_at ist UTC (approved_at dagegen lokal — die beiden NICHT
-        # mischen, sonst verrutscht der Vergleich um zwei Stunden).
-        _rebuy_h = float((cfg.get("trading", {}) or {}).get("rebuy_cooldown_hours", 6.0))
-        _recent_buys: set[int] = set()
-        if _rebuy_h > 0:
-            try:
-                # fix/rebuy-cooldown-closed (2026-09-17): Die Sperre deckte
-                # nur status IN ('APPROVED','SUBMITTING','ACTIVE') ab. Ein
-                # Exposure-Auto-Trim, der die Position GANZ schliesst
-                # (min_remaining_pct: 50), setzt den Trade aber auf CLOSED —
-                # und fiel damit aus dem Filter: das naechste FRESH-Signal
-                # kaufte denselben Namen sofort wieder (9531.T dreimal in
-                # 3 Tagen; GFRD.L 8 Min; 5101.T 77 Min). CLOSED-Trades
-                # zaehlen jetzt mit, gemaessen an closed_at — der Zeitpunkt,
-                # zu dem die Position wirklich wieder verfuegbar war.
-                from bot.core.rebuy_cooldown import recent_buy_instrument_ids
-                _recent_buys = recent_buy_instrument_ids(db, _rebuy_h)
-            except Exception:
-                _recent_buys = set()
-
-        _comm_cfg = ((cfg.get("trading", {}) or {}).get("commodity", {}) or {})
-        _comm_ids: set[int] = set()
-        _comm_open = 0
-        try:
-            _comm_ids = {
-                r["instrument_id"] for r in db.fetchall(
-                    "SELECT instrument_id FROM instruments WHERE asset_class = 'commodity'")
-            }
-            _comm_open = len(db.fetchall(
-                "SELECT p.instrument_id FROM portfolio_snapshot p "
-                "JOIN instruments i ON i.instrument_id = p.instrument_id "
-                "WHERE i.asset_class = 'commodity'"))
-        except Exception:
-            _comm_ids, _comm_open = set(), 0
-    
-        # APPROVED-Check: Instrumente mit bereits APPROVED-Trade vorab laden
-        _approved_ids: set[int] = set()
-        try:
-            _approved_ids = trade_repo.get_approved_instrument_ids()
-        except Exception:
-            _approved_ids = set()  # fail-open wenn Methode fehlt
-        for signal in buy_signals:
-            instrument_id = signal["instrument_id"]
-            signal_id = signal.get("id")
-    
-            # Ghost blacklist check — skip blacklisted instruments
-            if trade_repo.is_instrument_blacklisted(instrument_id):
-                ghost_count = trade_repo.get_ghost_failure_count(instrument_id)
-                logger.info(
-                    "SignalWorker: %s BLACKLISTED (%d consecutive ghost failures) — skipping",
-                    instrument_id, ghost_count,
-                )
-                signal_repo.update_signal_status(signal_id, "REJECTED")
-                # fix (2026-08-24): hier fehlte das continue — ein gesperrtes
-                # Instrument wurde als REJECTED markiert, lief aber weiter durch
-                # den Filter und konnte trotzdem im eligible-Pool landen.
-                _skip["ghost_blacklist"].append(str(instrument_id))
-                continue
-
-            # APPROVED-Check: kein neues Signal fuer Instrument mit
-            # bereits APPROVED-Trade (fix/duplicate-instrument-approval 2026-07-27)
-            # Vorher: execution_worker markierte Duplikate als REJECTED,
-            # aber signal_worker generierte sie trotzdem — 83/176 REJECTED.
-            if instrument_id in _approved_ids:
-                logger.info(
-                    "SignalWorker: instrument_id %d hat bereits APPROVED-Trade — SKIP",
-                    instrument_id,
-                )
-                signal_repo.update_signal_status(signal_id, "REJECTED")
-                _skip["bereits_approved"].append(str(instrument_id))
-                continue
-    
-            symbol = _resolve_symbol(instrument_id)
-
-            # feat/rebuy-cooldown: frisch gekauft -> kein Nachkauf.
-            # Skip statt REJECT: nach Ablauf der Sperrfrist ist das Signal
-            # sofort wieder Kandidat, sofern es dann noch gilt.
-            if instrument_id in _recent_buys:
-                _skip["nachkauf_cooldown"].append(symbol)
-                continue
-
-            # feat/commodity: hoechstens N Rohstoffpositionen gleichzeitig.
-            # Skip statt REJECT — schliesst die offene Position, ist das
-            # Signal sofort wieder Kandidat.
-            if instrument_id in _comm_ids:
-                if not _comm_cfg.get("enabled", False):
-                    _skip["commodity_aus"].append(symbol)
-                    continue
-                if _comm_open >= int(_comm_cfg.get("max_positions", 1)):
-                    _skip["commodity_limit"].append(symbol)
-                    continue
-
-            if _is_llm_ghost_blocked(symbol, _llm_blacklist):
-                logger.info("SignalWorker: %s LLM-Exchange-Blacklist", symbol)
-                signal_repo.update_signal_status(signal_id, "REJECTED")
-                _skip["llm_exchange_blacklist"].append(symbol)
-                continue
-
-            # LLM Signal-Type Blacklist (deaktivierte Signal-Typen)
-            _sig_type = signal.get("signal_type", "")
-            _sig_skip, _sig_reason = _is_signal_type_skipped(_sig_type, _llm_signal_weights)
-            if _sig_skip:
-                logger.info("SignalWorker: %s Signal-Typ gesperrt (%s): %s",
-                            symbol, _sig_type[:40], _sig_reason[:60])
-                signal_repo.update_signal_status(signal_id, "REJECTED")
-                _skip["llm_signaltyp_gesperrt"].append(symbol)
-                continue
-
-            # Signal-Type Cooldown (fix/signal-type-cooldown: gleiche
-            # signal_type auf gleichem Instrument braucht Mindestdauer)
-            _sig_type = signal.get("signal_type", "")
-            if SIGNAL_TYPE_COOLDOWN_MINUTES > 0:
-                if signal_repo.has_recent_signal(
-                    instrument_id, _sig_type, SIGNAL_TYPE_COOLDOWN_MINUTES
-                ):
-                    logger.info(
-                        "SignalWorker: %s signal_type '%s' im Cooldown (%d min) — REJECTED",
-                        symbol, _sig_type[:60], SIGNAL_TYPE_COOLDOWN_MINUTES,
-                    )
-                    signal_repo.update_signal_status(signal_id, "REJECTED")
-                    _skip["signaltyp_cooldown"].append(symbol)
-                    continue
-
-            # Slippage-Blacklist: Instrumente mit >=3 Slippage-Rejects in 7d
-            # werden hier herausgefiltert (NICHT erst im Kandidaten-Loop),
-            # damit sie keine der 3 wertvollen Kandidaten-Slots blockieren.
-            if trade_repo.is_slippage_blacklisted(instrument_id):
-                logger.info(
-                    "SignalWorker: %s Slippage-Blacklist (eligible-Filter) — Signal REJECTED",
-                    symbol,
-                )
-                signal_repo.update_signal_status(signal_id, "REJECTED")
-                _skip["slippage_blacklist"].append(symbol)
-                continue
-
-            # Diversity-Precheck (fix/diversity-slot-guard, 2026-07-15):
-            # Kandidaten, deren Kategorie bereits an der 45%-Kappe ist,
-            # wuerden im Gate deterministisch geblockt — sie duerfen keinen
-            # der 3-5 knappen Slots belegen (Vorfall 2026-07-15: alle 5
-            # Slots an MIXED/TF-Kandidaten verschwendet, 0 Trades trotz
-            # Pool). Skip statt REJECT: gibt ein Exit Kapazitaet frei, ist
-            # das Signal (TTL 24h) sofort wieder Kandidat.
-            _pre_cat = _get_signal_category(signal.get("signal_type", ""))
-            if (_pre_cat != "UNKNOWN" and position_count > 0
-                    and _max_fraction_for(_pre_cat) < 1.0
-                    and _open_signal_cats.get(_pre_cat, 0) / position_count
-                        >= _max_fraction_for(_pre_cat)):
-                skipped_diversity.append(f"{symbol}({_pre_cat})")
-                _skip["diversity_kappe"].append(symbol)
-                continue
-
-            # News/Earnings-Risk-Flag (fix/llm-news-flags): AVOID → Signal
-            # ueberspringen, bleibt FRESH (Flag-TTL 12h laeuft vor Signal-TTL
-            # 24h ab — das Ereignis kann vorbeigehen). Kein REJECT.
-            _nf = _news_flags.get(symbol)
-            if _nf and _nf.get("flag") == "AVOID":
-                logger.info(
-                    "SignalWorker: %s News-Flag AVOID (%s) — uebersprungen",
-                    symbol, (_nf.get("reason") or "")[:80],
-                )
-                _skip["news_avoid"].append(symbol)
-                continue
-
-            # Market hours (fix/market-hours-slot-guard): Signale geschlossener
-            # Boersen bleiben FRESH (kein REJECT — sie werden gueltig, sobald
-            # der Markt oeffnet, z.B. EU-Preload ueber Nacht), belegen aber
-            # keinen der 3 knappen Kandidaten-Slots pro 15-min-Zyklus.
-            # allowEntryOrders in open_position() bleibt die letzte
-            # Verteidigungslinie fuer Feiertage/Halts, die der statische
-            # Kalender nicht kennt.
-            _yf_sym, _mh_category = _resolve_market_fields(instrument_id)
-            if not is_market_open(symbol, _yf_sym, _mh_category, fail_open=False):
-                skipped_closed.append(symbol)
-                _skip["markt_geschlossen"].append(f"{symbol}[{_mh_category}]")
-                continue
-
-            eligible.append((signal, symbol))
-    
-        # feat/eligible-counters: eine Zeile pro Lauf, warum aussortiert wurde.
-        _in = len(buy_signals)
-        _out = len(eligible)
-        if _in:
-            _parts = " ".join(
-                f"{k}={len(v)}" for k, v in sorted(_skip.items(), key=lambda kv: -len(kv[1]))
-            ) or "keine"
-            logger.info(
-                "SignalWorker: eligible-Filter %d Signale -> %d Kandidaten | %s",
-                _in, _out, _parts,
-            )
-            for _k, _v in sorted(_skip.items(), key=lambda kv: -len(kv[1]))[:4]:
-                logger.info("SignalWorker:   %s (%d): %s", _k, len(_v), ", ".join(_v[:8]))
-            try:
-                log_repo.write(
-                    "INFO", "signal_worker",
-                    f"eligible-Filter: {_in} -> {_out} | {_parts}",
-                    {"skip_counts": {k: len(v) for k, v in _skip.items()}},
-                )
-            except Exception:
-                pass
-
-        if skipped_diversity:
-            logger.info(
-                "SignalWorker: %d Kandidat(en) am Diversity-Precheck uebersprungen "
-                "(Kategorie an 45%%-Kappe, Signal bleibt FRESH): %s",
-                len(skipped_diversity), ", ".join(skipped_diversity[:6]),
-            )
-
-        # Sort by boosted score descending — only among OPEN, non-blacklisted
-        # signals. get_score_boost gewichtet nach Anlageklasse; die Deckel
-        # selbst bleiben davon unberuehrt (ASSET_CLASS_LIMITS in risk.py
-        # greift weiter unten am Gate).
-        #
-        # ACHTUNG (2026-08-29): Hier stand bis heute, der Boost bevorzuge
-        # Aktien/ETFs GEGENUEBER Krypto. Das stimmt seit dem 2026-08-24 nicht
-        # mehr — CRYPTO wurde von 0.85 auf 1.15 gehoben und liegt damit
-        # gleichauf mit Aktien (DEFAULT_STOCK_SCORE_BOOST 1.15). Der veraltete
-        # Kommentar hat die Ursachensuche zum Wochenend-Stillstand zunaechst in
-        # die falsche Richtung geschickt: die Vermutung "Krypto wird
-        # wegsortiert" war seit fuenf Tagen nicht mehr zutreffend. Gemessen
-        # entstehen am Wochenende 5.5 Krypto-Kaufsignale pro Tag gegen 4.9
-        # werktags — die Klasse laeuft, sie ist nur klein.
-        #
-        # feat/liquidity-tiering (2026-07-26): fuenfter Term im Sort-Key —
-        # Market-Cap/ADV-Tier-Faktor [0.6..1.1] aus instruments. High-Runner
-        # gewinnen die knappen Slots, Micro-Caps werden nachrangig sortiert
-        # (nicht geblockt). Unbekannt = 1.0 neutral, fail-open.
-        _liquidity_map: dict[int, float] = {}
-        if bool(cfg.get("trading", {}).get("liquidity_tiering", True)):
-            try:
-                from bot.core.liquidity import load_liquidity_map
-                _liquidity_map = load_liquidity_map(
-                    db, [s["instrument_id"] for s, _ in eligible]
-                )
-            except Exception:
-                _liquidity_map = {}
-        # fix/fee-churn-minhold (2026-09-20): sechster Term im Sort-Key —
-        # Fee-Tier-Bias. 2%-Fee-Boersen (.AX/.HK/.T) werden mit 0.70x
-        # nachrangig sortiert, damit 1%-Fee-Titel gleicher Signal-Qualitaet
-        # die Slots gewinnen (34/89 offene Positionen auf 2%-Fee-Titeln,
-        # doppelte Fee pro Round-Trip). Fail-open: cfg fehlt/ausgebaucht
-        # -> 1.0 neutral.
-        _fee_tier_cfg = cfg.get("trading", {}).get("fee_tiering") or {}
-        _fee_tier_map: dict[str, float] = {}
-        if bool(_fee_tier_cfg.get("enabled", False)):
-            try:
-                from bot.core.liquidity import fee_tier_factor
-                _fee_tier_map = {
-                    sym: fee_tier_factor(sym, _fee_tier_cfg)
-                    for _, sym in eligible
-                }
-            except Exception:
-                _fee_tier_map = {}
-        eligible.sort(
-            key=lambda t: (
-                float(t[0].get("score", 0))
-                * get_score_boost(t[1])
-                * _get_signal_score_multiplier(t[0].get("signal_type", ""),
-                                               _llm_signal_weights,
-                                               t[0].get("conviction"))
-                * _signal_age_factor(t[0].get("generated_at", ""), ttl_minutes=1440)
-                * _liquidity_map.get(t[0]["instrument_id"], 1.0)
-                * _fee_tier_map.get(t[1], 1.0)
-                * _signal_performance_decay(
-                    t[0].get("signal_type", ""), db_path
-                )
-            ),
-            reverse=True,
+        _comm_cfg, _comm_ids, _comm_open = _commodity_state(db, cfg)
+        eligible, _skip, skipped_diversity = _filter_eligible(
+            db=db, cfg=cfg, trade_repo=trade_repo, signal_repo=signal_repo,
+            portfolio_repo=portfolio_repo, buy_signals=buy_signals,
+            _llm_blacklist=_llm_blacklist, _llm_signal_weights=_llm_signal_weights,
+            _news_flags=_news_flags, _open_signal_cats=_open_signal_cats,
+            position_count=position_count,
+            _comm_cfg=_comm_cfg, _comm_ids=_comm_ids, _comm_open=_comm_open,
+            signal_type_cooldown_minutes=SIGNAL_TYPE_COOLDOWN_MINUTES,
         )
-        _dampened = {
-            sym: f for (s, sym) in eligible
-            if (f := _liquidity_map.get(s["instrument_id"], 1.0)) < 1.0
-        }
-        if _dampened:
-            logger.info(
-                "SignalWorker: Liquidity-Tiering daempft %d Kandidat(en): %s",
-                len(_dampened),
-                ", ".join(f"{sym}={f:.2f}" for sym, f in list(_dampened.items())[:8]),
-            )
-        _fee_dampened = {
-            sym: f for sym, f in _fee_tier_map.items() if f < 1.0
-        }
-        if _fee_dampened:
-            logger.info(
-                "SignalWorker: Fee-Tier-Bias daempft %d Kandidat(en): %s",
-                len(_fee_dampened),
-                ", ".join(f"{sym}={f:.2f}" for sym, f in list(_fee_dampened.items())[:8]),
-            )
     
-        # Deduplicate: keep only the highest-score signal per instrument_id
-        seen_instruments = set()
-        unique_candidates: list[tuple[dict, str]] = []
-        for signal, symbol in eligible:
-            inst_id = signal["instrument_id"]
-            if inst_id not in seen_instruments:
-                seen_instruments.add(inst_id)
-                unique_candidates.append((signal, symbol))
-    
-        # Adaptive Kandidaten-Slots (fix/adaptive-slots): 3 Standard. 5 wenn
-        # Kapital brach liegt (cash > cash_target_max_pct der Equity) UND der
-        # Pool >= 4 HIGH/VERY_HIGH-Kandidaten hat — an starken Signaltagen
-        # soll ueberschuessiges Cash arbeiten, ohne die Qualitaetsschwelle zu
-        # senken. Alle nachgelagerten Gates (Exposure, Cash-Floor, Kelly,
-        # Diversity, Slippage) gelten unveraendert pro Kandidat.
-        # fix/cash-deployment (2026-07-15, Umbau der adaptiven Slots):
-        # vorher nahmen die Extra-Slots einfach Top-4/5 des Pools — Slot 4/5
-        # konnten MEDIUM-Kandidaten sein, die >=4-HIGH+-Bedingung war nur
-        # ein Proxy. Jetzt: Basis 3 Slots fuer alle; bei Cash-Ueberschuss
-        # werden Slots 4-5 AUSSCHLIESSLICH mit HIGH/VERY_HIGH aus dem Rest
-        # befuellt — Qualitaet der Extra-Slots ist strukturell garantiert,
-        # eine Mindestanzahl-Schwelle ist damit ueberfluessig.
-        # 2026-08-24: Basis-Slots konfigurierbar (war fest 3).
-        # KORREKTUR 2026-08-25: Die urspruengliche Begruendung war falsch. Sie
-        # lautete, 97-99 % der Signale liefen ungenutzt in die TTL, weil pro
-        # Zyklus nur 3 Kandidaten geprueft wuerden — der Durchsatz sei der
-        # bindende Engpass. Nachgemessen: von 930 Signalen in drei Tagen waren
-        # 897 VERKAUFSsignale (791x BB_UPPER_RSI_OVERBOUGHT). Der signal_worker
-        # ist der Kauf-Pfad und verwirft sie regulaer; nur 33 waren ueberhaupt
-        # kauffaehig. Ein Zyklus mit freien Slots protokollierte evaluated=1 —
-        # die Slots banden also nicht. Es gibt schlicht wenige Kaufgelegenheiten.
-        # Der Wert 5 steht damit OHNE belegte Grundlage; er ist vermutlich
-        # wirkungslos (alle nachgelagerten Gates gelten unveraendert pro
-        # Kandidat), aber niemand hat ihn nach der Widerlegung neu begruendet.
-        # Wer ihn anfasst: erst zaehlen, wie viele Kandidaten pro Zyklus
-        # tatsaechlich anstehen, dann entscheiden.
-        _base_slots = int(cfg.get("trading", {}).get("candidate_slots", 5))
-        candidates = unique_candidates[:max(1, _base_slots)]
-        try:
-            _cash_max_pct = float(cfg.get("trading", {}).get("cash_target_max_pct", 30.0))
-            _cash_pct = (cash_estimate / equity * 100.0) if equity > 0 else 0.0
-            if _cash_pct > _cash_max_pct:
-                _extra = [
-                    (_s, _sym) for _s, _sym in unique_candidates[3:]
-                    if (_s.get("conviction") or "").upper() in ("HIGH", "VERY_HIGH")
-                ][:2]
-                if _extra:
-                    candidates = candidates + _extra
-                    logger.info(
-                        "SignalWorker: Adaptive Slots 3->%d (Cash %.1f%% > %.1f%%, "
-                        "Extra-Slots nur HIGH+): %s",
-                        len(candidates), _cash_pct, _cash_max_pct,
-                        ", ".join(_sym for _s, _sym in _extra),
-                    )
-        except Exception:
-            pass
-    
-        # ── feat/signal-news-pull (2026-09-12) ───────────────────────────────
-        # Gemessen: 93,4 % der 211 Epochen-Trades liefen auf Signalen, die NACH
-        # dem letzten stuendlichen News-Lauf geboren wurden (Ø 3,0 min von
-        # Signalgeburt zu Freigabe — Signal und Kauf im selben Zyklus). Der
-        # stuendliche news_flags_worker kann ein Symbol vor seinem ERSTEN Kauf
-        # strukturell nicht sehen. Hier stehen die <= 5 Kandidaten fest, also
-        # wird genau fuer sie synchron nachgezogen.
-        #
-        # Nur die regelbasierten Kriterien (Earnings-Termin, Analysten-
-        # Kursziel) — deterministisch, kein LLM-Round-Trip auf dem Geld-Pfad.
-        # Hartes Wall-Clock-Budget: bis zum Execution-Slot (:06) bleiben ab
-        # :03 rund 180 s, wovon der Worker heute ~40 s braucht.
-        # Fail-open in jeder Richtung: Fehler oder Zeitueberschreitung
-        # bedeuten "keine zusaetzlichen Flags", nie "kauf trotzdem".
-        if candidates and bool(cfg.get("trading", {}).get("signal_news_pull", True)):
-            try:
-                from bot.workers.news_flags_worker import (
-                    pull_regel_flags, staerkeres_flag,
-                )
-                _budget = float(cfg.get("trading", {}).get("signal_news_pull_budget_s", 45.0))
-                _entries = []
-                for _sig, _sym in candidates:
-                    _iid = _sig.get("instrument_id")
-                    _yf, _ = _resolve_market_fields(_iid)
-                    _ac = None
-                    try:
-                        _acr = db.fetchone(
-                            "SELECT asset_class FROM instruments WHERE instrument_id=?",
-                            (_iid,))
-                        _ac = _acr["asset_class"] if _acr else None
-                    except Exception:
-                        pass
-                    _entries.append({"symbol": _sym, "yf": _yf or _sym,
-                                     "asset_class": _ac})
-                _neu, _abgebrochen = pull_regel_flags(_entries, budget_s=_budget)
-                for _sym, _flag in _neu.items():
-                    _news_flags[_sym] = staerkeres_flag(_news_flags.get(_sym), _flag)
+        _log_eligible_summary(log_repo, len(buy_signals), eligible, _skip, skipped_diversity)
 
-                # AVOID SOFORT durchsetzen — vor jedem Logging. Das Pool-Gate
-                # weiter oben ist zum Zeitpunkt der Kandidatenwahl bereits
-                # gelaufen, hier ist die letzte Stelle, an der ein Flag den
-                # Kauf noch verhindern kann. Zwischen Verschmelzung und
-                # Durchsetzung darf nichts stehen, das werfen koennte.
-                _raus = [
-                    _sym for _sig, _sym in candidates
-                    if (_news_flags.get(_sym) or {}).get("flag") == "AVOID"
-                ]
-                if _raus:
-                    candidates = [
-                        (_sig, _sym) for _sig, _sym in candidates if _sym not in _raus
-                    ]
-                    _skip["news_avoid"].extend(_raus)
-
-                if _neu:
-                    logger.info(
-                        "SignalWorker: News-Pull ergab %d Flag(s) fuer %d "
-                        "Kandidaten (%d verworfen): %s",
-                        len(_neu), len(_entries), len(_raus),
-                        ", ".join(f"{k}={v['flag']}" for k, v in _neu.items()),
-                    )
-                else:
-                    logger.info("SignalWorker: News-Pull ohne Flag (%d Kandidaten)",
-                                len(_entries))
-                if _abgebrochen:
-                    logger.warning("SignalWorker: News-Pull lief ins Zeitbudget "
-                                   "(%.0fs) — Teilergebnis", _budget)
-            except Exception as _np_exc:
-                logger.warning("SignalWorker: News-Pull uebersprungen (%s) — "
-                               "Kandidaten laufen unveraendert", _np_exc)
+        _rank_eligible(cfg, db, db_path, eligible, _llm_signal_weights)
+    
+        candidates = _select_candidates(cfg, eligible, cash_estimate, equity)
+    
+        candidates = _pull_candidate_news(cfg, db, candidates, _news_flags, _skip)
 
         evaluated_count = 0
         approved_count = 0
@@ -1656,37 +2081,11 @@ def main() -> None:
         # BEWUSST per Default AUS: erst wenn der Backfill durch ist und die
         # Sektor-Verteilung des Buchs gemessen wurde, ist ein 20%-Cap eine
         # informierte Entscheidung statt eines Blindflugs.
-        _sector_map: dict[str, str] = {}
-        if bool((cfg.get("sector_limits", {}) or {}).get("enforce_db_sectors", False)):
-            try:
-                _sector_map = {
-                    str(r["symbol"]).upper(): str(r["sector"])
-                    for r in (signal_repo.db.fetchall(
-                        "SELECT symbol, sector FROM instruments "
-                        "WHERE sector IS NOT NULL AND sector != '' AND sector != 'unknown'"
-                    ) or [])
-                }
-                logger.info("SignalWorker: Sektor-Map aktiv (%d Instrumente)", len(_sector_map))
-            except Exception as _sec_exc:
-                # Fail-open: fehlt die Spalte oder kippt die Query, verhaelt
-                # sich das Gate wie vor dem Backfill.
-                logger.warning("SignalWorker: Sektor-Map nicht ladbar (%s) — Gate fail-open", _sec_exc)
-                _sector_map = {}
+        _sector_map = _load_sector_map(cfg, signal_repo)
 
         # feat/region-damper (2026-08-12): market_region ist bereits gepflegt,
         # es braucht keinen Backfill. Fail-open wie die Sektor-Map.
-        _region_by_symbol: dict[str, str] = {}
-        try:
-            _region_by_symbol = {
-                str(r["symbol"]).upper(): str(r["market_region"])
-                for r in (signal_repo.db.fetchall(
-                    "SELECT symbol, market_region FROM instruments "
-                    "WHERE market_region IS NOT NULL AND market_region != ''"
-                ) or [])
-            }
-        except Exception as _reg_exc:
-            logger.warning("SignalWorker: Regionen-Map nicht ladbar (%s) — Damper aus", _reg_exc)
-            _region_by_symbol = {}
+        _region_by_symbol = _load_region_map(signal_repo)
     
         for signal, symbol in candidates:
             instrument_id = signal["instrument_id"]
@@ -2381,284 +2780,16 @@ def main() -> None:
         # um — ueber dieselbe create->APPROVED->execution-Bahn wie normale Signale
         # (erbt SL-Clamp, Market-Open-Guard, Ghost-Order-Pipeline). Fail-open:
         # ein Fehler hier darf den regulaeren Signallauf nie kippen.
-        try:
-            from bot.core.core_sweep import plan_core_sweep, is_enabled as _cs_enabled
-            _held_ids = set()
-            for _p in open_positions_raw:
-                try:
-                    _held_ids.add(int(_p.get("instrument_id")))
-                except (TypeError, ValueError):
-                    pass
-            # fix/core-sweep-duplicate-approval (2026-07-29): _held_ids kannte
-            # bisher NUR offene Positionen. Ein Instrument mit bereits
-            # APPROVED-Trade wurde deshalb jeden 15-min-Zyklus erneut
-            # eingeplant, und der execution_worker verwarf es als
-            # "Duplicate instrument_id in same execution batch" — 143 von 143
-            # Duplikat-Rejects der letzten 3 Tage stammten aus CORE_SWEEP.
-            # Der normale Signalpfad hat diesen Guard seit
-            # fix/duplicate-instrument-approval (2026-07-27) bereits.
-            # BEWUSST frisch abgefragt statt _approved_ids (Zeile ~654)
-            # wiederzuverwenden: das Set stammt von VOR der Signal-Schleife,
-            # die selbst Trades anlegt — und die Core-Sweep-Whitelist wird aus
-            # genau denselben starken FRESH-Signalen gefuellt, ein Instrument
-            # in beiden Pfaden ist also der Normalfall, nicht die Ausnahme.
-            try:
-                _held_ids |= trade_repo.get_approved_instrument_ids(
-                    ("APPROVED", "SUBMITTING")
-                )
-            except Exception:
-                pass  # fail-open: execution_worker-Guard bleibt letzte Linie
-            _wl = (cfg.get("trading", {}).get("core_sweep", {}) or {}).get("whitelist", {}) or {}
-            _wl_ids = []
-            for _v in _wl.values():
-                try:
-                    _wl_ids.append(int(_v))
-                except (TypeError, ValueError):
-                    pass
-            _atr_by_id, _rsi_by_id = {}, {}
-            if _wl_ids:
-                _ph = ",".join("?" for _ in _wl_ids)
-                for _r in (signal_repo.db.fetchall(
-                        f"SELECT instrument_id, atr_pct FROM instruments "
-                        f"WHERE instrument_id IN ({_ph})", tuple(_wl_ids)) or []):
-                    if _r["atr_pct"] is not None:
-                        _atr_by_id[int(_r["instrument_id"])] = float(_r["atr_pct"])
-                for _r in (signal_repo.db.fetchall(
-                        f"SELECT instrument_id, MAX(generated_at) AS g, rsi FROM signals "
-                        f"WHERE instrument_id IN ({_ph}) AND rsi IS NOT NULL "
-                        f"GROUP BY instrument_id", tuple(_wl_ids)) or []):
-                    if _r["rsi"] is not None:
-                        _rsi_by_id[int(_r["instrument_id"])] = float(_r["rsi"])
-            # fix/core-sweep-portfolio-gates (2026-08-12): Core-Sweep sieht ab
-            # jetzt dieselben Portfolio-Grenzen wie der regulaere Signalpfad.
-            # total_exposure ist hier bereits um die in dieser Schleife
-            # approbierten Buys hochgezaehlt (Zeile ~1295) — der Sweep plant
-            # also gegen den Stand NACH den Signal-Trades, nicht davor.
-            from bot.core.risk import MAX_TOTAL_EXPOSURE_PCT as _cs_max_exp
-            from bot.core.correlation import check_correlation_gate as _cs_corr
-            # fix/core-sweep-market-open (2026-09-23): Core-Sweep plant
-            # NUR in offene Maerkte. 30d-Beleg: 273/274 'Markt >4h
-            # geschlossen — Signal veraltet' Rejections waren CORE_SWEEP,
-            # fast alle US-listed (PG 20, AAPL 19, JPM 19, NVDA 19, V 19,
-            # KO 18, MSFT 18, SPY 16), in den US-closed Stunden 00-09 &
-             # 19-23 UTC. Ohne Market-Check plant der Bot ueber Nacht
-             # US-Titel, die im execution_worker auf DEFER ->
-             # market-closed-TTL -> REJECTED laufen: tote Rejections,
-             # verbrauchte Daily-Cap-Slots und Veto-LLM-Calls pro Titel.
-             # SKIP (keine Order) ist kostenlos und der Titel wird im
-             # naechsten Lauf wieder geplant, sobald sein Markt offen ist.
-             # fail_open=True + None->True: ein Kalender-/Auflösungs-Fehler
-             # darf das Cash-Deployment nie blockieren; die
-             # execution_worker BUY-Gate (fail_open=False) bleibt die
-             # fail-closed Letztlinie.
-            # Config: trading.core_sweep.market_open_only (default true).
-            _cs_market_open_only = bool(
-                (cfg.get("trading", {}).get("core_sweep", {}) or {}).get(
-                    "market_open_only", True))
-            _cs_market_open = None
-            if _cs_market_open_only:
-                def _cs_market_open(instrument_id: int) -> bool:
-                    _mfp = _resolve_mf(db, instrument_id)
-                    if not _mfp:
-                        return True  # Zeile fehlt -> fail-open
-                    _sym, _yfs, _cat = _mfp
-                    if not _sym:
-                        return True
-                    return bool(
-                        is_market_open(_sym, _yfs, _cat, fail_open=True))
-            _sweep_orders, _sweep_reasons = plan_core_sweep(
-                cfg, equity=equity, cash=cash_estimate, regime=regime,
-                held_instrument_ids=_held_ids, atr_by_id=_atr_by_id, rsi_by_id=_rsi_by_id,
-                db=signal_repo.db,
-                total_exposed=total_exposure,
-                max_exposure_pct=_cs_max_exp,
-                open_positions=open_positions,
-                correlation_gate=_cs_corr,
-                market_open=_cs_market_open,
-            )
-            if _sweep_reasons:
-                logger.info("SignalWorker: %s", _sweep_reasons[0])
-            _cs_live = _cs_enabled(cfg)
-            _cs_news_skipped: list[str] = []
-            for _o in _sweep_orders:
-                # feat/core-sweep-news (2026-08-24): News-Flags gelten auch hier.
-                # Der Sweep lief bisher an ihnen vorbei — am 24.08. kaufte er
-                # NVDA (AVOID: Earnings am 26.08.) und JNJ (CAUTION: Talc-
-                # Rechtsrisiko) fuer je 162.30 USD, waehrend derselbe Titel im
-                # Signal-Pfad blockiert worden waere.
-                # Begruendung fuer die Ausnahme war stets "kein Signal-Trade" —
-                # das traegt bei Kelly und Veto, aber nicht hier: Earnings in
-                # zwei Tagen sind ein EREIGNISrisiko und betreffen jeden Kauf,
-                # unabhaengig vom Pfad.
-                _cs_nf = _news_flags.get(_o.symbol) or {}
-                if _cs_nf.get("flag") == "AVOID":
-                    _cs_news_skipped.append(_o.symbol)
-                    logger.info(
-                        "SignalWorker: Core-Sweep %s uebersprungen — News-Flag AVOID (%s)",
-                        _o.symbol, (_cs_nf.get("reason") or "")[:70],
-                    )
-                    continue
-                if not _cs_live:
-                    logger.info(
-                        "SignalWorker: [DRY] Core-Sweep wuerde $%.2f in %s (id=%s) deployen",
-                        _o.amount_usd, _o.symbol, _o.instrument_id)
-                    log_repo.write("INFO", "signal_worker",
-                                   f"[DRY] Core-Sweep: ${_o.amount_usd:.2f} {_o.symbol}")
-                    continue
-                from bot.core.risk import adaptive_sl_pct as _cs_adaptive
-                _cs_sl = _cs_adaptive(
-                    float(cfg.get("sl", {}).get("default_pct", 3.0)),
-                    _atr_by_id.get(_o.instrument_id),
-                    multiple=float(cfg.get("sl", {}).get("atr_multiple", 1.5)),
-                    max_pct=float(cfg.get("sl", {}).get("max_pct", 6.0)),
-                )
-                # feat/core-sweep-signal-tag (2026-07-26): synthetisches
-                # CONSUMED-Signal 'CORE_SWEEP' statt signal_id=None — vorher
-                # waren Core-Sweep-Trades fuer Scorecard, Kelly und jede
-                # trades-JOIN-signals-Analyse unsichtbar (Cash-Deployment-
-                # Pfad hatte keine Lernschleife).
-                _cs_sig_id = None
-                try:
-                    _cs_sig_id = signal_repo.create(
-                        instrument_id=_o.instrument_id,
-                        signal_type="CORE_SWEEP",
-                        conviction="MEDIUM",
-                        score=0.0,
-                        rsi=_rsi_by_id.get(_o.instrument_id),
-                        ttl_minutes=5,
-                    )
-                    signal_repo.update_signal_status(_cs_sig_id, "CONSUMED")
-                except Exception:
-                    _cs_sig_id = None
-                # feat/entry-quality (2026-08-22) SHADOW-Modus: Core-Sweep-
-                # Regime-Gate loggen + entry_quality_events recorden, OHNE die
-                # Order zu aendern. Volle Indikatoren sind hier nicht
-                # verfuegbar (Sweep plant gegen _atr_by_id/_rsi_by_id) — das
-                # core_sweep_regime-Gate braucht nur das Regime; der
-                # Trend-Override faellt fail-open aus (keine Daten = kein
-                # Override). Basis der Phase-1-Shadow-Auswertung
-                # (CORE_SWEEP-Regime-Druck: -$171 Drag).
-                # PHASE 2: _cs_amt traegt den ggf. herunterskalierten Betrag.
-                # Wird vor dem Gate gesetzt, damit ein Fehler im Gate den
-                # urspruenglichen Betrag unveraendert laesst (fail-open).
-                _cs_amt = _o.amount_usd
-
-                # feat/core-sweep-news: CAUTION halbiert, wie im Signal-Pfad.
-                if _cs_nf.get("flag") == "CAUTION":
-                    _cs_amt = round(_cs_amt * 0.5, 2)
-                    logger.info(
-                        "SignalWorker: Core-Sweep %s News-Flag CAUTION — Groesse "
-                        "halbiert auf $%.2f (%s)",
-                        _o.symbol, _cs_amt, (_cs_nf.get("reason") or "")[:60],
-                    )
-
-                # feat/core-sweep-kelly (2026-08-24): Der Sweep war der EINZIGE
-                # Kaufpfad ohne Kelly-Skalierung — er bekam implizit Faktor 1.0,
-                # waehrend jeder Signal-Trade nach seinem gemessenen Edge
-                # dimensioniert wurde. Gemessen an 73 geschlossenen Sweep-Trades:
-                # WR 32.9 %, avg -0.99 %, -171 USD Ergebnis — bei der GROESSTEN
-                # Durchschnittsgroesse im ganzen Bestand (234 USD gegen 67 USD
-                # bei den besten Signalen). Der Sweep hat mit n=73 zugleich die
-                # belastbarste Stichprobe ueberhaupt, die Schrumpfung greift hier
-                # also am wenigsten. Fail-open: Fehler laesst den Betrag stehen.
-                try:
-                    from bot.core.sizing import kelly_size_factor as _cs_ksf
-                    from bot.core import entry_quality as _cs_eq
-                    _cs_kf = _cs_ksf("CORE_SWEEP", db)
-                    if _cs_kf < 1.0:
-                        _cs_amt, _cs_floored = _cs_eq.apply_sizing(
-                            _cs_amt, _cs_kf,
-                            float(regime_params.get("signal_floor_usd", 50.0)),
-                        )
-                        logger.info(
-                            "SignalWorker: CORE-SWEEP KELLY %s: factor=%.3f "
-                            "$%.2f -> $%.2f%s",
-                            _o.symbol, _cs_kf, _o.amount_usd, _cs_amt,
-                            " [auf Signal-Floor angehoben]" if _cs_floored else "",
-                        )
-                except Exception:
-                    logger.debug("core-sweep kelly fehlgeschlagen (fail-open)",
-                                 exc_info=True)
-                try:
-                    from bot.core import entry_quality as _eq
-                    _eq_ev_cs = _eq.evaluate(
-                        cfg, symbol=_o.symbol, signal_type="CORE_SWEEP",
-                        indicators={}, regime=regime or "NORMAL",
-                        is_core_sweep=True,
-                    )
-                    _eq_mode = str(
-                        ((cfg.get("trading", {}) or {}).get("entry_quality", {}) or {}).get("mode", "shadow")
-                    ).lower()
-                    _eq_cs_applied = bool(_eq_ev_cs.hits) and _eq_mode == "live"
-                    _eq.ensure_table(db)
-                    _eq.record(
-                        db, _eq_ev_cs, mode=_eq_mode, applied=_eq_cs_applied,
-                        signal_id=_cs_sig_id, instrument_id=_o.instrument_id,
-                        is_core_sweep=True,
-                    )
-                    if _eq_ev_cs.hits:
-                        if _eq_cs_applied:
-                            _cs_amt, _cs_floored = _eq.apply_sizing(
-                                _cs_amt, _eq_ev_cs.size_mult,
-                                float(regime_params.get("signal_floor_usd", 50.0)),
-                            )
-                            logger.info(
-                                "SignalWorker: ENTRY-QUALITY CORE_SWEEP %s (live, %s): %s "
-                                "-> size_mult=%.2f $%.2f -> $%.2f%s",
-                                _o.symbol, regime, _eq_ev_cs.reasons,
-                                _eq_ev_cs.size_mult, _o.amount_usd, _cs_amt,
-                                " [auf Signal-Floor angehoben]" if _cs_floored else "",
-                            )
-                        else:
-                            logger.info(
-                                "SignalWorker: ENTRY-QUALITY CORE_SWEEP %s (shadow, %s): %s%s",
-                                _o.symbol, regime, _eq_ev_cs.reasons,
-                                " WOULD-BLOCK" if _eq_ev_cs.blocked else "",
-                            )
-                except Exception:
-                    logger.debug("entry_quality: core-sweep gate fehlgeschlagen (fail-open)", exc_info=True)
-                _cs_tid = trade_repo.create(
-                    instrument_id=_o.instrument_id, symbol=_o.symbol, direction="BUY",
-                    amount_usd=_cs_amt, stop_loss_pct=_cs_sl,
-                    signal_id=_cs_sig_id, signal_price=None,
-                )
-                from datetime import datetime as _csdt, timezone as _cstz
-                trade_repo.update_status(
-                    _cs_tid, "APPROVED",
-                    approved_at=_csdt.now(_cstz.utc).strftime("%Y-%m-%d %H:%M:%S"))
-                approved_count += 1
-                cash_estimate -= _cs_amt
-                # fix/core-sweep-portfolio-gates: Exposure mitfuehren wie im
-                # Signalpfad (Zeile ~1295), damit spaetere Leser im selben Lauf
-                # den Stand INKL. Sweep sehen.
-                total_exposure += _cs_amt
-                position_count += 1
-                _held_ids.add(_o.instrument_id)
-                approved_trades_info.append({
-                    "symbol": _o.symbol, "amount_usd": _cs_amt,
-                    "signal_type": "CORE_SWEEP", "conviction": "CORE",
-                    "score": 0.0, "signal_price": None,
-                })
-                logger.info(
-                    "SignalWorker: CORE-SWEEP APPROVED #%d — %s $%.2f (SL %.2f%%)",
-                    _cs_tid, _o.symbol, _cs_amt, _cs_sl)
-                log_repo.write(
-                    "INFO", "signal_worker",
-                    f"Core-Sweep APPROVED: {_o.symbol} BUY ${_cs_amt:.2f}",
-                    {"trade_id": _cs_tid, "instrument_id": _o.instrument_id})
-            if _cs_news_skipped:
-                logger.info(
-                    "SignalWorker: Core-Sweep — %d Titel wegen News-Flag AVOID "
-                    "uebersprungen: %s",
-                    len(_cs_news_skipped), ", ".join(_cs_news_skipped[:8]),
-                )
-                log_repo.write(
-                    "INFO", "signal_worker",
-                    f"Core-Sweep: {len(_cs_news_skipped)} Titel wegen News-AVOID uebersprungen",
-                    {"symbols": _cs_news_skipped[:12]},
-                )
-        except Exception as _cs_exc:
-            logger.warning("SignalWorker: Core-Sweep-Pass uebersprungen: %s", _cs_exc)
+        (approved_count, cash_estimate, total_exposure,
+         position_count) = _run_core_sweep(
+            cfg=cfg, db=db, trade_repo=trade_repo, signal_repo=signal_repo,
+            log_repo=log_repo, equity=equity, regime=regime,
+            regime_params=regime_params, open_positions_raw=open_positions_raw,
+            open_positions=open_positions, _news_flags=_news_flags,
+            approved_trades_info=approved_trades_info,
+            approved_count=approved_count, cash_estimate=cash_estimate,
+            total_exposure=total_exposure, position_count=position_count,
+        )
 
         try:
             from bot.core.heartbeat import record_duration as _rd

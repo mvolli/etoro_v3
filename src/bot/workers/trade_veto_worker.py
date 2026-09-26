@@ -69,21 +69,6 @@ def _seconds_until_execution(now: datetime | None = None) -> float:
     return secs
 
 
-def _load_env() -> None:
-    env_path = Path.home() / ".hermes" / ".env"
-    if not env_path.exists():
-        return
-    import os
-    with open(env_path) as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, _, value = line.partition("=")
-            import os as _os
-            _os.environ.setdefault(key.strip(), value.strip())
-
-
 def _load_json(path: Path) -> dict:
     try:
         if path.exists():
@@ -295,7 +280,8 @@ def main() -> int:
             return 0
 
         t0 = time.monotonic()
-        _load_env()
+        from bot.config import load_hermes_env
+        load_hermes_env()
 
         import yaml
         from bot.db.connection import DB
