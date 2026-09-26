@@ -1631,7 +1631,7 @@ def _run_core_sweep(
         # Duplikat-Rejects der letzten 3 Tage stammten aus CORE_SWEEP.
         # Der normale Signalpfad hat diesen Guard seit
         # fix/duplicate-instrument-approval (2026-07-27) bereits.
-        # BEWUSST frisch abgefragt statt _approved_ids (Zeile ~654)
+        # BEWUSST frisch abgefragt statt _approved_ids (in _filter_eligible)
         # wiederzuverwenden: das Set stammt von VOR der Signal-Schleife,
         # die selbst Trades anlegt — und die Core-Sweep-Whitelist wird aus
         # genau denselben starken FRESH-Signalen gefuellt, ein Instrument
@@ -1666,7 +1666,7 @@ def _run_core_sweep(
         # fix/core-sweep-portfolio-gates (2026-08-12): Core-Sweep sieht ab
         # jetzt dieselben Portfolio-Grenzen wie der regulaere Signalpfad.
         # total_exposure ist hier bereits um die in dieser Schleife
-        # approbierten Buys hochgezaehlt (Zeile ~1295) — der Sweep plant
+        # approbierten Buys hochgezaehlt (Kandidaten-Loop in main()) — der Sweep plant
         # also gegen den Stand NACH den Signal-Trades, nicht davor.
         from bot.core.risk import MAX_TOTAL_EXPOSURE_PCT as _cs_max_exp
         from bot.core.correlation import check_correlation_gate as _cs_corr
@@ -1890,7 +1890,7 @@ def _run_core_sweep(
             approved_count += 1
             cash_estimate -= _cs_amt
             # fix/core-sweep-portfolio-gates: Exposure mitfuehren wie im
-            # Signalpfad (Zeile ~1295), damit spaetere Leser im selben Lauf
+            # Signalpfad (Kandidaten-Loop in main()), damit spaetere Leser im selben Lauf
             # den Stand INKL. Sweep sehen.
             total_exposure += _cs_amt
             position_count += 1

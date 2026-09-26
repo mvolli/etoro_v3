@@ -463,7 +463,7 @@ open_position() →  allowEntryOrders=false → {"success": False, "error": "...
 execution_worker → allowEntryOrders in block_error → DEFER (bleibt APPROVED)
 ```
 
-**data_worker** behält `is_market_open()` (Zeile ~758): Live-Preissignale brauchen
+**data_worker** behält `is_market_open()` (in `run()`: Tier-2-Fetch und BUY-Signal-Store): Live-Preissignale brauchen
 offene Märkte für valide yfinance-Daten.
 
 ### DEFER-Regel
