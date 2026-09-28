@@ -1,9 +1,9 @@
 {
-  "updated_at": "2026-09-25T20:31:03.076588+00:00",
-  "auto_expires_at": "2026-10-09T20:31:03.076599+00:00",
+  "updated_at": "2026-09-27T20:31:22.296585+00:00",
+  "auto_expires_at": "2026-10-11T20:31:22.296590+00:00",
   "adjustments": {
     "TREND_PULLBACK,GOLDEN_CROSS": {
-      "score_multiplier": 1.0,
+      "score_multiplier": 0.5,
       "skip": false,
       "reason": "HIGH n=31 realisiert -151.84 USD (Dollar-WR 41.9 %) bleibt auf 0.25. MEDIUM n=32 realisiert +3.75 USD (Dollar-WR 53.1 %) freigegeben — Entscheid VoLLi 2026-09-11. Basis: realized_by_trade ueber alle Tranchen; trades.pnl_usd allein haette -14.83 gezeigt und in die Gegenrichtung gewiesen.",
       "_ratchet_frozen": true,
@@ -15,12 +15,18 @@
         "VERY_HIGH": 0.25
       },
       "_decided_by": "VoLLi 2026-09-11",
-      "_note_conviction": "Typ erzeugt nur HIGH/MEDIUM (3931/530, 0 sonst). LOW/VERY_HIGH bleiben gedaempft, damit eine Aenderung im Scorer keine stille Lockerung wird."
+      "_note_conviction": "Typ erzeugt nur HIGH/MEDIUM (3931/530, 0 sonst). LOW/VERY_HIGH bleiben gedaempft, damit eine Aenderung im Scorer keine stille Lockerung wird.",
+      "_manual_override": true,
+      "_override_reason": "VoLLi+Advisor 2026-09-28: n=71, realized -153 USD, only volume+consistently-negative combo. De-weight base 1.0->0.5. Ratchet unlock for this entry only (ratchet stays for others). Pre-registered: revert to 1.0 if 50 closed trades confirm >50% winrate.",
+      "_override_date": "2026-09-28"
     },
     "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": {
       "score_multiplier": 0.5,
       "skip": false,
-      "reason": "29% win rate and -0.31% avg PnL. Dip-buying signals are underperforming in CAUTION regime. Dampening to reduce frequency of falling-knife entries."
+      "reason": "Hohe Reject-Rate (67%) und negative Avg PnL (-0.31%) deuten auf schlechte Entry-Qualitaet oder Liquiditaetsprobleme hin. Daempfung reduziert Exposure bei gleichzeitig hohem Rejection-Risiko.",
+      "_ratchet_frozen": true,
+      "_proposed": 0.7,
+      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.5 -> 0.7 blockiert (n_closed=184/20, pnl_usd=-165.29, realisiert=-73.33 USD)"
     },
     "CORE_SWEEP": {
       "score_multiplier": 0.5,
@@ -43,14 +49,19 @@
     "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20": {
       "score_multiplier": 0.5,
       "skip": false,
-      "reason": "Small sample size but negative PnL (-3.03%); aligning with strategy basis that deep RSI without strong trend confirmation is risky."
+      "reason": "Kleine Stichprobe (n=8) mit negativer Avg PnL (-1.44%) und Winrate 37.5%. Vorsichtige Daempfung bis zu mehr Daten vorliegen, da RSI-Extremwerte oft Falling Knives sind.",
+      "_ratchet_frozen": true,
+      "_proposed": 0.8,
+      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.5 -> 0.8 blockiert (n_closed=8/20, pnl_usd=-2.83, realisiert=-1.03 USD)"
     }
   },
   "strategy_notes": [
-    "High-conviction trend signals are currently generating more losses than medium-conviction ones, suggesting the conviction filter is too loose for trend-following in current market conditions.",
-    "Dip-buying signals (MACD/BB) continue to underperform in CAUTION regime, reinforcing the need for stricter trend confirmation before entry."
+    "MACD-BB Signale zeigen ein Muster von hohen Reject-Raten und negativer Performance, was auf eine schlechte Timing oder Liquiditaetsprobleme hindeutet. Eine Daempfung ist sinnvoll, um das Exposure zu reduzieren.",
+    "HIGH Conviction Trend-Signale sind aktuell unprofitabel, waehrend MEDIUM Conviction bleibt stabil. Dies deutet darauf hin, dass der Conviction-Filter fuer Trend-Signale ueberprueft werden sollte, um die HIGH Stufe zu daempfen oder zu blockieren.",
+    "RSI-Extremwerte mit MACD-Wende haben eine kleine Stichprobe und negative Performance. Dies unterstuetzt die These, dass RSI-Extremwerte oft Falling Knives sind und vorsichtig gehandelt werden sollten.",
+    "2026-09-28 VoLLi+Advisor Sizing-Entscheid: TREND_PULLBACK+GOLDEN_CROSS de-weighted to 0.5 (base). Conviction ladder stays monotonic 6/6/6/2 (User-Entscheid 2026-07-14). Risk-based sizing realized via combo/asset axis, not conviction axis. No new combos live (in-sample mining). No exit-mechanism change (counterfactual showed holding was worse)."
   ],
   "conviction_issues": [
-    "TREND_PULLBACK,GOLDEN_CROSS HIGH conviction has a 26% win rate, which is below the 25% threshold for 'very concrete reason' to keep active. Dampened to 0.25."
+    "HIGH Conviction TREND_PULLBACK,GOLDEN_CROSS hat eine Winrate von 26% und negative Avg PnL (-1.43%), was auf eine schlechte Entry-Qualitaet oder schlechte Timing hindeutet."
   ]
 }

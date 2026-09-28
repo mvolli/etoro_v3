@@ -356,12 +356,29 @@ sizing:                       # Position size as % of portfolio equity
                               # als GROSSTE Stufe oben in der Leiter — genau die Stufen, die Kelly
                               # noch nicht voll erreicht (min_trades=25), waren ueberdimensioniert.
                               # 5.0 = auf MEDIUM-Base abgeflacht; Kelly differenziert ueber Basis.)
+                              # Sizing-Entscheid 2026-09-28: conviction-Leiter bleibt MONOTON
+                              # (VERY_HIGH>=HIGH>=MEDIUM>=LOW, User-Entscheid 2026-07-14 + Test-
+                              # Invariante). Risk-based sizing (high risk small, low risk big)
+                              # wird NICHT ueber die Conviction-Leiter, sondern ueber die
+                              # Combo-/Asset-Klasse-Achse realisiert (llm_signal_weights.json +
+                              # Kelly asset-class split). VERY_HIGH post-Zaesur suppressed (n<10),
+                              # 6.0 hier inert.
   high_pct: 6.0               # Conviction tier: HIGH (self-improvement 2026-08-24: 6.0->5.0.
                               # HIGH = groesster einziger Drag (n=84, WR 31.0%, -269 USD), lief aber
-                              # als 2-groesste Stufe. Auf MEDIUM-Base abgeflacht; Leiter bleibt
-                              # monoton (User-Entscheid 2026-07-14: 5.0 >= 5.0 >= 5.0 >= 2.0).)
-  medium_pct: 6.0             # Conviction tier: MEDIUM (2026-08-24: UNVERAENDERT — beste Stufe,
-                              # n=122, WR 42.6%; MACD_TURN-Combos laufen hier avg +10%)
+                              # stabil ueber 02.08->08-02-24 (28.8->30.3), 29-35.1 USD (42.9),
+                              # 35-41 (38.9), 41-47.4 (34.0) = 4 von 5 Fenstern. 5.0 ist die
+                              # moderate Steppe. 5.0 = 252 USD bei 8,356.85 USD Equity (vorher 302).)
+                              # Sizing-Entscheid 2026-09-28: HIGH bleibt 6.0 (Leiter muss monoton
+                              # bleiben: HIGH>=MEDIUM=6.0). Der HIGH-Drag (post-26.07 n=31,
+                              # WR 25.8 %, real -155 USD) wird NICHT ueber die Conviction-Leiter,
+                              # sondern ueber die Drag-Combo-Weights (TREND_PULLBACK+GOLDEN_CROSS)
+                              # und den Asset-Klassen-Split geschraenkt.
+  medium_pct: 6.0             # Conviction tier: MEDIUM (BLEIBT 6.0 = die $500-Engine).
+                              # MEDIUM = einziger net-positive Tier post-26.07 (n=435, WR 36.1 %,
+                              # real +234 USD). LOW RISK = BIGGER: 6.0 % x 8,356.85 Equity x 1.0
+                              # (NORMAL) = 501 USD Basis = das $500-Ziel. Kelly + Entry-Quality-
+                              # Gate + Parity-Floor verkleinern die Realisierung; die Basis bleibt
+                              # der $500-Anker. Sizing-Entscheid 2026-09-28: bleibt 6.0.
   low_pct: 2.0                # Conviction tier: LOW / speculative
   # Risk-neutral Kelly scale (fix/kelly-risk-neutral 2026-08-22, post
   # commit-review 2026-08-21-b):
