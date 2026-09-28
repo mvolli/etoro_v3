@@ -18,14 +18,14 @@
       "_note_conviction": "Typ erzeugt nur HIGH/MEDIUM (3931/530, 0 sonst). LOW/VERY_HIGH bleiben gedaempft, damit eine Aenderung im Scorer keine stille Lockerung wird."
     },
     "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": {
-      "score_multiplier": 0.5,
+      "score_multiplier": 0.25,
       "skip": false,
-      "reason": "29% win rate and -0.31% avg PnL. Dip-buying signals are underperforming in CAUTION regime. Dampening to reduce frequency of falling-knife entries."
+      "reason": "Deepened 0.5 -> 0.25. 26.07-Zaesur (n=195, WR 30.8%, avg -0.32%, sum -168.8). 30d: n=145, WR 26.2%, sum -208.49. 7d: n=11, WR 9.1%. All 195 = MEDIUM conviction. Breakeven WR ~35.2% (avg_win +4.86 / avg_lose -2.64); persistent, large-sample loser (buying BB-low + MACD-turn = falling-knife entries in a downtrend). Deprioritized in candidate ranking; not skipped (avg_win +4.86% retains upside). Ratchet will NOT loosen (realized < 0). self_improvement 2026-09-28."
     },
     "CORE_SWEEP": {
       "score_multiplier": 0.5,
       "skip": false,
-      "reason": "Post-26.07 (2026-09-18 SQL: n=158, WR 43.7%, avg +0.10%, sum -$218.51): nearer to breakeven, drag = size (biggest source in book) + long loss tail (META -11.9, 1024.HK -10.7, PNI.AX -10.5). Multiplier 0.5 unchanged (ratchet: lockerung blocked, n=158 >= 20 but pnl_usd < 0). 2026-09-18 self-improvement: is_tradable-learnung fuer allowOpenPosition=false (fix/eligibility-tradability-learning) stoppt die FAILED-Schleife NSDQ100/JPN225/HKG50.FUT (40 FAILED, 0 Orders).",
+      "reason": "Post-26.07 (2026-09-18 SQL: n=158, WR 43.7%, avg +0.10%, sum -$218.51): nearer to breakeven, drag = size (biggest source in book) + long loss tail (META -11.9, 1024.HK -10.7, PNI.AX -10.5). Multiplier 0.5 unchanged (ratchet: lockerung blocked, n=158 >= 20 but pnl_usd < 0). 2026-09-18 self-improvement: is_tradable-learnung fuer allowOpenPosition=false (fix/eligibility-tradability-learning) stoppt die FAILED-Schleife NSDQ100/JPN225/HKG50.FUT (40 FAILED, 0 Orders). NOTE 2026-09-28 self_improvement: a 0.5->0.25 deepening was TRIED and REVERTED — it is a NO-OP for the sweep path (core_sweep.py has no llm_signal_weights coupling; score_multiplier is only consumed in the _rank_eligible sort, which CORE_SWEEP bypasses; sizing is Kelly kelly_size_factor=0.362 + per_position_pct caps, not the multiplier). Sweep drag is already mitigated by Kelly 0.362 + fix/core-sweep-market-open (2026-09-23, market-closed rejections 255->17).",
       "_ratchet_frozen": true,
       "_proposed": 0.8,
       "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.5 -> 0.8 blockiert (n_closed=133/20, pnl_usd=-236.54, realisiert=+237.59 USD)"
