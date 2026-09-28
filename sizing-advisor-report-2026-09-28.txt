@@ -1,0 +1,61 @@
+Zwischenstand: Ich habe den Code und die DB read-only geprüft, weil der Report in zwei Punkten nicht zur Config passt. Jetzt kommt das Gutachten.
+
+# Zweitgutachten: Sizing- und Combo-Report vom 2026-09-28
+
+## 0. Der Report widerspricht sich selbst. Vor jeder Umsetzung korrigieren
+
+| # | Aussage im Report | Befund |
+|---|---|---|
+| A | „MEDIUM ist der einzige Level nach 26.07“, gleichzeitig HIGH mit n=31 | Widerspruch. Außerdem MEDIUM-pre n=399 plus HIGH n=31 = 430, obwohl PRE gesamt nur n=399 hat. Die +286 / −152 ergeben zusammen genau +134, also den PRE-Gesamtwert. Die Conviction-Aufteilung ist doppelt gezählt oder falsch gejoint. **Daraus folgt die Aussage „HIGH ist invertiert“ nicht.** |
+| B | Fees „~140 USD“ | 491 × 130 × 0,0065 = **415 USD**. Mit den genannten 1,1 % wären es **~700 USD**. Im Report stehen drei verschiedene Fee-Modelle, keines davon wurde gegen trade_pnl gemessen. |
+| C | Entry-Quality-Gate „floor 0.5, soft_mode=observe, 8778 Events“ | Tatsächlich gilt `config/config.yaml:188` mit `mode: live` und `min_size_mult: 0.25`. In der DB stehen 14.748 Live-Events mit Ø Multiplikator 0,70, davon **1.716 applied**, dazu 617 Shadow-Events. Das Gate verkleinert live. Frage (a) im Report geht also von einer falschen Grundlage aus. |
+| D | CORE_SWEEP pre: +281 USD bei avg% +0,09 | Rechnet man 167 × 206 × 0,09 %, kommt man auf ~31 USD. Die +281 stammen also aus Ausreißern, Partials oder aus einer anderen avg%-Definition. **„Strukturell profitabel“ ist nicht belegt.** |
+| E | Crypto avg% +6,59, real +93 | 27 × ~130 × 6,59 % ≈ 230 USD. Das deutet ebenfalls auf Ausreißer oder eine Definitionslücke hin. |
+| F | Band 50–75 pre: avg% +0,61, real −92 USD | Bei ~7.200 USD Notional entspricht das −1,3 %. avg% und real$ messen hier verschiedene Dinge. Wegen des Vorzeichenwechsels ist jede Tabelle mit avg% unbrauchbar, bis die Definition geklärt ist. |
+| G | „~30 % der Exits sind Break-Even-Schutz, ~50 % der Gewinner gekappt“ | 40 von 491 sind **8 %**. KI TIGHTEN liegt bei 90 von 491 = 18 %. Die Prämisse der Frage stützt sich also nicht auf die gelieferte Tabelle. |
+| H | Signal-Combos pre −140 | Nachgerechnet −147, weil die MACD/BB-Combo mit −7 fehlt. Kleinigkeit. |
+
+## 1. Selektions-Bias oder echte Edge?
+
+- **Keine einzige Teilmenge zeigt nach Fees eine Edge, die statistisch trägt.** CORE_SWEEP pre hat WR 42,5 % bei avg +0,09 %, das ist Break-even. Post liegt bei n=32 und −7 USD. Crypto hat n=27, das 95-%-KI der WR reicht ungefähr von 35 % bis 75 %. Der Zeitraum war dazu regimeabhängig, und Crypto kostet bei eToro höhere Fees.
+- **HIGH mit WR 25,8 % gegenüber MEDIUM mit 35,3 %:** Bei n=31 reicht das KI der WR ungefähr von 12 % bis 44 %, p≈0,3. Das ist nicht signifikant und zusätzlich durch Befund A verunreinigt.
+- **„Größere Positionen haben schlechtere WR“:** Die Größe ist endogen. Sie ergibt sich aus Conviction, Regime und Quality. Die Aussage ist eine Konfundierung und kein Kausaleffekt. Daraus lässt sich weder „groß ist schlecht“ noch „klein ist gut“ ableiten.
+- **Pre/Post-Vergleich:** Zwischen 09-21 und 09-28 gab es 11 Deploys, und am 09-25/27 wurde das Regime-Modell geändert. Bei n=92 in einer Woche ohne Benchmark wie SPY oder BTC in derselben Woche lässt sich nichts zuordnen. Die −73 USD können vollständig vom Markt kommen.
+- **Kelly 0,368 für alle Combos:** Bei WR ~35 % und avg ≈ 0 ergibt eine combo-spezifische Kelly-Rechnung **≈ 0 oder negativ**. Ehrlich angewendet würde sie den Signal-Pfad abschalten und nicht vergrößern. Frage (f) hat also eine unbequeme Antwort.
+
+**Schlussfolgerung:** Den Plan „bis 500 USD vergrößern“ decken die Daten derzeit für **keine** Klasse. Wer vergrößert, hebelt ein Ergebnis, das bisher bei null liegt oder negativ ist.
+
+## 2. Priorisierte Checkliste
+
+Das sind Messungen und keine Schwellenänderungen. Die Entscheidung über Schwellen liegt bei VoLLi.
+
+**P0: Datenbasis reparieren. Bevor das erledigt ist, keine Sizing-Entscheidung.**
+1. Den Conviction-Join korrigieren (Befund A): Summe der n pro Phase muss gleich dem Gesamt-n sein. Außerdem klären, warum HIGH nach dem 26.07 überhaupt vorkommt.
+2. Fees messen, nicht schätzen. Pro geschlossenem Trade `(exit−entry)×units − trade_pnl` berechnen und Median sowie p90 der Fee in % des Notionals ausgeben, getrennt nach Asset-Klasse und Börse.
+3. avg% neu definieren als size-gewichtetes Netto: Σreal$ / Σnotional. Alle Tabellen neu erzeugen.
+4. Ausreißer-Probe für CORE_SWEEP und Crypto: real$ mit und ohne die Top-3-Trades, dazu Median-PnL und ein Bootstrap-95-%-KI der Summe. Kippt das Vorzeichen, ist die „Edge“ ein Ausreißer.
+5. Die Gate-Wirkung ist durch Befund C belegt. Zu messen bleibt, ob die 1.716 applied-Trades schlechter oder besser liefen als die Shadow-Kontrollgruppe gleicher Signal-Typen. Ohne diesen Vergleich ist unbekannt, ob das Gate hilft.
+
+**P1: Die Exit-Mechanik mit dem größten Hebel. Ein Counterfactual, keine Änderung.**
+- Kandidat ist nicht Break-Even-Schutz, der nur 8 % der Exits ausmacht, sondern **`TREND_KIPP_1H` mit 50 % Teilverkauf** (≥135 Exits, ≈27 %) zusammen mit **KI TIGHTEN** (≥90, ≈18 %). Diese beiden erzeugen die meisten gekappten Gewinner.
+- Messung: Für jeden dieser Exits den Kurs +1 d, +3 d und +5 d nach dem Exit aus den Bars rekonstruieren. Vergleichen, ob Halten mehr real$ gebracht hätte als der Exit, und Median sowie Anteil der Fälle mit „Halten besser“ ausgeben. Für Break-Even-Schutz dieselbe Probe. Dort ist aber auch der Anteil wichtig, der ohne BE unter −2 % gefallen wäre, denn der Schutz verhindert auch Verluste.
+- Erst wenn das Counterfactual auf mindestens 100 Exits ein klares Vorzeichen zeigt, legt VoLLi einen Schwellenwert fest.
+
+**P2: Sizing. Nur Hypothesen, die mit Pre-Registrierung vorgemerkt werden.**
+- Die Conviction-Umkehr (HIGH ×1,3 → ×0,8) erst nach P0.1 neu auswerten. Sollte sie bestätigt werden, ist die billigste reversible Maßnahme HIGH = 1,0 (neutral) und nicht 0,8.
+- Kein Größen-Upgrade für Crypto oder CORE_SWEEP, solange P0.4 kein positives KI ohne die Top-3 zeigt.
+- Floor-Regel: Aktuell sind 116 + 30 Trades im Band 50–75 USD, also unter der eigenen 100-USD-Floor-Regel. Das ist ein Regelverstoß und keine Strategie. Zu prüfen ist, warum `dust_floor`/`signal_floor` bei 75 liegen und nicht bei der Bible-Grenze von 100.
+
+**P3: Combos**
+- **Auf Beobachtung setzen, nicht entfernen:** Für `TREND_PULLBACK,GOLDEN_CROSS` (n=71, −153 USD) wäre der Kandidat Sizing ×0,5, weil das die einzige Combo mit Volumen und konsistent negativem Ergebnis ist. Bestätigt wird das aber erst, wenn der Befund nach P0.3 bestehen bleibt.
+- `RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20` mit n=8 lässt sich nicht bewerten. Liegenlassen.
+- **Neue Triplets nicht live einführen.** Jede aus diesen Daten abgeleitete Kombination ist In-Sample-Mining. Wenn überhaupt, dann als Shadow-Log mit vorab festgelegter Hypothese, mindestens n=100 Out-of-Sample und Fees eingerechnet. Beispiel: `RSI_EXTREME_OVERSOLD + BB_LOW_MACD_IMPROVING + TREND_PULLBACK`. Welche Komponentennamen im aktuellen `signals.py` wirklich existieren, habe ich nicht geprüft.
+
+**P4: Deploy-Disziplin.** Höchstens eine geldwirksame Änderung pro 50 geschlossenen Trades. Sonst bleibt jede Pre/Post-Analyse wie in Abschnitt 1 dieses Reports nicht zuordenbar.
+
+## Fehlende Gegenproben
+
+- Eine Markt-Benchmark pro Fenster fehlt.
+- Die Streuung und der Median pro Zelle fehlen, alle Tabellen zeigen nur Mittelwerte.
+- Eine Aufteilung nach Regime fehlt. Die Regime-Multiplikatoren wurden am 09-25/27 geändert und überlagern den Sizing-Effekt.
+- Eine Walk-Forward-Aufteilung (zum Beispiel Juli–August zur Kalibrierung, September als Test) für jede Aussage über eine Combo fehlt.
