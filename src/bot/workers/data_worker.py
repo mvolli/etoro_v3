@@ -691,6 +691,29 @@ def run(project_root: Path | None = None) -> dict:
     _load_failed_cache(db)
     _preloaded_failed = set(_FAILED_SYMBOLS_CACHE)  # fix/failed-cache-expiry: Diff-Basis fuer Schritt 10
 
+    # 0b. feat/ma200-filter (2026-09-29, advisor-frozen): ma200_daily needs
+    # ~201 CLOSED daily closes per symbol for the frozen rule
+    # close[D-1] < SMA200(close[D-200..D-1]); the live fetch only carries
+    # 3mo (~64 bars). Seed the table from the 1-year replay CSVs ONCE (when
+    # it is still empty) — the scan loop below then refreshes it
+    # incrementally each run. Idempotent + fail-open: a seed failure only
+    # degrades the gate to fail-open (no history), never breaks the run.
+    try:
+        from bot.core import ma200_history as _ma200h
+        _ma200h.ensure_table(db)
+        _n_ma200 = db.fetchone(
+            f"SELECT COUNT(*) AS c FROM {_ma200h.TABLE_NAME}"
+        )
+        if not _n_ma200 or int(_n_ma200["c"]) < 1000:
+            _seed_summary = _ma200h.seed_from_csvs(db)
+            logger.info(
+                "[%s] ma200_daily seed: %s",
+                WORKER_NAME,
+                {k: _seed_summary.get(k) for k in ("symbols", "rows")},
+            )
+    except Exception:
+        logger.debug("ma200_daily: seed fehlgeschlagen (fail-open)", exc_info=True)
+
     # 2. Determine symbol lists -----------------------------------------------
 
     # Tier 1: always fetch (need fresh prices for SL checks)
@@ -956,6 +979,37 @@ def run(project_root: Path | None = None) -> dict:
                 _eq_regime = _eq_state_repo(db).get_regime() or "NORMAL"
             except Exception:
                 _eq_regime = "NORMAL"
+            # feat/ma200-filter (2026-09-29, advisor-frozen): MA200-Gate needs
+            # ~201 CLOSED daily closes. The live `df` is only period="3mo"
+            # (~64 bars), so it sources the dedicated ma200_daily table
+            # (seeded from 1y replay bars, refreshed each run). Fail-open:
+            # any history error -> daily_closes=None -> gate stays inactive.
+            try:
+                from bot.core import ma200_history as _eq_ma200h
+                try:
+                    _eq_ma200h.ensure_table(db)
+                    _eq_pairs = _eq_ma200h.df_to_closed_pairs(df)
+                    if _eq_pairs:
+                        _eq_ma200h.upsert_closes(db, yf_sym, _eq_pairs)
+                except Exception:
+                    logger.debug("ma200_history: upsert failed (fail-open)", exc_info=True)
+                _eq_closes = _eq_ma200h.get_daily_closes(db, yf_sym, limit=201)
+            except Exception:
+                _eq_closes = None
+            # feat/entry-quality: the OVERALL entry-quality mode (config
+            # entry_quality.mode) is what the ledger's `mode` column records
+            # and what signal_worker.latest_size_mult() keys off — same value
+            # the CORE_SWEEP call site in signal_worker uses. The ma200_trend
+            # gate has its OWN mode (default shadow) read independently
+            # inside evaluate().
+            _eq_overall_mode = "shadow"
+            try:
+                _eq_overall_mode = str(
+                    ((cfg.get("trading", {}) or {})
+                     .get("entry_quality", {}) or {}).get("mode", "shadow")
+                ).lower()
+            except Exception:
+                pass
             try:
                 _eq_ev = entry_quality.evaluate(
                     cfg,
@@ -963,14 +1017,16 @@ def run(project_root: Path | None = None) -> dict:
                     signal_type=signal_types_str,
                     indicators=indicators,
                     regime=_eq_regime,
+                    daily_closes=_eq_closes,
                 )
                 entry_quality.ensure_table(db)
                 entry_quality.record(
                     db, _eq_ev,
-                    mode=str(((cfg.get("trading", {}) or {}).get("entry_quality", {}) or {}).get("mode", "shadow")),
+                    mode=_eq_overall_mode,
                     applied=False,
                     signal_id=_signal_id,
                     instrument_id=instrument_id,
+                    entry_price=result.price,
                 )
                 if _eq_ev.hits:
                     logger.info(

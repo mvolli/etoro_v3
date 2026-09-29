@@ -1,0 +1,2062 @@
+{
+  "table": {
+    "S0_baseline": {
+      "all": {
+        "n": 511,
+        "n_blocked": 0,
+        "total": -163.1,
+        "winrate": 32.9,
+        "mean_per_trade": -0.32,
+        "ci95": [
+          -1350.8,
+          154.0
+        ],
+        "mdd": -834.5,
+        "median_hold": 6,
+        "reason_mix": {
+          "TIME(tail)": 151,
+          "BE": 143,
+          "STOP": 213,
+          "NODATA(realized)": 4
+        },
+        "blocked_realized": 0
+      },
+      "train": {
+        "n": 186,
+        "n_blocked": 0,
+        "total": 83.5,
+        "winrate": 36.6,
+        "mean_per_trade": 0.45,
+        "ci95": [
+          -520.7,
+          421.7
+        ],
+        "mdd": -337.3,
+        "median_hold": 10.0,
+        "reason_mix": {
+          "TIME(tail)": 39,
+          "BE": 76,
+          "STOP": 70,
+          "NODATA(realized)": 1
+        },
+        "blocked_realized": 0
+      },
+      "holdout": {
+        "n": 325,
+        "n_blocked": 0,
+        "total": -246.6,
+        "winrate": 30.8,
+        "mean_per_trade": -0.76,
+        "ci95": [
+          -778.2,
+          -80.5
+        ],
+        "mdd": -500.0,
+        "median_hold": 5,
+        "reason_mix": {
+          "TIME(tail)": 112,
+          "STOP": 143,
+          "BE": 67,
+          "NODATA(realized)": 3
+        },
+        "blocked_realized": 0
+      },
+      "2026-07": {
+        "n": 65,
+        "n_blocked": 0,
+        "total": 172.7,
+        "winrate": 46.2,
+        "mean_per_trade": 2.66,
+        "ci95": [
+          -71.7,
+          395.4
+        ],
+        "mdd": -43.4,
+        "median_hold": 12,
+        "reason_mix": {
+          "TIME(tail)": 14,
+          "BE": 41,
+          "STOP": 10
+        },
+        "blocked_realized": 0
+      },
+      "2026-08": {
+        "n": 138,
+        "n_blocked": 0,
+        "total": -100.8,
+        "winrate": 30.4,
+        "mean_per_trade": -0.73,
+        "ci95": [
+          -508.1,
+          14.3
+        ],
+        "mdd": -330.4,
+        "median_hold": 9.0,
+        "reason_mix": {
+          "STOP": 69,
+          "TIME(tail)": 28,
+          "BE": 40,
+          "NODATA(realized)": 1
+        },
+        "blocked_realized": 0
+      },
+      "2026-09": {
+        "n": 308,
+        "n_blocked": 0,
+        "total": -235.0,
+        "winrate": 31.2,
+        "mean_per_trade": -0.76,
+        "ci95": [
+          -742.3,
+          -151.3
+        ],
+        "mdd": -464.5,
+        "median_hold": 5.0,
+        "reason_mix": {
+          "BE": 62,
+          "STOP": 134,
+          "TIME(tail)": 109,
+          "NODATA(realized)": 3
+        },
+        "blocked_realized": 0
+      }
+    },
+    "S1_wide_stop": {
+      "all": {
+        "n": 511,
+        "n_blocked": 0,
+        "total": -200.9,
+        "winrate": 36.4,
+        "mean_per_trade": -0.39,
+        "ci95": [
+          -1321.0,
+          92.2
+        ],
+        "mdd": -804.7,
+        "median_hold": 9,
+        "reason_mix": {
+          "TIME(tail)": 221,
+          "BE": 179,
+          "STOP": 107,
+          "NODATA(realized)": 4
+        },
+        "blocked_realized": 0
+      },
+      "train": {
+        "n": 186,
+        "n_blocked": 0,
+        "total": 113.3,
+        "winrate": 40.9,
+        "mean_per_trade": 0.61,
+        "ci95": [
+          -551.6,
+          353.2
+        ],
+        "mdd": -333.9,
+        "median_hold": 17.0,
+        "reason_mix": {
+          "TIME(tail)": 54,
+          "BE": 99,
+          "STOP": 32,
+          "NODATA(realized)": 1
+        },
+        "blocked_realized": 0
+      },
+      "holdout": {
+        "n": 325,
+        "n_blocked": 0,
+        "total": -314.2,
+        "winrate": 33.8,
+        "mean_per_trade": -0.97,
+        "ci95": [
+          -796.7,
+          -256.5
+        ],
+        "mdd": -470.8,
+        "median_hold": 7,
+        "reason_mix": {
+          "TIME(tail)": 167,
+          "STOP": 75,
+          "BE": 80,
+          "NODATA(realized)": 3
+        },
+        "blocked_realized": 0
+      },
+      "2026-07": {
+        "n": 65,
+        "n_blocked": 0,
+        "total": 166.8,
+        "winrate": 46.2,
+        "mean_per_trade": 2.57,
+        "ci95": [
+          -69.5,
+          350.0
+        ],
+        "mdd": -45.5,
+        "median_hold": 14,
+        "reason_mix": {
+          "TIME(tail)": 14,
+          "BE": 48,
+          "STOP": 3
+        },
+        "blocked_realized": 0
+      },
+      "2026-08": {
+        "n": 138,
+        "n_blocked": 0,
+        "total": -77.0,
+        "winrate": 36.2,
+        "mean_per_trade": -0.56,
+        "ci95": [
+          -534.2,
+          2.3
+        ],
+        "mdd": -326.1,
+        "median_hold": 18.0,
+        "reason_mix": {
+          "BE": 58,
+          "TIME(tail)": 44,
+          "STOP": 35,
+          "NODATA(realized)": 1
+        },
+        "blocked_realized": 0
+      },
+      "2026-09": {
+        "n": 308,
+        "n_blocked": 0,
+        "total": -290.8,
+        "winrate": 34.4,
+        "mean_per_trade": -0.94,
+        "ci95": [
+          -745.9,
+          -262.8
+        ],
+        "mdd": -433.1,
+        "median_hold": 7.0,
+        "reason_mix": {
+          "BE": 73,
+          "STOP": 69,
+          "TIME(tail)": 163,
+          "NODATA(realized)": 3
+        },
+        "blocked_realized": 0
+      }
+    },
+    "S2_chandelier": {
+      "all": {
+        "n": 511,
+        "n_blocked": 0,
+        "total": -215.3,
+        "winrate": 37.6,
+        "mean_per_trade": -0.42,
+        "ci95": [
+          -1087.4,
+          117.0
+        ],
+        "mdd": -524.0,
+        "median_hold": 8,
+        "reason_mix": {
+          "STOP": 229,
+          "BE": 134,
+          "TIME(tail)": 144,
+          "NODATA(realized)": 4
+        },
+        "blocked_realized": 0
+      },
+      "train": {
+        "n": 186,
+        "n_blocked": 0,
+        "total": 95.5,
+        "winrate": 44.1,
+        "mean_per_trade": 0.51,
+        "ci95": [
+          -219.1,
+          284.0
+        ],
+        "mdd": -86.7,
+        "median_hold": 11.0,
+        "reason_mix": {
+          "STOP": 105,
+          "BE": 66,
+          "TIME(tail)": 14,
+          "NODATA(realized)": 1
+        },
+        "blocked_realized": 0
+      },
+      "holdout": {
+        "n": 325,
+        "n_blocked": 0,
+        "total": -310.8,
+        "winrate": 33.8,
+        "mean_per_trade": -0.96,
+        "ci95": [
+          -884.0,
+          -143.1
+        ],
+        "mdd": -516.8,
+        "median_hold": 6,
+        "reason_mix": {
+          "STOP": 124,
+          "BE": 68,
+          "TIME(tail)": 130,
+          "NODATA(realized)": 3
+        },
+        "blocked_realized": 0
+      },
+      "2026-07": {
+        "n": 65,
+        "n_blocked": 0,
+        "total": 149.3,
+        "winrate": 60.0,
+        "mean_per_trade": 2.3,
+        "ci95": [
+          -3.1,
+          310.0
+        ],
+        "mdd": -22.6,
+        "median_hold": 11,
+        "reason_mix": {
+          "STOP": 29,
+          "BE": 34,
+          "TIME(tail)": 2
+        },
+        "blocked_realized": 0
+      },
+      "2026-08": {
+        "n": 138,
+        "n_blocked": 0,
+        "total": -81.8,
+        "winrate": 34.1,
+        "mean_per_trade": -0.59,
+        "ci95": [
+          -395.2,
+          100.7
+        ],
+        "mdd": -152.7,
+        "median_hold": 10.0,
+        "reason_mix": {
+          "BE": 37,
+          "STOP": 88,
+          "NODATA(realized)": 1,
+          "TIME(tail)": 12
+        },
+        "blocked_realized": 0
+      },
+      "2026-09": {
+        "n": 308,
+        "n_blocked": 0,
+        "total": -282.8,
+        "winrate": 34.4,
+        "mean_per_trade": -0.92,
+        "ci95": [
+          -849.0,
+          -200.6
+        ],
+        "mdd": -488.8,
+        "median_hold": 6.0,
+        "reason_mix": {
+          "BE": 63,
+          "STOP": 112,
+          "TIME(tail)": 130,
+          "NODATA(realized)": 3
+        },
+        "blocked_realized": 0
+      }
+    },
+    "S3_reversion": {
+      "all": {
+        "n": 511,
+        "n_blocked": 0,
+        "total": -169.5,
+        "winrate": 50.7,
+        "mean_per_trade": -0.33,
+        "ci95": [
+          -621.5,
+          422.8
+        ],
+        "mdd": -169.5,
+        "median_hold": 4,
+        "reason_mix": {
+          "REVERSION": 244,
+          "BE": 68,
+          "STOP": 134,
+          "NODATA(realized)": 4,
+          "TIME(tail)": 61
+        },
+        "blocked_realized": 0
+      },
+      "train": {
+        "n": 186,
+        "n_blocked": 0,
+        "total": 154.0,
+        "winrate": 65.6,
+        "mean_per_trade": 0.83,
+        "ci95": [
+          -152.0,
+          538.3
+        ],
+        "mdd": 0.0,
+        "median_hold": 5.0,
+        "reason_mix": {
+          "REVERSION": 117,
+          "BE": 31,
+          "STOP": 34,
+          "NODATA(realized)": 1,
+          "TIME(tail)": 3
+        },
+        "blocked_realized": 0
+      },
+      "holdout": {
+        "n": 325,
+        "n_blocked": 0,
+        "total": -323.5,
+        "winrate": 42.2,
+        "mean_per_trade": -1.0,
+        "ci95": [
+          -629.6,
+          -21.4
+        ],
+        "mdd": -323.5,
+        "median_hold": 4,
+        "reason_mix": {
+          "REVERSION": 127,
+          "STOP": 100,
+          "BE": 37,
+          "NODATA(realized)": 3,
+          "TIME(tail)": 58
+        },
+        "blocked_realized": 0
+      },
+      "2026-07": {
+        "n": 65,
+        "n_blocked": 0,
+        "total": 173.1,
+        "winrate": 75.4,
+        "mean_per_trade": 2.66,
+        "ci95": [
+          -7.3,
+          511.6
+        ],
+        "mdd": 0.0,
+        "median_hold": 4,
+        "reason_mix": {
+          "REVERSION": 41,
+          "BE": 20,
+          "STOP": 4
+        },
+        "blocked_realized": 0
+      },
+      "2026-08": {
+        "n": 138,
+        "n_blocked": 0,
+        "total": -24.1,
+        "winrate": 59.4,
+        "mean_per_trade": -0.17,
+        "ci95": [
+          -181.9,
+          159.1
+        ],
+        "mdd": -24.1,
+        "median_hold": 6.0,
+        "reason_mix": {
+          "REVERSION": 84,
+          "BE": 14,
+          "STOP": 36,
+          "NODATA(realized)": 1,
+          "TIME(tail)": 3
+        },
+        "blocked_realized": 0
+      },
+      "2026-09": {
+        "n": 308,
+        "n_blocked": 0,
+        "total": -318.6,
+        "winrate": 41.6,
+        "mean_per_trade": -1.03,
+        "ci95": [
+          -595.3,
+          -76.9
+        ],
+        "mdd": -318.6,
+        "median_hold": 4.0,
+        "reason_mix": {
+          "BE": 34,
+          "STOP": 94,
+          "REVERSION": 119,
+          "NODATA(realized)": 3,
+          "TIME(tail)": 58
+        },
+        "blocked_realized": 0
+      }
+    },
+    "S4_relax_be": {
+      "all": {
+        "n": 511,
+        "n_blocked": 0,
+        "total": -180.2,
+        "winrate": 51.1,
+        "mean_per_trade": -0.35,
+        "ci95": [
+          -705.0,
+          408.4
+        ],
+        "mdd": -180.2,
+        "median_hold": 4,
+        "reason_mix": {
+          "REVERSION": 245,
+          "BE": 78,
+          "STOP": 128,
+          "NODATA(realized)": 4,
+          "TIME(tail)": 56
+        },
+        "blocked_realized": 0
+      },
+      "train": {
+        "n": 186,
+        "n_blocked": 0,
+        "total": 159.3,
+        "winrate": 65.6,
+        "mean_per_trade": 0.86,
+        "ci95": [
+          -152.0,
+          544.9
+        ],
+        "mdd": 0.0,
+        "median_hold": 5.0,
+        "reason_mix": {
+          "REVERSION": 120,
+          "BE": 27,
+          "STOP": 35,
+          "NODATA(realized)": 1,
+          "TIME(tail)": 3
+        },
+        "blocked_realized": 0
+      },
+      "holdout": {
+        "n": 325,
+        "n_blocked": 0,
+        "total": -339.5,
+        "winrate": 42.8,
+        "mean_per_trade": -1.04,
+        "ci95": [
+          -662.1,
+          -15.3
+        ],
+        "mdd": -339.5,
+        "median_hold": 4,
+        "reason_mix": {
+          "REVERSION": 125,
+          "STOP": 93,
+          "BE": 51,
+          "NODATA(realized)": 3,
+          "TIME(tail)": 53
+        },
+        "blocked_realized": 0
+      },
+      "2026-07": {
+        "n": 65,
+        "n_blocked": 0,
+        "total": 182.7,
+        "winrate": 76.9,
+        "mean_per_trade": 2.81,
+        "ci95": [
+          0.4,
+          502.5
+        ],
+        "mdd": 0.0,
+        "median_hold": 4,
+        "reason_mix": {
+          "REVERSION": 44,
+          "BE": 14,
+          "STOP": 7
+        },
+        "blocked_realized": 0
+      },
+      "2026-08": {
+        "n": 138,
+        "n_blocked": 0,
+        "total": -26.8,
+        "winrate": 58.7,
+        "mean_per_trade": -0.19,
+        "ci95": [
+          -185.7,
+          158.0
+        ],
+        "mdd": -26.8,
+        "median_hold": 6.0,
+        "reason_mix": {
+          "REVERSION": 84,
+          "BE": 17,
+          "STOP": 33,
+          "NODATA(realized)": 1,
+          "TIME(tail)": 3
+        },
+        "blocked_realized": 0
+      },
+      "2026-09": {
+        "n": 308,
+        "n_blocked": 0,
+        "total": -336.0,
+        "winrate": 42.2,
+        "mean_per_trade": -1.09,
+        "ci95": [
+          -627.8,
+          -65.6
+        ],
+        "mdd": -336.0,
+        "median_hold": 4.0,
+        "reason_mix": {
+          "STOP": 88,
+          "BE": 47,
+          "REVERSION": 117,
+          "NODATA(realized)": 3,
+          "TIME(tail)": 53
+        },
+        "blocked_realized": 0
+      }
+    },
+    "S5_time_stop": {
+      "all": {
+        "n": 511,
+        "n_blocked": 0,
+        "total": -196.9,
+        "winrate": 51.1,
+        "mean_per_trade": -0.39,
+        "ci95": [
+          -724.0,
+          389.6
+        ],
+        "mdd": -196.9,
+        "median_hold": 4,
+        "reason_mix": {
+          "REVERSION": 243,
+          "BE": 78,
+          "STOP": 128,
+          "NODATA(realized)": 4,
+          "TIME": 5,
+          "TIME(tail)": 53
+        },
+        "blocked_realized": 0
+      },
+      "train": {
+        "n": 186,
+        "n_blocked": 0,
+        "total": 142.7,
+        "winrate": 65.6,
+        "mean_per_trade": 0.77,
+        "ci95": [
+          -183.7,
+          542.8
+        ],
+        "mdd": 0.0,
+        "median_hold": 5.0,
+        "reason_mix": {
+          "REVERSION": 118,
+          "BE": 27,
+          "STOP": 35,
+          "NODATA(realized)": 1,
+          "TIME": 5
+        },
+        "blocked_realized": 0
+      },
+      "holdout": {
+        "n": 325,
+        "n_blocked": 0,
+        "total": -339.5,
+        "winrate": 42.8,
+        "mean_per_trade": -1.04,
+        "ci95": [
+          -662.1,
+          -15.3
+        ],
+        "mdd": -339.5,
+        "median_hold": 4,
+        "reason_mix": {
+          "REVERSION": 125,
+          "STOP": 93,
+          "BE": 51,
+          "NODATA(realized)": 3,
+          "TIME(tail)": 53
+        },
+        "blocked_realized": 0
+      },
+      "2026-07": {
+        "n": 65,
+        "n_blocked": 0,
+        "total": 182.7,
+        "winrate": 76.9,
+        "mean_per_trade": 2.81,
+        "ci95": [
+          0.4,
+          502.5
+        ],
+        "mdd": 0.0,
+        "median_hold": 4,
+        "reason_mix": {
+          "REVERSION": 44,
+          "BE": 14,
+          "STOP": 7
+        },
+        "blocked_realized": 0
+      },
+      "2026-08": {
+        "n": 138,
+        "n_blocked": 0,
+        "total": -43.5,
+        "winrate": 58.7,
+        "mean_per_trade": -0.32,
+        "ci95": [
+          -221.5,
+          154.1
+        ],
+        "mdd": -43.5,
+        "median_hold": 6.0,
+        "reason_mix": {
+          "REVERSION": 82,
+          "BE": 17,
+          "STOP": 33,
+          "NODATA(realized)": 1,
+          "TIME": 5
+        },
+        "blocked_realized": 0
+      },
+      "2026-09": {
+        "n": 308,
+        "n_blocked": 0,
+        "total": -336.0,
+        "winrate": 42.2,
+        "mean_per_trade": -1.09,
+        "ci95": [
+          -627.8,
+          -65.6
+        ],
+        "mdd": -336.0,
+        "median_hold": 4.0,
+        "reason_mix": {
+          "STOP": 88,
+          "BE": 47,
+          "REVERSION": 117,
+          "NODATA(realized)": 3,
+          "TIME(tail)": 53
+        },
+        "blocked_realized": 0
+      }
+    },
+    "S6_atr_size": {
+      "all": {
+        "n": 511,
+        "n_blocked": 0,
+        "total": -2162.7,
+        "winrate": 50.5,
+        "mean_per_trade": -4.23,
+        "ci95": [
+          -8594.6,
+          5590.8
+        ],
+        "mdd": -2162.7,
+        "median_hold": 4,
+        "reason_mix": {
+          "REVERSION": 243,
+          "BE": 78,
+          "STOP": 128,
+          "NODATA(realized)": 4,
+          "TIME": 5,
+          "TIME(tail)": 53
+        },
+        "blocked_realized": 0
+      },
+      "train": {
+        "n": 186,
+        "n_blocked": 0,
+        "total": 2309.6,
+        "winrate": 64.0,
+        "mean_per_trade": 12.42,
+        "ci95": [
+          -374.9,
+          6405.2
+        ],
+        "mdd": 0.0,
+        "median_hold": 5.0,
+        "reason_mix": {
+          "REVERSION": 118,
+          "BE": 27,
+          "STOP": 35,
+          "NODATA(realized)": 1,
+          "TIME": 5
+        },
+        "blocked_realized": 0
+      },
+      "holdout": {
+        "n": 325,
+        "n_blocked": 0,
+        "total": -4472.3,
+        "winrate": 42.8,
+        "mean_per_trade": -13.76,
+        "ci95": [
+          -9077.1,
+          309.2
+        ],
+        "mdd": -4472.3,
+        "median_hold": 4,
+        "reason_mix": {
+          "REVERSION": 125,
+          "STOP": 93,
+          "BE": 51,
+          "NODATA(realized)": 3,
+          "TIME(tail)": 53
+        },
+        "blocked_realized": 0
+      },
+      "2026-07": {
+        "n": 65,
+        "n_blocked": 0,
+        "total": 1737.9,
+        "winrate": 72.3,
+        "mean_per_trade": 26.74,
+        "ci95": [
+          -251.7,
+          5207.0
+        ],
+        "mdd": 0.0,
+        "median_hold": 4,
+        "reason_mix": {
+          "REVERSION": 44,
+          "BE": 14,
+          "STOP": 7
+        },
+        "blocked_realized": 0
+      },
+      "2026-08": {
+        "n": 138,
+        "n_blocked": 0,
+        "total": 525.2,
+        "winrate": 58.7,
+        "mean_per_trade": 3.81,
+        "ci95": [
+          -1571.1,
+          2826.7
+        ],
+        "mdd": 0.0,
+        "median_hold": 6.0,
+        "reason_mix": {
+          "REVERSION": 82,
+          "BE": 17,
+          "STOP": 33,
+          "NODATA(realized)": 1,
+          "TIME": 5
+        },
+        "blocked_realized": 0
+      },
+      "2026-09": {
+        "n": 308,
+        "n_blocked": 0,
+        "total": -4425.9,
+        "winrate": 42.2,
+        "mean_per_trade": -14.37,
+        "ci95": [
+          -8463.4,
+          -378.5
+        ],
+        "mdd": -4425.9,
+        "median_hold": 4.0,
+        "reason_mix": {
+          "STOP": 88,
+          "BE": 47,
+          "REVERSION": 117,
+          "NODATA(realized)": 3,
+          "TIME(tail)": 53
+        },
+        "blocked_realized": 0
+      }
+    },
+    "S7_filter_fixsz": {
+      "all": {
+        "n": 225,
+        "n_blocked": 286,
+        "total": 53.8,
+        "winrate": 64.4,
+        "mean_per_trade": 0.24,
+        "ci95": [
+          -140.3,
+          221.9
+        ],
+        "mdd": 0.0,
+        "median_hold": 4,
+        "reason_mix": {
+          "REVERSION": 135,
+          "BE": 33,
+          "STOP": 32,
+          "NODATA(realized)": 4,
+          "TIME": 2,
+          "TIME(tail)": 19
+        },
+        "blocked_realized": -364.6
+      },
+      "train": {
+        "n": 84,
+        "n_blocked": 102,
+        "total": 81.5,
+        "winrate": 76.2,
+        "mean_per_trade": 0.97,
+        "ci95": [
+          -1.1,
+          196.4
+        ],
+        "mdd": 0.0,
+        "median_hold": 5.0,
+        "reason_mix": {
+          "REVERSION": 58,
+          "BE": 15,
+          "STOP": 8,
+          "NODATA(realized)": 1,
+          "TIME": 2
+        },
+        "blocked_realized": -93.5
+      },
+      "holdout": {
+        "n": 141,
+        "n_blocked": 184,
+        "total": -27.8,
+        "winrate": 57.4,
+        "mean_per_trade": -0.2,
+        "ci95": [
+          -172.9,
+          104.7
+        ],
+        "mdd": -38.4,
+        "median_hold": 4,
+        "reason_mix": {
+          "REVERSION": 77,
+          "STOP": 24,
+          "BE": 18,
+          "NODATA(realized)": 3,
+          "TIME(tail)": 19
+        },
+        "blocked_realized": -271.1
+      },
+      "2026-07": {
+        "n": 32,
+        "n_blocked": 33,
+        "total": 57.5,
+        "winrate": 84.4,
+        "mean_per_trade": 1.8,
+        "ci95": [
+          11.9,
+          108.7
+        ],
+        "mdd": 0.0,
+        "median_hold": 5.0,
+        "reason_mix": {
+          "REVERSION": 21,
+          "BE": 10,
+          "STOP": 1
+        },
+        "blocked_realized": -38.5
+      },
+      "2026-08": {
+        "n": 59,
+        "n_blocked": 79,
+        "total": 30.0,
+        "winrate": 71.2,
+        "mean_per_trade": 0.51,
+        "ci95": [
+          -29.4,
+          95.4
+        ],
+        "mdd": 0.0,
+        "median_hold": 5,
+        "reason_mix": {
+          "REVERSION": 41,
+          "STOP": 8,
+          "NODATA(realized)": 1,
+          "TIME": 2,
+          "BE": 7
+        },
+        "blocked_realized": -68.1
+      },
+      "2026-09": {
+        "n": 134,
+        "n_blocked": 174,
+        "total": -33.8,
+        "winrate": 56.7,
+        "mean_per_trade": -0.25,
+        "ci95": [
+          -162.6,
+          105.1
+        ],
+        "mdd": -44.4,
+        "median_hold": 4.0,
+        "reason_mix": {
+          "REVERSION": 73,
+          "BE": 16,
+          "NODATA(realized)": 3,
+          "STOP": 23,
+          "TIME(tail)": 19
+        },
+        "blocked_realized": -258.0
+      }
+    },
+    "S8_full_cap10": {
+      "all": {
+        "n": 225,
+        "n_blocked": 286,
+        "total": 1515.5,
+        "winrate": 63.1,
+        "mean_per_trade": 6.74,
+        "ci95": [
+          -167.3,
+          2912.5
+        ],
+        "mdd": 0.0,
+        "median_hold": 4,
+        "reason_mix": {
+          "REVERSION": 135,
+          "BE": 33,
+          "STOP": 32,
+          "NODATA(realized)": 4,
+          "TIME": 2,
+          "TIME(tail)": 19
+        },
+        "blocked_realized": -364.6
+      },
+      "train": {
+        "n": 84,
+        "n_blocked": 102,
+        "total": 1189.7,
+        "winrate": 72.6,
+        "mean_per_trade": 14.16,
+        "ci95": [
+          368.8,
+          2245.9
+        ],
+        "mdd": 0.0,
+        "median_hold": 5.0,
+        "reason_mix": {
+          "REVERSION": 58,
+          "BE": 15,
+          "STOP": 8,
+          "NODATA(realized)": 1,
+          "TIME": 2
+        },
+        "blocked_realized": -93.5
+      },
+      "holdout": {
+        "n": 141,
+        "n_blocked": 184,
+        "total": 325.8,
+        "winrate": 57.4,
+        "mean_per_trade": 2.31,
+        "ci95": [
+          -964.3,
+          1541.2
+        ],
+        "mdd": -13.0,
+        "median_hold": 4,
+        "reason_mix": {
+          "REVERSION": 77,
+          "STOP": 24,
+          "BE": 18,
+          "NODATA(realized)": 3,
+          "TIME(tail)": 19
+        },
+        "blocked_realized": -271.1
+      },
+      "2026-07": {
+        "n": 32,
+        "n_blocked": 33,
+        "total": 708.8,
+        "winrate": 75.0,
+        "mean_per_trade": 22.15,
+        "ci95": [
+          328.1,
+          1339.6
+        ],
+        "mdd": 0.0,
+        "median_hold": 5.0,
+        "reason_mix": {
+          "REVERSION": 21,
+          "BE": 10,
+          "STOP": 1
+        },
+        "blocked_realized": -38.5
+      },
+      "2026-08": {
+        "n": 59,
+        "n_blocked": 79,
+        "total": 619.6,
+        "winrate": 71.2,
+        "mean_per_trade": 10.5,
+        "ci95": [
+          277.4,
+          1151.9
+        ],
+        "mdd": 0.0,
+        "median_hold": 5,
+        "reason_mix": {
+          "REVERSION": 41,
+          "STOP": 8,
+          "NODATA(realized)": 1,
+          "TIME": 2,
+          "BE": 7
+        },
+        "blocked_realized": -68.1
+      },
+      "2026-09": {
+        "n": 134,
+        "n_blocked": 174,
+        "total": 187.1,
+        "winrate": 56.7,
+        "mean_per_trade": 1.4,
+        "ci95": [
+          -901.0,
+          1452.5
+        ],
+        "mdd": -151.7,
+        "median_hold": 4.0,
+        "reason_mix": {
+          "REVERSION": 73,
+          "BE": 16,
+          "NODATA(realized)": 3,
+          "STOP": 23,
+          "TIME(tail)": 19
+        },
+        "blocked_realized": -258.0
+      }
+    },
+    "S7_full": {
+      "all": {
+        "n": 225,
+        "n_blocked": 286,
+        "total": 1556.2,
+        "winrate": 63.1,
+        "mean_per_trade": 6.92,
+        "ci95": [
+          -493.5,
+          3459.5
+        ],
+        "mdd": 0.0,
+        "median_hold": 4,
+        "reason_mix": {
+          "REVERSION": 135,
+          "BE": 33,
+          "STOP": 32,
+          "NODATA(realized)": 4,
+          "TIME": 2,
+          "TIME(tail)": 19
+        },
+        "blocked_realized": -364.6
+      },
+      "train": {
+        "n": 84,
+        "n_blocked": 102,
+        "total": 1436.2,
+        "winrate": 72.6,
+        "mean_per_trade": 17.1,
+        "ci95": [
+          449.7,
+          2744.9
+        ],
+        "mdd": 0.0,
+        "median_hold": 5.0,
+        "reason_mix": {
+          "REVERSION": 58,
+          "BE": 15,
+          "STOP": 8,
+          "NODATA(realized)": 1,
+          "TIME": 2
+        },
+        "blocked_realized": -93.5
+      },
+      "holdout": {
+        "n": 141,
+        "n_blocked": 184,
+        "total": 120.0,
+        "winrate": 57.4,
+        "mean_per_trade": 0.85,
+        "ci95": [
+          -1497.1,
+          1694.0
+        ],
+        "mdd": -69.5,
+        "median_hold": 4,
+        "reason_mix": {
+          "REVERSION": 77,
+          "STOP": 24,
+          "BE": 18,
+          "NODATA(realized)": 3,
+          "TIME(tail)": 19
+        },
+        "blocked_realized": -271.1
+      },
+      "2026-07": {
+        "n": 32,
+        "n_blocked": 33,
+        "total": 797.8,
+        "winrate": 75.0,
+        "mean_per_trade": 24.93,
+        "ci95": [
+          335.8,
+          1510.0
+        ],
+        "mdd": 0.0,
+        "median_hold": 5.0,
+        "reason_mix": {
+          "REVERSION": 21,
+          "BE": 10,
+          "STOP": 1
+        },
+        "blocked_realized": -38.5
+      },
+      "2026-08": {
+        "n": 59,
+        "n_blocked": 79,
+        "total": 753.3,
+        "winrate": 71.2,
+        "mean_per_trade": 12.77,
+        "ci95": [
+          195.0,
+          1424.7
+        ],
+        "mdd": 0.0,
+        "median_hold": 5,
+        "reason_mix": {
+          "REVERSION": 41,
+          "STOP": 8,
+          "NODATA(realized)": 1,
+          "TIME": 2,
+          "BE": 7
+        },
+        "blocked_realized": -68.1
+      },
+      "2026-09": {
+        "n": 134,
+        "n_blocked": 174,
+        "total": 5.0,
+        "winrate": 56.7,
+        "mean_per_trade": 0.04,
+        "ci95": [
+          -1373.6,
+          1650.1
+        ],
+        "mdd": -184.5,
+        "median_hold": 4.0,
+        "reason_mix": {
+          "REVERSION": 73,
+          "BE": 16,
+          "NODATA(realized)": 3,
+          "STOP": 23,
+          "TIME(tail)": 19
+        },
+        "blocked_realized": -258.0
+      }
+    },
+    "S9_ma200_S3": {
+      "all": {
+        "n": 225,
+        "n_blocked": 286,
+        "total": 56.7,
+        "winrate": 64.4,
+        "mean_per_trade": 0.25,
+        "ci95": [
+          -145.4,
+          225.8
+        ],
+        "mdd": 0.0,
+        "median_hold": 4,
+        "reason_mix": {
+          "REVERSION": 142,
+          "BE": 22,
+          "STOP": 34,
+          "NODATA(realized)": 4,
+          "TIME(tail)": 23
+        },
+        "blocked_realized": -364.6
+      },
+      "train": {
+        "n": 84,
+        "n_blocked": 102,
+        "total": 85.2,
+        "winrate": 76.2,
+        "mean_per_trade": 1.01,
+        "ci95": [
+          6.8,
+          196.8
+        ],
+        "mdd": 0.0,
+        "median_hold": 5.0,
+        "reason_mix": {
+          "REVERSION": 62,
+          "BE": 12,
+          "STOP": 9,
+          "NODATA(realized)": 1
+        },
+        "blocked_realized": -93.5
+      },
+      "holdout": {
+        "n": 141,
+        "n_blocked": 184,
+        "total": -28.5,
+        "winrate": 57.4,
+        "mean_per_trade": -0.2,
+        "ci95": [
+          -177.6,
+          113.2
+        ],
+        "mdd": -44.8,
+        "median_hold": 4,
+        "reason_mix": {
+          "REVERSION": 80,
+          "STOP": 25,
+          "BE": 10,
+          "NODATA(realized)": 3,
+          "TIME(tail)": 23
+        },
+        "blocked_realized": -271.1
+      },
+      "2026-07": {
+        "n": 32,
+        "n_blocked": 33,
+        "total": 57.5,
+        "winrate": 84.4,
+        "mean_per_trade": 1.8,
+        "ci95": [
+          11.9,
+          108.7
+        ],
+        "mdd": 0.0,
+        "median_hold": 5.0,
+        "reason_mix": {
+          "REVERSION": 21,
+          "BE": 10,
+          "STOP": 1
+        },
+        "blocked_realized": -38.5
+      },
+      "2026-08": {
+        "n": 59,
+        "n_blocked": 79,
+        "total": 33.8,
+        "winrate": 71.2,
+        "mean_per_trade": 0.57,
+        "ci95": [
+          -23.1,
+          98.2
+        ],
+        "mdd": 0.0,
+        "median_hold": 5,
+        "reason_mix": {
+          "REVERSION": 45,
+          "STOP": 9,
+          "NODATA(realized)": 1,
+          "BE": 4
+        },
+        "blocked_realized": -68.1
+      },
+      "2026-09": {
+        "n": 134,
+        "n_blocked": 174,
+        "total": -34.5,
+        "winrate": 56.7,
+        "mean_per_trade": -0.26,
+        "ci95": [
+          -168.8,
+          118.5
+        ],
+        "mdd": -50.9,
+        "median_hold": 4.0,
+        "reason_mix": {
+          "REVERSION": 76,
+          "BE": 8,
+          "NODATA(realized)": 3,
+          "STOP": 24,
+          "TIME(tail)": 23
+        },
+        "blocked_realized": -258.0
+      }
+    },
+    "S10_ma200_S1": {
+      "all": {
+        "n": 225,
+        "n_blocked": 286,
+        "total": 112.6,
+        "winrate": 49.3,
+        "mean_per_trade": 0.5,
+        "ci95": [
+          -487.7,
+          285.3
+        ],
+        "mdd": -225.8,
+        "median_hold": 9,
+        "reason_mix": {
+          "TIME(tail)": 115,
+          "BE": 78,
+          "NODATA(realized)": 4,
+          "STOP": 28
+        },
+        "blocked_realized": -364.6
+      },
+      "train": {
+        "n": 84,
+        "n_blocked": 102,
+        "total": 117.9,
+        "winrate": 52.4,
+        "mean_per_trade": 1.4,
+        "ci95": [
+          -159.9,
+          259.5
+        ],
+        "mdd": -66.2,
+        "median_hold": 16.0,
+        "reason_mix": {
+          "TIME(tail)": 28,
+          "BE": 47,
+          "NODATA(realized)": 1,
+          "STOP": 8
+        },
+        "blocked_realized": -93.5
+      },
+      "holdout": {
+        "n": 141,
+        "n_blocked": 184,
+        "total": -5.3,
+        "winrate": 47.5,
+        "mean_per_trade": -0.04,
+        "ci95": [
+          -333.0,
+          137.2
+        ],
+        "mdd": -161.3,
+        "median_hold": 8,
+        "reason_mix": {
+          "TIME(tail)": 87,
+          "BE": 31,
+          "STOP": 20,
+          "NODATA(realized)": 3
+        },
+        "blocked_realized": -271.1
+      },
+      "2026-07": {
+        "n": 32,
+        "n_blocked": 33,
+        "total": 68.0,
+        "winrate": 59.4,
+        "mean_per_trade": 2.13,
+        "ci95": [
+          -9.2,
+          138.1
+        ],
+        "mdd": -2.6,
+        "median_hold": 14.0,
+        "reason_mix": {
+          "TIME(tail)": 6,
+          "BE": 26
+        },
+        "blocked_realized": -38.5
+      },
+      "2026-08": {
+        "n": 59,
+        "n_blocked": 79,
+        "total": 60.5,
+        "winrate": 47.5,
+        "mean_per_trade": 1.03,
+        "ci95": [
+          -182.3,
+          163.3
+        ],
+        "mdd": -76.2,
+        "median_hold": 18,
+        "reason_mix": {
+          "TIME(tail)": 24,
+          "BE": 25,
+          "NODATA(realized)": 1,
+          "STOP": 9
+        },
+        "blocked_realized": -68.1
+      },
+      "2026-09": {
+        "n": 134,
+        "n_blocked": 174,
+        "total": -15.9,
+        "winrate": 47.8,
+        "mean_per_trade": -0.12,
+        "ci95": [
+          -311.4,
+          102.8
+        ],
+        "mdd": -150.4,
+        "median_hold": 8.0,
+        "reason_mix": {
+          "BE": 27,
+          "TIME(tail)": 85,
+          "NODATA(realized)": 3,
+          "STOP": 19
+        },
+        "blocked_realized": -258.0
+      }
+    },
+    "S11_ma200_S5": {
+      "all": {
+        "n": 225,
+        "n_blocked": 286,
+        "total": 53.8,
+        "winrate": 64.4,
+        "mean_per_trade": 0.24,
+        "ci95": [
+          -140.3,
+          221.9
+        ],
+        "mdd": 0.0,
+        "median_hold": 4,
+        "reason_mix": {
+          "REVERSION": 135,
+          "BE": 33,
+          "STOP": 32,
+          "NODATA(realized)": 4,
+          "TIME": 2,
+          "TIME(tail)": 19
+        },
+        "blocked_realized": -364.6
+      },
+      "train": {
+        "n": 84,
+        "n_blocked": 102,
+        "total": 81.5,
+        "winrate": 76.2,
+        "mean_per_trade": 0.97,
+        "ci95": [
+          -1.1,
+          196.4
+        ],
+        "mdd": 0.0,
+        "median_hold": 5.0,
+        "reason_mix": {
+          "REVERSION": 58,
+          "BE": 15,
+          "STOP": 8,
+          "NODATA(realized)": 1,
+          "TIME": 2
+        },
+        "blocked_realized": -93.5
+      },
+      "holdout": {
+        "n": 141,
+        "n_blocked": 184,
+        "total": -27.8,
+        "winrate": 57.4,
+        "mean_per_trade": -0.2,
+        "ci95": [
+          -172.9,
+          104.7
+        ],
+        "mdd": -38.4,
+        "median_hold": 4,
+        "reason_mix": {
+          "REVERSION": 77,
+          "STOP": 24,
+          "BE": 18,
+          "NODATA(realized)": 3,
+          "TIME(tail)": 19
+        },
+        "blocked_realized": -271.1
+      },
+      "2026-07": {
+        "n": 32,
+        "n_blocked": 33,
+        "total": 57.5,
+        "winrate": 84.4,
+        "mean_per_trade": 1.8,
+        "ci95": [
+          11.9,
+          108.7
+        ],
+        "mdd": 0.0,
+        "median_hold": 5.0,
+        "reason_mix": {
+          "REVERSION": 21,
+          "BE": 10,
+          "STOP": 1
+        },
+        "blocked_realized": -38.5
+      },
+      "2026-08": {
+        "n": 59,
+        "n_blocked": 79,
+        "total": 30.0,
+        "winrate": 71.2,
+        "mean_per_trade": 0.51,
+        "ci95": [
+          -29.4,
+          95.4
+        ],
+        "mdd": 0.0,
+        "median_hold": 5,
+        "reason_mix": {
+          "REVERSION": 41,
+          "STOP": 8,
+          "NODATA(realized)": 1,
+          "TIME": 2,
+          "BE": 7
+        },
+        "blocked_realized": -68.1
+      },
+      "2026-09": {
+        "n": 134,
+        "n_blocked": 174,
+        "total": -33.8,
+        "winrate": 56.7,
+        "mean_per_trade": -0.25,
+        "ci95": [
+          -162.6,
+          105.1
+        ],
+        "mdd": -44.4,
+        "median_hold": 4.0,
+        "reason_mix": {
+          "REVERSION": 73,
+          "BE": 16,
+          "NODATA(realized)": 3,
+          "STOP": 23,
+          "TIME(tail)": 19
+        },
+        "blocked_realized": -258.0
+      }
+    },
+    "S12_ma200_S0": {
+      "all": {
+        "n": 225,
+        "n_blocked": 286,
+        "total": 22.2,
+        "winrate": 44.4,
+        "mean_per_trade": 0.1,
+        "ci95": [
+          -469.9,
+          225.6
+        ],
+        "mdd": -309.7,
+        "median_hold": 7,
+        "reason_mix": {
+          "TIME(tail)": 88,
+          "BE": 63,
+          "STOP": 70,
+          "NODATA(realized)": 4
+        },
+        "blocked_realized": -364.6
+      },
+      "train": {
+        "n": 84,
+        "n_blocked": 102,
+        "total": 34.2,
+        "winrate": 46.4,
+        "mean_per_trade": 0.41,
+        "ci95": [
+          -180.9,
+          147.8
+        ],
+        "mdd": -112.8,
+        "median_hold": 11.0,
+        "reason_mix": {
+          "TIME(tail)": 20,
+          "BE": 38,
+          "STOP": 25,
+          "NODATA(realized)": 1
+        },
+        "blocked_realized": -93.5
+      },
+      "holdout": {
+        "n": 141,
+        "n_blocked": 184,
+        "total": -12.1,
+        "winrate": 43.3,
+        "mean_per_trade": -0.09,
+        "ci95": [
+          -316.7,
+          192.9
+        ],
+        "mdd": -201.0,
+        "median_hold": 6,
+        "reason_mix": {
+          "TIME(tail)": 68,
+          "STOP": 45,
+          "BE": 25,
+          "NODATA(realized)": 3
+        },
+        "blocked_realized": -271.1
+      },
+      "2026-07": {
+        "n": 32,
+        "n_blocked": 33,
+        "total": 63.0,
+        "winrate": 59.4,
+        "mean_per_trade": 1.97,
+        "ci95": [
+          -13.0,
+          138.6
+        ],
+        "mdd": -7.6,
+        "median_hold": 14.0,
+        "reason_mix": {
+          "TIME(tail)": 6,
+          "BE": 24,
+          "STOP": 2
+        },
+        "blocked_realized": -38.5
+      },
+      "2026-08": {
+        "n": 59,
+        "n_blocked": 79,
+        "total": -19.1,
+        "winrate": 39.0,
+        "mean_per_trade": -0.32,
+        "ci95": [
+          -189.0,
+          60.5
+        ],
+        "mdd": -116.3,
+        "median_hold": 10,
+        "reason_mix": {
+          "TIME(tail)": 16,
+          "BE": 16,
+          "STOP": 26,
+          "NODATA(realized)": 1
+        },
+        "blocked_realized": -68.1
+      },
+      "2026-09": {
+        "n": 134,
+        "n_blocked": 174,
+        "total": -21.7,
+        "winrate": 43.3,
+        "mean_per_trade": -0.16,
+        "ci95": [
+          -316.8,
+          152.6
+        ],
+        "mdd": -189.1,
+        "median_hold": 6.0,
+        "reason_mix": {
+          "BE": 23,
+          "STOP": 42,
+          "TIME(tail)": 66,
+          "NODATA(realized)": 3
+        },
+        "blocked_realized": -258.0
+      }
+    },
+    "S12b_L2": {
+      "all": {
+        "n": 237,
+        "n_blocked": 274,
+        "total": -13.9,
+        "winrate": 42.2,
+        "mean_per_trade": -0.06,
+        "ci95": [
+          -637.3,
+          279.2
+        ],
+        "mdd": -353.0,
+        "median_hold": 7,
+        "reason_mix": {
+          "TIME(tail)": 90,
+          "NODATA(realized)": 5,
+          "BE": 62,
+          "STOP": 80
+        },
+        "blocked_realized": -317.5
+      },
+      "train": {
+        "n": 88,
+        "n_blocked": 98,
+        "total": 34.5,
+        "winrate": 46.6,
+        "mean_per_trade": 0.39,
+        "ci95": [
+          -202.2,
+          126.3
+        ],
+        "mdd": -135.6,
+        "median_hold": 11.0,
+        "reason_mix": {
+          "TIME(tail)": 21,
+          "NODATA(realized)": 2,
+          "BE": 38,
+          "STOP": 27
+        },
+        "blocked_realized": -72.2
+      },
+      "holdout": {
+        "n": 149,
+        "n_blocked": 176,
+        "total": -48.4,
+        "winrate": 39.6,
+        "mean_per_trade": -0.33,
+        "ci95": [
+          -362.1,
+          136.7
+        ],
+        "mdd": -221.1,
+        "median_hold": 6,
+        "reason_mix": {
+          "TIME(tail)": 69,
+          "STOP": 53,
+          "BE": 24,
+          "NODATA(realized)": 3
+        },
+        "blocked_realized": -245.3
+      },
+      "2026-07": {
+        "n": 33,
+        "n_blocked": 32,
+        "total": 77.4,
+        "winrate": 60.6,
+        "mean_per_trade": 2.35,
+        "ci95": [
+          -13.1,
+          165.6
+        ],
+        "mdd": -9.9,
+        "median_hold": 14,
+        "reason_mix": {
+          "TIME(tail)": 6,
+          "NODATA(realized)": 1,
+          "BE": 24,
+          "STOP": 2
+        },
+        "blocked_realized": -23.4
+      },
+      "2026-08": {
+        "n": 63,
+        "n_blocked": 75,
+        "total": -34.2,
+        "winrate": 38.1,
+        "mean_per_trade": -0.54,
+        "ci95": [
+          -209.6,
+          57.0
+        ],
+        "mdd": -143.7,
+        "median_hold": 10,
+        "reason_mix": {
+          "TIME(tail)": 17,
+          "BE": 16,
+          "STOP": 29,
+          "NODATA(realized)": 1
+        },
+        "blocked_realized": -61.9
+      },
+      "2026-09": {
+        "n": 141,
+        "n_blocked": 167,
+        "total": -57.1,
+        "winrate": 39.7,
+        "mean_per_trade": -0.4,
+        "ci95": [
+          -360.5,
+          97.3
+        ],
+        "mdd": -208.2,
+        "median_hold": 5,
+        "reason_mix": {
+          "BE": 22,
+          "STOP": 49,
+          "TIME(tail)": 67,
+          "NODATA(realized)": 3
+        },
+        "blocked_realized": -232.2
+      }
+    },
+    "S9b_L2": {
+      "all": {
+        "n": 237,
+        "n_blocked": 274,
+        "total": 53.1,
+        "winrate": 61.6,
+        "mean_per_trade": 0.22,
+        "ci95": [
+          -138.5,
+          291.6
+        ],
+        "mdd": -2.4,
+        "median_hold": 4,
+        "reason_mix": {
+          "REVERSION": 142,
+          "NODATA(realized)": 5,
+          "BE": 23,
+          "STOP": 40,
+          "TIME(tail)": 27
+        },
+        "blocked_realized": -317.5
+      },
+      "train": {
+        "n": 88,
+        "n_blocked": 98,
+        "total": 109.5,
+        "winrate": 75.0,
+        "mean_per_trade": 1.24,
+        "ci95": [
+          29.6,
+          237.3
+        ],
+        "mdd": -2.4,
+        "median_hold": 5.0,
+        "reason_mix": {
+          "REVERSION": 64,
+          "NODATA(realized)": 2,
+          "BE": 13,
+          "STOP": 9
+        },
+        "blocked_realized": -72.2
+      },
+      "holdout": {
+        "n": 149,
+        "n_blocked": 176,
+        "total": -56.4,
+        "winrate": 53.7,
+        "mean_per_trade": -0.38,
+        "ci95": [
+          -183.0,
+          93.3
+        ],
+        "mdd": -56.4,
+        "median_hold": 4,
+        "reason_mix": {
+          "REVERSION": 78,
+          "STOP": 31,
+          "BE": 10,
+          "NODATA(realized)": 3,
+          "TIME(tail)": 27
+        },
+        "blocked_realized": -245.3
+      },
+      "2026-07": {
+        "n": 33,
+        "n_blocked": 32,
+        "total": 65.5,
+        "winrate": 81.8,
+        "mean_per_trade": 1.99,
+        "ci95": [
+          34.6,
+          172.8
+        ],
+        "mdd": -2.4,
+        "median_hold": 5,
+        "reason_mix": {
+          "REVERSION": 20,
+          "NODATA(realized)": 1,
+          "BE": 11,
+          "STOP": 1
+        },
+        "blocked_realized": -23.4
+      },
+      "2026-08": {
+        "n": 63,
+        "n_blocked": 75,
+        "total": 48.9,
+        "winrate": 69.8,
+        "mean_per_trade": 0.78,
+        "ci95": [
+          -16.6,
+          125.7
+        ],
+        "mdd": 0.0,
+        "median_hold": 5,
+        "reason_mix": {
+          "REVERSION": 48,
+          "STOP": 10,
+          "NODATA(realized)": 1,
+          "BE": 4
+        },
+        "blocked_realized": -61.9
+      },
+      "2026-09": {
+        "n": 141,
+        "n_blocked": 167,
+        "total": -61.3,
+        "winrate": 53.2,
+        "mean_per_trade": -0.43,
+        "ci95": [
+          -180.6,
+          88.0
+        ],
+        "mdd": -61.3,
+        "median_hold": 4,
+        "reason_mix": {
+          "REVERSION": 74,
+          "STOP": 29,
+          "BE": 8,
+          "NODATA(realized)": 3,
+          "TIME(tail)": 27
+        },
+        "blocked_realized": -232.2
+      }
+    },
+    "__realized__": {
+      "all": {
+        "n": 511,
+        "total": -513.4,
+        "winrate": 34.6,
+        "mean_per_trade": -1.0
+      },
+      "train": {
+        "n": 186,
+        "total": -150.2,
+        "winrate": 43.0,
+        "mean_per_trade": -0.81
+      },
+      "holdout": {
+        "n": 325,
+        "total": -363.3,
+        "winrate": 29.8,
+        "mean_per_trade": -1.12
+      },
+      "2026-07": {
+        "n": 65,
+        "total": -53.6,
+        "winrate": 53.8,
+        "mean_per_trade": -0.82
+      },
+      "2026-08": {
+        "n": 138,
+        "total": -114.8,
+        "winrate": 35.5,
+        "mean_per_trade": -0.83
+      },
+      "2026-09": {
+        "n": 308,
+        "total": -345.0,
+        "winrate": 30.2,
+        "mean_per_trade": -1.12
+      }
+    }
+  },
+  "nodata": {
+    "S12b_L2": 5,
+    "S9b_L2": 5,
+    "S0_baseline": 4,
+    "S1_wide_stop": 4,
+    "S2_chandelier": 4,
+    "S3_reversion": 4,
+    "S4_relax_be": 4,
+    "S5_time_stop": 4,
+    "S6_atr_size": 4,
+    "S7_filter_fixsz": 4,
+    "S8_full_cap10": 4,
+    "S7_full": 4,
+    "S9_ma200_S3": 4,
+    "S10_ma200_S1": 4,
+    "S11_ma200_S5": 4,
+    "S12_ma200_S0": 4
+  },
+  "params": {
+    "RISK_PCT": 1.0,
+    "SIZE_CAP_PCT": 25.0,
+    "COST_RT": 0.0018,
+    "WIDE_K": 3.0,
+    "CHAN_K": 3.0,
+    "TIME_STOP_D": 18,
+    "BE_FLOOR": 0.003,
+    "RSI_EXIT": 55,
+    "REV_ATR_MULT": 1.0,
+    "HOLDOUT_FROM": "2026-08-30",
+    "TAIL_BARS": 60
+  }
+}

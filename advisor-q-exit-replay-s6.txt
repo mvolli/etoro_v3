@@ -1,0 +1,35 @@
+You are advising VoLLi's eToro V3 trading bot (LIVE, real money, $9,172 equity, 1:20 copy-traded so it must stay small). Decisions you've made with me previously: high-risk positions smaller, low-risk larger (up to $500 max), goal = flip net-negative to net-positive, improve winrate. Trading-Bible rules: shadow-first, OOS/holdout evidence before live changes, one money-affecting change per ~50 closed trades, no overfitting.
+
+GROUND TRUTH (measured in trading.db, trades created >= 2026-07-26 "26.07-Zaesur", 511 closed):
+- Realized PnL approx -$476..-508, WR ~30-35%. Costs ~0.18% round-trip (NOT fee-driven).
+- Dip-buy signal has NO selection alpha (excess vs equal-weight market ~0, CI includes 0); trend/sweep signals NEGATIVE alpha.
+- Market in down-regimes REBOUNDS: CAUTION +7.69%, DEFENSIVE +4.52% fwd-10d. Edge exists IF held ~10 days.
+- Primary loss driver = EXIT LAYER: fixed 3.0-3.5% hard stop fired 251 times = -$608. Median hold 4.1 days. 78% of stopped symbols have ATR% >= 3.0 (stop = 1 day of noise). Recovery test: 81% of stopped trades recovered >0 in next 10d; holding instead of stopping adds +1.03pp/trade on average.
+
+SHADOW EXIT REPLAY (all 511 closed trades replayed on daily bars, entry=next open, no look-ahead, 0.18% cost; holdout = created >= 2026-08-30; CIs = day-level block bootstrap):
+- S0 baseline (mechanical re-implementation of current stack): total -$163, holdout -$247, WR 32.9%. (Note: S0 does not fully replicate realized DB PnL; comparisons BETWEEN scenarios are valid, vs-DB comparison is directional.)
+- S1 wide stop only (3xATR, clamp 2.5-10%): total -$203, holdout -$319 (WORSE than baseline on holdout)
+- S2 + chandelier trail (HH - 3xATR, ratchet up): total -$200, holdout -$315
+- S3 + mean-reversion exit (RSI14 crosses >=55 or close >= entry+1ATR -> exit next open): total -$168, holdout -$323, WR 51.1%
+- S4/S5 + relax BE (arm at entry+1ATR) + 18d time-stop: total -$198, holdout -$336
+- S6 + ATR sizing (risk 1% equity / stop_width, cap 25% equity): total -$2155, TRAIN +$2227, HOLDOUT -$4383 -> sizing amplifies noise, catastrophic holdout
+- S7 = MA200 per-symbol entry filter (skip if close < own 200d SMA) + full exit stack, FIXED sizes: n=225 (286 blocked, 56%), total +$43, WR 64.0%, holdout -$30.5 CI[-171,+105]; months: Jul +$50 (n=32), Aug +$30 (n=59), Sep -$37 (n=134); without-top-3: total +$3.7 CI[-221,+237]
+- S8 = S7 + ATR sizing capped at 10% of equity (live instrument limit): total +$1430, holdout +$310 CI[-952,+1574] (CI dominated by July train outliers)
+- Robustness grid (MA window 100/150/200 x RSI exit 50/55/60 x chandelier k 2.5/3.0): holdout PnL mostly NEGATIVE, best holdout MA200/K3 = -$29.7; all-window sign flips with params -> exit stack alone is NOT robustly positive OOS.
+- Per-trade $ comparison filter vs no-filter, same exit stack: Jul +1.56 -> +2.66, Aug -0.73 -> +0.50, Sep -0.76 -> -0.27 (filter improves $/trade in ALL 3 months).
+- S7 by signal type: CORE_SWEEP n=206 sum +$790 (WR 33.5%), MACD+BB combo n=220 +$794 (WR 22.7%), TREND_PULLBACK+GOLDEN_CROSS n=71 -$180 (WR 28.2%).
+
+REGIME NOW: DEFENSIVE. Bot runs live during any change.
+
+MY PROPOSED RANKING of next moves:
+1. Implement ONLY the MA200 per-symbol entry filter (shadow-validated: improves $/trade in all 3 months, WR 33->64%, blocks 56% of trades, consistent with QS buy-the-dip literature). Exit stack stays as-is for now.
+2. Do NOT implement ATR sizing yet (S6/S8 holdout catastrophes = variance amplifier on a small account).
+3. Do NOT implement exit stack (wide stop/chandelier/reversion) live: holdout WORSE than baseline in the ablation.
+4. Keep collecting holdout data; re-run replay monthly; consider the exit stack once n_holdout >= ~300 on the new regime or CIs clearly include positive.
+
+YOUR QUESTIONS TO ANSWER:
+Q1: Given the holdout weakness of the exit stack and the monthly consistency of the MA200 filter, is "filter only, keep exits" the right first live change? What would change your mind?
+Q2: What is the single biggest statistical weakness in this replay design that could make the +$43/WR-64% result an artifact? (Think: blocked vs active selection, survivorship, daily-bar vs intraday reality, the 56%-blocked trades' opportunity cost, look-ahead in ATR/RSI, the n=84 train fold, multiple comparisons across 12+ scenarios.)
+Q3: What pre-registration / shadow protocol should I run BEFORE or AFTER the filter goes live to protect against overfitting (e.g., fixed decision rule, minimum n, one-way ratchet, when to re-evaluate)?
+Q4: Is there a BETTER first move I'm missing (e.g., de-weight/blocking TREND_PULLBACK+GOLDEN_CROSS which is n=71 -$180, or the RSI_EXTREME_OVERSOLD+MACD_TURN n=10 WR 0% combo, or a per-signal-type MA200 filter instead of global)?
+Be blunt, concrete, and quantitative. Keep under ~800 words.

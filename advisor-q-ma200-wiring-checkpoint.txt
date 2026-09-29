@@ -1,0 +1,64 @@
+MA200 SHADOW-GATE WIRING — CHECKPOINT for final sign-off.
+
+CONTEXT (one line): feat/ma200-filter frozen rule "close[D-1] < SMA200(close[D-200..D-1])"
+is now wired into the LIVE entry path of the eToro V3 bot in SHADOW mode only.
+Equity $9,172, 1:20 copy-traded — the live strategy must stay klein/vorsichtig.
+Evidence base (from /tmp/advisor_s6_reply.txt, already reviewed):
+  - S12 (filter-only, current exits): +$22, WR 44.4, holdout -$12
+  - S12b_L2 (live-faithful lag): same class of result
+  - Realized DB evidence (strongest): blocked trades underperformed passing trades by ~-$364.6
+  - Effect broad-based across symbols; weights drift = expected ratchet.
+
+WHAT WAS IMPLEMENTED (all compiled, 28 existing + 14 new unit tests pass):
+1. entry_quality.py: Gate #7 "ma200_trend" (frozen rule), config
+   ma200_trend.{enabled,mode,window=200,lag=0}. mode=shadow by default.
+   - SHADOW: records every would-be block in entry_quality_events with
+     size_mult=1.0, blocked=1, entry_price=<signal price> -> execution 100% untouched.
+   - LIVE (when flipped later): 0.25x soft-gate via live_effective_mult.
+   - latest_size_mult() (the execution-side multiplier) reads
+     size_mult/live_effective_mult -> shadow hit = 1.0. Verified by test.
+   - entry_price column was MISSING from the DDL (record() INSERT would have
+     silently failed -> empty ledger in production). Fixed with ALTER TABLE
+     migration. THIS IS THE MOST IMPORTANT BUG CAUGHT AT THIS CHECKPOINT.
+2. ma200_history.py (NEW module): ma200_daily(symbol, date, close) table.
+   - seed_from_csvs(): 1-year replay bars (282 symbols, 72,527 rows)
+   - live refresh: df_to_closed_pairs() drops today's in-progress bar
+     (series ends at D-1 => lag=0 decision = S12b_L2 semantics, no look-ahead)
+   - upsert idempotent (PK symbol+date), single executemany+commit
+3. data_worker.py:
+   - run(): seeds ma200_daily ONCE at startup (guard: <1000 rows)
+   - scan loop: upserts fresh closed bars each run, feeds get_daily_closes(limit=201)
+     into entry_quality.evaluate(daily_closes=...), record(mode=<overall EQ mode>)
+   - fail-open everywhere: any error -> gate inactive, signal path never breaks
+4. Verification (scripts/_verify_ma200_shadow.py, temp DB only):
+   - 282 symbols seeded, all >=201 closes
+   - spot checks: AAPL/NVDA/JPM/MSFT/AMZN/META pass; CATE.ST(-17%)/0914.HK(-18.6%) block;
+     TSLA/GOOGL/2382.HK/600036.SS/2502.HK fail-open
+   - SHADOW INVARIANT HOLDS: live_effective_mult==1.0 for would-block AND pass
+   - LIVE mode: 0.25x applied, not excluded from execution
+   - fail-open + idempotency checks pass
+
+REMAINING RISK / OPEN QUESTIONS (please critique):
+1. Seed data provenance: replay bars fetched 2026-09-29 via yfinance
+   (auto_adjust=True). Live refresh uses the SAME source with 3mo period.
+   Any auto-adjust (splits/dividends) between seed and now would desync
+   stored closes from yf's adjusted series. Acceptable for a trend gate?
+2. The gate is evaluated once per signal-generation (scan loop), not at
+   execution. Execution happens later in signal_worker. In theory the market
+   could cross the MA between evaluate and execution. Shadow-mode: only the
+   ledger timestamp is off. Acceptable?
+3. CATE.ST / 2382.HK / 600036.SS etc. have <201 stored bars and fail-open.
+   Should the gate also fail-open for symbols where the LAST bar is stale
+   (e.g. market closed >10 days)? Currently get_daily_closes has no
+   freshness check — a stale series still yields a decision.
+4. Flip criteria for shadow->live: I propose >=30 ledger events AND
+   would-block-WR clearly worse than pass-WR in the ledger (matching the
+   realized-DB evidence direction). Does this need a minimum time window
+   too (e.g. 4-6 weeks) to avoid a 1-month concentrated flip?
+5. Anything in the wiring that would silently change LIVE sizing BEFORE the
+   gate mode flips to live? (I believe no: shadow => mult 1.0, overall
+   entry_quality mode in ledger is 'live' but that only labels the row;
+   latest_size_mult excludes ma200_shadow hits.)
+
+DECISION REQUESTED: sign-off to deploy as-is (shadow mode, no behavior
+change to live sizing) + your answers to 1-4 for the next session.

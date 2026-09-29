@@ -123,6 +123,20 @@ DEFAULT_CONFIG: dict = {
             "max_atr_pct": 7.0,
             "size_mult": 0.5,
         },
+        # feat/ma200-filter (2026-09-29, advisor-frozen): block/soft-gate
+        # when close[D-1] < SMA200. SHADOW by default — the ledger records
+        # every would-be block with entry price; execution is untouched.
+        # Live mode applies size_mult 0.25 (soft, min-size-floor protected;
+        # a HARD block would need size_mult 0.0 — advisor protocol v2,
+        # decision: VoLLi). Evaluation before any live flip: >=50 closed
+        # live + >=50 closed shadow-blocked trades.
+        "ma200_trend": {
+            "enabled": True,
+            "mode": "shadow",     # shadow | live
+            "window": 200,
+            "lag": 0,             # decision bar = last provided close (D-1)
+            "size_mult": 0.25,
+        },
     },
 }
 
@@ -133,6 +147,59 @@ _DIPBUY_TYPES_DEFAULT = [
     "BB_EXTREME_RSI_OVERSOLD",
     "RSI_EXTREME_OVERSOLD",
 ]
+
+
+# ─── MA200 Entry-Filter (feat/ma200-filter, 2026-09-29, advisor-frozen) ─────
+#
+# Regel (FROZEN — kein Parameter-Tuning, advisor-Protokoll 2026-09-29):
+#   blockieren, wenn  close[D-1] < SMA200(close[D-200..D-1])
+# Live-treu (config ``lag: 0``): das Signal wird intraday am Signal-Tag D
+# erzeugt; ``get_daily_closes`` liefert NUR abgeschlossene Bars, der letzte
+# ist D-1 — und mit lag=0 entscheidet ``ma200_decision`` genau auf D-1
+# (close[D-1] < SMA200(close[D-200..D-1])). Das entspricht dem Replay-
+# Referenz-Szenario S12b_L2 (``ma200_lag=2``); die Signal-Tag-Close-Variante
+# (S12) war Advisor-Runde-3 als leicht look-ahead-haftig eingeordnet.
+# Fail-open (wie das Knife-Gate): <200 geschlossene Bars = KEIN Block.
+#
+# Evidenz (2026-09-29, trading.db since 2026-07-26, replay S12b_L2):
+#   REALIZED blocked-vs-passed (kein Replay-Mechanismus, nur DB):
+#     all      n=506: passed 232 (-0.83 $/tr)  blocked 274 (-1.16 $/tr)
+#     holdout  n=322: passed 146 (-0.80 $/tr)  blocked 176 (-1.39 $/tr)
+#     day-bootstrap CI holdout: [+0.51, +1.76] $/tr (passed-blocked > 0)
+#     symbol-bootstrap CI holdout: [-0.12, -0.00] (nicht significant)
+#   Fixed-date window (entry+10 bars <= last bar, no mark-to-market date):
+#     S12b passed: all -32.4 (WR 37.6%), train +36.7, holdout -69.1 (all CIs
+#     include 0) — the filter alone is NOT an OOS edge; its value is
+#     avoiding the −$245.3 (holdout, n=176) of realized blocked trades.
+#   Concentration: no single symbol/asset class dominates (top symbol
+#   CATE.ST = 4.2% of holdout blocked PnL; 93% of blocked = stocks).
+#   => Purely REDUCING change (removes trades, adds none). Shadow-first per
+#   advisor: evaluate after >=50 closed live + >=50 closed blocked-shadow
+#   trades; keep if passed−blocked $/trade point estimate > 0.
+
+def ma200_decision(closes: list[float] | None, *, window: int = 200, lag: int = 1):
+    """Frozen MA200 filter rule.
+
+    ``closes``: chronological daily closes, LAST element = latest CLOSED bar
+    (D-1 when evaluated intraday on signal day D).
+
+    Returns ``(blocked: bool, detail: dict)``.
+    Fail-open: fewer than ``window + lag`` closes → ``(False, {status:
+    "insufficient", ...})`` — the gate never blocks on data gaps.
+    """
+    need = window + lag
+    if closes is None or len(closes) < need:
+        return False, {"status": "insufficient", "bars": len(closes) if closes else 0, "need": need}
+    r = len(closes) - 1 - lag          # index of close[D-1]
+    sma = sum(closes[r - window + 1: r + 1]) / window
+    px = closes[r]
+    blocked = px < sma
+    return blocked, {
+        "status": "ok",
+        "close": px,
+        "sma200": sma,
+        "below_pct": (px / sma - 1.0) * 100.0 if sma else 0.0,
+    }
 
 
 @dataclass
@@ -151,10 +218,27 @@ class EntryQualityEval:
     # Kombiniert = MIN ueber alle Hits; wird am Ende von evaluate() gesetzt
     # und dort hart-geclampt (min_size_mult). 1.0 = kein Gate getroffen.
     size_mult: float = 1.0
+    # ma200_trend specifics (feat/ma200-filter 2026-09-29):
+    ma200_detail: dict | None = None   # {status, close, sma200, below_pct, ...}
+    ma200_shadow: bool = False         # would-block, shadow mode (ledger only)
+    ma200_live: bool = False           # gate hit in live mode
 
     @property
     def blocked(self) -> bool:
         return any(h.size_mult <= 0.0 for h in self.hits)
+
+    @property
+    def live_effective_mult(self) -> float:
+        """Execution-side multiplier: shadow ma200-hits are NOT applied.
+
+        A ma200_trend hit in SHADOW mode carries size_mult 0.0 (ledger
+        marker only); execution must treat it as 1.0. In live mode the
+        configured size_mult applies. All other gates behave unchanged.
+        """
+        if not self.ma200_shadow:
+            return self.size_mult
+        others = [h.size_mult for h in self.hits if h.gate != "ma200_trend"]
+        return max(min(others, default=1.0), 0.0)
 
     @property
     def reasons(self) -> str:
@@ -192,12 +276,16 @@ def evaluate(
     indicators: dict,
     regime: str,
     is_core_sweep: bool = False,
+    daily_closes: list[float] | None = None,
 ) -> EntryQualityEval:
     """Evaluate all enabled gates. Pure function, fail-open, no side effects.
 
     ``indicators``: the dict from ``signals.compute_indicators`` (rsi,
     macd_hist, bb_pct, atr, price, sma20, sma50, vol_ratio, roc_5d_pct,
     ...). Missing keys are tolerated.
+
+    ``daily_closes``: chronological daily closes, last = latest CLOSED bar
+    (needed by the ma200_trend gate). ``None`` → gate fails open.
     """
     conf = _merged_config(cfg)
     if not conf["enabled"]:
@@ -311,6 +399,41 @@ def evaluate(
                         float(g.get("size_mult", 0.25)),
                     ))
 
+    # ── 7. ma200_trend: close[D-1] < SMA200 → shadow-Block / live 0.25x ──
+    # Frozen rule (advisor 2026-09-29). SHADOW mode: GateHit with size_mult
+    # 0.0 is recorded in the ledger but MUST NOT touch execution — the
+    # caller applies sizing via live_effective_mult(), which is 1.0 in
+    # shadow. Fail-open on missing/short history (< window+lag closes).
+    g = gates.get("ma200_trend", {})
+    if g.get("enabled"):
+        gmode = str(g.get("mode", "shadow")).lower()
+        blocked_ma, detail = ma200_decision(
+            daily_closes,
+            window=int(g.get("window", 200)),
+            lag=int(g.get("lag", 1)),
+        )
+        ev.ma200_detail = detail
+        if blocked_ma:
+            if gmode == "live":
+                ev.ma200_live = True
+                ev.hits.append(GateHit(
+                    "ma200_trend",
+                    f"close[{detail['close']:.4g}] < SMA200[{detail['sma200']:.4g}]"
+                    f" ({detail['below_pct']:.1f}%)",
+                    float(g.get("size_mult", 0.25)),
+                ))
+            else:
+                # Shadow: ledger-only marker. size_mult 0.0 flags it as
+                # "would-block" for the evaluation query, but shadow mode
+                # never applies it to execution.
+                ev.ma200_shadow = True
+                ev.hits.append(GateHit(
+                    "ma200_trend",
+                    f"[SHADOW] close[{detail['close']:.4g}] < SMA200[{detail['sma200']:.4g}]"
+                    f" ({detail['below_pct']:.1f}%)",
+                    0.0,
+                ))
+
     # Kombiniert = MIN ueber alle Hits, hart-geclampt (min_size_mult) —
     # aber ein Block (0.0) bleibt ein Block.
     if ev.hits:
@@ -344,9 +467,20 @@ def ensure_table(db) -> None:
                 blocked INTEGER NOT NULL DEFAULT 0,
                 applied INTEGER NOT NULL DEFAULT 0,
                 signal_id INTEGER,
-                instrument_id INTEGER
+                instrument_id INTEGER,
+                entry_price REAL
             )
         """)
+        # Idempotente Migration (AGENTS.md): ALTER TABLE je Spalte in
+        # try/except — pre-existing tables (without entry_price) get it here.
+        # feat/ma200-filter: entry_price = what a would-be-blocked trade
+        # would have paid (shadow-ledger PnL-Bezug).
+        try:
+            db.execute(
+                f"ALTER TABLE {TABLE_NAME} ADD COLUMN entry_price REAL"
+            )
+        except Exception:
+            pass  # column already exists
     except Exception:
         logger.debug("entry_quality: ensure_table fehlgeschlagen (fail-open)", exc_info=True)
 
@@ -360,11 +494,23 @@ def record(
     signal_id: int | None = None,
     instrument_id: int | None = None,
     is_core_sweep: bool | None = None,
+    entry_price: float | None = None,
 ) -> int | None:
     """Insert one evaluation row. Returns row id (None on failure, fail-open).
 
     ``is_core_sweep``: explicit flag from the caller. When ``None`` it is
     derived from the signal_type (keeps the signal path's legacy behaviour).
+
+    ``entry_price``: signal/entry price at evaluation time (ledger context
+    for the shadow-Ma200 evaluation: what the would-be-blocked trade WOULD
+    have paid). Optional; None when the caller has no price.
+
+    ``size_mult`` column = the EXECUTION-effective multiplier
+    (``ev.live_effective_mult``): a shadow ma200_trend hit (size_mult 0.0,
+    ledger marker only) is excluded, so ``latest_size_mult()`` at execution
+    never sees a would-block. The full per-gate truth (incl. the shadow hit)
+    stays in the ``hits`` JSON; ``blocked=1`` doubles as the would-block
+    marker for the shadow evaluation.
     """
     import json
     if is_core_sweep is None:
@@ -374,8 +520,9 @@ def record(
             f"""
             INSERT INTO {TABLE_NAME}
                 (mode, symbol, signal_type, regime, is_core_sweep,
-                 hits, size_mult, blocked, applied, signal_id, instrument_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 hits, size_mult, blocked, applied, signal_id, instrument_id,
+                 entry_price)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 mode,
@@ -387,11 +534,12 @@ def record(
                     {"gate": h.gate, "reason": h.reason, "size_mult": h.size_mult}
                     for h in ev.hits
                 ], ensure_ascii=False),
-                ev.size_mult,
+                ev.live_effective_mult,
                 1 if ev.blocked else 0,
                 1 if applied else 0,
                 signal_id,
                 instrument_id,
+                entry_price,
             ),
         )
         return int(cur.lastrowid) if cur.lastrowid is not None else None
