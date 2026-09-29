@@ -1,0 +1,997 @@
+{
+ "trend_filter_mr": {
+  "query": "trend filter improves mean reversion strategy buy dip only in uptrend study",
+  "results": [
+   {
+    "title": "Medium",
+    "url": "https://medium.com/@maki53/quant-note-a-simple-two-layer-strategy-trend-filter-mean-reversion-entry-8b900d979cd3",
+    "snippet": "[Quant Note] A Simple Two-Layer Strategy: Trend Filter + Mean Reversion Entry One big idea: only fade dips when the market is actually trending up. This column is about learning trading, not \u2026"
+   },
+   {
+    "title": "Strategy: RSI Pullback & Mean Reversion - AmiBroker AFL | OpenAlgo",
+    "url": "https://openalgo.in/amibroker/rsi-pullback-system",
+    "snippet": "A counter-trend pullback system using RSI with a trend filter - buying dips in an uptrend. A hands-on, beginner-friendly chapter of the free OpenAlgo AmiBroker AFL course - learn the AmiBroker Formula Language in plain English, with real code and charts."
+   },
+   {
+    "title": "Buy the Dip Strategy: Does It Actually Work? - Alpha Strategic Growth",
+    "url": "https://alphastrategicgrowth.com/blog/buy-the-dip-strategy/",
+    "snippet": "Dip-buying can add value as a tactical overlay with strict risk rules, but as a standalone \"wait for crashes\" system it tends to lag a disciplined buy-and-hold over long samples. Key takeaways Buying the dip is a mean-reversion bet on overreaction \u2014 not a guarantee that lower prices are better prices. The trend filter is everything."
+   },
+   {
+    "title": "Mean Reversion Strategy Research: SPY Dip-Buying Analysis",
+    "url": "https://www.ashank.tech/blog/mean-reversion-spy",
+    "snippet": "A quantitative analysis of 'buy the dip' strategies on SPY over 10 years, exploring the fundamental trade-offs between win rate, returns, and trade frequency."
+   },
+   {
+    "title": "RSI(2) Mean Reversion Strategy \u2014 Backtest | Backtesting Arena",
+    "url": "https://tradingstrategies.work/strategies/rsi2-mean-reversion",
+    "snippet": "RSI (2) Mean Reversion is the best-documented mean-reversion edge in equity research, popularized by Larry Connors and Cesar Alvarez in Short Term Trading Strategies That Work. It combines a long-term trend filter with a very short-term momentum extreme. Trend filter: only take longs when the close is above the 200-period SMA \u2014 you only buy dips inside an established uptrend, never falling ..."
+   },
+   {
+    "title": "The Mean Reversion Edge: Why Buying DipsActually Works (With Proof)",
+    "url": "https://www.tradiecapital.com/blog/mean-reversion-strategy-proof",
+    "snippet": "Academic research supports this. A widely cited study by Poterba and Summers (1988) in the Journal of Financial Economics found evidence of mean reversion in stock prices over intermediate horizons. More recently, research from AQR Capital Management has shown that mean reversion signals, when properly constructed with volatility filters, generate consistent risk-adjusted returns across ..."
+   },
+   {
+    "title": "Do Traders Stick to One Strategy? The Truth About Combining Trend ...",
+    "url": "https://medium.com/jin-system-architect/do-traders-stick-to-one-strategy-the-truth-about-combining-trend-following-and-mean-reversion-f34be8a7cf3b",
+    "snippet": "Research published by Price Action Lab analyzed the combined performance of a trend-following strategy and a mean-reversion strategy applied to Dow Jones 30 stocks from 1993 to 2024."
+   },
+   {
+    "title": "Where to Buy the (Deeper) Dip - by Concretum Research",
+    "url": "https://concretumgroup.substack.com/p/where-to-buy-the-deeper-dip",
+    "snippet": "The decision to begin the study in 2010 is deliberate. The pre-2010 period has already been extensively studied in the classic mean-reversion literature, allowing us to evaluate the idea over a more recent period that is largely separate from the samples examined in the original literature."
+   }
+  ]
+ },
+ "regime_spy_ma200": {
+  "query": "trading only when SPY above 200 day moving average outperformance backtest",
+  "results": [
+   {
+    "title": "200DMA last DOM - ajh \u2014 Strategy by muscleriot - TradingView",
+    "url": "https://www.tradingview.com/script/APoeqsEr-200DMA-last-DOM-ajh/",
+    "snippet": "A simple but powerful trading stratergy based on the 200 day moving average. A stratergy that is astonishingly simple but powerful, and outperforms the market most of the time. The stratergy is for strongly trending indices like the SP500 index. Please use SPY plus ADJ (at bottom right of screen to get a Total Return chart) This script should be used on the daily timeframe. The Rules are ..."
+   },
+   {
+    "title": "Daily vs Weekly vs Month-End SPY 200DMA Backtest",
+    "url": "https://www.reproquant.com/studies/spy-200-day-moving-average-signal-frequency/",
+    "snippet": "A reproducible SPY 200-day moving average signal frequency backtest in Python comparing daily, weekly, and month-end signal checks with transaction costs, charts, CSV output, and code."
+   },
+   {
+    "title": "SPY 200-Day Moving Average Backtest in Python",
+    "url": "https://www.reproquant.com/studies/spy-200-day-moving-average/",
+    "snippet": "A reproducible SPY 200 day moving average backtest using adjusted close data, lagged signals, transaction costs, and Python-generated CSV outputs."
+   },
+   {
+    "title": "SPY Moving Average Crossover Backtest - GitHub",
+    "url": "https://github.com/geraldwirasakti-hash/spy-ma-crossover",
+    "snippet": "This project downloads 30+ years of daily price data for SPY (the S&P 500 index ETF) and runs a backtest of the 50/200-day moving average crossover strategy \u2014 one of the most widely discussed rules in retail trading. The strategy rule: Be invested in SPY when its 50-day moving average is above its ..."
+   },
+   {
+    "title": "GitHub - saraliu-stack/spy-sma200-backtest",
+    "url": "https://github.com/saraliu-stack/spy-sma200-backtest",
+    "snippet": "A systematic backtest that uses SPY's 200-day simple moving average as a market-regime indicator. When SPY trades above its SMA200 (risk-on), the strategy holds the target stock. When SPY falls below (risk-off), it moves to 3-month T-bills."
+   },
+   {
+    "title": "Moving_average_backtest.ipynb - Colab",
+    "url": "https://colab.research.google.com/github/guillermodelarosadecambra/Moving-average-backtest/blob/main/Moving_average_backtest.ipynb",
+    "snippet": "5. Trading Signal The strategy is long the market when the 50-day moving average is above the 200-day moving average. Otherwise, it stays out of the market."
+   },
+   {
+    "title": "The Double 7's Strategy: A Python Backtest on SPY - Medium",
+    "url": "https://medium.com/@mohammad_anbar/the-double-7s-strategy-a-python-backtest-on-spy-100e9fd93120",
+    "snippet": "The SPY is above its 200-day moving average. If the SPY closes at a 7-day low, buy. If the SPY closes at a 7-day high, sell your long position."
+   },
+   {
+    "title": "200 Day Moving Average Trading Strategy - (With Backtest)",
+    "url": "https://www.quantifiedstrategies.com/200-day-moving-average/",
+    "snippet": "The 200-day moving average trading strategy is frequently used as an indicator in the financial markets. Who hasn't heard about the \"Death Cross\", \"support at the moving averages\", \"the trend is positive because the price is above the averages\", etc.? This article looks at the 200 day moving average and how it works, why it works, and additionally why it sometimes doesn't work ..."
+   }
+  ]
+ },
+ "vix_regime_filter": {
+  "query": "VIX volatility regime filter improve stock trading strategy",
+  "results": [
+   {
+    "title": "Volatility Regime Detection: From Simple Rules to Machine Learning",
+    "url": "https://volatilitybox.com/research/volatility-regime-detection/",
+    "snippet": "Home / Research / Volatility Regimes Volatility Regimes Volatility Regime Detection: From Simple Rules to Machine Learning Volatility regime detection classifies markets into distinct states (low, normal, elevated, crisis) so traders can adapt strategy, position sizing, and risk parameters. Simple threshold rules use VIX levels (below 15, 15-20, 20-30, above 30) and the 200-day VIX MA ..."
+   },
+   {
+    "title": "GitHub - ELMEHDI0/volatility-regime-trading-system: Systematic ...",
+    "url": "https://github.com/ELMEHDI0/volatility-regime-trading-system",
+    "snippet": "Systematic trading strategy that adjusts portfolio exposure based on volatility regimes (VIX) and long-term trend filters. Core logic: VIX spike \u2192 risk-on opportunity Low volatility \u2192 risk reduction Rising volatility \u2192 defensive allocation Trend filter (SMA200) avoids bear markets Portfolio ..."
+   },
+   {
+    "title": "Stop Leaving Money on the Table: A VIX Regime Filter That Lifted My ES ...",
+    "url": "https://algotr.substack.com/p/stop-leaving-money-on-the-table-a",
+    "snippet": "The VIX is the options market's implied 30-day volatility for the S&P 500 (often called the \"fear gauge\"). It's useful as a filter because: Behaviour changes with volatility. Low-volatility markets often grind and trend with shallow pullbacks; high-volatility markets gap, mean-revert more violently, and whipsaw. Regimes cluster. Today's volatility regime often looks like yesterday ..."
+   },
+   {
+    "title": "Volatility Regimes Explained: How to Identify and Trade Each Phase",
+    "url": "https://volatilitybox.com/research/volatility-regimes-explained/",
+    "snippet": "Historical Frequency of Each Volatility Regime How Long Do Volatility Regimes Typically Last What Triggers a Shift from Low Vol to High Vol How to Identify the Current Volatility Regime Using VIX Levels How Do Trading Strategies Need to Change Across Vol Regimes The Relationship Between Vol Regimes and Market Returns"
+   },
+   {
+    "title": "VIX Trading Strategies \u2014 Informed Approaches to Volatility",
+    "url": "https://thevixtrader.com/vix-trading-strategies",
+    "snippet": "How to use VIX regime classification, term structure, and volatility intelligence to inform trading decisions."
+   },
+   {
+    "title": "Volatility Trading Strategies and VIX Dynamics | HL Hunt Financial",
+    "url": "https://www.hlhunt.org/uncategorized/volatility-trading-strategies-and-vix-dynamics-hl-hunt-financial/",
+    "snippet": "An institutional-grade analysis of volatility trading strategies, VIX term structure dynamics, and sophisticated approaches to monetizing volatility risk premium across market regimes."
+   },
+   {
+    "title": "Should You Only Trade When VIX Is Low? Volatility-Regime Filters ...",
+    "url": "https://indicatoredge.io/learn/vix-regime-filter-backtested",
+    "snippet": "The 'avoid high VIX' rule is trading gospel\u2014here's what 660,005 out-of-sample backtests across 903 assets actually show about volatility-regime filters."
+   },
+   {
+    "title": "GitHub - XabiBlaz/Regime-Aware-trading-strategy: A volatility-aware ...",
+    "url": "https://github.com/XabiBlaz/Regime-Aware-trading-strategy/",
+    "snippet": "A volatility-aware allocation that blends cross-sectional momentum, regression-based spread trading, and a defensive bond/gold sleeve. A rolling logistic classifier trained on VIX features determines how much capital is deployed in each sleeve while a risk overlay keeps portfolio volatility bounded."
+   }
+  ]
+ },
+ "pead_post_earnings_drift": {
+  "query": "post-earnings announcement drift PEAD abnormal returns study",
+  "results": [],
+  "error": "empty"
+ },
+ "momentum_pullback_uptrend": {
+  "query": "buying pullbacks uptrend momentum strategy backtest",
+  "results": [
+   {
+    "title": "Trend Pullback Backtest \u2014 buying the dip in an uptrend | Investing Paths",
+    "url": "https://investingpaths.com/tools/backtest/trend-pullback",
+    "snippet": "Backtest buying pullbacks in an established uptrend: price above its 200-day average, dips to the 50-day, and reclaims it. Full trade plan \u2014 ATR stop, 2R target, breakeven move, 1% risk sizing. Free, no signup."
+   },
+   {
+    "title": "Pullback Trading Strategy\uff5cBuy the Dip, Backtest Your Rules",
+    "url": "https://entriq.ai/en/blog/14-pullback-backtest",
+    "snippet": "Pullback Trading Strategy\uff5cBuy the Dip, Backtest Your Rules Learn to define how deep a pullback you wait for, avoid chasing and falling knives, and backtest the rules on past charts. Includes two sample rule entries."
+   },
+   {
+    "title": "Pullback Trading Strategies: Setup and Backtest Analysis",
+    "url": "https://www.quantifiedstrategies.com/pullback-trading-strategy/",
+    "snippet": "The pullback trading strategy has a risk-adjusted return of 27%, indicating its ability to identify price pullbacks and follow the trend. Despite attempting to predict price movements and capitalize on pullbacks, the strategy may underperform buy and hold due to the unpredictable nature of the market."
+   },
+   {
+    "title": "Pullback Trading in Trends: Buying Dips & Selling Rips",
+    "url": "https://daytradingtoolkit.com/strategies/trading-pullbacks-trends-strategy",
+    "snippet": "What is pullback trading? Pullback trading is a trend-following strategy where you enter a position during a temporary counter-trend move \u2014 buying a dip in an uptrend or shorting a bounce in a downtrend \u2014 with the expectation that the dominant trend will resume."
+   },
+   {
+    "title": "Pullback Trading Strategy: The 4-Point Entry Checklist",
+    "url": "https://daytradingtoolkit.com/strategies/pullback-trading-strategy-buying-dips-selling-rips",
+    "snippet": "Master the pullback trading strategy with a 4-point checklist for trend, location, volume, and confirmation \u2014 plus the exact entry, stop, and target rules."
+   },
+   {
+    "title": "Buying Pullbacks in an Uptrend: A Savvy Investment Approach to ...",
+    "url": "https://www.visionfactory.org/post/buying-pullbacks-in-an-uptrend-a-savvy-investment-approach-to-maximizing-gains",
+    "snippet": "The challenge of an uptrend is knowing the appropriate time to step in. Buying pullbacks instead, which are temporary dips within a larger uptrend, can provide a more disciplined entry method whereby traders can buy at lower prices while in line with the general upward momentum. This strategy will play on natural fluctuations in price; thus, it can arguably be said that it is safer and more ..."
+   },
+   {
+    "title": "Trend Trading Strategy: The Complete Guide (2026)",
+    "url": "https://www.quantum-algo.com/blog/guides/trend-trading-strategy-complete-guide/",
+    "snippet": "Trend trading rides the market's dominant direction. Learn how to identify trends, enter pullbacks, follow the trend, and know when it ends."
+   },
+   {
+    "title": "Swing-Trade Screeners: Momentum + Pullback Setups",
+    "url": "https://financeworld.io/learn/swing-trade-screeners-momentum-pullback-setups/",
+    "snippet": "The swing-trade screeners: momentum + pullback setups provide a robust framework, leveraging real-time data to identify ideal trade opportunities. These setups capitalize on short-to-medium-term price swings, driven by momentum surges and timely price pullbacks, to maximize returns and control risk."
+   }
+  ]
+ },
+ "sector_relative_strength": {
+  "query": "sector relative strength rotation strategy outperformance",
+  "results": [
+   {
+    "title": "Sector Rotation: Sector Rotation Strategy: Capitalizing on Relative ...",
+    "url": "https://fastercapital.com/content/Sector-Rotation--Sector-Rotation-Strategy--Capitalizing-on-Relative-Strength-for-Maximum-Gain.html",
+    "snippet": "Sector Rotation: Sector Rotation Strategy: Capitalizing on Relative Strength for Maximum Gain 2026 update summary Summary: Sector rotation is a strategy that involves moving investments from one industry sector to another in an attempt to beat the market. This approach is based on the idea that the performance of different sectors can vary greatly over time, influenced by economic cycles ..."
+   },
+   {
+    "title": "Sector Rotation Trading Strategy: Complete 2026 Guide",
+    "url": "https://corenovaanalytics.com/blog/sector-rotation-trading-strategy",
+    "snippet": "Sector rotation trading strategy \u2014 11 SPDR sectors, business cycle stages, relative strength analysis, regime positioning. The institutional framework."
+   },
+   {
+    "title": "Sector Rotation Strategy | Market Cycles and Leadership",
+    "url": "https://globalmarketstructure.com/en/market-cycles/sector-and-style-rotation/sector-rotation-strategy/",
+    "snippet": "Sector rotation strategy reads leadership shifts between sectors as part of a broader market-cycle framework. The strongest reads combine sector relative strength with rates, liquidity, credit, earnings revisions, breadth, and leadership quality."
+   },
+   {
+    "title": "Sector rotation: Sector Rotation Strategies in Dynamic ... - FasterCapital",
+    "url": "https://fastercapital.com/content/Sector-rotation--Sector-Rotation-Strategies-in-Dynamic-Asset-Allocation.html",
+    "snippet": "Sector rotation strategies are a popular approach in dynamic asset allocation that aim to capitalize on the cyclical nature of different sectors within the market. By strategically rotating investments between sectors based on their relative strength and performance, investors can potentially..."
+   },
+   {
+    "title": "Sector Rotation: Business Cycle Investing Strategy",
+    "url": "https://ryanoconnellfinance.com/sector-rotation/",
+    "snippet": "Sector rotation is an active investment strategy that shifts portfolio allocation among economic sectors based on the business cycle. Learn which sectors lead in each phase, how to implement the strategy with sector ETFs, and why accurate economic forecasting makes this approach harder than it appears."
+   },
+   {
+    "title": "Sector Rotation Strategies Driven by Quantitative Signals",
+    "url": "https://dananalytics.com/en/sector-rotation/",
+    "snippet": "By systematically rotating capital into the sectors with the strongest quantitative signals \u2014 typically relative strength or momentum rankings \u2014 traders capture the performance differential between leading and lagging sectors."
+   },
+   {
+    "title": "Sector Rotation Monitor: Real-Time Relative Strength & Sector Analysis",
+    "url": "https://sectorrotationmonitor.com/",
+    "snippet": "Sector rotation is an investment strategy that moves capital between market sectors based on the economic cycle and relative strength, aiming to be overweight in leading sectors and underweight in lagging ones."
+   },
+   {
+    "title": "Sector Rotation | Market Leadership Across Sectors",
+    "url": "https://globalmarketstructure.com/en/market-cycles/sector-and-style-rotation/sector-rotation/",
+    "snippet": "Short answer: sector rotation describes which equity sectors are leading, lagging, gaining relative strength, or losing relative strength during a market cycle. The concept helps explain leadership distribution across the market, but it does not by itself tell an investor which sector to buy, when to rotate, or how long the shift will last."
+   }
+  ]
+ },
+ "transaction_cost_short_horizon": {
+  "query": "high transaction costs short horizon trading strategy turnover",
+  "results": [
+   {
+    "title": "Turnover Analysis: Understanding Transaction Cost Impact",
+    "url": "https://breakingalpha.io/insights/turnover-analysis-transaction-cost-impact",
+    "snippet": "Comprehensive guide to turnover analysis and transaction cost impact in algorithmic trading. Learn how to measure turnover, quantify hidden costs, evaluate strategy efficiency, and identify algorithms where trading friction doesn't consume the alpha."
+   },
+   {
+    "title": "Transaction Costs & High-Turnover Strategies: Impact on Returns",
+    "url": "https://asmr.education/faq/algorithmic-trading-aka-algotrading/transaction-costs-high-turnover-strategies-impact",
+    "snippet": "Learn how transaction costs like commissions, spreads, and market impact erode high-turnover strategy returns. Essential guide for quant traders and portfolio managers."
+   },
+   {
+    "title": "Transaction Costs | ML for Trading",
+    "url": "https://www.ml4trading.io/third-edition/chapters/18_transaction_costs/",
+    "snippet": "Transaction costs are not a post-hoc filter but a constraint that enters every pipeline stage: factor evaluation needs cost-aware signal thresholds, strategy simulation needs realistic execution, and portfolio construction needs turnover-aware optimization. This section maps the cost integration points across the full research-to-production pipeline and identifies the false positive problem ..."
+   },
+   {
+    "title": "Transaction costs: Minimizing Expenses through Smart Portfolio Turnover ...",
+    "url": "https://fastercapital.com/content/Transaction-costs--Minimizing-Expenses-through-Smart-Portfolio-Turnover.html",
+    "snippet": "A high portfolio turnover rate implies a more active trading strategy, while a low portfolio turnover rate indicates a more passive or buy-and-hold approach. The portfolio turnover rate has a significant impact on the expenses incurred by the fund and its investors, as each trade involves transaction costs, such as commissions, spreads, and taxes."
+   },
+   {
+    "title": "ON THE EFFECT OF ALPHA DECAY AND OPTIMAL TRADING STRATEGY - arXiv.org",
+    "url": "https://arxiv.org/pdf/2502.04284",
+    "snippet": "Abstract. We consider the multi-period portfolio optimization prob-lem with a single asset that can be held long or short. Due to the pres-ence of transaction costs, maximizing the immediate reward at each pe-riod may prove detrimental, as frequent trading results in consistent neg-ative cash outflows. To simulate alpha decay, we consider a case where not only the present value of a signal ..."
+   },
+   {
+    "title": "Transaction Costs in Trading: How to Model Fees, Spreads, Slippage",
+    "url": "https://www.flytradr.com/blog/transaction-costs-fees-spreads-latency-approximation",
+    "snippet": "Master transaction cost modeling for algorithmic trading. Learn to accurately estimate slippage, commissions, spreads, and latency impact on strategy performance."
+   },
+   {
+    "title": "Transaction Costs: Hidden Drag on Portfolio Performance",
+    "url": "https://thefinancialanalyst.net/2025/05/15/transaction-costs-hidden-drag-on-portfolio-performance/",
+    "snippet": "Ignoring transaction costs can lead to suboptimal portfolio performance, while integrating these costs into the optimization model can enhance risk-adjusted returns. This is particularly relevant for sectors dealing with high-frequency trading and volatile assets, such as cryptocurrencies."
+   },
+   {
+    "title": "On the Effect of Alpha Decay and Transaction Costs on the Multi-period ...",
+    "url": "https://arxiv.org/html/2502.04284v1",
+    "snippet": "The presence of transaction costs greatly affects the return of multi-period trading. Thus, the presence of transaction costs complicates the optimization problem, and the optimal solution may involve trading less aggressively."
+   }
+  ]
+ },
+ "cost_hurdle_expected_move": {
+  "query": "expected move multiple round trip cost threshold trading edge",
+  "results": [
+   {
+    "title": "From Spread to Profitability: How Much Edge Do You Need",
+    "url": "https://www.effectivespread.com/guides/from-spread-to-profitability-how-much-edge-do-you-need",
+    "snippet": "Learn how to convert execution costs and fees into a minimum edge threshold for prediction market trading. Includes examples for one way and round trip costs."
+   },
+   {
+    "title": "How to Integrate Execution Cost Data Into Your Trading Strategy",
+    "url": "https://www.liquidview.app/blog/integrate-execution-cost-strategy",
+    "snippet": "Conversely, a modest signal with only 6 bps of expected edge becomes consistently profitable if you can find a route that costs 3 bps round-trip. This is the foundational insight behind integrating execution cost data into your trading strategy: the expected profit of any trade is not just a function of alpha \u2014 it is alpha minus execution cost."
+   },
+   {
+    "title": "GitHub - jsconiers/traders-edge-mcp: 0DTE-focused SPX/SPXW options ...",
+    "url": "https://github.com/jsconiers/traders-edge-mcp",
+    "snippet": "0DTE-focused SPX/SPXW options cockpit MCP: GEX, zero-gamma flip, call/put walls, max-pain, 0DTE expected move, dealer DEX/vanna/charm, VIX term structure, and an economic-event clock. Key-less (CBOE delayed quotes + TreasuryDirect). - jsconiers/traders-edge-mcp"
+   },
+   {
+    "title": "Round Trip Cost: What It Really Costs to Enter and Exit",
+    "url": "https://www.effectivespread.com/guides/round-trip-cost-what-it-really-costs-to-enter-and-exit",
+    "snippet": "Learn how to compute round trip cost in prediction markets: entry plus exit effective spread and fees. Includes worked examples and why exit costs are often worse."
+   },
+   {
+    "title": "Transaction Costs and Edge | Pomegra Learn Library",
+    "url": "https://pomegra.io/learn/library/track-e-trading-risk/technical-analysis/chapter-14-what-doesnt-work-and-the-data/transaction-costs-and-edge",
+    "snippet": "The relationship between edge and transaction costs\u2014why most technical strategies lose money after paying the market."
+   },
+   {
+    "title": "Trading Expectancy Calculator: Measure Strategy Edge",
+    "url": "https://chartwisehub.com/trading-expectancy-calculator/",
+    "snippet": "Use this free trading expectancy calculator for expectancy per trade, break-even win rate, profit factor, and projected strategy edge over time."
+   },
+   {
+    "title": "Trading Edge: Signals and Trading Costs | TheFinSense",
+    "url": "https://thefinsense.io/trading-edge/",
+    "snippet": "Explore trading edge analysis that tests technical signals against data-snooping, transaction costs, taxes, and out-of-sample evidence."
+   },
+   {
+    "title": "Transaction Costs & Market Impact: Models & Analysis",
+    "url": "https://mbrenndoerfer.com/writing/transaction-costs-market-impact-liquidity-modeling",
+    "snippet": "Transaction costs can be decomposed into several distinct components, each with different characteristics and magnitudes depending on the market, instrument, and trading style. Understanding this decomposition is essential for accurate cost modeling. Each component behaves differently: some are fixed and predictable, others scale with trade size, and still others depend on market conditions at ..."
+   }
+  ]
+ },
+ "atr_threshold_sizing": {
+  "query": "ATR normalized volatility stop loss optimal holding period mean reversion",
+  "results": [
+   {
+    "title": "How to Use ATR for Volatility-Based Stop-Losses",
+    "url": "https://www.luxalgo.com/blog/how-to-use-atr-for-volatility-based-stop-losses/",
+    "snippet": "LuxAlgo Library Canonical reference for this topic: ATR covering definition, identification, calculation, and every implementation, kept current in the Library. Use ATR to define a volatility-based stop distance, then connect that distance to an explicit exit rule and position size."
+   },
+   {
+    "title": "How to Use ATR for Stop Loss: Complete Strategy Guide",
+    "url": "https://quantstock.org/blog/atr-stop-loss-strategy-guide",
+    "snippet": "Master ATR-based stop loss placement. Learn volatility-adjusted strategies, optimal multipliers, and how to avoid getting stopped out prematurely."
+   },
+   {
+    "title": "ATR (Average True Range): The Volatility Indicator Every Trader Needs",
+    "url": "https://volatilitybox.com/research/atr-average-true-range/",
+    "snippet": "ATR measures the average magnitude of price movement per bar including gaps. This guide covers the True Range formula, ATR-based position sizing and stop-loss placement, Chandelier Exit trailing stops, ATR% for cross-stock volatility comparison, period selection, and expansion/contraction entry patterns."
+   },
+   {
+    "title": "Volatility-Adjusted Stop Losses: ATR, Chandelier, and Keltner Methods",
+    "url": "https://volatilitybox.com/research/volatility-adjusted-stop-losses/",
+    "snippet": "The ATR stop method converts the stock's measured volatility into a dynamic stop distance. Instead of choosing an arbitrary dollar or percentage value, you multiply the current ATR by a factor calibrated to your holding period and strategy type."
+   },
+   {
+    "title": "ATR (Average True Range): Volatility-Based Position Sizing",
+    "url": "https://quantengines.com/blog/atr-average-true-range-guide",
+    "snippet": "The Average True Range (ATR), developed by J. Welles Wilder Jr. in 1978, is the standard measure of market volatility in technical analysis. Unlike directional indicators that measure where price is going, ATR measures how much price moves regardless of direction. This makes it an essential tool for position sizing, stop-loss placement, and volatility-adjusted risk management, functions that ..."
+   },
+   {
+    "title": "[blackcat] L3 Mean Reversion ATR Stop Loss - TradingView",
+    "url": "https://www.tradingview.com/script/65ShDWgf-blackcat-L3-Mean-Reversion-ATR-Stop-Loss/",
+    "snippet": "OVERVIEW The L3 Mean Reversion ATR Stop Loss indicator is meticulously crafted to empower traders by offering statistically-driven stop-loss levels that adapt seamlessly to evolving market dynamics. By harmoniously blending mean reversion concepts with Advanced True Range (ATR) metrics, it delivers a robust framework for managing risks more effectively. \ud83c\udf10 The primary objective is to furnish ..."
+   },
+   {
+    "title": "Volatility Trading Strategy Complete Guide 2026: Practical Applications ...",
+    "url": "https://algolabhk.com/en/blogs/volatility-trading-strategy",
+    "snippet": "Volatility measures the magnitude of price fluctuations in markets and directly impacts stop-loss placement and position sizing. This guide covers ATR indicator applications\u20142x ATR dynamic stop-loss, volatility regime detection, and strategy adjustments for trending, ranging, and high-volatility environments."
+   },
+   {
+    "title": "Average True Range: Dynamic Stop Loss Levels | LuxAlgo Blog",
+    "url": "https://www.luxalgo.com/blog/average-true-range-dynamic-stop-loss-levels/",
+    "snippet": "A stop calculated from ATR can remain fixed at entry or update under explicit rules; it does not automatically reduce losses or smooth returns. How does the selected ATR period influence how quickly stop-loss levels adapt to market volatility?"
+   }
+  ]
+ },
+ "reentry_cooldown_overtrading": {
+  "query": "trading system reentry cooldown reduce overtrading duplicate signals",
+  "results": [
+   {
+    "title": "Why Traders Need a Pause After High-Risk Decisions | SignalShield",
+    "url": "https://www.signalshieldhq.com/blog/why-cooldowns-matter-in-a-trader-discipline-system",
+    "snippet": "Learn why a predefined pause helps interrupt emotional re-entry, alert overload, overtrading, and rule drift before the next trading decision."
+   },
+   {
+    "title": "Trading Cooldown Rules After Losses | SignalShield",
+    "url": "https://www.signalshieldhq.com/learn/trading-cooldown-rules",
+    "snippet": "Learn how trading cooldown rules create a structured pause after losses, revenge-trading pressure, overtrading, alert fatigue, or broken rules."
+   },
+   {
+    "title": "Stop Overtrading: Daily Loss Locks, Trade Caps & Rules",
+    "url": "https://mylinedchart.com/resources/articles/stop-overtrading-by-design-loss-locks-trade-caps-shutdown-rules",
+    "snippet": "Stop overtrading with daily loss locks, trade caps, and session shutdown rules that protect execution discipline and reduce avoidable drawdowns."
+   },
+   {
+    "title": "Loss Cooldown Trading Rule: Pause After Losing Trades - TradeReign",
+    "url": "https://trade-reign.com/loss-cooldown-trading",
+    "snippet": "A loss cooldown is a required pause after a losing trade or rule violation. It is designed to reduce rushed re-entry, revenge trading, and emotional overtrading."
+   },
+   {
+    "title": "Automated Trading Systems Prevent Overtrading With Smart Rules ...",
+    "url": "https://clearedge.trading/post/automated-trading-systems-prevent-overtrading-rules",
+    "snippet": "End revenge trading and FOMO by using automated systems to enforce discipline. Set daily loss limits and rule-based entries to stop overtrading for good."
+   },
+   {
+    "title": "Custom EA Duplicate-Order Protection: How to Specify\u2026 | PMotive",
+    "url": "https://pmotive.com/cs/blogs/news/custom-ea-duplicate-order-protection-how-to-specify-re-entry-and-cooldown-rules",
+    "snippet": "PMotive Buyer-Intent Execution Guide \u00b7 Custom EA Specification \u00b7 Updated August 2026 Custom EA Duplicate-Order Protection: How to Specify Re-Entry and Cooldown Rules Direct answer: Duplicate-order protection must be part of the specification, especially when signals remain true across multiple ticks. Define re-entry, cooldown, one-trade-per-bar and restart behaviour."
+   },
+   {
+    "title": "Custom EA Duplicate-Order Protection: How to Specify\u2026 | PMotive",
+    "url": "https://pmotive.com/blogs/news/custom-ea-duplicate-order-protection-how-to-specify-re-entry-and-cooldown-rules",
+    "snippet": "Custom EA Duplicate-Order Protection: How to Specify Re-Entry and Cooldown Rules Direct answer: Duplicate-order protection must be part of the specification, especially when signals remain true across multiple ticks. Define re-entry, cooldown, one-trade-per-bar and restart behaviour. Already comparing this setup before purchase?"
+   },
+   {
+    "title": "How to Filter Trade Signals: Cooldowns, Duplicates, and Risk Checks",
+    "url": "https://quietalphalab.com/how-to-filter-trade-signals-cooldowns/",
+    "snippet": "A trade signal isn't a trade. Build the server-side judgment layer that decides whether to act \u2014 account checks, cooldowns, duplicate and risk filters \u2014 and why it must be yours."
+   }
+  ]
+ },
+ "curve_fitting_signal_threshold": {
+  "query": "avoid overfitting multiple testing trading strategy false discoveries deflated",
+  "results": [
+   {
+    "title": "Backtest Overfitting and Trading Strategy Replication",
+    "url": "https://research.mental-momentum.ai/r/backtest-overfitting-trading-strategy-ju55g3",
+    "snippet": "Key takeaways Multiple testing inflates standard Sharpe ratios, mathematically guaranteeing the discovery of fake profitable strategies purely by chance. The Deflated Sharpe Ratio adjusts performance metrics by accounting for the number of independent trials, return skewness, and kurtosis. Machine learning models frequently fail in live deployment because they optimize for historical data but ..."
+   },
+   {
+    "title": "How \"Backtest Overfitting\" in Finance Leads to False Discoveries",
+    "url": "https://academic.oup.com/jrssig/article/18/6/22/7038278",
+    "snippet": "It is a form of selection bias under multiple testing. Models, funds and strategies suffering from this type of statistical overfitting typically target the random patterns present in the limited in-sample test data on which they are based, and thus often perform erratically when presented with new, truly out-of-sample data."
+   },
+   {
+    "title": "Overfitting and False Discovery - Quant Finance with Python",
+    "url": "https://sungchullee.github.io/financial_math_book_writing/ch24/limits_of_learning_in_finance/overfitting_and_false_discovery/",
+    "snippet": "Financial research often involves testing many strategies, selecting the best, and ignoring failed experiments \u2014 leading to false discoveries. Recall (see \u00a7 Multiple Testing Correction) for the formal FWER/FDR machinery (Bonferroni, Holm, Benjamini-Hochberg) and Harvey-Liu-Zhu / deflated Sharpe / haircut adjustments."
+   },
+   {
+    "title": "Multiple Testing Correction - Quant Finance with Python",
+    "url": "https://sungchullee.github.io/financial_math_book_writing/ch24/limits_of_learning_in_finance/multiple_testing_correction/",
+    "snippet": "Multiple Testing Correction Quantitative researchers routinely test hundreds of trading strategies, risk factors, or model specifications against the same historical data. When many hypotheses are tested simultaneously, some will appear statistically significant purely by chance."
+   },
+   {
+    "title": "How to Detect & Avoid Overfitting in Trading Strategies",
+    "url": "https://www.sigmentic.com/blog/detect-avoid-overfitting-trading-strategies",
+    "snippet": "Learn how to detect overfitting in trading strategies before it destroys your capital. Covers warning signs, cross-validation concepts, the multiple testing trap, and a practical checklist."
+   },
+   {
+    "title": "The Complete Guide to Backtesting Pitfalls in Quantitative Trading",
+    "url": "https://coriva.eu.org/en/backtesting-pitfalls/",
+    "snippet": "Common backtesting pitfalls in quantitative trading: overfitting, look-ahead bias, survivorship bias, transaction cost modeling, with Python code examples and a self-check checklist."
+   },
+   {
+    "title": "Overfitting in Trading Strategies: Detection and Prevention",
+    "url": "https://quantengines.com/blog/overfitting-trading-strategies",
+    "snippet": "Detect and prevent overfitting in quantitative trading strategies. Statistical tests, deflated Sharpe ratios, and robust backtesting methodology."
+   },
+   {
+    "title": "Backtesting & Research Methodology - Trading Strategy documentation",
+    "url": "https://tradingstrategy.ai/docs/learn/backtesting.html",
+    "snippet": "The article presents multiple methods for validating that a trading strategy's edge is real rather than an artifact of overfitting or data mining. It covers practical robustness testing techniques that can be applied to any systematic strategy, helping traders tilt the odds in their favor before committing real capital."
+   }
+  ]
+ },
+ "etoro_stock_spread": {
+  "query": "eToro US stock spread fee percent minimum position",
+  "results": [
+   {
+    "title": "Spreads on CFD trading at eToro",
+    "url": "https://www.etoro.com/trading/fees/cfd-spreads/",
+    "snippet": "Spread is for either side (BUY and SELL). * CFD positions in US-listed stocks & ETFs priced at $3 or less (based on the closing price available on the etoro platform for the last trading day of the previous week) will incur a fee of 2 cents per unit."
+   },
+   {
+    "title": "eToro Fees: What You Pay to Invest",
+    "url": "https://www.etoro.com/trading/fees/0/",
+    "snippet": "A market spread is the difference between an asset's buy (bid) and sell (ask) prices when trading, without any additional markups by etoro (spread fee). It is not a separate charge by etoro, rather, a reflection of current market conditions."
+   },
+   {
+    "title": "eToro Spreads, Commissions & Fees 2026 | Alpha Trade Circle",
+    "url": "https://alphatradecircle.com/brokers/etoro/spreads-fees",
+    "snippet": "Detailed breakdown of eToro trading costs. Live EUR/USD, GBP/USD, and XAU/USD spreads across London and NY sessions, plus non-trading fees."
+   },
+   {
+    "title": "eToro Fees: Spreads, Commissions and All Trading Costs (2026)",
+    "url": "https://www.tic.co.tz/etoro/fees/",
+    "snippet": "This guide breaks down every eToro fee: CFD spreads by asset class compared to the industry average, stock and ETF commissions by country, the full FX conversion schedule by currency and payment method, Club tier discounts and which payment methods actually qualify for them, overnight fees, and every non-trading cost."
+   },
+   {
+    "title": "eToro Fees Explained 2026: Commissions & Hidden Costs",
+    "url": "https://www.matchmybroker.com/articles/etoro-fees-explained",
+    "snippet": "Complete breakdown of eToro fees in 2026: $1-$2 stock commissions, 1% crypto spread, forex costs, withdrawal fees, and how to minimize your trading costs."
+   },
+   {
+    "title": "eToro Spreads, Fees, and Commissions - bestbrokers.com",
+    "url": "https://www.bestbrokers.com/reviews/etoro/spreads-fees-and-commissions/",
+    "snippet": "We analyzed the brokerage fees of eToro including spreads on Forex, indices, commodities and CFD commission when you open and close a position."
+   },
+   {
+    "title": "How does the spread affect my investments? | eToro US Help",
+    "url": "https://help.etoro.com/en-us/s/article/how-do-the-fees-spreads-affect-my-investments-US",
+    "snippet": "The spread is the difference between the buy and sell price of an asset on the eToro platform. This difference impacts your profit and loss (P&L) and is reflected immediately after opening a position. For example: The buy price of an asset is $100 The sell price is $98 In this case, the spread is $2. If you open a buy position with $1,000 at a buy price of $100, you will own 10 units of the ..."
+   },
+   {
+    "title": "Understanding etoro's pricing model for CFD Indices, Commodities and ...",
+    "url": "https://help.etoro.com/s/article/Understanding-etoro-s-pricing-model-for-CFD-Indices-Commodities-and-Currencies",
+    "snippet": "The following fee structure applies from 10 August 2026 onwards. eToro uses a two-part pricing model for CFD trades on indices, commodities, and currencies. Rather than a single combined spread, costs are split into a market spread and a separate opening/closing spread fee."
+   }
+  ]
+ },
+ "etoro_crypto_fee": {
+  "query": "eToro crypto fee spread cost percentage",
+  "results": [
+   {
+    "title": "eToro Fees: What they are and how they're calculated",
+    "url": "https://www.etoro.com/en-us/trading/fees/",
+    "snippet": "How crypto fees work A standardized 1% commission is charged each time you buy or sell a cryptoasset on etoro. In the past, this fee was absorbed into crypto spread calculations, affecting the offered buy and sell prices. While this model allowed users to see the full impact of their crypto trades on their account balance, it made trade performance and trading costs more complex to determine ..."
+   },
+   {
+    "title": "eToro Fees: What You Pay to Invest",
+    "url": "https://www.etoro.com/trading/fees/",
+    "snippet": "A fee is applied when you transfer your cryptoassets to your etoro Money crypto wallet. If you transfer cryptoassets from the etoro platform, a fee of 2% is applied."
+   },
+   {
+    "title": "EToro Crypto Fees: Spreads & Withdrawal Costs (2026)",
+    "url": "https://cryptsy.com/etoro-fees/",
+    "snippet": "eToro fees explained: ~1% spread on buys, withdrawal fees, and how it compares to crypto-native exchanges. Full 2026 breakdown."
+   },
+   {
+    "title": "eToro Fee Calculator \u2014 What 1% Commission Costs You | Trade Cost Lab",
+    "url": "https://www.tradecostlab.com/calculators/etoro-fee-calculator",
+    "snippet": "Calculate eToro trading costs on your own volume: flat 1.00% commission plus estimated spread, with per-trade, monthly and annual figures and a ranked comparison against cheaper platforms."
+   },
+   {
+    "title": "eToro Fee Calculator | Ultimate Finance Calculator",
+    "url": "https://www.ultimatefinancecalculator.com/calculators/etoro-fee-calculator/",
+    "snippet": "Estimate eToro's typical 1% crypto fee on a buy or sell trade (stocks are commission-free). See per-trade fees, monthly costs, and annual fee projections."
+   },
+   {
+    "title": "eToro Fees Explained 2026: Commissions & Hidden Costs",
+    "url": "https://www.matchmybroker.com/articles/etoro-fees-explained",
+    "snippet": "Complete breakdown of eToro fees in 2026: $1-$2 stock commissions, 1% crypto spread, forex costs, withdrawal fees, and how to minimize your trading costs."
+   },
+   {
+    "title": "How does eToro crypto pricing work? | eToro US Help",
+    "url": "https://help.etoro.com/en-us/s/article/how-does-etoro-crypto-pricing-work-US",
+    "snippet": "How does eToro crypto pricing work? Your crypto position's price is based on the current market bid (sell) price, without any markup. eToro displays the crypto fee separately from the market pricing, making the cost of each trade clear. A standardized 1% opening/closing spread is charged each time you buy or sell a cryptoasset on eToro."
+   },
+   {
+    "title": "eToro Fees: Spreads, Commissions and All Trading Costs (2026)",
+    "url": "https://www.tic.co.tz/etoro/fees/",
+    "snippet": "eToro charges a 2% fee when transferring cryptocurrency from your eToro trading account to your eToro Money crypto wallet. This is separate from the 1% buy/sell spread on crypto trades."
+   }
+  ]
+ },
+ "win_rate_cost_breakeven": {
+  "query": "breakeven win rate transaction costs average win loss ratio",
+  "results": [
+   {
+    "title": "Breakeven Win Rate: Formula, Examples, and What It Really Assumes",
+    "url": "https://traderizz.com/guides/breakeven-win-rate-trading",
+    "snippet": "Suppose 120 closed trades show an average win of \u20b98,200 and an average loss of \u20b94,900, both net of costs. Breakeven win rate is \u20b94,900 \u00f7 (\u20b98,200 + \u20b94,900) = 37.4%."
+   },
+   {
+    "title": "Break-Even Win Rate: Formula, Table and Costs - PineConnector",
+    "url": "https://www.pineconnector.com/blogs/pico-blog/break-even-win-rate",
+    "snippet": "The break-even win rate is the winning share among wins and losses that makes expectancy zero. Before costs it equals average loss \u00f7 (average win + average loss), which is the same as 1 \u00f7 (1 + payoff ratio). That gives 50% at a payoff of 1, 40% at 1.5 and 33.3% at 2."
+   },
+   {
+    "title": "Break-Even Win Rate: Formula, Costs, and Practical Use",
+    "url": "https://studio.kvants.ai/blog/break-even-win-rate",
+    "snippet": "Quick Answer A strategy's break-even win rate is the percentage of winning trades required for its average outcome to equal zero. It depends on the size of the average winner relative to the average loser\u2014not on a universal target. With an average win of 2R and an average loss of 1R, the gross break-even win rate is 33.3%. Trading costs raise that threshold. The main limitation is that a ..."
+   },
+   {
+    "title": "Breakeven Win Rate Calculator | Include Trading Costs",
+    "url": "https://tradecopier.org/learn/breakeven-win-rate-calculator",
+    "snippet": "Find the two-outcome win rate needed for zero modeled expectancy using average gross win, average gross loss and per-trade cost, including impossible cases."
+   },
+   {
+    "title": "Breakeven Win Rate Calculator (RRR + Costs) | FXNX",
+    "url": "https://fxnx.com/en/tools/breakeven-win-rate-calculator-rrr-profitability",
+    "snippet": "Find the minimum win rate you need to break even from your risk-reward ratio and trading costs. Free forex breakeven win rate calculator with the formula."
+   },
+   {
+    "title": "Breakeven Win Rate Calculator - Costs & Risk Reward",
+    "url": "https://forexmt4indicators.com/forex-tools/breakeven-winrate-calculator/",
+    "snippet": "Calculate the win rate needed to break even from average risk, reward and trading costs. Compare gross or net outcomes with clear two-outcome limits."
+   },
+   {
+    "title": "Breakeven Win Rate: What a Tight Stop Costs | SwingFolio",
+    "url": "https://swingfolio.com/blog/breakeven-win-rate-trading-costs",
+    "snippet": "Your breakeven win rate climbs with every cost you pay, and your stop distance alone decides by how much. Work out your own cost hurdle from three numbers."
+   },
+   {
+    "title": "Breakeven Win Rate Calculator (With Costs) | Tickrify",
+    "url": "https://tickrify.com/tools/breakeven-win-rate-calculator/",
+    "snippet": "And expectancy at any win rate w is w\u00b7R \u2212 (1\u2212w) \u2212 c, expressed in R per trade \u2014 the number that actually decides whether a strategy makes money. Worked example with the defaults: at 2R with a 0.05R cost, breakeven is (1 + 0.05) \u00f7 3 = 35.0%, against 33.3% with no costs. A 45% win rate gives an expectancy of +0.30R per trade."
+   }
+  ]
+ },
+ "pead1": {
+  "query": "post-earnings announcement drift stock price continues after earnings announcement",
+  "results": [
+   {
+    "title": "Post-earnings-announcement drift - Wikipedia",
+    "url": "https://en.wikipedia.org/wiki/Post%E2%80%93earnings-announcement_drift",
+    "snippet": "They found that after an earnings announcement, stock prices continue to drift in the direction of the earnings surprise for an extended period, suggesting that market participants do not immediately incorporate all information from earnings announcements. [3][2] This finding challenged the efficient market hypothesis, which implies that new ..."
+   },
+   {
+    "title": "Why Stocks Rise or Fall After Earnings Reports - unanswered.io",
+    "url": "https://unanswered.io/guide/stock-price-reactions-to-earnings-reports",
+    "snippet": "Post-earnings announcement drift shows prices often continue moving in the surprise direction for weeks or months. Avoid short-term earnings timing; focus on long-term fundamentals instead. Implied volatility usually collapses after the report, hurting long option buyers."
+   },
+   {
+    "title": "Post-Earnings Announcement Drift (PEAD)",
+    "url": "https://earnings-watcher.com/wiki/post-earnings-drift-pead/",
+    "snippet": "What post-earnings announcement drift is, what causes a stock to keep drifting after earnings, how long the drift lasts, and whether it still works today."
+   },
+   {
+    "title": "Is Post-Earnings Announcement Drift a Thing? Again?",
+    "url": "https://anderson-review.ucla.edu/is-post-earnings-announcement-drift-a-thing-again/",
+    "snippet": "It concludes that earnings drift remains a major market factor. Subrahmanyam states that the study used an off-the-shelf earnings factor, essentially a trading strategy that buys stocks with positive earnings surprises and sells those with negative surprises, based on abnormal returns around earnings announcement days."
+   },
+   {
+    "title": "Tracking Post-Earnings Announcement Drift (PEAD) with FM...",
+    "url": "https://site.financialmodelingprep.com/education/other/tracking-postearnings-announcement-drift-with-fmps-market-data",
+    "snippet": "Post-earnings drift is the market pattern in which a stock's price continues trending in the same direction as its earnings surprise for a period after the announcement."
+   },
+   {
+    "title": "Earnings Patterns and Momentum: What Historical Data Shows About Post ...",
+    "url": "https://www.arcalpha.io/blog/earnings-patterns-post-earnings-drift",
+    "snippet": "What is post-earnings drift (PEAD)? Post-earnings drift is a well-documented market anomaly where stocks tend to continue moving in the direction of their earnings surprise for weeks or even months after the announcement. First identified by Ball and Brown in 1968, it remains one of the most persistent anomalies in academic finance research."
+   },
+   {
+    "title": "Post Earnings Announcement Drift: PEAD in the Stock Market",
+    "url": "https://www.stockmaniacs.net/post-earnings-announcement-drift/",
+    "snippet": "What Is Post Earnings Announcement Drift in the Stock Market? Post earnings announcement drift is a well-documented stock market anomaly where share prices continue moving in the direction of an earnings surprise for weeks \u2014 and sometimes months \u2014 after the announcement date. In other words, if a company beats earnings expectations significantly, its stock does not instantly price in all ..."
+   },
+   {
+    "title": "Post Earnings Announcement Drift: Beyond Earnings: Exploiting the Post ...",
+    "url": "https://fastercapital.com/content/Post-Earnings-Announcement-Drift--Beyond-Earnings--Exploiting-the-Post-Announcement-Drift-Anomaly.html",
+    "snippet": "Following the announcement, the stock price initially jumps 5%. However, over the next two months, the stock continues to climb another 15%, reflecting the PEAD effect. Investors who anticipated this drift and invested right after the earnings announcement would realize a substantial return on their investment."
+   }
+  ]
+ },
+ "pead2": {
+  "query": "post earnings drift days holding period PEAD strategy Sharpe",
+  "results": [
+   {
+    "title": "Post-Earnings Announcement Drift (PEAD) Trading Strategy",
+    "url": "https://www.daytrading.com/post-earnings-announcement-drift-pead-strategy",
+    "snippet": "Post-Earnings Announcement Drift (PEAD) is a well-documented market anomaly where stock prices continue to drift in the direction of an earnings surprise for some time following the announcement. This provides traders with an opportunity to exploit the delayed response of the market to new earnings information."
+   },
+   {
+    "title": "Post-Earnings Announcement Effect - Quantpedia",
+    "url": "https://quantpedia.com/strategies/post-earnings-announcement-effect",
+    "snippet": "Post-earnings announcement drift or PEAD is the tendency for a stock's cumulative abnormal returns to drift for several weeks (even several months) following the positive earnings announcement. It is an academically well-documented anomaly first discovered by Ball and Brown in 1968 (we present links to several related academic research papers)."
+   },
+   {
+    "title": "Post-Earnings Announcement Drift (PEAD) Strategy - GitHub",
+    "url": "https://github.com/fincell-xaviers/pead-earnings-drift",
+    "snippet": "Earnings drift exploiter measuring PEAD across S&P 500 constituents at +1, +5, +20 day holding periods after large earnings surprises. Developed by: Arka Dalal, Quantitative Research, FinCell"
+   },
+   {
+    "title": "Post-Earnings Announcement Drift (PEAD)",
+    "url": "https://earnings-watcher.com/wiki/post-earnings-drift-pead/",
+    "snippet": "What post-earnings announcement drift is, what causes a stock to keep drifting after earnings, how long the drift lasts, and whether it still works today."
+   },
+   {
+    "title": "Tracking Post-Earnings Announcement Drift (PEAD) with FM...",
+    "url": "https://site.financialmodelingprep.com/education/other/tracking-postearnings-announcement-drift-with-fmps-market-data",
+    "snippet": "Trading post-earnings announcement drift typically involves identifying significant positive or negative earnings surprises, entering a trade in the direction of the surprise, and holding for a set period based on backtested drift persistence."
+   },
+   {
+    "title": "GitHub - PurujitAggarwal/PEAD_strategy: Post-Earnings Announcement ...",
+    "url": "https://github.com/PurujitAggarwal/PEAD_strategy",
+    "snippet": "A systematic backtesting framework implementing a Post-Earnings Announcement Drift (PEAD) strategy. The strategy enters positions in the after-hours session immediately following earnings releases, exploiting the empirically documented tendency for prices to continue drifting in the direction of an EPS surprise over the subsequent trading days."
+   },
+   {
+    "title": "Post-earnings-announcement drift - Wikipedia",
+    "url": "https://en.wikipedia.org/wiki/Post%E2%80%93earnings-announcement_drift",
+    "snippet": "In financial economics and accounting research, post-earnings-announcement drift or PEAD (also named the SUE effect) is the tendency for a stock's cumulative abnormal returns to drift in the direction of an earnings surprise for several weeks (even several months) following an earnings announcement. [1][2] This phenomenon is one of the oldest and most persistent capital market anomalies ..."
+   },
+   {
+    "title": "Post earnings announcement drift: A simple earnings surprise measure ...",
+    "url": "https://www.sciencedirect.com/science/article/pii/S1057521924003922",
+    "snippet": "The \"post-earnings-announcement drift\" (PEAD), which describes the phenomenon that a firm's stock price continues to drift in the direction of earnings surprises for an extended period after quarterly earnings announcements, is one of the most puzzling financial anomalies."
+   }
+  ]
+ },
+ "academic_trend_filter_mr": {
+  "query": "geometric trend filter mean reversion stock returns Lo MacKinlay",
+  "results": [
+   {
+    "title": "A regime-switching model of stock returns with momentum and mean reversion",
+    "url": "https://www.sciencedirect.com/science/article/pii/S0264999323000494",
+    "snippet": "The concept of mean reversion refers to a stock price tendency to revert to a trend path in the medium run. For example, if stock returns have been unusually high (low) in the past, they are likely to be unusually low (high) in the foreseeable future. Momentum and mean reversion come in two flavors: cross-sectional and time-series."
+   },
+   {
+    "title": "A new method based on range to detect mean reversion",
+    "url": "https://www.sciencedirect.com/science/article/pii/S0970389620300410",
+    "snippet": "In this paper, we analyse two risk measures, namely, the Lo and MacKinlay (LM) (1988) variance ratio test statistic and the expected lifetime range (ELR) ratio that we are proposing to detect mean reversion in stock returns. The LM variance ratio statistic is used as an omnibus test for detecting serial correlations based on closing prices alone. 1 On the other hand, the newly proposed measure ..."
+   },
+   {
+    "title": "Stock Market Prices Do Not Follow Random Walks: Evidence From a Simple ...",
+    "url": "https://www.nber.org/papers/w2168",
+    "snippet": "In this paper, we test the random walk hypothesis for weekly stock market returns by comparing variance estimators derived from data sampled at different frequencies. The random walk model is strongly rejected for the entire sample period (1962-1985) and for all sub-periods for a variety of aggregate returns indexes and size-sorted portfolios."
+   },
+   {
+    "title": "Geometric Brownian Motion in Finance: Modeling Stock Prices and Mean ...",
+    "url": "https://economics.town/actuarial-economics/geometric-brownian-motion-stock-prices/",
+    "snippet": "Explore financial modeling: Geometric Brownian Motion, mean reversion, It\u00f4's Lemma, and jump models for stocks, commodities, and interest rates."
+   },
+   {
+    "title": "Geometric random walk model: random walk for logged data",
+    "url": "https://people.duke.edu/~rnau/411georw.htm",
+    "snippet": "Geometric random walk model Logarithm transformations of stock price data: Previously we saw that a random-walk-without-drift model was capable of describing a financial time series with no long-term trend and relatively constant volatility in absolute terms (at least over the long run)."
+   },
+   {
+    "title": "Trend vs. Mean Reversion: A Statistical Physics Approach to Financial ...",
+    "url": "https://harbourfronts.com/trend-vs-mean-reversion-statistical-physics-approach-financial-markets/",
+    "snippet": "Subscribe to newsletter Trend and mean reversion are two prevalent forces in financial markets. Studying their interplay is important, as it provides clues for developing accurate timing models. Reference formally examines the relationship between trend and mean reversion in financial markets, across timeframes ranging from intraday to monthly, and spanning over 300 years. The authors propose ..."
+   },
+   {
+    "title": "SYMMETRY CLASSIFICATION AND INVARIANT MEAN REVERSION PROCESS arXiv:2504 ...",
+    "url": "https://arxiv.org/pdf/2504.13094",
+    "snippet": "Abstract. Based on the Lie symmetry method, we investigate a Feynman-Kac formula for the classical geometric mean reversion process, which efec-tively describing the dynamics of short-term interest rates. The Lie algebra of infinitesimal symmetries and the corresponding one-parameter symmetry groups of the equation are obtained. An optimal system of invariant solutions are constructed by a ..."
+   },
+   {
+    "title": "Mean Reversion in Stock Prices: Evidence and Implications",
+    "url": "https://www.nber.org/papers/w2343",
+    "snippet": "The first part treats methodological issues involved in testing for transitory return components. It demonstrates that variance ratios are among the most powerful tests for detecting mean reversion in stock prices, but that they have little power against the principal interesting alternatives to the random walk hypothesis."
+   }
+  ]
+ },
+ "momentum_mean_reversion_interaction": {
+  "query": "momentum and mean reversion interaction short-term reversal long-term",
+  "results": [
+   {
+    "title": "PDF Short-Term Momentum and Long-Term Reversal in General Equilibrium",
+    "url": "https://warwick.ac.uk/fac/soc/economics/staff/pbeker/beker_espino.pdf",
+    "snippet": "Abstract We evaluate the ability of the Lucas [25] tree and the Alvarez-Jermann [3] models, both with homogeneous as well as heterogeneous beliefs, to generate a time series of excess returns that displays both short-term momentum and long-term reversal, i.e., positive autocorrelation in the short-run and negative autocorrelation in the long-run. Our analysis is based on a methodological ..."
+   },
+   {
+    "title": "A regime-switching model of stock returns with momentum and mean reversion\u2606",
+    "url": "https://www.sciencedirect.com/science/article/pii/S0264999323000494",
+    "snippet": "A vast body of empirical literature documents the existence of short-term momentum and medium-term mean reversion in various financial markets. However, few theoretical models explain these two common phenomena."
+   },
+   {
+    "title": "Short-Term Reversals and Longer-Term Momentum Around the World: Theory ...",
+    "url": "https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4069575",
+    "snippet": "The model accords with the transition from reversals to momentum, and yields the following novel predictions: (i) attenuated reversals following earnings announcements, (ii) a negative relation between momentum and reversal profits across economies and time, and (iii) larger reversals when noise trading is more volatile."
+   },
+   {
+    "title": "Understanding momentum and reversal - ScienceDirect",
+    "url": "https://www.sciencedirect.com/science/article/pii/S0304405X21000878",
+    "snippet": "Confirming well-known results from the literature, long-term reversal (defined as performance either two or three years prior to portfolio formation) and short-term reversal enter with significant negative predictive coefficients (momentum's coefficients are repeated here from Table 2 for convenient comparison)."
+   },
+   {
+    "title": "Design and analysis of momentum trading strategies",
+    "url": "https://arxiv.org/pdf/2101.01006",
+    "snippet": "Abstract We give a complete description of the third-moment (skewness) characteristics of both linear and nonlinear momentum trading strategies, the latter being understood as transformations of a normalised moving-average filter (EMA). We explain in detail why the skewness is generally positive and has a term structure."
+   },
+   {
+    "title": "PDF Market volatility, momentum, and reversal: a switching strategy",
+    "url": "https://link.springer.com/content/pdf/10.1057/s41260-024-00372-1.pdf",
+    "snippet": "Short-term reversals have been studied extensively in the US market with excess returns documented by Lehmann (1990), Jegadeesh (1990), Bali et al. (2016), and Medhat and Schmeling (2022).4 The success of the proposed switching strategy relies on the relationship between preceding market volatility and future momentum as well as reversal returns."
+   },
+   {
+    "title": "Momentum Vs Mean Reversion Statistics: Which Trading Edge Actually ...",
+    "url": "https://papertradingjournal.com/2026/05/12/momentum-vs-mean-reversion-statistics/",
+    "snippet": "De Bondt and Thaler's famous long-term reversal study found prior market losers significantly outperformed winners over 3- to 5-year holding periods, supporting long-horizon mean reversion. Research from AQR found momentum and trend-following effects have persisted across 200+ years of market history and multiple global asset classes."
+   },
+   {
+    "title": "Quantitative Strategies: Momentum & Mean Reversion",
+    "url": "https://quantneuraledge.com/learn/quant-strategies-momentum-mean-reversion",
+    "snippet": "The implication is clear: momentum dominates the intermediate horizon (1-12 months) while mean reversion dominates the very short-term (days) and very long-term (years)."
+   }
+  ]
+ },
+ "short_term_reversal_daily": {
+  "query": "short-term reversal strategy weekly returns Jegadeesh",
+  "results": [
+   {
+    "title": "PDF A Closer Look at the Short-Term Return Reversal",
+    "url": "https://academicweb.nd.edu/~zda/Reversal.pdf",
+    "snippet": "Short-term return reversal in the stock market, a well-established phenomenon for more than 40 years, has been shown to be both robust and of economic significance.1 Jegadeesh (1990), for example, documents profits of about 2% per month over 1934-1987 using a reversal strategy that buys and sells stocks on the basis of their prior-month ..."
+   },
+   {
+    "title": "Short-term Reversal Strategy Analysis - GitHub",
+    "url": "https://github.com/SchoenTom/short-term-reversal",
+    "snippet": "Replication study of Jegadeesh (1990) short-term reversal using US equities (1926-2024). Tests alpha persistence across CAPM, FF5, and Q5 factor models, quantifies post-publication decay (McLean & Pontiff 2016), and constructs mean-variance optimal portfolios with residual momentum strategies."
+   },
+   {
+    "title": "Maxing out short-term reversals in weekly stock returns",
+    "url": "https://www.sciencedirect.com/science/article/pii/S0927539825000301",
+    "snippet": "Applying a short-term reversal strategy to high-MAX stocks generates an average weekly return of 1.66%, significantly outperforming the 0.65% return from the same strategy applied to low-MAX stocks. This result remains robust even after controlling for market microstructure biases and survives a series of robustness tests."
+   },
+   {
+    "title": "gelatotrade/short-term-reversal-seminar-paper- - GitHub",
+    "url": "https://github.com/gelatotrade/short-term-reversal-seminar-paper-",
+    "snippet": "Short-term Reversal Strategy Analysis Semester Project: Stock Markets in the Age of Big Data University of Konstanz | Winter 2025/2026 An empirical investigation of the short-term reversal anomaly (Jegadeesh 1990) examining whether buying past losers and selling past winners remains profitable in modern markets."
+   },
+   {
+    "title": "Short-Term Reversal | Springer Nature Link",
+    "url": "https://link.springer.com/chapter/10.1057/9781137359070_7",
+    "snippet": "S hort-term reversal is a well-documented market anomaly that was first noted by Fama (1965). Following Jegadeesh (1990), Jegadeesh and Titman (1995b), and Lehmann (1990), the reversal variable for each stock in month t is defined as the return of the same stock over the previous month. Jegadeesh (1990) shows that for the period 1934-1987, short-term reversal strategy yielded approximately 2 ..."
+   },
+   {
+    "title": "PDF A Closer Look at the Short-Term Return Reversal - JSTOR",
+    "url": "https://www.jstor.org/stable/pdf/42919559.pdf",
+    "snippet": "Short-term return reversal in the stock market, a well- established phenomenon for more than 40 years, has been shown to be both robust and of economic signi- nificance.1 Jegadeesh (1990), for example, documents profits of about 2% per month over 1934-1987 using a reversal strategy that buys and sells stocks on the basis of their prior-month ..."
+   },
+   {
+    "title": "PDF Short-Term Reversal - Springer",
+    "url": "https://link.springer.com/content/pdf/10.1057/9781137359070_7.pdf",
+    "snippet": "Short-term reversal is a well-documented market anomaly that was first noted by Fama (1965). Following Jegadeesh (1990), Jegadeesh and Titman (1995b), and Lehmann (1990), the reversal variable for each stock in month t is defined as the return of the same stock over the previous month. Jegadeesh (1990) shows that for the period 1934-1987, short-term reversal strategy yielded approximately 2 ..."
+   },
+   {
+    "title": "jegadeesh_short_term_reversal.ipynb - Colab",
+    "url": "https://colab.research.google.com/github/convexpi/replications/blob/main/notebooks/jegadeesh_short_term_reversal.ipynb",
+    "snippet": "Replication of Evidence of Predictable Behavior of Security Returns (1990). It recomputes the strategy from its building blocks and runs the out-of-sample (McLean & Pontiff) test on live data."
+   }
+  ]
+ },
+ "etoro_minimum_trade": {
+  "query": "eToro minimum trade amount stocks $50 crypto minimum",
+  "results": [
+   {
+    "title": "Trade crypto with an edge at etoro",
+    "url": "https://www.etoro.com/crypto/",
+    "snippet": "Trade crypto* 24/7 We accept crypto Seamless deposits & withdrawals Withdraw to your on-chain wallets Convert crypto to stocks, ETFs, or cash Set recurring crypto buys from $50"
+   },
+   {
+    "title": "What is the minimum you can invest in eToro? - wikitoro.org",
+    "url": "https://wikitoro.org/trading/what-is-the-minimum-you-can-invest-in-etoro",
+    "snippet": "The minimum you can invest in a single position on eToro is $10 (or the equivalent in your account currency). That $10 minimum only applies to stocks, ETFs, and most cryptocurrencies, but some advanced products come with higher minimums, and copy trading can also require more."
+   },
+   {
+    "title": "What's the deposit minimum? | eToro Help",
+    "url": "https://help.etoro.com/s/article/What-s-the-deposit-minimum?language=en_GB",
+    "snippet": "After your first deposit, there is a minimum deposit amount of only US $50 (US $10 in the UK; US $1 in the USA). All deposits via Bank Transfer must be at least US $500. The amounts above apply to personal accounts only. The minimum first deposit amounts for corporate accounts can be found here. eToro reserves the right to change the above deposit minimums at any time."
+   },
+   {
+    "title": "eToro Minimum Deposit: A Guide to Funding Your Account",
+    "url": "https://brokerchooser.com/broker-reviews/etoro-review/etoro-minimum-deposit",
+    "snippet": "Nobody likes surprises, so let's see if eToro asks for an upfront deposit. eToro requires a minimum deposit of $50 to start trading. While many brokers require no such minimum, we consider this amount acceptable. We'll walk you through deposit methods available at eToro and show you whether adding funds to your account comes with any extra ..."
+   },
+   {
+    "title": "eToro Trading Guide for Beginners 2026: Fees, Steps & Tips",
+    "url": "https://tradingcritique.com/broker-review/how-to-trade-invest-in-etoro-for-beginners/",
+    "snippet": "Want to trade on eToro? This 2026 beginner guide shows how to open an account, buy stocks or crypto, understand fees, and start investing confidently."
+   },
+   {
+    "title": "eToro Minimum Deposit 2026 \u2014 $50 | BrokerRank",
+    "url": "https://brokerrank.net/broker/etoro/minimum-deposit",
+    "snippet": "eToro minimum deposit is $50 to start trading. CySEC & FCA regulated. Accepted: Bank Wire, Credit Card, Skrill."
+   },
+   {
+    "title": "Minimum Account Balance at eToro - BrokerChooser",
+    "url": "https://brokerchooser.com/broker-reviews/etoro-review/minimum-account-balance-at-etoro",
+    "snippet": "The minimum deposit requirement means that you will need to transfer this amount to your brokerage account from your bank account in order to start trading. You can check the minimum deposit at eToro here."
+   },
+   {
+    "title": "Trade markets on eToro: Stocks, Crypto, Currencies and More",
+    "url": "https://www.etoro.com/trading/markets/",
+    "snippet": "Trade top cryptocurrencies Create the ultimate crypto portfolio with 100 cryptoassets available on our platform. etoro's innovative features ensure effective management of your assets, allowing seamless transfers to your etoro Money crypto wallet \u2014 all with a broker you can trust."
+   }
+  ]
+ },
+ "etoro_inactivity_fee_withdrawal": {
+  "query": "eToro inactivity fee withdrawal cost hidden fees crypto",
+  "results": [
+   {
+    "title": "eToro Fees: What You Pay to Invest",
+    "url": "https://www.etoro.com/trading/fees/",
+    "snippet": "The commission partly reflects exchange fees. etoro may charge extra fees on positions left open for expiry. You can preview the commission fee calculation by clicking on the estimated cost tooltip in the trade screen."
+   },
+   {
+    "title": "eToro Fees Explained 2026: Commissions & Hidden Costs",
+    "url": "https://www.matchmybroker.com/articles/etoro-fees-explained",
+    "snippet": "Complete breakdown of eToro fees in 2026: $1-$2 stock commissions, 1% crypto spread, forex costs, withdrawal fees, and how to minimize your trading costs."
+   },
+   {
+    "title": "eToro Fees: What they are and how they're calculated",
+    "url": "https://www.etoro.com/en-us/trading/fees/",
+    "snippet": "How crypto fees work A standardized 1% commission is charged each time you buy or sell a cryptoasset on etoro. In the past, this fee was absorbed into crypto spread calculations, affecting the offered buy and sell prices. While this model allowed users to see the full impact of their crypto trades on their account balance, it made trade performance and trading costs more complex to determine ..."
+   },
+   {
+    "title": "eToro Fees 2026: Spot, Futures & Withdrawal Costs | CryptoBubbleMap",
+    "url": "https://cryptobubblemap.com/exchanges/etoro/fees",
+    "snippet": "About This Page eToro's spot fees are as low as 1.000%, dropping to 0.000% with the discount token enabled. This page covers withdrawal fees, futures costs, and deposit channel fees, benchmarked against peer exchanges. Use the calculator above to estimate your monthly cost, or check the full fee schedule and real-world examples for exact figures."
+   },
+   {
+    "title": "Which fees and commissions does eToro have? | eToro Help",
+    "url": "https://help.etoro.com/s/article/which-fees-and-commissions-does-etoro-have",
+    "snippet": "Account Activity Withdrawal fee: all withdrawal requests are subject to a $5 USD fee. Conversion fee: applies to non-USD deposits and withdrawals. There are also fees associated with transferring crypto and using the etoro crypto wallet. In addition to fees, dividends may be credited to or debited from your available balance."
+   },
+   {
+    "title": "The Complete Breakdown of eToro Fees and Hidden Costs",
+    "url": "https://blog.wikibit.com/etoro-fees",
+    "snippet": "Comprehensive guide about etoro fees &#8211; Administrative Costs: Watch out for a $5 USD withdrawal fee and a $10 monthly inactivity penalty after 12 months of dormancy. Quick Answer / TL;DR - Stocks & ETFs: Expect a flat commission of $1 or $2 per trade depending on your region and the specific exchange. - Cryptocurrency: All crypto buy and sell orders incur a strict 1% fee deducted from ..."
+   },
+   {
+    "title": "eToro Fees 2026: The Real Costs Most Traders Miss -",
+    "url": "https://adatrix.net/reviews/etoro-fees/",
+    "snippet": "Compare eToro fees in 2026, including stock commissions, crypto fees, forex spreads, withdrawal fees, inactivity charges, and currency conversion costs."
+   },
+   {
+    "title": "All eToro Fees and Commissions Explained In Details 2026 - DailyForex",
+    "url": "https://www.dailyforex.com/forex-brokers/etoro-review/fees",
+    "snippet": "All eToro trading fees explained in detail, including Spread fee, inactivity fee, overnight fees, Deposit &Withdrawal fees, Currency Conversion Fee, and more."
+   }
+  ]
+ },
+ "dip_buying_trend_confirm": {
+  "query": "buy the dip only in uptrend above 200 day moving average win rate backtest",
+  "results": [
+   {
+    "title": "Trend Pullback Backtest \u2014 buying the dip in an uptrend | Investing Paths",
+    "url": "https://investingpaths.com/tools/backtest/trend-pullback",
+    "snippet": "Backtest buying pullbacks in an established uptrend: price above its 200-day average, dips to the 50-day, and reclaims it. Full trade plan \u2014 ATR stop, 2R target, breakeven move, 1% risk sizing."
+   },
+   {
+    "title": "Does buying the dip actually work? - EdgeStacker",
+    "url": "https://www.edgestacker.com/guides/does-buying-the-dip-work/",
+    "snippet": "Only buy dips in an uptrend. Every setup here required price above its 200-day average; buying dips in a downtrend is a different, far riskier game. Expect high win rates and small per-trade returns. That is normal for dip buying, so position sizing and costs matter a lot. Check the trade count."
+   },
+   {
+    "title": "Buy The Dips - MA200 Optimised \u2014 Strategy by Coinrule",
+    "url": "https://www.tradingview.com/script/WT1uzChH-Buy-The-Dips-MA200-Optimised/",
+    "snippet": "The strategy combines a contrarian approach (buying the dips) with a trend-following logic (only when the price is above the MA200) The strategy seeks to find the best times when buying the dips on the asset should result to be more profitable. The price above a long-term moving average indicates momentum that increases the possibility of profiting from buying the asset on short-term weakness."
+   },
+   {
+    "title": "Pullback Strategy: Buy the Dip in Uptrends - tradernewbie",
+    "url": "https://tradernewbie.com/strategies/2026-06-15-pullback-strategy",
+    "snippet": "Pullback Strategy: Buy the Dip in Uptrends Overview Buying the dip sounds simple, but most beginners buy the wrong dips \u2014 ones that mark the start of a reversal. This strategy buys only shallow, structured pullbacks inside a confirmed uptrend. You enter with the trend, at a better price than chasing, and let the trend do the work."
+   },
+   {
+    "title": "Buy the Dip \u2014 Stocks in Pullback with Accumulation | Stock Alarm Pro",
+    "url": "https://pro.stockalarm.io/screener/buy-the-dip",
+    "snippet": "Buy-the-dip candidates are stocks in a pullback state \u2014 their price has dipped below the 50-day moving average but remains above the 200-day moving average, signaling a short-term correction within a long-term uptrend. These are among the highest-probability setups in trend-following strategies: you're buying a strong stock at a temporary discount."
+   },
+   {
+    "title": "Pullback Trading Strategy: Buying the Dip in an Uptrend, Backtested ...",
+    "url": "https://investingpaths.com/pullback-trading-strategy",
+    "snippet": "The pullback is the bread-and-butter trend trade: wait for a rising stock to dip back to a moving average, then buy the bounce with a defined stop and target. Here's the full rule set: trend filter, entry, ATR stop, 2R target, and a live backtest with fees on, straight from our own engine."
+   },
+   {
+    "title": "Pullback Trading Strategy\uff5cBuy the Dip, Backtest Your Rules",
+    "url": "https://entriq.ai/en/blog/14-pullback-backtest",
+    "snippet": "Pullback Trading Strategy\uff5cBuy the Dip, Backtest Your Rules Learn to define how deep a pullback you wait for, avoid chasing and falling knives, and backtest the rules on past charts. Includes two sample rule entries."
+   },
+   {
+    "title": "Buy the dip - crackingmarkets.com",
+    "url": "https://www.crackingmarkets.com/buy-the-dip/",
+    "snippet": "For example, if a market is trading above the average prices of the last 200 days, it is typically considered to be in an uptrend. Conversely, if it is trading below the average prices of the last 200 days, we generally refer to it as a downtrend."
+   }
+  ]
+ },
+ "volatility_targeting_position_sizing": {
+  "query": "volatility targeting improves strategy returns Sharpe ratio",
+  "results": [
+   {
+    "title": "Volatility Targeting: Scaling Risk for Better Returns",
+    "url": "https://quantdecoded.com/en/volatility-targeting-scaling-risk-for-better-returns",
+    "snippet": "Setting a higher target results in more aggressive average exposure; setting a lower target produces a more conservative portfolio. Evidence Across Asset Classes Moreira and Muir's research demonstrates that volatility targeting improves risk-adjusted returns not just for the aggregate stock market, but across a wide range of assets and strategies."
+   },
+   {
+    "title": "Volatility Targeting Explained \u2014 Steady Risk Across Regimes",
+    "url": "https://usekeel.io/learn/volatility-targeting",
+    "snippet": "Volatility targeting: position sizing that scales exposure inversely to recent volatility. How it improves Sharpe, and where it leaves returns behind."
+   },
+   {
+    "title": "Does volatility targeting actually improve returns? \u2014 Quant for Free",
+    "url": "https://quant4free.com/analysis/vol-targeting/",
+    "snippet": "30 years of vol-targeting the S&P and five asset classes. A modest, equities-only risk tweak that costs return \u2014 risk management, not free alpha."
+   },
+   {
+    "title": "Volatility Targeting and Its Impact on Sharpe Ratios: A ... - Studocu",
+    "url": "https://www.studocu.com/en-us/document/high-school-us/ap-macroeconomics/volatility-targeting-and-its-impact-on-sharpe-ratios-a-comprehensive-study/168394021",
+    "snippet": "Volatility Targeting: A strategy that adjusts portfolio exposure based on market volatility to optimize returns. Sharpe Ratio: A measure of risk-adjusted return, indicating the performance of an investment compared to its risk."
+   },
+   {
+    "title": "PDF The Impact of Volatility Targeting - Duke University",
+    "url": "https://people.duke.edu/~charvey/Research/Published_Papers/P135_The_impact_of.pdf",
+    "snippet": "In this section, we examine possible explanations for why volatility scaling improves the Sharpe ratio for risk assets, such as equities and credit, but has no effect on the Sharpe ratio of other assets."
+   },
+   {
+    "title": "Volatility Targeting Strategy: Why Institutions Choose Risk-Adjusted ...",
+    "url": "https://nextinvest.org/en/post_detail/volatility-targeting-portfolio-experiment-en",
+    "snippet": "Sharpe ratio matters more than absolute returns - institutions optimize for risk-adjusted performance for good reason Volatility targeting delivers on its promise - it automatically reduces risk when markets get scary while maintaining target volatility"
+   },
+   {
+    "title": "An Introduction to Volatility Targeting - QuantPedia",
+    "url": "https://quantpedia.com/an-introduction-to-volatility-targeting/",
+    "snippet": "Numerous researches argue that Sharpe Ratios increase under volatility targeting. Specifically, for the so-called \"risk assets\" such as equity and credit, the Sharpe Ratio increases with the accuracy of volatility predictions that are used to implement the strategy. However, for bonds, currencies, commodities, and other assets is the impact on Sharpe ratio negligible. The change of Sharpe ..."
+   },
+   {
+    "title": "The Impact of Volatility Targeting - Man Group",
+    "url": "https://www.man.com/insights/the-impact-of-volatility-targeting",
+    "snippet": "Volatility targeting improves the Sharpe ratio of \"risk assets\" (equities and credit), and that of \"balanced\" and \"risk parity\" portfolios that have a substantial allocation to these risk assets."
+   }
+  ]
+ }
+}

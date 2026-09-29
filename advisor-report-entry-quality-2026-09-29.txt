@@ -1,0 +1,86 @@
+# Zweitgutachten: Entry-Qualität (eToro V3, Stand nach der Zäsur vom 26.07.)
+
+## 0. Was aus den gelieferten Daten nicht folgt
+
+- **„16pp unter Breakeven“ ist nicht belegt.** Die Breakeven-WR hängt vom Verhältnis Ø-Gewinn zu Ø-Verlust ab: `BE = |L| / (W + |L|)`. „51–52 %“ gilt nur bei einem Verhältnis von etwa 1:1. Ohne Ø-Gewinn und Ø-Verlust in USD ist die Aussage nicht prüfbar. Bei WR 35 % reicht schon ein Verhältnis von etwa 1,9:1.
+- **Brutto und Gebühren sind nicht getrennt.** -935 USD auf 502 Trades sind -1,86 USD pro Trade. Beispielrechnung mit angenommenem Ø-Notional: Bei 200 USD kosten 0,67 % Gebühren etwa 1,34 USD pro Trade, zusammen rund 670 USD. Dann wären ungefähr 70 % des Verlusts Gebühren und die Brutto-Edge läge nahe null. Das echte Ø-Notional fehlt, deshalb ist das die wichtigste offene Zahl.
+- **Crypto mit 4,5 % Kosten** braucht pro Trade eine Bewegung von über 4,5 %, nur um bei null zu landen. Die Anzahl der Crypto-Trades und ihr Anteil am Verlust fehlen.
+- **„Exits verifiziert“ ist zu weit gefasst.** Die Gegenprobe prüft nur Exit gegen Weiterhalten. Nicht geprüft sind ATR-skalierte Stops, Time-Stops und die Frage, ob der fixe Stop bei -3 % bei volatilen Titeln nur Rauschen ausstoppt. Nötig dafür ist die MAE-Verteilung der Gewinner, also der größte zwischenzeitliche Buchverlust eines Trades, der später im Plus schließt.
+- **Die CORE_SWEEP-Aussage ist so nicht haltbar.** „+281 vor, -7 nach der Zäsur“ ohne n und Konfidenzintervall belegt keine positive Quelle. Nach der Zäsur ist sie bei null.
+- **18k HIGH-Signale, 0 ausgeführt.** Damit sind die Konviktions-Stufen live nie getestet worden. Ob HIGH besser ist als MEDIUM, ist offen.
+
+## 1. Stärkster struktureller Hebel
+
+Das Kernproblem ist ein Widerspruch zwischen Signal-Typ und Stop, verschärft durch die Gebühren:
+
+- **Dip-Buy mit 35 % WR ist ein Warnzeichen.** Mean-Reversion zieht ihre Edge aus hoher WR (typisch 60–70 %) mit kleinen Gewinnen und negativer Schiefe. Liefert eine MR-Strategie 35 % WR, fehlt ihr die Reversion.
+- **Wahrscheinliche Mechanismen:**
+  - Fixer Stop bei -3 % in einer MR-Strategie: Die Reversion braucht Raum. Connors-artige Tests zeigen regelmäßig, dass enge Stops MR-Systeme verschlechtern.
+  - Käufe in fallende Messer ohne Trendfilter.
+  - Gebühren: Die Edge kurzfristiger Reversion liegt meist bei 0,2–0,5 % pro Trade. 0,67 % Round-Trip frisst das auf (de Groot/Huij/Zhou 2012: Reversal-Profite verschwinden nach Kosten, außer bei liquiden Large-Caps).
+
+**Höchster EV** hat nach meiner Einschätzung eine Kombination aus zwei Dingen, jeweils erst zu messen:
+
+1. Dip-Buys nur im Aufwärtsregime und ohne News-Auslöser. Details in H1 und H2 unten.
+2. Eine harte Gebühren-Hürde: nur einsteigen, wenn die erwartete Bewegung (ATR-basiert) mindestens das 3-fache der Round-Trip-Kosten beträgt.
+
+Beides senkt die Trade-Zahl deutlich. Das ist gewollt.
+
+## 2. Ursache: Regime, Signal-Kombination oder Universum?
+
+Aus den Daten lässt sich das nicht entscheiden. Die drei Hypothesen sind vermischt, weil die Dip-Buy-Kombination Volumen und Regime-Exposition zugleich dominiert. Nötig ist eine Zerlegung derselben 502 Trades:
+
+| Schnitt | Gruppen | Zu erwarten, falls diese Ursache stimmt |
+|---|---|---|
+| Regime | SPY über/unter SMA200 × Titel über/unter SMA200 | Verlust konzentriert sich im Feld „unter/unter“ |
+| Kombination | Dip-Buy gegen Momentum gegen Rest | Dip-Buy negativ auch im Aufwärtsregime → Signal-Problem |
+| Universum | ADV-/Spread-/Marktkap-Terzile, Asset-Klasse | Unterstes Terzil und Crypto tragen den Verlust |
+| Kosten | Brutto- gegen Netto-PnL je Gruppe | Brutto ≈ 0 überall → Frequenz- und Gebührenproblem |
+
+Bei jeder Zelle n angeben. Zellen mit weniger als 30 Trades nicht interpretieren. Zusätzlich die Top-5-Trades herausnehmen und das Vorzeichen erneut prüfen, um den Einfluss von Ausreißern zu sehen.
+
+## 3. Vorab zu registrierende Tests
+
+**Methodik**
+- Nur Shadow-Messung auf dem vorhandenen Signal-Log: Forward-Return nach 5 und 10 Tagen, netto nach Gebühren, über alle 18k+ Signale. Live wird nichts geändert.
+- Die Signale überlappen sich zeitlich. Deshalb Bootstrap mit Clustern pro Handelstag, nicht pro Signal.
+- Out-of-Sample: den Zeitraum nach der Zäsur chronologisch teilen, 60 % zum Entwerfen, 40 % als Holdout. Den Holdout genau einmal ansehen.
+- Primärmetrik: Expectancy pro Trade in USD, netto, mit 95-%-KI. Die WR läuft nur sekundär mit.
+- Stichprobe: Um einen WR-Anstieg von 35 auf 45 % mit 80 % Power zu erkennen, braucht es etwa 375 Trades pro Arm. Live ist das auf Monate nicht erreichbar, deshalb die Shadow-Messung.
+
+| # | Hypothese (Mechanismus) | Gate | Erfolg, wenn | Verwerfen, wenn |
+|---|---|---|---|---|
+| H1 | Dip-Buys im Abwärtsregime sind fallende Messer (Connors, Trendfilter) | Dip-Buy nur bei Titel > SMA200 **und** SPY > SMA200 | Expectancy der gefilterten Menge > 0, KI ohne 0, im Holdout | Differenz zur ungefilterten Menge im Holdout nicht signifikant |
+| H2 | Kursrückgänge mit News-Auslöser laufen weiter, solche ohne News kehren um (Chan 2003) | Dip-Buy nur ohne negatives LLM-News-Flag in den letzten 3 Tagen | Expectancy „ohne News“ > Expectancy „mit News“, KI ohne 0 | Kein Unterschied. Dann ist auch das News-Flag selbst als uninformativ zu prüfen |
+| H3 | Kosten fressen die kleine Edge | Einstieg nur bei ATR14 % ≥ 3 × Round-Trip-Kosten; Crypto vollständig ausschließen | Brutto-Expectancy der Ausgeschlossenen ≤ Kosten | Die Ausgeschlossenen sind brutto klar positiv |
+| H4 | Die Stufen sind nicht kalibriert | Forward-Return HIGH gegen MEDIUM gegen verworfene Signale | HIGH > MEDIUM monoton, im Holdout | Keine Monotonie. Dann gibt es keine Grundlage für Positionen bis 500 USD |
+| H5 | Der fixe Stop bei -3 % stoppt bei volatilen Titeln Rauschen aus | Nur messen: Anteil der Gewinner mit MAE < -3 %; Simulation SL = k·ATR für k = 1,5/2/2,5 bei gleichem Risiko in USD | Deutlich weniger Rausch-Stops bei nicht schlechterer Expectancy | Kein Unterschied |
+| H6 | Rücksetzer in relativen Gewinnern kehren um, in Verlierern nicht | Dip-Buy nur im oberen Terzil der 12-1-Monats-Momentum-Rangliste | Wie H1 | Wie H1 |
+
+H5 betrifft den Exit. Der ist geldwirksam, also Umsetzung nur nach ausdrücklicher Entscheidung von VoLLi.
+
+## 4. Was die Forschung sagt (Horizont: Tagesdaten)
+
+- **Momentum**
+  - Querschnitts-Momentum (Jegadeesh/Titman 1993) und Zeitreihen-Momentum (Moskowitz/Ooi/Pedersen 2012) wirken über Wochen bis Monate, nicht über Tage.
+  - Typisch sind 35–45 % WR mit positiver Schiefe: wenige große Gewinner.
+  - Das verträgt sich nur mit weiten oder Trailing-Stops. Eine WR-Steigerung ist bei Momentum kein realistisches Ziel.
+- **Mean-Reversion**
+  - Kurzfristige Umkehr auf 1 Woche bis 1 Monat (Jegadeesh 1990, Lehmann 1990).
+  - Hohe WR, negative Schiefe, sehr kostensensitiv, am stärksten bei liquiden Titeln ohne News-Auslöser und im Aufwärtstrend.
+  - Das Ziel „WR deutlich hoch“ ist realistisch nur mit gefilterter Mean-Reversion zu erreichen, nicht mit Momentum.
+- **Post-Earnings-Drift (PEAD)** ist ein dokumentierter Effekt über Tage bis 60 Tage und passt zur News-Pipeline. Das wäre der einzige neue Signal-Typ, der eine Prüfung lohnt. Priorität trotzdem niedrig, siehe Ranking.
+
+## 5. Ranking
+
+| Rang | Option | Begründung |
+|---|---|---|
+| 1 | **(b) Regime-abhängige Auswahl der Signale** | Direkter Mechanismus (H1, H6). Testbar mit vorhandenen Daten. Trifft die Kombination mit dem größten Volumen. |
+| 2 | **(d) Weniger Trades, höhere Einstiegshürde** | Reine Gebühren-Arithmetik (H3). Crypto-Ausschluss vermutlich der schnellste Einzeleffekt, sofern der Crypto-Anteil relevant ist. |
+| 3 | **(a) Engere Einstiegs-Gates** | Nur als News-Gate (H2) mit klarem Mechanismus. Pauschales Verschärfen ohne Mechanismus ist Curve-Fitting. |
+| 4 | **(e) ATR-normalisierte Schwellen** | Mehr Wirkung beim Stop (H5) als beim Einstieg. Als Einstiegskriterium steckt es schon in H3. |
+| 5 | **(c) Neue Signal-Typen** | Mehr Freiheitsgrade bei kleinem n. Erst wenn die bestehenden Signale brutto positiv sind. Einziger Kandidat: PEAD. |
+
+**Voraussetzung für die 500-USD-Positionen:** H4 muss bestanden sein. Solange nicht gezeigt ist, dass HIGH besser ist als MEDIUM, ist „risikoarmes Setup“ nicht definiert. Größere Positionen würden dann nur eine negative Expectancy vergrößern.
+
+**Nächster Schritt, rein messend:** die Zerlegungstabelle aus Punkt 2 mit Brutto/Netto, n und Einfluss der Top-5-Ausreißer, dazu Ø-Gewinn, Ø-Verlust und Ø-Notional. Ohne diese Zahlen bleibt jede Ursachenzuordnung eine Vermutung.
