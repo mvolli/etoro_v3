@@ -1,6 +1,47 @@
 # HANDOFF: eToro V3 Exit-Layer Optimization (Session 4 → Session 5)
 Written: 2026-09-29 · Repo: `/home/mvolli/.hermes/workspace/etoro_v3` (branch `main`, 2 commits ahead of origin — push when green)
 
+## ✅ UPDATED 2026-09-30: Replay DONE + MA200 gate LIVE (shadow) — new session reads this first
+- `scripts/_shadow_exit_replay.py` **BUILT + RUN** (committed `61566c8`, in sync with origin).
+  Results: `data/exit_replay_results.json` (16 scenarios × full/train/holdout/monthly, 511 closed trades,
+  284 symbols × 246 bars backfilled via `scripts/_fetch_replay_bars.py`).
+- **Replay verdict**:
+  - Realized: −$513 / −$1.00/tr (holdout −$363 / −$1.12). S0 baseline replay: −$163 / −$0.32.
+  - Standalone levers (wide stop, chandelier, relax-BE, time-stop) all FAIL on holdout (CIs < 0).
+  - ATR-sizing S6 is a MESS (−$4,472 holdout, CI [−9077, +309]) — do NOT adopt.
+  - Only OOS-robust lever = **MA200 filter** (blocks ~56% of trades):
+    S12 (MA200+base): full +$22 / +$0.10/tr, holdout −$12 / −$0.09 (≈breakeven, CI [−317,+193]),
+    WR 44–43%, vs realized −$1.00/tr. Monthly: Jul +$63, Aug −$19, Sep −$22 (not single-month).
+  - Full-stack S8 (+reversion+ATR-size+cap10): full +$1,516 / +$6.74 but holdout +$326 with
+    CI [−964,+1541] — NOT significant; overfit risk. Keep S12 as the minimal robust change.
+- **MA200 shadow gate LIVE since 2026-09-29** (config default `ma200_trend.mode: shadow`;
+  no override in config.yaml). Shadow invariant HOLDS: pure-ma200 rows carry size_mult 1.0;
+  co-firing rows (volume_confirm 0.5×) are legitimate gate stacking.
+- **Flip-criterion progress (≥50 closed passed + ≥50 closed would-block, $/trade metric)**:
+  26 would-block ledger rows so far (1 linked trade still ACTIVE: 06881.HK; rest REJECTED by
+  other gates or never executed). Progress is SLOW for structural reasons (see below).
+- **✅ COVERAGE GAP CLOSED 2026-09-30** (was: only 16/76 evaluated symbols = 21% had ≥201
+  closes; uncovered symbols FAIL-OPEN; block rate 5.5% overall vs 32.3% covered):
+  `scripts/_backfill_ma200_crypto.py` seeded 2y yfinance daily history for the evaluated
+  universe (watchlist ∪ 90d-closed trades = 772 symbols, skipping the 282 the equity seed
+  already had). Result: **490 fetched → 466 OK, 7 short, 17 no-data (delisted/gold/silver
+  ETFs with no yfinance mapping — stay fail-open, acceptable). `ma200_daily` = 335,167 rows,
+  748 symbols ≥201 closes → coverage 748/772 (96.9%)**. Idempotent (INSERT OR IGNORE),
+  closed bars only, fail-open per symbol. KNOWN STALENESS: yfinance back-adjusts the whole
+  series — a post-seed split makes stored history stale (advisor-noted, live-appended rows
+  correct from then on).
+  → NEXT: let the shadow gate accumulate on the now-covered universe. Do NOT flip before
+    ≥50 closed passed + ≥50 closed would-block AND $/trade beats realized baseline.
+- AGENTS.md truncation fixed via `hermes config set context_file_max_chars 50000` (was 32000
+  pin; file 35,806 chars; verified no truncation). Compression drafts (`AGENTS.md.compact`,
+  `agentsmd_manifest.json`, `/tmp/agents_v3.md`) proved LOSSY (108 code spans missing) →
+  discarded & cleaned; pin-increase is the durable fix, lossless-compress Local Contracts
+  bullets if the file passes ~48k.
+- Untracked leftovers (not mine to commit): `advisor-q-*.txt` (3 advisor reports),
+  `data/backup/`, `data/backtest_cache/`, `data/backtest_symfiles/`,
+  `data/.watchdog_llm_last_alert` — plus tracked-but-live `data/llm_*.json` churn from the
+  running bot (commit only deliberately, per Self-Improvement-Lauf convention).
+
 ## Mission (user-verbatim)
 "Arbeite autonom weiter an Optimierungen. Der advisor ist dein Freund. Führe auch tiefgreifende Recherchen online durch was noch improvement-fähig ist."
 Follow-up: "Autonom weiter mit den Optimierungen. Neue Session starten bevor der Kontext über läuft" → this handoff.
