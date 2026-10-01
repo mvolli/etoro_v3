@@ -16,6 +16,11 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+# feat/partial-close-policy (2026-10-01): config-gated Partial-Close gate.
+# Self-contained module (no import-time side effects, fail-open) — imported
+# at the top level so all three execution paths share the same policy + ledger.
+from bot.core import partial_close_policy as _pcp
+
 # ── Profit-Taking Thresholds (Trading Bible V5) ──────────────────────────────
 # fix/be-trigger-lowered: war 5.0. Bei SL=3% blieb eine Position bis +5%
 # vollstaendig ungeschuetzt und konnte von +4.9% direkt auf -3% durchrutschen,
@@ -1442,6 +1447,39 @@ def execute_trailing_actions(
 
         if action.action in ('PARTIAL_CLOSE', 'MOMENTUM_FADE'):
             is_fade = action.action == 'MOMENTUM_FADE'
+            # feat/partial-close-policy (2026-10-01): config-gated gate.
+            # Evaluates the partial-close mode (current | no_partials |
+            # loss_only) and records the decision to partial_close_shadow in
+            # ALL modes (shadow evidence). In `current` mode this always
+            # allows (no behavior change); in the other modes it suppresses
+            # the trims the policy says so. Full closes / BE / SL / STALE /
+            # FULL_EXIT are untouched (handled in the branch above).
+            # Fail-open: any policy/ledger error allows the partial.
+            try:
+                _pc_dec = _pcp.check(
+                    db, path='trailing',
+                    symbol=action.symbol,
+                    position_id=action.position_id,
+                    instrument_id=action.instrument_id or None,
+                    pnl_pct=action.pnl_pct,
+                    close_pct=action.close_pct,
+                    amount_usd=action.amount_usd,
+                    record=not dry_run,   # dry-run simulation: no ledger
+                )
+                if not _pc_dec.allowed:
+                    stats['partial_closes_suppressed'] = (
+                        stats.get('partial_closes_suppressed', 0) + 1)
+                    logger.info(
+                        '[trailing] %s: Teilverkauf unterdrueckt (%s) — %s '
+                        '%+.1f%% %.0f%% (%s)',
+                        action.symbol, _pcp.mode(), action.action,
+                        action.pnl_pct, action.close_pct, _pc_dec.suppressed_reason,
+                    )
+                    continue
+            except Exception as _pc_exc:
+                logger.debug('[trailing] partial-close policy check failed '
+                             '(fail-open, allow): %s', _pc_exc)
+
             # Structured ladder-taking (PARTIAL_CLOSE) is suppressed in stressed
             # regimes ("let winners run"). MOMENTUM_FADE is protective de-risking
             # — locking a gain that is actively fading — so it runs in ALL

@@ -426,6 +426,24 @@ sizing:                       # Position size as % of portfolio equity
   # 0 = Schrumpfung aus (altes Verhalten).
   kelly_shrink_k0: 50.0
 
+partial_close:                # feat/partial-close-policy (2026-10-01) — Teilschliessungen
+                              # Config-gated mode selector for ALL partial-close paths
+                              # (trailing ladder + momentum fade, LLM EXIT/TIGHTEN, SELL-Exit).
+                              # `current` = no behavior change (today's profit-side partials).
+                              # `no_partials` (Variant A "Wegfall"): suppress EVERY partial;
+                              #   positions hold to their final exit (SL/BE/full-exit/stale).
+                              # `loss_only` (Variant B): suppress PROFIT-side partials,
+                              #   keep LOSS-side partials (pnl_pct < 0).
+                              # Loss protection (BE/SL/FULL_EXIT/50%-rule full close) is NEVER
+                              # touched by this gate — it only acts on a genuine partial
+                              # (close_pct < 99.5). The shadow ledger (table
+                              # partial_close_shadow) records every decision in ALL modes,
+                              # so the forward balance impact of each mode is measurable.
+                              # Flip by editing `mode:` (default `current` = zero change).
+  mode: current               # current | no_partials | loss_only
+  ledger: true                # Always record decisions (shadow evidence). false = off.
+  partial_threshold_pct: 99.5 # close_pct strictly below this = "partial" (else full).
+
 trailing:                     # Dynamic profit-taking (runs each risk_worker cycle on LIVE PnL)
   min_hold_hours: 24          # fix/fee-churn-minhold (2026-09-20): Schonfrist — keine
                               # diskretionären Ausstiege (momentum-fade, profit-ladder,

@@ -292,6 +292,52 @@ def execute_llm_recommendations(
                 except Exception:
                     pass  # ohne Guard weiter wie bisher (fail-open)
 
+            # feat/partial-close-policy (2026-10-01): config-gated gate.
+            # Sits AFTER the 50%-rule upgrade so the anti-fragmentation
+            # full-close (loss protection) always wins; the gate only ever
+            # acts on a genuine partial (rec_close_pct < 99.5). In
+            # `current` mode this never suppresses (no behavior change); in
+            # no_partials / loss_only it holds the position (keeps it open
+            # to its final exit) instead of taking the LLM profit-trim.
+            # A suppressed rec is consumed (executed=suppressed) so it is
+            # not re-fired next cycle. Fail-open: any error allows.
+            if rec_close_pct < 99.5:
+                try:
+                    from bot.core import partial_close_policy as _pcp
+                    _pc_pnl = None
+                    try:
+                        _pc_snap = db.fetchone(
+                            "SELECT unrealized_pnl_pct FROM portfolio_snapshot "
+                            "WHERE api_position_id = ?", (str(position_id),),
+                        )
+                        if _pc_snap and _pc_snap["unrealized_pnl_pct"] is not None:
+                            _pc_pnl = float(_pc_snap["unrealized_pnl_pct"])
+                    except Exception:
+                        pass
+                    _pc_dec = _pcp.check(
+                        db, path='llm', symbol=symbol,
+                        position_id=str(position_id), instrument_id=instr_id,
+                        pnl_pct=_pc_pnl, close_pct=rec_close_pct,
+                        amount_usd=None, record=not dry_run,
+                    )
+                    if not _pc_dec.allowed:
+                        logger.info(
+                            "[llm_execution] %s: Teilverkauf %.0f%% unterdrueckt "
+                            "(mode=%s, pnl %s) — Position wird gehalten. (%s)",
+                            symbol, rec_close_pct, _pcp.mode(),
+                            ("%.1f%%" % _pc_pnl) if _pc_pnl is not None else "n/a",
+                            _pc_dec.suppressed_reason,
+                        )
+                        rec["executed"]        = True
+                        rec["executed_at"]     = now.isoformat()[:19]
+                        rec["executed_reason"] = "pc_policy_suppressed"
+                        changed = True
+                        stats["skip_count"] += 1
+                        continue
+                except Exception as _pc_exc:
+                    logger.debug("[llm_execution] partial-close policy check "
+                                 "failed (fail-open, allow): %s", _pc_exc)
+
             # Direkter Teilverkauf (TIGHTEN mit close_pct ODER EXIT)
             logger.info("[llm_execution] %s %s %.0f%% (position=%s, Rest %.0f%%) %s",
                         recommendation, symbol, rec_close_pct, position_id,

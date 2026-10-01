@@ -303,6 +303,34 @@ def execute_sell_exits(
         else:
             logger.info("[sell_exits] %s: %s (units=%.6f)", action.symbol, action.reason, units_to_deduct)
 
+        # feat/partial-close-policy (2026-10-01): config-gated gate. Only on
+        # a genuine partial (not is_full — the 50%-rule full close is loss
+        # protection and always runs). In `current` mode never suppresses; in
+        # no_partials / loss_only the profit-side SELL-Exit trim is skipped
+        # (position held to its final exit). Signal is NOT consumed and the
+        # cooldown is NOT started — the position simply stays open. Fail-open.
+        if not is_full:
+            try:
+                from bot.core import partial_close_policy as _pcp
+                _pc_dec = _pcp.check(
+                    db, path='sell_exit', symbol=action.symbol,
+                    position_id=action.position_id,
+                    instrument_id=action.instrument_id,
+                    pnl_pct=action.pnl_pct, close_pct=action.close_pct,
+                    amount_usd=action.amount_usd, record=not dry_run,
+                )
+                if not _pc_dec.allowed:
+                    logger.info(
+                        "[sell_exits] %s: Teilverkauf %.0f%% unterdrueckt "
+                        "(mode=%s, pnl %+.1f%%) — Position wird gehalten. (%s)",
+                        action.symbol, action.close_pct, _pcp.mode(),
+                        action.pnl_pct, _pc_dec.suppressed_reason,
+                    )
+                    continue
+            except Exception as _pc_exc:
+                logger.debug("[sell_exits] partial-close policy check failed "
+                             "(fail-open, allow): %s", _pc_exc)
+
         if dry_run:
             stats["closed"] += 1
             if is_full:
