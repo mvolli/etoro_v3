@@ -305,10 +305,23 @@ regime:                       # Drawdown-from-rolling-peak → 4-state regime (r
 # Messung 2026-08-28: haeufigster Blocker in 36 von 96 Laeufen,
 # 102 Signale -> 20 Kandidaten -> 1 genehmigter Trade in 24 h bei 88 % Cash.
 # MEAN_REVERSION / TREND_FOLLOWING / CORE behalten die 45 %-Kappe.
+#
+# 2026-10-02 self-improvement: MIXED 1.0 -> 0.45 (zurueck zur Standard-Kappe).
+# Der 08-28-Entscheid (MIXED=1.0) gruendete darauf, dass MACD_TURN_BELOW_SMA20,
+# BB_LOW_MACD_IMPROVING der BESTE Typ war (n=41, WR 51.2%, +56 USD) und in den
+# MIXED-Gleichstand faellt. Das ist invertiert: post-26.07-Zaesur ist MACD+BB der
+# groesste Drag im Buch (n=229, WR 30.1%, Summe -200.23 USD) und in den letzten
+# 14d der SCHLECHTSTE aktive Typ (WR 17.9%, avg -2.07%). Das offene Buch liegt bei
+# 43/54 = 79.6 % MIXED. Score-Multiplikator (0.25) und _signal_performance_decay
+# (0.3-Floor) sind beide am Boden und konnen die Familie nur untereinander sortieren,
+# NICHT daran hindern, eine UNGEKAPPT-Kategorie zu monopolisieren. Nur die Kategorie-
+# Kappe aendert die Buch-Zusammensetzung. MIXED 0.45 = gleich wie alle anderen
+# Kategorien; umkehrbar (MIXED: 1.0 zuruecksetzen). Kein Schutz-Objekt, keine
+# Conviction-Leiter, kein VoLLi-_decided_by-Eintrag. Beleg: self_improvement_runs.
 diversity:
   max_category_fraction: 0.45
   category_overrides:
-    MIXED: 1.0
+    MIXED: 0.45
 
 sl:                           # Stop-loss configuration
   default_pct: 3.5            # Default stop-loss distance from entry (%) — AKTIVES Experiment (2.5->3.0, 14d seit 2026-07-19)
