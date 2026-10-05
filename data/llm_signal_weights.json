@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-09-25T20:31:03.076588+00:00",
-  "auto_expires_at": "2026-10-09T20:31:03.076599+00:00",
+  "updated_at": "2026-10-04T20:31:19.043444+00:00",
+  "auto_expires_at": "2026-10-18T20:31:19.043456+00:00",
   "adjustments": {
     "TREND_PULLBACK,GOLDEN_CROSS": {
       "score_multiplier": 1.0,
@@ -20,7 +20,10 @@
     "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": {
       "score_multiplier": 0.25,
       "skip": false,
-      "reason": "Deepened 0.5 -> 0.25. 26.07-Zaesur (n=195, WR 30.8%, avg -0.32%, sum -168.8). 30d: n=145, WR 26.2%, sum -208.49. 7d: n=11, WR 9.1%. All 195 = MEDIUM conviction. Breakeven WR ~35.2% (avg_win +4.86 / avg_lose -2.64); persistent, large-sample loser (buying BB-low + MACD-turn = falling-knife entries in a downtrend). Deprioritized in candidate ranking; not skipped (avg_win +4.86% retains upside). Ratchet will NOT loosen (realized < 0). self_improvement 2026-09-28."
+      "reason": "34% win rate and -0.50% avg PnL (n=229). The large sample size confirms a structural underperformance in the current market regime. Moderate dampening to preserve capital.",
+      "_ratchet_frozen": true,
+      "_proposed": 0.7,
+      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.25 -> 0.7 blockiert (n_closed=229/20, pnl_usd=-200.23, realisiert=-101.11 USD)"
     },
     "CORE_SWEEP": {
       "score_multiplier": 0.5,
@@ -43,14 +46,14 @@
     "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20": {
       "score_multiplier": 0.5,
       "skip": false,
-      "reason": "Small sample size but negative PnL (-3.03%); aligning with strategy basis that deep RSI without strong trend confirmation is risky."
+      "reason": "28% win rate and -2.18% avg PnL (n=18). Despite MACD turn, the extreme oversold condition acts as a falling knife indicator. Dampening to reduce exposure to high-volatility reversals."
     }
   },
   "strategy_notes": [
-    "High-conviction trend signals are currently generating more losses than medium-conviction ones, suggesting the conviction filter is too loose for trend-following in current market conditions.",
-    "Dip-buying signals (MACD/BB) continue to underperform in CAUTION regime, reinforcing the need for stricter trend confirmation before entry."
+    "High-conviction trend signals are currently failing to outperform medium-conviction ones, suggesting that conviction scoring may be too aggressive for current volatility conditions.",
+    "Mean-reversion signals (BB/MACD) are showing negative expectancy, indicating that the market may be trending rather than ranging, or that entry timing is too late in the dip."
   ],
   "conviction_issues": [
-    "TREND_PULLBACK,GOLDEN_CROSS HIGH conviction has a 26% win rate, which is below the 25% threshold for 'very concrete reason' to keep active. Dampened to 0.25."
+    "TREND_PULLBACK,GOLDEN_CROSS HIGH conviction has a 26% win rate, which is below the 25% threshold for 'very concrete reason' requirement, necessitating dampening."
   ]
 }

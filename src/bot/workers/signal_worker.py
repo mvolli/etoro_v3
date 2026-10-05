@@ -1932,6 +1932,44 @@ def _run_core_sweep(
     return approved_count, cash_estimate, total_exposure, position_count
 
 
+BROKER_MIN_MAX_AGE_S = 7 * 86400
+
+
+def effective_broker_min(min_position_amount, learned_at, now=None):
+    """Erweitert instruments.min_position_amount um die Freshness des Lerner-Werts.
+
+    fix/units-only-tradability (2026-10-05): der UnitsOnlyMinShare-Lerner
+    schreibt den ANTALTSWERT als min_position_amount (ABB.ST $963). Ein
+    gelernter Wert (learned_at gesetzt) darf nur WENIGE Tage gelten — ein
+    Kurs-Sprung wuerde sonst auf dem falschen Niveau pre-reject. Statische
+    eToro-720-Minima (NATGAS $1000) haben KEIN learned_at und gelten
+    unveraendert (altes Verhalten).
+
+    Rueckgabe: der effektive Broker-Minimum-Wert (float) oder None (kein
+    wirksames Minimum -> fail-open, nichts wird pre-rejected).
+    """
+    try:
+        val = float(min_position_amount) if min_position_amount is not None else 0.0
+    except (TypeError, ValueError):
+        return None
+    if val <= 0:
+        return None
+    if not learned_at:
+        # Statisches Broker-Minimum (eToro 720) — immer wirksam.
+        return val
+    try:
+        from datetime import datetime, timezone
+        now = now or datetime.now(timezone.utc)
+        learned = datetime.fromisoformat(str(learned_at))
+        if learned.tzinfo is None:
+            learned = learned.replace(tzinfo=timezone.utc)
+        if (now - learned).total_seconds() > BROKER_MIN_MAX_AGE_S:
+            return None  # gelernter Anteilswert veraltet -> fail-open
+    except Exception:
+        return val  # unparseable -> treat as fresh (fail-open)
+    return val
+
+
 def main() -> None:
     # ── Worker lock: prevent overlapping cron invocations ────────────────────
     from bot.core.worker_lock import worker_lock
@@ -2452,11 +2490,21 @@ def main() -> None:
             _broker_min = None
             try:
                 _min_row = signal_repo.db.fetchone(
-                    "SELECT min_position_amount FROM instruments WHERE instrument_id = ?",
+                    "SELECT min_position_amount, "
+                    "min_position_amount_learned_at FROM instruments "
+                    "WHERE instrument_id = ?",
                     (signal.get("instrument_id"),),
                 )
                 if _min_row and _min_row["min_position_amount"]:
-                    _broker_min = float(_min_row["min_position_amount"])
+                    # fix/units-only-tradability (2026-10-05): gelernter
+                    # Anteilswert (UnitsOnlyMinShare) veraltet mit dem Kurs —
+                    # effective_broker_min() ignoriert Werte >7 Tage alt
+                    # (fail-open). Statische eToro-720-Minima tragen kein
+                    # learned_at und gelten unveraendert (altes Verhalten).
+                    _broker_min = effective_broker_min(
+                        _min_row["min_position_amount"],
+                        _min_row["min_position_amount_learned_at"],
+                    )
             except Exception:
                 _broker_min = None  # Spalte fehlt (aeltere Test-DBs) -> fail-open
             if _broker_min and buy_amount < _broker_min:

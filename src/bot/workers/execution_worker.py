@@ -362,6 +362,52 @@ def is_internal_only_error(reason: str | None) -> bool:
     return bool(reason) and "visible internal only" in reason
 
 
+_UNITS_ONLY_RE = re.compile(
+    r"UnitsOnlyMinShare: [\d.]+ buys ([\d.]+) share\(s\) \(< 1\) of \S+ at ([\d.]+)"
+)
+
+
+def is_units_only_min_share_error(reason: str | None) -> bool:
+    """Client-Block: unitsOnly-Titel (Real Shares, Hebel 1) — der Auftrag
+    kaeuft weniger als 1 whole share, eToro wuerde ihn ablehnen (pure, testbar).
+
+    fix/units-only-tradability (2026-10-05): ABB.ST lief am 2026-09-30 3x
+    durch den vollen Order-Path und FAILED ("Blocked: UnitsOnlyMinShare:
+    100.00 buys 0.1038 share(s) (< 1) of ABB.ST at 963.400000"). Das
+    Instrument IST handelbar — aber NUR ab 1 whole share. Mit dem
+    Default-Sizing ($50-$100) gegen eine $960-Aktie ist jede Order in
+    dieser Groessenklasse doomed: der Lerner schreibt
+    min_position_amount = Anteilswert, damit der signal_worker sie vor
+    dem 15-min Execution-Zyklus pre-rejects (BROKER_MIN).
+    """
+    return bool(reason) and "UnitsOnlyMinShare:" in reason
+
+
+def parse_units_only_price(reason: str | None) -> tuple[float | None, float | None]:
+    """Extrahiert (shares, share_price) aus dem UnitsOnlyMinShare-Error
+    (pure, testbar). Beide None, wenn das Format nicht passt."""
+    if not reason:
+        return None, None
+    m = _UNITS_ONLY_RE.search(reason)
+    if not m:
+        return None, None
+    return float(m.group(1)), float(m.group(2))
+
+
+def is_instrument_not_found_error(reason: str | None) -> bool:
+    """Eligibility-Answer: Instrument fehlt in notFoundInstrumentIds —
+    laut eToro-Katalog dauerhaft NICHT existierend/handelbar (pure, testbar).
+
+    fix/units-only-tradability (2026-10-05): SLV (id 834108) lief 2x
+    (2026-10-01/02) in "Blocked: Instrument 834108 not found (not
+    tradable)" und der Rejection-Lerner kannte das Pattern nicht —
+    is_tradable blieb 1 und der Core-Sweep-Auto-Whitelist (24h-TTL)
+    queue-te es jeden Tag neu. Gleicher Lerner wie eToro-814 /
+    allowOpenPosition=false.
+    """
+    return bool(reason) and "not found (not tradable)" in reason
+
+
 def is_not_eligible_error(reason: str | None) -> bool:
     """Eligibility-Gate: allowOpenPosition=false — Instrument ist laut
     eToro-Eligibility-Antwort dauerhaft NICHT handelbar (pure, testbar).
@@ -381,8 +427,10 @@ def is_not_eligible_error(reason: str | None) -> bool:
 def _learn_from_rejection(db, instrument_id, symbol: str, reason: str | None) -> None:
     """Aus Order-Ablehnungen lernen (fix/order-error-learning 2026-07-16,
     fix/eligibility-tradability-learning 2026-09-18):
-    720 -> instruments.min_position_amount (signal_worker sized dann gar nicht
-    erst darunter), 814 ODER Preflight-Eligibility allowOpenPosition=false
+    720 / UnitsOnlyMinShare -> instruments.min_position_amount
+    (signal_worker sized dann gar nicht erst darunter; bei
+    UnitsOnlyMinShare = gelernter Anteilswert), 814 /
+    Preflight-Eligibility allowOpenPosition=false / notFoundInstrumentIds
     -> is_tradable=0 (Discovery/Signal/Core-Sweep filtern darauf).
     Best effort, wirft nie."""
     import logging as _logging
@@ -398,7 +446,8 @@ def _learn_from_rejection(db, instrument_id, symbol: str, reason: str | None) ->
                 "ExecutionWorker: %s Broker-Minimum $%.0f gelernt (eToro 720)",
                 symbol, broker_min,
             )
-        if is_internal_only_error(reason) or is_not_eligible_error(reason):
+        if (is_internal_only_error(reason) or is_not_eligible_error(reason)
+                or is_instrument_not_found_error(reason)):
             db.execute(
                 "UPDATE instruments SET is_tradable = 0, "
                 "tradability_checked_at = datetime('now') WHERE instrument_id = ?",
@@ -406,9 +455,32 @@ def _learn_from_rejection(db, instrument_id, symbol: str, reason: str | None) ->
             )
             log.info(
                 "ExecutionWorker: %s dauerhaft nicht handelbar (814 / "
-                "allowOpenPosition=false) — is_tradable=0",
+                "allowOpenPosition=false / notFoundInstrumentIds) — is_tradable=0",
                 symbol,
             )
+        if is_units_only_min_share_error(reason):
+            # Real Shares (Hebel 1): <1 whole share = untradeable at this
+            # order size. The instrument IS tradable (allowOpenPosition=true),
+            # so do NOT touch is_tradable (the weekly tradability-Sync would
+            # reset it anyway). Learn the SHARE PRICE as Broker-Minimum with
+            # a timestamp: the signal_worker then pre-rejects (BROKER_MIN)
+            # instead of re-entering the 15-min Execution-Zyklus. A stale
+            # price is ignored by the signal_worker (fail-open) and re-learned
+            # on the next rejection, so a price move self-corrects.
+            _shares, _price = parse_units_only_price(reason)
+            if _price:
+                db.execute(
+                    "UPDATE instruments SET min_position_amount = ?, "
+                    "min_position_amount_learned_at = datetime('now') "
+                    "WHERE instrument_id = ?",
+                    (_price, instrument_id),
+                )
+                log.info(
+                    "ExecutionWorker: %s unitsOnly <1 whole share "
+                    "(shares=%s, price=%s) — min_position_amount learned "
+                    "(BROKER_MIN pre-reject)",
+                    symbol, _shares, _price,
+                )
     except Exception as exc:
         log.warning(
             "ExecutionWorker: learn_from_rejection fehlgeschlagen fuer %s: %s",

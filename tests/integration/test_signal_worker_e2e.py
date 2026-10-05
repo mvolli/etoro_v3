@@ -34,8 +34,8 @@ sys.path.insert(0, str(REPO / "scripts"))
 
 _EXTRA_COLUMNS = {
     "instruments": ["yfinance_symbol TEXT", "is_tradable INTEGER", "atr_pct REAL",
-                    "min_position_amount REAL", "market_region TEXT",
-                    "market_cap REAL", "adv_usd REAL"],
+                    "min_position_amount REAL", "min_position_amount_learned_at TEXT",
+                    "market_region TEXT", "market_cap REAL", "adv_usd REAL"],
     "signals": ["price REAL", "status TEXT DEFAULT 'FRESH'"],
     "trades": ["closed_at TEXT", "pnl_usd REAL", "approved_at TEXT",
                "signal_price REAL", "stop_loss_pct REAL", "signal_id INTEGER",
