@@ -50,6 +50,12 @@ DEFAULT_CONFIG: dict = {
     "mode": "current",   # current | no_partials | loss_only
     "ledger": True,      # record every decision (shadow evidence)
     "partial_threshold_pct": 99.5,  # close_pct strictly below this => "partial"
+    # fix/pc-shadow-dedup (2026-10-06): same-rung re-fires whose PnL moved by
+    # <= this many percentage points refresh ONE ledger row (sliding reference)
+    # instead of appending a duplicate; a jump beyond it is a genuinely new
+    # decision stage (new row). Code default is authoritative; config.yaml may
+    # override it but does not have to.
+    "dedup_pnl_tolerance_pct": 2.0,
 }
 
 VALID_MODES = ("current", "no_partials", "loss_only")
@@ -195,22 +201,132 @@ def ensure_table(db: Any) -> None:
         logger.debug("[partial_close_policy] ensure_table failed: %s", e)
 
 
+def _pnl_usd_est(amount_usd, pnl_pct, close_pct) -> Optional[float]:
+    """Derived $ of the would-be partial. Returns None when inputs are
+    missing (fail-open — never force 0.0)."""
+    if amount_usd and pnl_pct is not None and close_pct:
+        return amount_usd * (close_pct / 100.0) * (pnl_pct / 100.0)
+    return None
+
+
+def _resolve_amount_usd(db: Any, position_id: Optional[str],
+                        amount_usd: Optional[float]) -> Optional[float]:
+    """fix/pc-shadow-null (2026-10-06): resolve a NULL amount_usd so the
+    shadow row carries a real value. Priority: (a) live portfolio_snapshot
+    for the position, (b) last non-NULL amount_usd already in the ledger.
+    Fail-open: on any error or no source, return the original (possibly
+    None). Never raises."""
+    if amount_usd is not None or not position_id:
+        return amount_usd
+    pid = str(position_id)
+    try:
+        row = db.fetchone(
+            "SELECT amount_usd FROM portfolio_snapshot "
+            "WHERE api_position_id = ? AND amount_usd IS NOT NULL "
+            "ORDER BY last_synced DESC, instrument_id DESC LIMIT 1", (pid,),
+        )
+        if row is not None and row["amount_usd"] is not None:
+            return float(row["amount_usd"])
+    except Exception as e:
+        logger.debug("[partial_close_policy] snapshot amount resolve: %s", e)
+    try:
+        row = db.fetchone(
+            "SELECT amount_usd FROM partial_close_shadow "
+            "WHERE position_id = ? AND amount_usd IS NOT NULL "
+            "ORDER BY ts DESC, id DESC LIMIT 1", (pid,),
+        )
+        if row is not None and row["amount_usd"] is not None:
+            return float(row["amount_usd"])
+    except Exception as e:
+        logger.debug("[partial_close_policy] ledger amount resolve: %s", e)
+    return amount_usd
+
+
+def _dedup_refresh(db: Any, *, mode: str, path: str, position_id: Optional[str],
+                   pnl_pct: Optional[float], close_pct: Optional[float],
+                   amount_usd: Optional[float], pnl_usd_est: Optional[float],
+                   allowed: bool, reason: Optional[str],
+                   tolerance_pct: float) -> Optional[dict]:
+    """fix/pc-shadow-dedup (2026-10-06): if the latest ledger row for the
+    same (position_id, path, close_pct) has a pnl_pct within tolerance of the
+    incoming value, refresh THAT row in place (sliding reference) instead of
+    appending a duplicate — an ongoing same-rung decision collapses to ONE
+    row. Returns a decision dict (updated=True, decision_id=row id) on a
+    match, else None (caller falls through to the normal INSERT).
+
+    Fail-open: on ANY error, return None (append). Never raises."""
+    if not position_id or close_pct is None or pnl_pct is None:
+        return None
+    try:
+        row = db.fetchone(
+            "SELECT id, pnl_pct FROM partial_close_shadow "
+            "WHERE position_id = ? AND path = ? "
+            "AND ROUND(close_pct, 2) = ROUND(?, 2) "
+            "ORDER BY ts DESC, id DESC LIMIT 1",
+            (str(position_id), path, close_pct),
+        )
+        if row is None or row["pnl_pct"] is None:
+            return None
+        if abs(row["pnl_pct"] - pnl_pct) > tolerance_pct:
+            return None  # genuine PnL jump -> new decision stage (append)
+        cur = db.execute(
+            "UPDATE partial_close_shadow SET ts = datetime('now'), "
+            "pnl_pct = ?, amount_usd = ?, pnl_usd_est = ?, allowed = ? "
+            "WHERE id = ?",
+            (pnl_pct, amount_usd, pnl_usd_est, 1 if allowed else 0, row["id"]),
+        )
+        return {
+            "inserted": False, "updated": True, "decision_id": row["id"],
+            "rowcount": int(cur.rowcount) if cur is not None else 0,
+        }
+    except Exception as e:
+        logger.debug("[partial_close_policy] dedup refresh (append): %s", e)
+        return None
+
+
 def record_decision(db: Any, *, mode: str, path: str, symbol: str,
            position_id: Optional[str], instrument_id: Optional[int],
            pnl_pct: Optional[float], close_pct: Optional[float],
            amount_usd: Optional[float], allowed: bool,
-           reason: Optional[str]) -> None:
-    """Record one decision (allowed or suppressed). Never raises."""
+           reason: Optional[str]) -> Optional[dict]:
+    """Record one decision (allowed or suppressed). Never raises.
+
+    Returns a decision dict on a successful write:
+      {inserted, updated, decision_id, rowcount}
+    ``updated=True`` (fix/pc-shadow-dedup) marks a same-rung in-place refresh
+    of an existing row; ``inserted=True`` marks a new row. Returns None when
+    db is None, the ledger is disabled, or the write failed (fail-open)."""
     if db is None:
-        return
-    if not load_config().get("ledger", True):
-        return
+        return None
+    cfg = load_config()
+    if not cfg.get("ledger", True):
+        return None
     ensure_table(db)  # idempotent self-heal (CREATE TABLE IF NOT EXISTS)
     try:
-        pnl_usd_est = None
-        if amount_usd and pnl_pct is not None and close_pct:
-            pnl_usd_est = amount_usd * (close_pct / 100.0) * (pnl_pct / 100.0)
-        db.execute(
+        # fix/pc-shadow-null: resolve a NULL amount (live snapshot, then the
+        # last ledger value) BEFORE computing the derived $ and writing.
+        amount_usd = _resolve_amount_usd(db, position_id, amount_usd)
+        if amount_usd is None and position_id:
+            logger.debug(
+                "[partial_close_policy] amount_usd stayed None (no snapshot/"
+                "ledger source) pos=%s path=%s", position_id, path,
+            )
+        pnl_usd_est = _pnl_usd_est(amount_usd, pnl_pct, close_pct)
+
+        # fix/pc-shadow-dedup: an ongoing same-rung re-fire (same
+        # position_id/path/close_pct, PnL within tolerance) refreshes the one
+        # existing row instead of appending a duplicate. A genuine PnL jump
+        # falls through to the INSERT below.
+        dedup = _dedup_refresh(
+            db, mode=mode, path=path, position_id=position_id,
+            pnl_pct=pnl_pct, close_pct=close_pct, amount_usd=amount_usd,
+            pnl_usd_est=pnl_usd_est, allowed=allowed, reason=reason,
+            tolerance_pct=float(cfg.get("dedup_pnl_tolerance_pct", 2.0)),
+        )
+        if dedup is not None:
+            return dedup
+
+        cur = db.execute(
             "INSERT INTO partial_close_shadow "
             "(ts, mode, path, symbol, position_id, instrument_id, pnl_pct, "
             " close_pct, amount_usd, allowed, reason, pnl_usd_est) "
@@ -220,5 +336,11 @@ def record_decision(db: Any, *, mode: str, path: str, symbol: str,
              instrument_id, pnl_pct, close_pct, amount_usd,
              1 if allowed else 0, reason, pnl_usd_est),
         )
+        return {
+            "inserted": True, "updated": False,
+            "decision_id": cur.lastrowid if cur is not None else None,
+            "rowcount": int(cur.rowcount) if cur is not None else 0,
+        }
     except Exception as e:
         logger.debug("[partial_close_policy] record failed: %s", e)
+        return None

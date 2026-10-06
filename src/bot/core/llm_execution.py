@@ -305,20 +305,27 @@ def execute_llm_recommendations(
                 try:
                     from bot.core import partial_close_policy as _pcp
                     _pc_pnl = None
+                    _pc_amt = None
                     try:
+                        # fix/pc-shadow-null: grab amount_usd from the same
+                        # snapshot so the ledger row carries the real value
+                        # (not just the PnL%).
                         _pc_snap = db.fetchone(
-                            "SELECT unrealized_pnl_pct FROM portfolio_snapshot "
+                            "SELECT unrealized_pnl_pct, amount_usd "
+                            "FROM portfolio_snapshot "
                             "WHERE api_position_id = ?", (str(position_id),),
                         )
                         if _pc_snap and _pc_snap["unrealized_pnl_pct"] is not None:
                             _pc_pnl = float(_pc_snap["unrealized_pnl_pct"])
+                        if _pc_snap and _pc_snap["amount_usd"] is not None:
+                            _pc_amt = float(_pc_snap["amount_usd"])
                     except Exception:
                         pass
                     _pc_dec = _pcp.check(
                         db, path='llm', symbol=symbol,
                         position_id=str(position_id), instrument_id=instr_id,
                         pnl_pct=_pc_pnl, close_pct=rec_close_pct,
-                        amount_usd=None, record=not dry_run,
+                        amount_usd=_pc_amt, record=not dry_run,
                     )
                     if not _pc_dec.allowed:
                         logger.info(
