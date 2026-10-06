@@ -84,6 +84,12 @@ PROFIT_LADDER_ATR_SCALE = 1.0
 # einem $9-Restfragment sind ~$2. Siehe Begruendung in execute_trailing_actions.
 MIN_PARTIAL_CLOSE_USD = 10.0
 
+# Regimes, in denen die strukturierte Profit-Leiter schweigt ("let winners
+# run"). Gilt NUR fuer Teilverkaeufe der Leiter: MOMENTUM_FADE, BE_CLOSE,
+# SL, STALE_EXIT und FULL_EXIT sind Verlustschutz bzw. Zielerreichung und
+# laufen in jedem Regime.
+SUPPRESS_LADDER_REGIMES: tuple[str, ...] = ('DEFENSIVE', 'CRITICAL')
+
 
 # ── Dynamic Quick-Profit (Stufe 1) ────────────────────────────────────────────
 # Zwei Mechaniken, beide auf der LIVE-PnL jedes risk_worker-Zyklus (~5 min) —
@@ -1030,11 +1036,32 @@ def evaluate_trailing(
             )
             # feat/min-remaining: Die Leiter bleibt erhalten — sie darf die
             # Position nur nicht unter die Untergrenze zerfasern.
-            actions.append(
+            _resolved = (
                 _as_full_exit(_pa, remaining_frac)
                 if would_breach_min_remaining(remaining_frac, _pa.close_pct or 0.0)
                 else _pa
             )
+            # fix/ladder-regime-decision-stage (2026-10-06): dieselbe
+            # Unterdrueckung wie in execute_trailing_actions, aber HIER —
+            # vor dem KI-Profit-Advisor (risk_worker ruft advise_close_pct,
+            # ein echter LLM-Call) und vor dem partial_close_shadow-Eintrag.
+            # Vorher liefen beide fuer eine Order, die der Regime-Filter
+            # danach verwarf: gemessen 191 Calls und 191 Ledger-Rows fuer
+            # EINE blockierte ZM-Stufe (01.-05.10.2026, 12 pro Stunde).
+            # Bewusst KEIN Durchfallen auf Fade/BE — `continue` haelt das
+            # Handelsverhalten identisch zum Zustand vor diesem Commit.
+            # Ein in FULL_EXIT umgeschlagener Rung ist KEIN Teilverkauf und
+            # laeuft wie bisher in ALLEN Regimes (Untergrenzen-Schutz).
+            if (_resolved.action == 'PARTIAL_CLOSE'
+                    and regime in SUPPRESS_LADDER_REGIMES):
+                logger.debug(
+                    '[trailing] Ladder-Stufe +%.1f%% in %s schon in der '
+                    'Entscheidungsstufe unterdrueckt: %s %+.1f%% — '
+                    'Stufe bleibt faellig',
+                    level['threshold'], regime, symbol, pnl_pct,
+                )
+                continue
+            actions.append(_resolved)
         elif should_momentum_fade(pnl_pct, peak, faded):
             # No ladder level due, but a built-up gain is fading back → lock it.
             _fa = _fade_action()
@@ -1484,7 +1511,11 @@ def execute_trailing_actions(
             # regimes ("let winners run"). MOMENTUM_FADE is protective de-risking
             # — locking a gain that is actively fading — so it runs in ALL
             # regimes, like BE_CLOSE and SELL-exits.
-            if not is_fade and regime in ('DEFENSIVE', 'CRITICAL'):
+            # Sicherheitsnetz: seit fix/ladder-regime-decision-stage filtert
+            # evaluate_trailing() Ladder-Stufen schon vorher heraus, sodass
+            # dieser Zweig fuer sie nicht mehr greift. Er bleibt stehen, weil
+            # er jede andere Quelle eines PARTIAL_CLOSE ebenfalls abdeckt.
+            if not is_fade and regime in SUPPRESS_LADDER_REGIMES:
                 logger.debug('[trailing] PARTIAL_CLOSE skipped in %s: %s %+.1f%%', regime, action.symbol, action.pnl_pct)
                 continue
 
