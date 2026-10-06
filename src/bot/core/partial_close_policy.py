@@ -147,6 +147,33 @@ def check(db: Any, *, path: str, symbol: str, position_id: Optional[str],
     path: 'trailing' | 'sell_exit' | 'llm'
     record: False skips the ledger (dry-run / simulation — do not pollute
         the shadow data with non-live decisions).
+
+    amount_usd — VERTRAG (fix/pc-shadow-amount-contract, 2026-10-06):
+        Wert der Position ZUM ENTSCHEIDUNGSZEITPUNKT, also BEVOR diese
+        Entscheidung ausgefuehrt wird. NICHT der Restwert danach.
+
+        Die Spaltenbeschreibung lautete frueher "current position value" und
+        hat genau diese Verwechslung ausgeloest: bei G24.DE stand der
+        portfolio_snapshot auf $45,00, der Ledger auf $60,00 — und $60,00 ist
+        richtig, denn der PARTIAL_CLOSE ueber 25 % lief EINE SEKUNDE nach der
+        Entscheidung (12:41:39 Entscheidung / 12:41:40 Ausfuehrung / Snapshot
+        $45,00 = 60 - 15). Wer hier den Restwert eintraegt, protokolliert eine
+        Entscheidung auf einer Position, die durch eben diese Entscheidung
+        schon verkleinert war — und `_pnl_usd_est` untertreibt entsprechend
+        ($0,28 statt $0,38).
+
+        Die drei Aufrufer beziehen den Wert aus unterschiedlichen Quellen,
+        meinen aber dasselbe:
+          trailing_stop / sell_exits -> pos['amount'] aus dem LIVE-Broker-
+            Payload (frisch).
+          llm_execution -> portfolio_snapshot.amount_usd. Bewusst dieselbe
+            Zeile, aus der dort auch pnl_pct kommt — beide Werte muessen vom
+            selben Zeitpunkt stammen. Der Reconciler schreibt den Snapshot
+            alle 5 Minuten, der Wert kann also bis zu 5 Minuten alt sein.
+            Das ist hingenommen: eine frischere Quelle nur fuer den Betrag
+            wuerde ihn von pnl_pct entkoppeln, und ein um Minuten alter
+            Positionswert verfaelscht die Schaetzung weniger als zwei
+            Messzeitpunkte in derselben Zeile.
     """
     m = mode()
     d = evaluate(pnl_pct, close_pct, mode=m)
@@ -176,7 +203,7 @@ CREATE TABLE IF NOT EXISTS partial_close_shadow (
     instrument_id INTEGER,
     pnl_pct       REAL,             -- live PnL% at decision time
     close_pct     REAL,             -- recommended partial size (%)
-    amount_usd    REAL,             -- current position value (USD)
+    amount_usd    REAL,             -- position value (USD) AT DECISION TIME
     allowed       INTEGER NOT NULL, -- 1 = executed/allowed, 0 = suppressed
     reason        TEXT,             -- suppressed_reason (None when allowed)
     pnl_usd_est   REAL              -- derived $ of the (would-be) partial
