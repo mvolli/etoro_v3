@@ -318,10 +318,38 @@ regime:                       # Drawdown-from-rolling-peak → 4-state regime (r
 # Kappe aendert die Buch-Zusammensetzung. MIXED 0.45 = gleich wie alle anderen
 # Kategorien; umkehrbar (MIXED: 1.0 zuruecksetzen). Kein Schutz-Objekt, keine
 # Conviction-Leiter, kein VoLLi-_decided_by-Eintrag. Beleg: self_improvement_runs.
+#
+# 2026-10-07 VoLLi-Entscheid: MIXED 0.45 -> 1.0 zurueckgesetzt (Deadlock-Befund).
+# Das 02-10-Cap (42b4252) war das falsche Werkzeug: Die Kategorie-Kappe begrenzt
+# den BESTAND — und wenn MACD+BB (der dominante MIXED-Typ) schon 85,2 % des
+# offenen Buchs stellt (23/27 Positionen, gemessen 07-10), sperrt sie jeden
+# Neueinstieg, statt den schlechten SIGNALTYP zu dosieren. Ausweg rechnerisch
+# nicht existent: MIXED muesste von 23 auf 7 fallen, bevor eine MIXED-Order
+# durchgeht; selbst volles TF nachruecken laesst MIXED bei 59 % > 45 %. Das ist
+# faktisch eine Liquidation von 3/4 des Buchs — die lief unentschieden.
+# Die Dosierung des schlechten Typs uebernimmt jetzt type_entry_quota (unten):
+# eine Quote auf Neueinstiege pro Signaltyp-Familie, nicht auf das stehende Buch.
 diversity:
   max_category_fraction: 0.45
   category_overrides:
-    MIXED: 0.45
+    MIXED: 1.0
+  # ── Signal-Type Entry-Quote (fix/entry-type-quote 2026-10-07) ────────────
+  # Dosiert NEUEINSTIEGE pro Signaltyp-Familie, misst NICHT den Bestand
+  # (das ist die Aufgabe der Kategorie-Kappe oben). MACD+BB (Kombo
+  # MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING) ist post-26.07-Zaesur der
+  # groesste Drag (n=229, WR 30,1 %, -200 USD) und in den letzten 14d der
+  # schlechteste aktive Typ (WR 17,9 %). In 48h vor dem 07-10-Befund:
+  # 141 EXPIRED + 76 REJECTED + 17 FRESH — alle an der MIXED-Kappe blockiert.
+  # Mit der Quote faellt die Familie auf max. 2 Neueinstiege / 7 Tage.
+  # Wert = max Neueinstiege der Familie im rollierenden 7d-Fenster
+  # (trades, status ACTIVE, created_at). 0/fehlend = Quote inaktiv (fail-open
+  # wie der Rest des Diversity-Gates). Skip statt Reject: die Signale bleiben
+  # FRESH und werden neu geprueft, sobald die Quote frei ist — genau das
+  # Stille-Verfaellen des 28-08-Deadlocks wird vermieden, aber nur dosiert.
+  # Umkehrbar: Max-Wert auf 0 setzen deaktiviert die Quote.
+  type_entry_quota:
+    window_days: 7
+    "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": 2
 
 sl:                           # Stop-loss configuration
   default_pct: 3.5            # Default stop-loss distance from entry (%) — AKTIVES Experiment (2.5->3.0, 14d seit 2026-07-19)

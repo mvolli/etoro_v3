@@ -396,6 +396,55 @@ def apply_diversity_config(cfg: dict) -> None:
         CATEGORY_FRACTION_OVERRIDES[str(key).upper()] = _v
 
 
+# ── Signal-Type Entry-Quote (fix/entry-type-quote 2026-10-07) ─────────────────
+# Dosiert NEUEINSTIEGE pro Signaltyp-Familie, misst NICHT den Bestand (das ist
+# die Aufgabe der Kategorie-Kappe oben). Hintergrund: Das MIXED-Cap 0.45 vom
+# 02-10 (42b4252) begrenzten den Bestand — und wenn die dominante Kaufsignal-
+# Familie MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING (MIXED) 85 % des Buchs
+# stellt, sperrt die Kappe jeden Neueinstieg statt den schlechten Typ zu
+# dosieren (Deadlock-Befund 07-10: 23/27 = 85,2 % MIXED, kein rechnerischer
+# Ausweg ohne ~75 % Liquidation). MIXED ging zurueck auf 1.0; die Dosierung
+# dieses einen Typs uebernimmt diese Quote.
+#   ENTRY_QUOTA_MAX["<signal_type>"] = max Neueinstiege im 7d-Fenster
+#   0 / fehlend = Quote inaktiv (fail-open wie der Rest des Diversity-Gates).
+ENTRY_QUOTA_WINDOW_DAYS: int = 7
+ENTRY_QUOTA_MAX: dict[str, int] = {}
+
+
+def apply_entry_quota_config(cfg: dict) -> None:
+    """Setzt ENTRY_QUOTA_WINDOW_DAYS + ENTRY_QUOTA_MAX aus
+    diversity.type_entry_quota. Fail-safe: unlesbar → Default bleibt.
+
+    ACHTUNG: Wie apply_diversity_config oben — der Aufruf steht in main()
+    (dritte Auflage der "config wiring lie", vgl. facfa5a).
+    """
+    global ENTRY_QUOTA_WINDOW_DAYS
+    teq = ((cfg or {}).get("diversity", {}) or {}).get("type_entry_quota")
+    if not isinstance(teq, dict):
+        return
+    try:
+        _wd = int(teq.get("window_days", ENTRY_QUOTA_WINDOW_DAYS))
+        if 1 <= _wd <= 90:
+            ENTRY_QUOTA_WINDOW_DAYS = _wd
+        else:
+            logger.error("diversity.type_entry_quota.window_days %r ausserhalb [1,90] — Default bleibt", _wd)
+    except (TypeError, ValueError):
+        logger.error("diversity.type_entry_quota.window_days unlesbar — Default bleibt")
+    for key, value in teq.items():
+        if key == "window_days":
+            continue
+        try:
+            _max = int(value)
+        except (TypeError, ValueError):
+            logger.error("diversity.type_entry_quota[%s]=%r unlesbar — ignoriert", key, value)
+            continue
+        if _max <= 0:
+            # 0/fehlend = Quote inaktiv (aus Config dokumentiert).
+            ENTRY_QUOTA_MAX.pop(key, None)
+            continue
+        ENTRY_QUOTA_MAX[str(key)] = _max
+
+
 def _max_fraction_for(category: str) -> float:
     """Kappe fuer eine Kategorie; 1.0 bedeutet effektiv keine Kappe."""
     return CATEGORY_FRACTION_OVERRIDES.get(str(category).upper(), MAX_CATEGORY_FRACTION)
@@ -1017,6 +1066,32 @@ def _open_signal_categories(db) -> dict[str, int]:
     return _open_signal_cats
 
 
+def _type_entry_counts(db) -> dict[str, int]:
+    """Neueinstiege je Signaltyp im rollierenden ENTRY_QUOTA_WINDOW_DAYS-Fenster.
+
+    fix/entry-type-quote (2026-10-07): Zaehlt trades (status ACTIVE, created_at
+    im Fenster) pro signal_type — die Basisfuer die Entry-Quote. Der Nenner ist
+    bewusst der BESTAND (ACTIVE), nicht die Signale: eine zugekaufte Position,
+    die noch offen ist, belegt ihren Quote-Slot, bis sie geschlossen ist.
+    Fail-open wie _open_signal_categories: leerer Dict bei DB-Problem.
+    """
+    _counts: dict[str, int] = {}
+    try:
+        _rows = db.fetchall("""
+            SELECT sig.signal_type, COUNT(*) as n
+            FROM trades t
+            JOIN signals sig ON sig.id = t.signal_id
+            WHERE t.status = 'ACTIVE'
+              AND t.created_at >= datetime('now', ?)
+            GROUP BY sig.signal_type
+        """, (f"-{ENTRY_QUOTA_WINDOW_DAYS} days",))
+        for _r in _rows:
+            _counts[str(_r["signal_type"])] = int(_r["n"])
+    except Exception as _eq_exc:
+        logger.debug("SignalWorker: Entry-Quote Daten nicht verfuegbar: %s", _eq_exc)
+    return _counts
+
+
 def _commodity_state(db, cfg: dict) -> tuple[dict, set[int], int]:
     # feat/commodity (2026-08-24): Rohstoffe sind ein bewusst kleines
     # Experiment — max. 1 Position, feste Groesse. Es gibt bisher KEINE
@@ -1045,6 +1120,7 @@ def _filter_eligible(
     _news_flags: dict, _open_signal_cats: dict[str, int], position_count: int,
     _comm_cfg: dict, _comm_ids: set[int], _comm_open: int,
     signal_type_cooldown_minutes: int,
+    _type_entry_counts: dict[str, int], _quota_in_cycle: dict[str, int],
 ) -> tuple[list[tuple[dict, str]], dict[str, list[str]], list[str]]:
     """Vorfilter VOR Ranking/Slicing (V5 fix, siehe Kommentar in main()).
 
@@ -1211,6 +1287,25 @@ def _filter_eligible(
             skipped_diversity.append(f"{symbol}({_pre_cat})")
             _skip["diversity_kappe"].append(symbol)
             continue
+
+        # Entry-Quote-Precheck (fix/entry-type-quote, 2026-10-07):
+        # Kandidaten, deren Signaltyp seine Neueinstiegs-Quote im 7d-Fenster
+        # schon ausgeschöpft hat, würden im Gate deterministisch übersprungen —
+        # sie dürfen keinen der knappen Slots belegen (wie der Diversity-Precheck
+        # oben, aber pro Signaltyp-Familie statt pro Kategorie). Skip statt
+        # REJECT: bleibt FRESH, wird neu geprüft, sobald die Quote frei ist.
+        # Zähler = DB-Bestand (ACTIVE, 7d) + In-Cycle-Approvals dieses Laufs.
+        _eq_type = signal.get("signal_type", "")
+        _eq_max = ENTRY_QUOTA_MAX.get(_eq_type)
+        if _eq_max is not None:
+            _eq_used = (
+                _type_entry_counts.get(_eq_type, 0)
+                + _quota_in_cycle.get(_eq_type, 0)
+            )
+            if _eq_used >= _eq_max:
+                skipped_diversity.append(f"{symbol}(quote:{_eq_type[:20]})")
+                _skip["entry_quote"].append(symbol)
+                continue
 
         # News/Earnings-Risk-Flag (fix/llm-news-flags): AVOID → Signal
         # ueberspringen, bleibt FRESH (Flag-TTL 12h laeuft vor Signal-TTL
@@ -2000,6 +2095,7 @@ def main() -> None:
         # beide lesen Modul-Konstanten DIESES Moduls — ohne die Aufrufe waeren
         # die Config-Werte wirkungslos (vgl. Kommentar zu apply_regime_config).
         apply_diversity_config(cfg)
+        apply_entry_quota_config(cfg)
         apply_deployment_config(cfg)
         from bot.db.connection import DB
         from bot.db.repo import LogRepo, PortfolioRepo, SignalRepo, StateRepo, TradeRepo
@@ -2174,6 +2270,14 @@ def main() -> None:
         # Kappe gar nicht erst in die knappen Slots laesst (fix/diversity-
         # slot-guard, 2026-07-15).
         _open_signal_cats = _open_signal_categories(db)
+        # fix/entry-type-quote (2026-10-07): Neueinstiege je Signaltyp im
+        # 7d-Fenster — Basis fuer die Entry-Quote (dosiert den schlechten
+        # Typ MACD+BB an den Neueinstiegen, NICHT am stehenden Buch).
+        _type_entry_counts = _type_entry_counts(db)
+        # In-Cycle-Zaehler: innerhalb dieses Laufs genehmigte Quotesignale
+        # (die DB-Zaehler sehen sie noch nicht — sie laufen gegen denselben
+        # Fenster-Wert). Start 0, wird im Kandidaten-Loop incremented.
+        _quota_in_cycle: dict[str, int] = {}
 
         _comm_cfg, _comm_ids, _comm_open = _commodity_state(db, cfg)
         eligible, _skip, skipped_diversity = _filter_eligible(
@@ -2184,6 +2288,7 @@ def main() -> None:
             position_count=position_count,
             _comm_cfg=_comm_cfg, _comm_ids=_comm_ids, _comm_open=_comm_open,
             signal_type_cooldown_minutes=SIGNAL_TYPE_COOLDOWN_MINUTES,
+            _type_entry_counts=_type_entry_counts, _quota_in_cycle=_quota_in_cycle,
         )
     
         _log_eligible_summary(log_repo, len(buy_signals), eligible, _skip, skipped_diversity)
@@ -2773,6 +2878,29 @@ def main() -> None:
                         )
                         continue
 
+                # Entry-Quote-Gate (fix/entry-type-quote, 2026-10-07):
+                # Deterministischer Abfang der Quote im Gate (der Precheck oben
+                # spart nur die Slots). Zählt Neueinstiege im 7d-Fenster pro
+                # Signaltyp-Familie (DB-Bestand + In-Cycle). Skip statt REJECT:
+                # das Signal bleibt FRESH und wird neu geprüft, wenn die Quote
+                # frei ist — das stille Verfaellen des 28-08-Deadlocks wird
+                # bewusst vermieden, nur dosiert.
+                _eq_type = signal.get("signal_type", "")
+                _eq_max = ENTRY_QUOTA_MAX.get(_eq_type)
+                if _eq_max is not None:
+                    _eq_used = (
+                        _type_entry_counts.get(_eq_type, 0)
+                        + _quota_in_cycle.get(_eq_type, 0)
+                    )
+                    if _eq_used >= _eq_max:
+                        logger.info(
+                            "SignalWorker: Entry-Quote: %s (%s) %d/%d Neueinstiege in %dd — übersprungen (bleibt FRESH)",
+                            _eq_type[:40], symbol, _eq_used, _eq_max,
+                            ENTRY_QUOTA_WINDOW_DAYS,
+                        )
+                        _skip["entry_quote"].append(symbol)
+                        continue
+
                 # d. Get signal price for execution (yfinance data)
                 signal_price = float(signal.get("price") or 0.0) if signal.get("price") else None
 
@@ -2884,6 +3012,12 @@ def main() -> None:
                 _appr_cat = _get_signal_category(signal.get("signal_type", ""))
                 if _appr_cat != "UNKNOWN":
                     _open_signal_cats[_appr_cat] = _open_signal_cats.get(_appr_cat, 0) + 1
+                # Entry-Quote In-Cycle-Zähler (fix/entry-type-quote 2026-10-07):
+                # genehmigtes Quotesignal belegt einen Quote-Slot in diesem Lauf,
+                # die DB-Zaehler (_type_entry_counts) sehen den Trade noch nicht.
+                _appr_type = signal.get("signal_type", "")
+                if _appr_type in ENTRY_QUOTA_MAX:
+                    _quota_in_cycle[_appr_type] = _quota_in_cycle.get(_appr_type, 0) + 1
     
                 logger.info(
                     "SignalWorker: APPROVED trade #%d — %s %s $%.2f (conviction=%s score=%.2f signal_price=%.4f)",
