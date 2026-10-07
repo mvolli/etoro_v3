@@ -307,19 +307,20 @@
         ]
       },
       "changes": [
-        "llm_signal_weights.json: 'RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20' score_multiplier 0.5 -> 0.25 (Vertiefung). Worst per-trade expectancy aller Typen (avg -2.07%, WR 30%, n=20) = 4.5x schlechter als naechstschlechtester. In 3 aufeinanderfolgenden LLM-Reviews (10-05/10-06) unabhaengig geflaggt. Ratchet blockiert Lockerung."
+        "KEIN geldwirksamer Config-Change. RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20 wurde 0.5 -> 0.25 vertieft und NACH Advisor-Gutachten + DB-Verifikation auf 0.5 ZURUECKGENOMMEN. Befund (worst per-trade -2.07%, n=20) ist real, aber der Hebel (score_multiplier) ist nur ein Sort-Key in _rank_eligible (ranking-only, kein Sizing, kein Block) und 19/20 Trades oeffneten NACHDEM 0.5 aktiv war, mit unveraenderten Betraegen (50-235 USD) -> 0.5 war empirisch ein Placebo, 0.25 waere es ebenso. llm_signal_weights.json ist exakt im Pre-Run-Zustand (auto_expires_at 10-18, TP+GC intakt)."
       ],
       "analysis": [
         "Zahlwerkzeug-Bestand (alle DB-frisch, LIVE trading.db): Regime DEFENSIVE (DD 11.11% >= 8%, risk_scalar 0.5, peak 10000, equity 8888.66). Offene: 27 portfolio_snapshot = 27 ACTIVE-Trades (1:1). Nachher-Total (created_at>=2026-07-26, CLOSED, pnl_usd NOT NULL): 563 CLOSED, WR 36.6%, avg -0.40% (avg_win +3.23 / avg_lose -2.51), sum -573.39 USD.",
         "Cluster nachher (n>=3, sum_usd): RSI_EXT+MACD n=20 WR 30.0% sum -24.12 | TREND_PB+GC n=78 WR 43.6% sum -51.80 | MACD+BB n=247 WR 30.8% sum -198.89 | CORE_SWEEP n=215 WR 41.4% sum -295.52. Per-Trade-Expectancy: RSI_EXT+MACD -2.07% ist DER schlechteste Wert (4.5x MACD+BB -0.45%).",
         "VoLLi-Guard-Eintrag TREND_PULLBACK,GOLDEN_CROSS (_decided_by 2026-09-11, score 1.0, by_conviction H/L/VH 0.25) vor UND nach dem Write verifiziert = intakt. MEDIUM-Freigabe unangetastet.",
         "Kein Ghost-Order-Problem: FAILED_14d=6 (SLV x2 notFound, ABB.ST x3 UnitsOnlyMinShare, ACAST x1 720) — alle lernbar/via rejection-learner abgedeckt, keine 401-Flaps in den letzten 14d (letzte 401 am 09-10, vor auth-flap-requeue).",
-        "Open book 27 Positionen, Exposure 1970.67/8888.66=22.2% (weit unter 75%-Cap). MIXED=80.9% des offenen Buchs — 2026-10-02 MIXED-Cap 0.45 greift aktuell (22 Kandidaten am Diversity-Precheck uebersprungen, 0 genehmigt im letzten Lauf)."
+        "Open book 27 Positionen, Exposure 1970.67/8888.66=22.2% (weit unter 75%-Cap). MIXED=80.9% des offenen Buchs — 2026-10-02 MIXED-Cap 0.45 greift aktuell (22 Kandidaten am Diversity-Precheck uebersprungen, 0 genehmigt im letzten Lauf).",
+        "ADVISOR (Opu) widerstand, und die DB bestaetigte seine zwei Kernpunkte: (1) 19/20 RSI-Trades nach 09-06 (0.5 aktiv) mit unveraenderten Groessen -> score_multiplier greift hier nicht; (2) 9/14 Verlierer liegen exakt am 3.5%-SL (Range -4.71..-2.89%) -> Verlust = Stop-Exit, also Entry-ODER-Exit-Problem, kein klares Entry-Quality-Problem. Naehe 0.25 bringt daher keinen Nutzen, nur die Illusion einer Wirkung. Zurueckgenommen statt 'zu gut aussehend' stehen gelassen."
       ],
       "next_focus": [
-        "RSI_EXT+MACD 0.25: nach ~14d/20 Trades neu messen — wenn per-trade expectancy > -0.5% bleibt, Ratchet-Test fuer Lockerung.",
-        "CORE_SWEEP ist groesster Summen-Verlusttreiber (-295.52, 51.5% des Nachher-Defizits) trotz gutem WR 41.4% = Sizing-/Tail-Problem (Long-Loss-Tail), kein Signalqualitaets-Problem. Kandidat fuer naechsten Lauf: per-Position-Exposure-Cap im Sweep pruefen.",
-        "Conviction-Leiter-HALT (VoLLi, bis ~09-07, jetzt uelaufend) weiterhin: HIGH n=31 WR 35.5% avg -1.43% < MEDIUM n=532 WR 36.7% avg -0.34% — Inversion bestaetigt sich, aber kein belastbares >15pp-Divergenz-Signal fuer eine stillen Umschaltung. Im Report dokumentiert, kein config-Change."
+        "RSI_EXT+MACD: vor einer echten Bremse ZWEI Gegenproben: (a) wie oft verliert der Typ einen Slot im Ranking seit 09-06 (nahe 0 = Placebo, dann skip oder Sizing statt Multiplier), (b) wo stand der Kurs 3-5 Tage nach dem Stop-Exit (erholt er sich = Exit-Problem, Stop 3.5% evtl. zu eng). Erst dann skip vs. Sizing-Intervention entscheiden.",
+        "CORE_SWEEP: groesster Summen-Treiber (-295.52 = 51.5% des Nachher-Defizits) bei gutem WR 41.4% = Sizing-/Long-Tail-Problem, kein Signalqualitaets-Problem. Naechster Lauf: per-Position-Exposure-Cap pruefen.",
+        "Conviction-Inversion (HIGH n=31 avg -1.43% < MEDIUM n=532 avg -0.34%) weiterhin dokumentiert, aber kein >15pp-Befund ueber >=30 Trades aus NUR neuem Regime -> Conviction-Leiter-HALT bleibt."
       ]
     }
   ],

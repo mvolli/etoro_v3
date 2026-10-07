@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-10-07T19:17:19.033853+00:00",
-  "auto_expires_at": "2026-10-21T19:17:19.033866+00:00",
+  "updated_at": "2026-10-04T20:31:19.043444+00:00",
+  "auto_expires_at": "2026-10-18T20:31:19.043456+00:00",
   "adjustments": {
     "TREND_PULLBACK,GOLDEN_CROSS": {
       "score_multiplier": 1.0,
@@ -44,19 +44,16 @@
       "reason": "Oversold without MACD confirmation (pre-fix n=10, WR 10%): backstop under the Falling-Knife-Gate. No post-26.07 trades."
     },
     "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20": {
-      "score_multiplier": 0.25,
+      "score_multiplier": 0.5,
       "skip": false,
-      "reason": "Self-Improvement 2026-10-07: post-26.07 n=20, WR 30.0%, avg -2.07%, sum -24.12 USD — SCHLECHTESTE Per-Trade-Expectancy aller Signaltypen (4.5x schlechter als naechstschlechtester, MACD+BB -0.45%). In 3 aufeinanderfolgenden LLM-Reviews (10-05/10-06) unabhaengig geflaggt: 'negative PnL despite high success rate' = Falling-Knife Rule-4-Survivors (MACD-Wende laesst den Dip-Buy durchs Knife-Gate). Vertieft 0.5 -> 0.25. Ratchet blockiert Lockerung (pnl negativ).",
-      "_ratchet_frozen": true,
-      "_proposed": 0.25,
-      "_ratchet_reason": "SELF-IMPROVEMENT 2026-10-07: Vertiefung 0.5 -> 0.25 (n=20, WR 30.0%, avg -2.07%, sum -24.12 USD, worst per-trade). Lockerung zurueck >0.25 bleibt ratchet-blockiert, solange pnl negativ."
+      "reason": "28% win rate and -2.18% avg PnL (n=18). Despite MACD turn, the extreme oversold condition acts as a falling knife indicator. Dampening to reduce exposure to high-volatility reversals."
     }
   },
   "strategy_notes": [
-    "Conviction scoring for trend-following signals (TREND_PULLBACK) is currently inverted: HIGH conviction trades are worse than MEDIUM. This suggests the conviction filter is catching late-stage moves or high-volatility traps.",
-    "RSI_EXTREME_OVERSOLD signals are 'winning' on entry (high success rate) but losing on exit (negative avg PnL). This aligns with the 'Falling Knife' risk if the MACD turn is weak or if exits are too tight."
+    "High-conviction trend signals are currently failing to outperform medium-conviction ones, suggesting that conviction scoring may be too aggressive for current volatility conditions.",
+    "Mean-reversion signals (BB/MACD) are showing negative expectancy, indicating that the market may be trending rather than ranging, or that entry timing is too late in the dip."
   ],
   "conviction_issues": [
-    "TREND_PULLBACK,GOLDEN_CROSS: HIGH conviction has a 26% win rate (8/31) and -1.43% avg PnL, while MEDIUM has a 49% win rate (21/43) and +0.46% avg PnL. The conviction model is failing to distinguish quality trend entries from noise at the HIGH level."
+    "TREND_PULLBACK,GOLDEN_CROSS HIGH conviction has a 26% win rate, which is below the 25% threshold for 'very concrete reason' requirement, necessitating dampening."
   ]
 }
