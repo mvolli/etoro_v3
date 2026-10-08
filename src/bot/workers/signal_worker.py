@@ -1120,7 +1120,7 @@ def _filter_eligible(
     _news_flags: dict, _open_signal_cats: dict[str, int], position_count: int,
     _comm_cfg: dict, _comm_ids: set[int], _comm_open: int,
     signal_type_cooldown_minutes: int,
-    _type_entry_counts: dict[str, int], _quota_in_cycle: dict[str, int],
+    _type_entry_counts_local: dict[str, int], _quota_in_cycle: dict[str, int],
 ) -> tuple[list[tuple[dict, str]], dict[str, list[str]], list[str]]:
     """Vorfilter VOR Ranking/Slicing (V5 fix, siehe Kommentar in main()).
 
@@ -1299,7 +1299,7 @@ def _filter_eligible(
         _eq_max = ENTRY_QUOTA_MAX.get(_eq_type)
         if _eq_max is not None:
             _eq_used = (
-                _type_entry_counts.get(_eq_type, 0)
+                _type_entry_counts_local.get(_eq_type, 0)
                 + _quota_in_cycle.get(_eq_type, 0)
             )
             if _eq_used >= _eq_max:
@@ -2273,7 +2273,7 @@ def main() -> None:
         # fix/entry-type-quote (2026-10-07): Neueinstiege je Signaltyp im
         # 7d-Fenster — Basis fuer die Entry-Quote (dosiert den schlechten
         # Typ MACD+BB an den Neueinstiegen, NICHT am stehenden Buch).
-        _type_entry_counts = _type_entry_counts(db)
+        _type_entry_counts_local = _type_entry_counts(db)
         # In-Cycle-Zaehler: innerhalb dieses Laufs genehmigte Quotesignale
         # (die DB-Zaehler sehen sie noch nicht — sie laufen gegen denselben
         # Fenster-Wert). Start 0, wird im Kandidaten-Loop incremented.
@@ -2288,7 +2288,7 @@ def main() -> None:
             position_count=position_count,
             _comm_cfg=_comm_cfg, _comm_ids=_comm_ids, _comm_open=_comm_open,
             signal_type_cooldown_minutes=SIGNAL_TYPE_COOLDOWN_MINUTES,
-            _type_entry_counts=_type_entry_counts, _quota_in_cycle=_quota_in_cycle,
+            _type_entry_counts_local=_type_entry_counts_local, _quota_in_cycle=_quota_in_cycle,
         )
     
         _log_eligible_summary(log_repo, len(buy_signals), eligible, _skip, skipped_diversity)
@@ -2889,7 +2889,7 @@ def main() -> None:
                 _eq_max = ENTRY_QUOTA_MAX.get(_eq_type)
                 if _eq_max is not None:
                     _eq_used = (
-                        _type_entry_counts.get(_eq_type, 0)
+                        _type_entry_counts_local.get(_eq_type, 0)
                         + _quota_in_cycle.get(_eq_type, 0)
                     )
                     if _eq_used >= _eq_max:
@@ -3014,7 +3014,7 @@ def main() -> None:
                     _open_signal_cats[_appr_cat] = _open_signal_cats.get(_appr_cat, 0) + 1
                 # Entry-Quote In-Cycle-Zähler (fix/entry-type-quote 2026-10-07):
                 # genehmigtes Quotesignal belegt einen Quote-Slot in diesem Lauf,
-                # die DB-Zaehler (_type_entry_counts) sehen den Trade noch nicht.
+                # die DB-Zaehler (_type_entry_counts_local) sehen den Trade noch nicht.
                 _appr_type = signal.get("signal_type", "")
                 if _appr_type in ENTRY_QUOTA_MAX:
                     _quota_in_cycle[_appr_type] = _quota_in_cycle.get(_appr_type, 0) + 1
