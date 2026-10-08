@@ -1116,7 +1116,8 @@ def _post_closed_embed(symbol: str, position_id: str, reason: str,
                        client: Any = None, db: Any = None,
                        instrument_id: int | None = None,
                        units: float | None = None,
-                       source: str = 'trailing_partial') -> None:
+                       source: str = 'trailing_partial',
+                       order_id: str | None = None) -> None:
     """Best-effort Discord embed for a (partial) close. Never raises.
 
     fix/embed-real-amounts (KTA.DE 2026-07-06): amount_usd war hartkodiert 0 —
@@ -1215,6 +1216,7 @@ def _post_closed_embed(symbol: str, position_id: str, reason: str,
                     pnl_usd=None, pnl_pct=pnl_pct, pnl_source='derived',
                     reason=reason, chart_posted=chart_ok,
                     reported_final=False,
+                    order_id=order_id,
                 )
             except Exception:
                 pass
@@ -1426,10 +1428,12 @@ def execute_trailing_actions(
                        'FULL_EXIT': 'full_exits'}.get(action.action, 'stale_exits')] += 1
                 continue
             try:
+                from bot.core.close_dedup import extract_order_id
                 result = client.close_position(
                     position_id=action.position_id,
                     instrument_id=action.instrument_id,
                 )
+                _ts_oid = extract_order_id(result)
                 if result:
                     verified, detail, _pnl_data = verify_full_close(
                         client, action.instrument_id, action.position_id
@@ -1457,6 +1461,7 @@ def execute_trailing_actions(
                             source=('trailing_stale'
                                     if action.action == 'STALE_EXIT'
                                     else 'trailing_be'),
+                            order_id=_ts_oid,
                         )
                     else:
                         logger.warning('[trailing] %s unverified: %s', action.action, detail)
@@ -1579,11 +1584,13 @@ def execute_trailing_actions(
                 continue
 
             try:
+                from bot.core.close_dedup import extract_order_id
                 result = client.close_position(
                     position_id=action.position_id,
                     instrument_id=action.instrument_id,
                     units_to_deduct=units_to_deduct,
                 )
+                _ts_oid = extract_order_id(result)
                 if result:
                     # State SOFORT persistieren (Order wurde von eToro
                     # akzeptiert) — verhindert Endlos-Feuer im nächsten
@@ -1629,6 +1636,7 @@ def execute_trailing_actions(
                         units=units_to_deduct,
                         source=('momentum_fade' if is_fade
                                 else 'trailing_partial'),
+                        order_id=_ts_oid,
                     )
                 else:
                     stats['errors'].append(

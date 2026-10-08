@@ -339,7 +339,9 @@ def close_exposure_excess(
             continue
 
         try:
-            client.close_position(pos_id, iid)
+            from bot.core.close_dedup import extract_order_id
+            _conc_close_result = client.close_position(pos_id, iid)
+            _conc_oid = extract_order_id(_conc_close_result)
             from bot.core.trailing_stop import verify_full_close
             verified, detail, _pnl_data = verify_full_close(client, iid, pos_id)
             # fix/exposure-trim-unverified (2026-08-12): eToro antwortet bei
@@ -387,6 +389,7 @@ def close_exposure_excess(
                         pnl_usd=_pnl_usd, pnl_pct=_pnl_pct,
                         pnl_source=("derived" if _pnl_usd is not None else None),
                         reason=_reason, reported_final=False,
+                        order_id=_conc_oid,
                     )
             except Exception:
                 pass
@@ -459,7 +462,9 @@ def close_concentration_excess(
                 continue
 
             try:
-                client.close_position(pos_id, iid)
+                from bot.core.close_dedup import extract_order_id
+                _conc2_close_result = client.close_position(pos_id, iid)
+                _conc2_oid = extract_order_id(_conc2_close_result)
 
                 # ── Verify the full-close actually took effect ──────────────
                 # fix/verify-close-arity (2026-07-28): verify_full_close gibt
@@ -521,6 +526,7 @@ def close_concentration_excess(
                                 pnl_usd=_pnl_usd, pnl_pct=_pnl_pct,
                                 pnl_source=("derived" if _pnl_usd is not None else None),
                                 reason=_reason, reported_final=False,
+                                order_id=_conc2_oid,
                             )
                     except Exception:
                         pass

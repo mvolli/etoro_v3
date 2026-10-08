@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timezone
+from bot.core.close_dedup import extract_order_id, has_recent_close
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -390,6 +391,26 @@ def execute_llm_recommendations(
                             stats["errors"].append(_msg)
                             continue
 
+                    # fix/doppelbuchungen (2026-10-08): Dedup-Gate — wenn
+                    # in den letzten 30 min schon ein Close-Event für diese
+                    # Position gebucht wurde, nicht erneut feuern.
+                    # _ADVISOR_CACHE ist in-Prozess (verliert Zustand bei
+                    # jedem Cron-Fire), daher reicht der in-memory-Guard
+                    # nicht. (trade 2783: 9× je +8,93)
+                    if db is not None and position_id and not dry_run:
+                        if has_recent_close(db, str(position_id), window_minutes=30):
+                            logger.info(
+                                "[llm_execution] %s %s: Close in den letzten "
+                                "30 min bereits gebucht — Dedup, übersprungen.",
+                                recommendation, symbol,
+                            )
+                            rec["executed"] = True
+                            rec["executed_at"] = now.isoformat()[:19]
+                            rec["executed_reason"] = "dedup_recent_close"
+                            changed = True
+                            stats["skip_count"] += 1
+                            continue
+
                     result = client.close_position(
                         position_id=position_id,
                         instrument_id=instr_id,
@@ -397,6 +418,7 @@ def execute_llm_recommendations(
                     )
                     if not result:
                         raise RuntimeError("close_position() gab leeres Ergebnis zurueck")
+                    _llm_oid = extract_order_id(result)
 
                     # fix/llm-tighten-remaining: die reduzierte Restmenge
                     # persistieren. OHNE diese Zeile bleibt remaining_frac auf
@@ -510,6 +532,7 @@ def execute_llm_recommendations(
                             pnl_usd=None, pnl_pct=_live_pct,
                             pnl_source="derived", reason=_reason_txt,
                             chart_posted=_chart_ok, reported_final=False,
+                            order_id=_llm_oid,
                         )
                     except Exception as _emb_exc:
                         logger.debug("[llm_execution] Close-Embed fehlgeschlagen: %s", _emb_exc)

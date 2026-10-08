@@ -19,6 +19,8 @@ from pathlib import Path
 
 import yaml
 
+from bot.core.close_dedup import extract_order_id, trade_already_closed
+
 # ── Path setup ────────────────────────────────────────────────────────────────
 # Allow running directly or via -m from project root
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
@@ -173,7 +175,8 @@ def _load_config() -> dict:
 
 def _post_sl_close_embed(db, client, pos: dict, symbol: str, position_id,
                          close_price: float, pnl_usd_est: float, pnl_pct: float,
-                         *, embed_reason: str, record_reason: str, what: str) -> None:
+                         *, embed_reason: str, record_reason: str, what: str,
+                         order_id: str | None = None) -> None:
     """Close-Embed nach #trades (mit Trade-Story-Chart) + trade_events-Zeile.
 
     Vorher zweimal wortgleich in _run_sl_checks (verifizierter und
@@ -220,6 +223,7 @@ def _post_sl_close_embed(db, client, pos: dict, symbol: str, position_id,
             pnl_usd=pnl_usd_est, pnl_pct=pnl_pct,
             pnl_source="derived", reason=record_reason,
             chart_posted=True, reported_final=False,
+            order_id=order_id,
         )
     except Exception as _emb_exc:
         logger.debug("Discord %s failed: %s", what, _emb_exc)
@@ -370,7 +374,20 @@ def _run_sl_checks(db, client, state_repo, log_repo, raw_positions: list[dict]
             )
 
             try:
-                client.close_position(position_id, instrument_id)
+                # fix/doppelbuchungen (2026-10-08): wenn der Trade bereits
+                # CLOSED ist, wurde der Close schon gesendet — die Position
+                # lingering nur, weil die eToro API langsam ist (HK/ASIA).
+                # Kein zweiter Close, kein zweites Event (trade 1662:
+                # 105 Events in 11h).
+                if trade_already_closed(db, str(position_id)):
+                    logger.info(
+                        "RiskWorker: %s: Close bereits gesendet "
+                        "(trade CLOSED) — kein erneuter Close (Dedup).",
+                        symbol,
+                    )
+                    continue
+                _sl_close_result = client.close_position(position_id, instrument_id)
+                _sl_oid = extract_order_id(_sl_close_result)
 
                 # ── Verify the full-close actually took effect ──────────────
                 from bot.core.trailing_stop import verify_full_close
@@ -414,6 +431,7 @@ def _run_sl_checks(db, client, state_repo, log_repo, raw_positions: list[dict]
                         embed_reason=sl_action.reason,
                         record_reason=sl_action.reason,
                         what="close embed",
+                        order_id=_sl_oid,
                     )
                 else:
                     # ── UNVERIFIED: still send embed + save estimated PnL ───
@@ -470,6 +488,7 @@ def _run_sl_checks(db, client, state_repo, log_repo, raw_positions: list[dict]
                             embed_reason=f"{sl_action.reason} (⚠️ PnL geschätzt — Reconciler finalisiert)",
                             record_reason=f"{sl_action.reason} (unverifiziert)",
                             what="provisional close embed",
+                            order_id=_sl_oid,
                         )
 
                         # ── Additional alert for unverified status ──────────────

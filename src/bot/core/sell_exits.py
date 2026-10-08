@@ -338,11 +338,13 @@ def execute_sell_exits(
             continue
 
         try:
+            from bot.core.close_dedup import extract_order_id
             result = client.close_position(
                 position_id=action.position_id,
                 instrument_id=action.instrument_id,
                 units_to_deduct=None if is_full else units_to_deduct,
             )
+            _se_oid = extract_order_id(result)
             if not result:
                 stats["errors"].append(
                     f"{action.symbol}: close_position() returned empty/falsy result"
@@ -382,6 +384,7 @@ def execute_sell_exits(
                     instrument_id=action.instrument_id,
                     units=total_units,
                     source="sell_exit",
+                    order_id=_se_oid,
                 )
             else:
                 # Verifikation über das bestehende Partial-Close-Polling
@@ -421,6 +424,7 @@ def execute_sell_exits(
                     instrument_id=action.instrument_id,
                     units=units_to_deduct,
                     source="sell_exit",
+                    order_id=_se_oid,
                 )
             time.sleep(0.5)
         except Exception as exc:
