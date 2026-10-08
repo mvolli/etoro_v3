@@ -139,6 +139,12 @@ def _record_open(db, trade_id, symbol, instrument_id, position_id,
     """
     try:
         from bot.core.event_log import record_posted_event
+        from bot.core.fee_model import estimate_open_fee, load_fee_config
+        _fee_cfg = load_fee_config()
+        _fee = estimate_open_fee(
+            amount_usd, symbol,
+            _fee_cfg["high_fee_suffixes"], _fee_cfg["high_fee_pct"],
+        )
         record_posted_event(
             db, _DE, symbol=symbol, event_type="OPEN",
             source="execution_worker", post_result=post_result,
@@ -150,6 +156,7 @@ def _record_open(db, trade_id, symbol, instrument_id, position_id,
             reported_final=True,  # OPEN hat keinen PnL nachzutragen
             spread_pct=spread_pct,
             cost_usd=_fill_cost(amount_usd, spread_pct),
+            fee_usd=_fee,
         )
     except Exception:
         pass

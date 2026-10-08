@@ -33,11 +33,17 @@ class _DB:
         # reconcile() zusaetzlich realized_unattributed() ruft, haette das
         # jedes Event doppelt gezaehlt — der Mock muss die beiden Abfragen
         # auseinanderhalten koennen.
+        # fix/fee-tracking (2026-10-08): recorded_fees() fragt nach
+        # event_type='OPEN'. Der Mock muss diesen Filter respektieren,
+        # sonst wuerde er Close-Events als Opens werten und Fees erfinden.
         nur_waisen = "trade_id IS NULL" in sql
+        nur_opens = "event_type = 'OPEN'" in sql
         # dedupliziert wie die echte SQL es tut
         seen, out = set(), []
         for e in self._events:
             if nur_waisen != (e["trade_id"] is None):
+                continue
+            if nur_opens and e.get("event_type") != "OPEN":
                 continue
             key = (e["trade_id"], e.get("event_at"), e.get("close_pct"))
             if key in seen:

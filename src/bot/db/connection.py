@@ -68,7 +68,43 @@ class DB:
         """Return the per-instance connection, opening it lazily."""
         if self._conn is None:
             self._conn = self.connect()
+            self._ensure_trade_event_columns(self._conn)
         return self._conn
+
+    @staticmethod
+    def _ensure_trade_event_columns(conn: sqlite3.Connection) -> None:
+        """Auto-Migration: fehlende trade_events-Spalten nachtragen.
+
+        fix/fee-tracking (2026-10-08): `fee_usd` wird bei OPEN-Events
+        gesetzt (eToro bucht die Oeffnungsgebuehr NICHT in netProfit).
+        Fail-open: fehlt die Tabelle (frische/leere DB), tut nichts.
+        """
+        try:
+            tables = {
+                r[0] for r in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                ).fetchall()
+            }
+            if "trade_events" not in tables:
+                return
+            cols = {
+                r[1] for r in conn.execute(
+                    "PRAGMA table_info(trade_events)"
+                ).fetchall()
+            }
+            for col, coltype in (
+                ("order_id", "TEXT"),
+                ("spread_pct", "REAL"),
+                ("cost_usd", "REAL"),
+                ("fee_usd", "REAL"),
+            ):
+                if col not in cols:
+                    conn.execute(
+                        f"ALTER TABLE trade_events ADD COLUMN {col} {coltype}"
+                    )
+            conn.commit()
+        except Exception:
+            pass
 
     # ── context manager ───────────────────────────────────────────────────────
 

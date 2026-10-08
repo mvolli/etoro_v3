@@ -29,7 +29,10 @@ gegen den Einstieg. Gegen 400 Ereignisse geprueft: stimmt in 99 % mit
 
 DEDUPLIZIERUNG: `trade_events` enthaelt Duplikate aus Bulk-Batch-Laeufen
 (gemessen 141 Events gegen 35 geschlossene Trades in einem Fenster). Jede
-Auswertung MUSS ueber (trade_id, event_at, close_pct) deduplizieren.
+Auswertung MUSS ueber (trade_id, COALESCE(order_id, event_at), close_pct)
+deduplizieren. fix/doppelbuchungen (2026-10-08): `order_id` ist der
+primäre Anker — identische Broker-Orders werden zusammengefasst.
+Legacy-Events ohne `order_id` fallen auf `event_at` zurueck.
 """
 from __future__ import annotations
 
@@ -73,6 +76,13 @@ def realized_by_trade(db: Any, since: str | None = None) -> dict[int, dict]:
     nicht das ueber Wochen angesammelte Wissen darueber, welche Signale
     tragen (feat/portfolio-reset, 2026-09-10).
 
+    fix/doppelbuchungen (2026-10-08): `order_id` ist jetzt Teil des
+    DISTINCT-Schluessels. Vorher: `event_at` im Schluessel bedeutete, dass
+    identische Buchungen zu verschiedenen Uhrzeiten (der risk_sl-Loop)
+    "distinct" blieben. Mit `order_id` koennen echte Broker-Anker Duplikate
+    zusammenfassen. Fallback: wenn `order_id` NULL ist (Legacy-Events),
+    greift der alte Schluessel (trade_id, event_at, close_pct).
+
     Fail-open: bei Fehler ein leeres Dict — Aufrufer fallen dann auf
     `trades.pnl_usd` zurueck und verhalten sich wie bisher.
     """
@@ -81,7 +91,9 @@ def realized_by_trade(db: Any, since: str | None = None) -> dict[int, dict]:
             """
             SELECT trade_id, event_type, amount_usd, pnl_pct, pnl_usd
             FROM (
-                SELECT DISTINCT trade_id, event_at, close_pct, event_type,
+                SELECT DISTINCT trade_id,
+                       COALESCE(order_id, event_at) AS _anchor,
+                       close_pct, event_type,
                        amount_usd, pnl_pct, pnl_usd
                 FROM trade_events
                 WHERE event_type IN ('PARTIAL_CLOSE', 'CLOSE')
@@ -218,7 +230,8 @@ def reconcile(db: Any, start_equity: float | None = None,
     res = {"start_equity": start_equity, "equity": None, "realized_usd": 0.0,
            "unrealized_usd": 0.0, "trades": 0, "tranchen": 0,
            "residual_usd": None,
-           "unattributed_usd": 0.0, "unattributed_tranchen": 0}
+           "unattributed_usd": 0.0, "unattributed_tranchen": 0,
+           "fee_usd": 0.0, "fee_opens": 0}
     try:
         row = db.fetchone(
             "SELECT value FROM system_state WHERE key = 'CURRENT_EQUITY'")
@@ -247,9 +260,20 @@ def reconcile(db: Any, start_equity: float | None = None,
     res["unattributed_usd"] = _un["realized_usd"]
     res["unattributed_tranchen"] = _un["tranchen"]
 
+    # fix/fee-tracking (2026-10-08): eToro bucht die Oeffnungsgebuehr
+    # (1 % / 2 %) NICHT in netProfit — sie liegt im Residuum versteckt.
+    # Hier sichtbar machen: fee_usd wird vom Erwartungswert abgezogen,
+    # damit das Residuum nur NOCH Unklares (Spread, Slippage) enthaelt.
+    # Legacy-Events (fee_usd=NULL) werden aus amount_usd + Symbol
+    # rueckschaetzt (1 % / 2 %) — SCHAETZUNG, keine Abrechnung.
+    _fees = recorded_fees(db, since=since)
+    res["fee_usd"] = _fees["fee_usd"]
+    res["fee_opens"] = _fees["opens_gesamt"]
+
     if res["equity"] is not None:
         erwartet = (start_equity + res["realized_usd"]
-                    + res["unattributed_usd"] + res["unrealized_usd"])
+                    + res["unattributed_usd"] + res["unrealized_usd"]
+                    - res["fee_usd"])
         res["residual_usd"] = round(res["equity"] - erwartet, 2)
     return res
 
@@ -297,7 +321,9 @@ def recorded_costs(db: Any, since: str | None = None) -> dict:
         row = db.fetchone(
             "SELECT COALESCE(SUM(cost_usd), 0) AS c, "
             "       SUM(cost_usd IS NOT NULL) AS m, COUNT(*) AS n "
-            "FROM (SELECT DISTINCT trade_id, event_at, close_pct, cost_usd "
+            "FROM (SELECT DISTINCT trade_id, "
+            "      COALESCE(order_id, event_at) AS _anchor, "
+            "      close_pct, cost_usd "
             "      FROM trade_events WHERE (? IS NULL OR event_at >= ?))",
             (since, since),
         )
@@ -307,4 +333,51 @@ def recorded_costs(db: Any, since: str | None = None) -> dict:
         out["cost_usd"] = round(float(row["c"] or 0.0), 2)
         out["fills_mit_kosten"] = int(row["m"] or 0)
         out["fills_gesamt"] = int(row["n"] or 0)
+    return out
+
+
+def recorded_fees(db: Any, since: str | None = None) -> dict:
+    """{fee_usd, opens_mit_fee, opens_gesamt} aus trade_events.
+
+    fix/fee-tracking (2026-10-08): eToro bucht die Oeffnungsgebuehr (1 % /
+    2 %) NICHT in netProfit — sie liegt im residual_usd versteckt. Diese
+    Funktion macht sie sichtbar: `fee_usd` wird bei OPEN-Events gesetzt
+    (execution_worker -> fee_model.estimate_open_fee) und hier summiert.
+
+    Legacy-Events (vor 2026-10-08) haben fee_usd=NULL. Fuer sie gibt es
+    einen optionalen Ruecktraeger: `estimate_legacy` (default False)
+    schaedelt die Fee aus amount_usd + Symbol-Suffix nach, wenn sie fehlt.
+    Die Rueckschaetzung ist eine SCHAETZUNG (1 % / 2 %), keine Abrechnung —
+    sie macht die Groessenordnung sichtbar, die bisher im Residuum steckte.
+    """
+    out = {"fee_usd": 0.0, "opens_mit_fee": 0, "opens_gesamt": 0}
+    try:
+        rows = db.fetchall(
+            """
+            SELECT amount_usd, symbol, fee_usd
+            FROM trade_events
+            WHERE event_type = 'OPEN'
+              AND (? IS NULL OR event_at >= ?)
+            """,
+            (since, since),
+        )
+    except Exception:
+        return out
+    from bot.core.fee_model import estimate_open_fee
+    for r in rows or []:
+        out["opens_gesamt"] += 1
+        fee = None
+        try:
+            _raw = r["fee_usd"] if "fee_usd" in r.keys() else r.get("fee_usd")
+            fee = float(_raw) if _raw is not None else None
+        except (TypeError, ValueError, KeyError):
+            fee = None
+        if fee is None:
+            _sym = r["symbol"] if "symbol" in r.keys() else (r.get("symbol") or "")
+            _amt = r["amount_usd"] if "amount_usd" in r.keys() else r.get("amount_usd")
+            fee = estimate_open_fee(_amt, _sym)
+        if fee is not None:
+            out["fee_usd"] += fee
+            out["opens_mit_fee"] += 1
+    out["fee_usd"] = round(out["fee_usd"], 2)
     return out

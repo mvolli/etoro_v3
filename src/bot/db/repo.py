@@ -820,6 +820,7 @@ class TradeEventRepo:
             for _stmt in (
                 "ALTER TABLE trade_events ADD COLUMN spread_pct REAL",
                 "ALTER TABLE trade_events ADD COLUMN cost_usd REAL",
+                "ALTER TABLE trade_events ADD COLUMN fee_usd REAL",
             ):
                 try:
                     self.db.execute(_stmt)
@@ -901,6 +902,7 @@ class TradeEventRepo:
         reported_final: bool = False,
         spread_pct: float | None = None,
         cost_usd: float | None = None,
+        fee_usd: float | None = None,
     ) -> int | None:
         """Persist ein Trade-Event. Returns event id oder None (fail-open)."""
         try:
@@ -917,8 +919,9 @@ class TradeEventRepo:
                     (trade_id, position_id, order_id, instrument_id, symbol,
                      event_type, source, event_at, close_pct, units, price,
                      amount_usd, pnl_usd, pnl_pct, pnl_source, reason,
-                     chart_posted, reported_final, spread_pct, cost_usd)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     chart_posted, reported_final, spread_pct, cost_usd,
+                     fee_usd)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     trade_id,
@@ -941,6 +944,7 @@ class TradeEventRepo:
                     1 if reported_final else 0,
                     float(spread_pct) if spread_pct is not None else None,
                     float(cost_usd) if cost_usd is not None else None,
+                    float(fee_usd) if fee_usd is not None else None,
                 ),
             )
             return cur.lastrowid
