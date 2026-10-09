@@ -880,6 +880,91 @@ def main() -> None:
                     failed_count += 1
                     continue
 
+            # b3b. Edge-Gate (SHADOW-MODUS) — Phase 3 (2026-10-09), D6:
+            #     Laeuft VOR dem $200-Floor. Frage die Edge-Statistik
+            #     (exp_net / LCB 95 % / n) des Signal-Typs aus
+            #     signal_outcomes (Fallback trade_events). SHADOW-MODUS:
+            #     kein Live-Skip — der Trade wird wie ueblich ausgefuehrt,
+            #     aber als Schatten-Trage gekennzeichnet (Log +
+            #     signal_outcomes.edge_shadow) und in den Stats
+            #     ausgegeben, damit das 24-h-Beobachtungsfenster des
+            #     Fee-Fixes (7cd4cda, Ende ~14:20 UTC 10.10.) mit
+            #     Gate-Entscheidung parallel zur Live-Kette laeuft.
+            #     n < n_min -> SHADOW (NICHT fail-open); LCB < 0 -> SHADOW.
+            try:
+                from bot.core import edge_gate as _eg
+                _eg_sig_id = trade.get("signal_id")
+                _eg_sig_type = ""
+                if _eg_sig_id:
+                    _eg_row = db.fetchone(
+                        "SELECT signal_type FROM signals WHERE id = ?",
+                        (_eg_sig_id,))
+                    _eg_sig_type = str(_eg_row["signal_type"] or "") if _eg_row else ""
+                _eg_regime = "UNKNOWN"
+                try:
+                    _eg_ss = db.fetchone(
+                        "SELECT value FROM system_state WHERE key='CURRENT_REGIME'")
+                    if _eg_ss:
+                        _eg_regime = str(_eg_ss["value"] or "UNKNOWN")
+                except Exception:  # noqa: BLE001
+                    pass
+                _eg_res = _eg.evaluate(_eg_sig_type, _eg_regime, db)
+                logger.info(
+                    "ExecutionWorker: EdgeGate SHADOW trade #%d %s type=%s "
+                    "regime=%s exp_net=%.5f lcb=%.5f n=%d -> %s (%s)",
+                    trade_id, symbol, _eg_sig_type, _eg_regime,
+                    _eg_res["exp_net"], _eg_res["lcb"], _eg_res["n"],
+                    "SHADOW" if _eg_res["shadow"] else "LIVE",
+                    _eg_res["reason"],
+                )
+                log_repo.write(
+                    "INFO", "execution_worker",
+                    f"EdgeGate SHADOW trade #{trade_id} {symbol} "
+                    f"type={_eg_sig_type} regime={_eg_regime} "
+                    f"exp_net={_eg_res['exp_net']:.5f} "
+                    f"lcb={_eg_res['lcb']:.5f} n={_eg_res['n']} "
+                    f"-> {'SHADOW' if _eg_res['shadow'] else 'LIVE'} "
+                    f"({_eg_res['reason']})",
+                    {"trade_id": trade_id, "symbol": symbol,
+                     "signal_type": _eg_sig_type, "regime": _eg_regime,
+                     "exp_net": _eg_res["exp_net"], "lcb": _eg_res["lcb"],
+                     "n": _eg_res["n"], "shadow": _eg_res["shadow"],
+                     "reason": _eg_res["reason"]},
+                )
+                # Shadow-Kennzeichnung in signal_outcomes (SHADOW-MODUS,
+                # keine Blockade): die Zeile des zugrundeliegenden Signals
+                # wird um die Gate-Entscheidung angereichert, falls die
+                # Spalte existiert; sonst no-op (fail-open auf die Doku).
+                try:
+                    _eg_cols = {r["name"] for r in db.fetchall(
+                        "PRAGMA table_info(signal_outcomes)")}
+                    if "edge_shadow" in _eg_cols and _eg_sig_id:
+                        # Exakte Zeile des Signals (nicht alle Zeilen desselben
+                        # Typs): signal_date + instrument_id ueber signals joinen.
+                        db.execute(
+                            """
+                            UPDATE signal_outcomes SET edge_shadow = ?
+                            WHERE id = (
+                                SELECT so.id FROM signal_outcomes so
+                                JOIN signals s
+                                  ON s.instrument_id = so.instrument_id
+                                 AND s.signal_type = so.signal_type
+                                 AND s.generated_at LIKE so.signal_date || '%'
+                                WHERE s.id = ?
+                                ORDER BY so.signal_date DESC
+                                LIMIT 1
+                            )
+                            """,
+                            (1 if _eg_res["shadow"] else 0, _eg_sig_id),
+                        )
+                except Exception as _eg_mark_exc:  # noqa: BLE001
+                    logger.debug(
+                        "EdgeGate: Shadow-Kennzeichnung fehlgeschlagen: %s",
+                        _eg_mark_exc)
+            except Exception as _eg_exc:  # noqa: BLE001
+                # Gate ist SHADOW/Beobachtung — darf die Live-Kette nie brechen.
+                logger.warning("EdgeGate (SHADOW) evaluation fehlgeschlagen: %s", _eg_exc)
+
             # b4. $200 hard floor — fix/fee-flat (2026-10-09, VoLLi-Entscheid):
             #    Flat-Fee $1/$2 pro Order. Bei $60-130 = 1.5-3 % Fee-Last,
             #    Gewinne wurden aufgefressen. Trades < $200 werden AUF $200
