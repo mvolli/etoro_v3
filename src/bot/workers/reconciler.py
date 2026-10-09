@@ -1381,7 +1381,20 @@ def main() -> int:
                     # Kein History-Match
                     if pos_id and pos_id in live_position_ids:
                         # Position lebt noch — naechster Zyklus
-                        msg = f"Trade {t_id} ({symbol}): position {pos_id} still in API — waiting another cycle"
+                        # Phase 0b (2026-10-09): Wenn ein Close-Order wartet,
+                        # konkret dokumentieren (sonst wirkt es "stuck").
+                        _wo_msg = ""
+                        try:
+                            from bot.core.close_orders import has_open_close_order as _hoco
+                            if _hoco(db, str(pos_id)):
+                                _wo_msg = (
+                                    " [Wächter: offener Close-Order in close_orders — "
+                                    "Close wird NICHT doppelt gefeuert, Order läuft durch]"
+                                )
+                        except Exception:
+                            pass
+                        msg = (f"Trade {t_id} ({symbol}): position {pos_id} still in API"
+                               f"{_wo_msg} — waiting another cycle")
                         logger.info(f"[{WORKER_NAME}] {msg}")
                         log_repo.write("INFO", WORKER_NAME, msg, {"trade_id": t_id})
                         continue
