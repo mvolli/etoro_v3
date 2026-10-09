@@ -116,7 +116,10 @@ RISK_SCALARS: dict[str, float] = {
 # Im Wert min_buy_usd steckten bis 2026-08-28 ZWEI Bedeutungen, die
 # gegenlaeufig wirken — daher jetzt getrennt:
 #
-#   signal_floor_usd (hier, regimeabhaengig 50/75/100/150)
+#   signal_floor_usd (hier, regimeabhaengig 200 — fix/fee-flat 2026-10-09
+#       einheitlich $200, weil die Flat-Fee $1/$2 bei < $200 = 1-3 %
+#       des Notional und jede Groesse darunter die Fee-Last nicht
+#       wirtschaftlich traegt)
 #       "Lohnt sich dieses Signal ueberhaupt?" — eine Groesse, die schon vor
 #       den situativen Haircuts zu klein ist, traegt die These nicht. Wird
 #       EINMAL geprueft, VOR Risk-Parity/Korrelation/Region.
@@ -146,8 +149,14 @@ def dust_floor_usd(regime: str, global_min_buy_usd: float = 50.0) -> float:
     der Config-Wert trading.min_buy_usd ist die absolute Broker-Untergrenze,
     strengere Regimes heben sie an.
 
-        NORMAL     50 -> 50.00      DEFENSIVE  100 -> 60.00
-        CAUTION    75 -> 50.00      CRITICAL   150 -> 90.00
+    fix/fee-flat (2026-10-09): signal_floor ist jetzt in allen Regimes
+    200.0, daher 200 * 0.6 = 120 als derived; die globale Untergrenze
+    trading.min_buy_usd (50) unterliegt. Das finale $200-Runden
+    passiert im execution_worker (vor dem API-Call) — hier bleibt
+    der Dust-Check als Absicherung.
+
+    NORMAL     200 -> 120.00     DEFENSIVE  200 -> 120.00
+    CAUTION    200 -> 120.00     CRITICAL   200 -> 120.00
     """
     params = _REGIME_PARAMS.get(regime) or _REGIME_PARAMS["NORMAL"]
     derived = float(params["signal_floor_usd"]) * SIZING_PARITY_FLOOR
@@ -159,50 +168,48 @@ def dust_floor_usd(regime: str, global_min_buy_usd: float = 50.0) -> float:
 _REGIME_PARAMS: dict[str, dict] = {
     "NORMAL": {
         "cash_min_pct":       15.0,
-        # 2026-08-29 (Entscheid VoLLi): 5.0 -> 6.0. Der Basisgroessen-Commit
-        # 710cd30 hob conviction_pct auf 6.0, womit die Basis in NORMAL
-        # (aggressiveness 1.0) genau 6.0 % des Equity betraegt — groesser als
-        # die eigene Obergrenze von 5.0 %. Folgenlos war das nur, weil
-        # max_trade_pct ausschliesslich im execution_worker und dort nur in
-        # DEFENSIVE geprueft wird; ein Parameter, der seiner eigenen
-        # Zielgroesse widerspricht, ist trotzdem eine Falle fuer den naechsten
-        # Leser (und fuer den LLM-Review-Worker, der ihn pflegt).
-        # Die Regime-Leiter bleibt monoton fallend: 6.0 > 4.0 > 3.0 > 2.0.
-        "max_trade_pct":       6.0,
+        # fix/sizing-base-10 (2026-10-09, VoLLi-Entscheid): Cap folgt der
+        # neuen 10-%-Conviction-Base (6.0 -> 10.0). Vorher kappte der 6.0-Cap
+        # die Base sofort zurueck — ein Parameter, der der Zielgroesse
+        # widerspricht, ist eine Falle (siehe 2026-08-29-Notiz).
+        # Regime-Leiter bleibt monoton fallend: 10.0 > 7.5 > 5.0 > 2.5.
+        "max_trade_pct":       10.0,
         "buy_aggressiveness":  1.0,
-        "signal_floor_usd":        50.0,
+        "signal_floor_usd":        200.0,   # fix/fee-flat: $200-Floor (Fee-Last)
         "allow_pyramiding":   True,
         "min_conviction":     "LOW",
         "description":        "Standard — alle Signale erlaubt",
     },
     "CAUTION": {
         "cash_min_pct":       20.0,   # Higher buffer
-        # 2026-08-29: 4.0 -> 4.5, gleiche Ursache wie bei NORMAL oben. Mit
-        # conviction_pct 6.0 und aggressiveness 0.75 betraegt die Basis hier
-        # 4.5 % des Equity — der 4.0-Deckel widersprach ihr. 4.5 ist der
-        # kleinste Wert, der den Widerspruch aufloest; die Leiter bleibt
-        # monoton fallend (6.0 > 4.5 > 3.0 > 2.0).
-        "max_trade_pct":       4.5,   # Slightly smaller trades
+        # fix/sizing-base-10 (2026-10-09): Cap folgt der neuen Base
+        # (10 % x 0.75 = 7.5 %). Vorher 4.5, mit conviction 6.0 kalibriert.
+        "max_trade_pct":       7.5,   # Slightly smaller trades
         "buy_aggressiveness":  0.75,  # risk_scalar applied
-        "signal_floor_usd":        75.0,
+        "signal_floor_usd":        200.0,   # fix/fee-flat: $200-Floor
         "allow_pyramiding":   True,   # Still allowed but at reduced size
         "min_conviction":     "MEDIUM",  # No LOW signals
         "description":        "Erhöhte Vorsicht — nur MEDIUM+ Signale",
     },
     "DEFENSIVE": {
         "cash_min_pct":       25.0,
-        "max_trade_pct":       3.0,
+        # fix/sizing-base-10 (2026-10-09): Cap folgt der neuen Base
+        # (10 % x 0.50 = 5.0 %). Vorher 3.0, mit conviction 6.0 kalibriert
+        # (3.0 % = 150.71 USD — genau das, was die Base kappte).
+        "max_trade_pct":       5.0,
         "buy_aggressiveness":  0.50,
-        "signal_floor_usd":       100.0,
+        "signal_floor_usd":       200.0,   # fix/fee-flat: $200-Floor
         "allow_pyramiding":   False,  # No adding to existing positions
         "min_conviction":     "HIGH",  # Only HIGH and VERY_HIGH
         "description":        "Defensiv — kein Pyramiding, nur HIGH+ Signale",
     },
     "CRITICAL": {
         "cash_min_pct":       30.0,
-        "max_trade_pct":       2.0,
+        # fix/sizing-base-10 (2026-10-09): Cap folgt der neuen Base
+        # (10 % x 0.25 = 2.5 %). Vorher 2.0, mit conviction 6.0 kalibriert.
+        "max_trade_pct":       2.5,
         "buy_aggressiveness":  0.25,
-        "signal_floor_usd":       150.0,
+        "signal_floor_usd":       200.0,   # fix/fee-flat: $200-Floor
         "allow_pyramiding":   False,
         "min_conviction":     "VERY_HIGH",  # Only best signals
         "description":        "Kritisch — nur VERY_HIGH Signale, Quarter-Kelly",

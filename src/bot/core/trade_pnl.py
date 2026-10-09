@@ -339,16 +339,21 @@ def recorded_costs(db: Any, since: str | None = None) -> dict:
 def recorded_fees(db: Any, since: str | None = None) -> dict:
     """{fee_usd, opens_mit_fee, opens_gesamt} aus trade_events.
 
-    fix/fee-tracking (2026-10-08): eToro bucht die Oeffnungsgebuehr (1 % /
-    2 %) NICHT in netProfit — sie liegt im residual_usd versteckt. Diese
-    Funktion macht sie sichtbar: `fee_usd` wird bei OPEN-Events gesetzt
+    fix/fee-tracking (2026-10-08): eToro bucht die Oeffnungsgebuehr NICHT in
+    netProfit — sie liegt im residual_usd versteckt. Diese Funktion macht sie
+    sichtbar: `fee_usd` wird bei OPEN-Events gesetzt
     (execution_worker -> fee_model.estimate_open_fee) und hier summiert.
 
     Legacy-Events (vor 2026-10-08) haben fee_usd=NULL. Fuer sie gibt es
     einen optionalen Ruecktraeger: `estimate_legacy` (default False)
     schaedelt die Fee aus amount_usd + Symbol-Suffix nach, wenn sie fehlt.
-    Die Rueckschaetzung ist eine SCHAETZUNG (1 % / 2 %), keine Abrechnung —
-    sie macht die Groessenordnung sichtbar, die bisher im Residuum steckte.
+    Die Rueckschaetzung ist eine SCHAETZUNG, keine Abrechnung — sie macht
+    die Groessenordnung sichtbar, die bisher im Residuum steckte.
+
+    fix/fee-flat (2026-10-09): Flat-Modell $1/$2 (empirisch via eToro-API
+    verifiziert), NICHT prozentual. Legacy-Werte in der Spalte (1 %/2 % aus
+    der Zeit vor 2026-10-09) werden NICHT neu geschaeetzt — nur NULL-Werte
+    landen im Fallback, und der Fallback ist jetzt flat.
     """
     out = {"fee_usd": 0.0, "opens_mit_fee": 0, "opens_gesamt": 0}
     try:

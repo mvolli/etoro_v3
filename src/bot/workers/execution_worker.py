@@ -143,7 +143,8 @@ def _record_open(db, trade_id, symbol, instrument_id, position_id,
         _fee_cfg = load_fee_config()
         _fee = estimate_open_fee(
             amount_usd, symbol,
-            _fee_cfg["high_fee_suffixes"], _fee_cfg["high_fee_pct"],
+            _fee_cfg["high_fee_suffixes"],
+            _fee_cfg["high_fee_flat"], _fee_cfg["std_fee_flat"],
         )
         record_posted_event(
             db, _DE, symbol=symbol, event_type="OPEN",
@@ -878,7 +879,30 @@ def main() -> None:
                     )
                     failed_count += 1
                     continue
-    
+
+            # b4. $200 hard floor — fix/fee-flat (2026-10-09, VoLLi-Entscheid):
+            #    Flat-Fee $1/$2 pro Order. Bei $60-130 = 1.5-3 % Fee-Last,
+            #    Gewinne wurden aufgefressen. Trades < $200 werden AUF $200
+            #    GERUNDET (nicht verworfen) — Kelly-schwache Signale
+            #    teilnehmen weiterhin, nur mit Mindestgröße.
+            #    NUR im execution_worker (ausschliesslich BUYs — SELL/CLOSE
+            #    laufen ueber exit_worker und haben keine Open-Fee).
+            if 0 < amount_usd < 200.0:
+                _old_amt = amount_usd
+                amount_usd = 200.0
+                logger.info(
+                    "ExecutionWorker: Trade #%d (%s) $%.2f < $200 Floor — "
+                    "auf $200.00 gerundet (fee-flat)",
+                    trade_id, symbol, _old_amt,
+                )
+                log_repo.write(
+                    "INFO", "execution_worker",
+                    f"Trade #{trade_id} FLOOR: {symbol} ${_old_amt:.2f} → $200.00 "
+                    f"(fee-flat $1/$2, < $200 = 1-3 % Fee-Last)",
+                    {"trade_id": trade_id, "symbol": symbol,
+                     "old_amount": _old_amt, "floored_amount": 200.0},
+                )
+
             # c. Market hours gate — statischer Check als Schnell-Skip ohne API-Call.
             #    Aktion: DEFER (bleibt APPROVED) statt FAILED — Execution-Worker
             #    wiederholt alle 15min. Wenn eToro öffnet, schlägt allowEntryOrders

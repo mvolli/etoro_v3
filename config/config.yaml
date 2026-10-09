@@ -110,8 +110,13 @@ trading:
                               # (.AX 16 / .HK 11 / .T 7). 1.0 = deaktiviert.
     enabled: true
     factor: 0.70
-    fee_pct: 2.0
-    high_fee_suffixes: [.ASX, .HK, .T, .AX]
+    fee_pct: 2.0              # LEGACY: nur Kandidaten-Ranking-Faktor (relativ),
+                              # keine USD-Buchung mehr. USD-Fees: fee_flat_*.
+    fee_flat_high: 2.0        # fix/fee-flat (2026-10-09): eToro bucht FLAT $2
+                              # pro Order auf High-Fee-Boersen (API-Beweis:
+                              # 10x $2 auf 18 offenen Positionen, Bot-Account)
+    fee_flat_std: 1.0         # FLAT $1 pro Order sonst (8x $1 im API-Beleg)
+    high_fee_suffixes: [.ASX, .HK, .T, .AX, .AE]  # .AE: EMAAR $2 im API-Beleg
   max_spread_pct_crypto: 3.0  # feat/crypto-247: Krypto-Spreads strukturell breiter
   deployment_boost: 1.25      # fix/cash-deployment (2026-07-15): boostet Positionsgroessen bei
                               # Cash-Ueberschuss (Gates: Regime-Whitelist unten + Makro-Scalar 1.0
@@ -392,34 +397,33 @@ sizing:                       # Position size as % of portfolio equity
   #
   # Positionszahl: das Exposure-Gate (75 %) deckelt bei 8.357 Equity auf
   # 6.267 USD, also rund 12 Positionen zu 500 USD — nicht 40.
-  very_high_pct: 6.0          # Conviction tier: VERY HIGH (self-improvement 2026-08-24: 7.0->5.0.
-                              # VERY_HIGH = schlaechteste Stufe (n=55, WR 10.9%, -42 USD) und stand
-                              # als GROSSTE Stufe oben in der Leiter — genau die Stufen, die Kelly
-                              # noch nicht voll erreicht (min_trades=25), waren ueberdimensioniert.
-                              # 5.0 = auf MEDIUM-Base abgeflacht; Kelly differenziert ueber Basis.)
-                              # Sizing-Entscheid 2026-09-28: conviction-Leiter bleibt MONOTON
-                              # (VERY_HIGH>=HIGH>=MEDIUM>=LOW, User-Entscheid 2026-07-14 + Test-
-                              # Invariante). Risk-based sizing (high risk small, low risk big)
-                              # wird NICHT ueber die Conviction-Leiter, sondern ueber die
-                              # Combo-/Asset-Klasse-Achse realisiert (llm_signal_weights.json +
-                              # Kelly asset-class split). VERY_HIGH post-Zaesur suppressed (n<10),
-                              # 6.0 hier inert.
-  high_pct: 6.0               # Conviction tier: HIGH (self-improvement 2026-08-24: 6.0->5.0.
-                              # HIGH = groesster einziger Drag (n=84, WR 31.0%, -269 USD), lief aber
-                              # stabil ueber 02.08->08-02-24 (28.8->30.3), 29-35.1 USD (42.9),
-                              # 35-41 (38.9), 41-47.4 (34.0) = 4 von 5 Fenstern. 5.0 ist die
-                              # moderate Steppe. 5.0 = 252 USD bei 8,356.85 USD Equity (vorher 302).)
+  very_high_pct: 10.0         # Sizing-Entscheid 2026-10-09 (VoLLi): 6.0 -> 10.0.
+                              # Flat-Fee-Befund (eToro-API 2026-10-09): $1/$2 pro
+                              # Order, NICHT 1 %/2 % prozentual. Bei 60-130 USD
+                              # waren Fees 1.5-3 % des Notional — Gewinne wurden
+                              # aufgefressen. 10 % x 8.840 Equity = 884 USD
+                              # Base in NORMAL, 442 in DEFENSIVE. $200-Floor im
+                              # execution_worker begrenzt Kelly-Reduktion.
+                              # VERY_HIGH = schlaechteste Stufe (n=55, WR 10.9%,
+                              # -42 USD) — 6.0 hier inert (post-Zaesur suppressed,
+                              # n<10). Leiter bleibt MONOTON (10>=10>=10>=2).
+  high_pct: 10.0              # Sizing-Entscheid 2026-10-09 (VoLLi): 6.0 -> 10.0,
+                              # gleich mit VERY_HIGH/MEDIUM (Leiter MONOTON 10>=10>=10>=2).
+                              # HIGH = groesster einziger Drag (n=84, WR 31.0%, -269 USD),
+                              # lief aber stabil ueber 02.08->08-02-24 (28.8->30.3),
+                              # 29-35.1 USD (42.9), 35-41 (38.9), 41-47.4 (34.0) = 4 von
+                              # 5 Fenstern. Flat-Fee-Befund: Base muss > $200 liegen.
                               # Sizing-Entscheid 2026-09-28: HIGH bleibt 6.0 (Leiter muss monoton
                               # bleiben: HIGH>=MEDIUM=6.0). Der HIGH-Drag (post-26.07 n=31,
                               # WR 25.8 %, real -155 USD) wird NICHT ueber die Conviction-Leiter,
                               # sondern ueber die Drag-Combo-Weights (TREND_PULLBACK+GOLDEN_CROSS)
                               # und den Asset-Klassen-Split geschraenkt.
-  medium_pct: 6.0             # Conviction tier: MEDIUM (BLEIBT 6.0 = die $500-Engine).
-                              # MEDIUM = einziger net-positive Tier post-26.07 (n=435, WR 36.1 %,
-                              # real +234 USD). LOW RISK = BIGGER: 6.0 % x 8,356.85 Equity x 1.0
-                              # (NORMAL) = 501 USD Basis = das $500-Ziel. Kelly + Entry-Quality-
-                              # Gate + Parity-Floor verkleinern die Realisierung; die Basis bleibt
-                              # der $500-Anker. Sizing-Entscheid 2026-09-28: bleibt 6.0.
+  medium_pct: 10.0            # Sizing-Entscheid 2026-10-09 (VoLLi): 6.0 -> 10.0.
+                              # MEDIUM = einziger net-positive Tier post-26.07 (n=435,
+                              # WR 36.1 %, real +234 USD). 10 % = $884 Base in NORMAL,
+                              # $442 in DEFENSIVE. Fee-Flat-Befund: kleine Groessen
+                              # ($60-130) hatten 1.5-3 % Fee-Last — Base muss
+                              # deutlich ueber $200 liegen, damit $1/$2 = 0.5-1 %.
   low_pct: 2.0                # Conviction tier: LOW / speculative
   # Risk-neutral Kelly scale (fix/kelly-risk-neutral 2026-08-22, post
   # commit-review 2026-08-21-b):

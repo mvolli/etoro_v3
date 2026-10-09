@@ -45,8 +45,8 @@ def test_defensive_prueft_gegen_max_trade_pct():
     "equity, amount, erwartet_abgelehnt",
     [
         (8387.66,  81.00, False),   # in DEFENSIVE dimensioniert -> passt
-        (8387.66, 251.62, False),   # exakt 3.0 % -> Grenze erlaubt
-        (8387.66, 300.00, True),    # unter NORMAL (5 %) dimensioniert -> zu gross
+        (8387.66, 419.38, False),   # exakt 5.0 % -> Grenze erlaubt
+        (8387.66, 500.00, True),    # ueber DEFENSIVE-Cap (5 %) -> zu gross
         (0.0,     999.00, False),   # Equity unbekannt -> Pruefung entfaellt
     ],
 )

@@ -64,11 +64,11 @@ def test_klammer_greift_nur_in_defensive():
 
 
 def test_normal_basis_bleibt_ungeklammert():
-    """Zielgroesse ~500 USD in NORMAL darf nicht wegdefiniert werden."""
+    """fix/fee-flat (2026-10-09): 10 % Basis in NORMAL → ~$835."""
     eq = 8356.85
     base = CFG["sizing"]["medium_pct"] / 100.0 * eq * \
         get_regime_params("NORMAL")["buy_aggressiveness"]
-    assert 480.0 <= base <= 520.0, f"NORMAL-Basis {base:.2f} nicht mehr bei ~500"
+    assert 800.0 <= base <= 870.0, f"NORMAL-Basis {base:.2f} nicht mehr bei ~835"
 
 
 def test_conviction_leiter_bleibt_monoton():
