@@ -19,6 +19,7 @@ import json
 import logging
 from datetime import datetime, timezone
 from bot.core.close_dedup import extract_order_id, has_recent_close
+from bot.core.close_orders import has_open_close_order, record_close_order
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -411,6 +412,23 @@ def execute_llm_recommendations(
                             stats["skip_count"] += 1
                             continue
 
+                    # Phase 0a (2026-10-09): Close-Order-Wächter. Offener
+                    # Close-Order beim Broker → KEIN zweiter Close (sonst
+                    # Doppel-Buchung). Prüft close_orders-Tabelle.
+                    if db is not None and position_id and not dry_run:
+                        if has_open_close_order(db, str(position_id)):
+                            logger.info(
+                                "[llm_execution] %s %s: Offener Close-Order "
+                                "beim Broker (close_orders) — KEIN zweiter Close (Wächter).",
+                                recommendation, symbol,
+                            )
+                            rec["executed"] = True
+                            rec["executed_at"] = now.isoformat()[:19]
+                            rec["executed_reason"] = "close_order_open"
+                            changed = True
+                            stats["skip_count"] += 1
+                            continue
+
                     result = client.close_position(
                         position_id=position_id,
                         instrument_id=instr_id,
@@ -419,6 +437,13 @@ def execute_llm_recommendations(
                     if not result:
                         raise RuntimeError("close_position() gab leeres Ergebnis zurueck")
                     _llm_oid = extract_order_id(result)
+                    # Phase 0a: Wächter sofort scharf nach neuem Close.
+                    if _llm_oid and db is not None and position_id:
+                        record_close_order(
+                            db, _llm_oid, str(position_id), symbol,
+                            int(instr_id) if instr_id else None,
+                            units_to_deduct,
+                        )
 
                     # fix/llm-tighten-remaining: die reduzierte Restmenge
                     # persistieren. OHNE diese Zeile bleibt remaining_frac auf

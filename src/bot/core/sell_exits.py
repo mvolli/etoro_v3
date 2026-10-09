@@ -339,12 +339,32 @@ def execute_sell_exits(
 
         try:
             from bot.core.close_dedup import extract_order_id
+            from bot.core.close_orders import has_open_close_order, record_close_order
+            # Phase 0a (2026-10-09): Close-Order-Wächter. Offener FULL-Close
+            # beim Broker → KEIN zweiter Close (Doppel-Buchung). Teilverkäufe
+            # (Partial) dürfen gestapelt werden (50% → 50% → Full), daher
+            # full_only=True.
+            if db is not None and action.position_id and not dry_run:
+                if has_open_close_order(db, str(action.position_id), full_only=True):
+                    logger.info(
+                        "[sell_exits] %s: Offener FULL-Close-Order beim Broker "
+                        "(close_orders) — KEIN zweiter Close (Wächter).",
+                        action.symbol,
+                    )
+                    continue
             result = client.close_position(
                 position_id=action.position_id,
                 instrument_id=action.instrument_id,
                 units_to_deduct=None if is_full else units_to_deduct,
             )
             _se_oid = extract_order_id(result)
+            # Phase 0a: Wächter sofort scharf nach neuem Close.
+            if _se_oid and db is not None and action.position_id:
+                record_close_order(
+                    db, _se_oid, str(action.position_id), action.symbol,
+                    int(action.instrument_id) if action.instrument_id else None,
+                    None if is_full else units_to_deduct,
+                )
             if not result:
                 stats["errors"].append(
                     f"{action.symbol}: close_position() returned empty/falsy result"

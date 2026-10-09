@@ -771,6 +771,24 @@ def main() -> int:
             _save_instrument_map_update(instrument_map, all_api_resolved_ids)
             logger.info(f"[{WORKER_NAME}] Resolved {len(all_api_resolved_ids)} new instrument IDs via API")
 
+        # ── 7.6 Close-Order-Wächter sync (Phase 0a, 2026-10-09) ─────────────────
+        # clientPortfolio.ordersForClose in die close_orders-Tabelle syncen.
+        # Damit ist vor JEDEM neuen close_position() (risk_worker, llm_exec,
+        # sell_exits) geprüft: Open-Order vorhanden → kein zweiter Close.
+        # CRITISCH VOR der LLM-Execution unten (die feuert Close-Orders).
+        try:
+            from bot.core import close_orders as _co
+            _ofc = (portfolio_payload.get("clientPortfolio") or {}).get("ordersForClose") or []
+            _co_stats = _co.sync_close_orders(db, _ofc, instrument_map)
+            if _co_stats["total_open"]:
+                logger.info(
+                    f"[{WORKER_NAME}] Close-Order-Wächter: {_co_stats['total_open']} "
+                    f"offene Close-Orders ({_co_stats['inserted']} neu, "
+                    f"{_co_stats['executed']} executed)"
+                )
+        except Exception as _co_exc:
+            logger.warning(f"[{WORKER_NAME}] WARNING: close_orders sync failed (non-fatal): {_co_exc}")
+
         # ── LLM-Empfehlungen autonom ausführen (vor client.close!) ──────────────
         try:
             from bot.core.llm_execution import execute_llm_recommendations

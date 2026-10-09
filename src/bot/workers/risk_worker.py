@@ -30,6 +30,7 @@ if str(SRC_DIR) not in sys.path:
 # Import erst NACH dem Path-Bootstrap: 'bot' ist vorher nicht auffindbar,
 # wenn die Datei direkt als Skript laeuft (src/ liegt dann nicht in sys.path).
 from bot.core.close_dedup import extract_order_id, trade_already_closed
+from bot.core.close_orders import has_open_close_order, record_close_order
 
 # ── Discord Embeds ─────────────────────────────────────────────────────────────
 try:
@@ -388,8 +389,24 @@ def _run_sl_checks(db, client, state_repo, log_repo, raw_positions: list[dict]
                         symbol,
                     )
                     continue
+                # Phase 0a (2026-10-09): Close-Order-Wächter. Wenn beim Broker
+                # schon ein Close-Order für diese Position wartet (ASX/Tokyo
+                # nachts), FEUERN wir keinen zweiten Close. Sonst Doppel-Buchung.
+                if has_open_close_order(db, str(position_id)):
+                    logger.info(
+                        "RiskWorker: %s: Offener Close-Order beim Broker "
+                        "(close_orders) — KEIN zweiter Close (Wächter).",
+                        symbol,
+                    )
+                    continue
                 _sl_close_result = client.close_position(position_id, instrument_id)
                 _sl_oid = extract_order_id(_sl_close_result)
+                # Wächter sofort scharf: neu gefeuerten Order in close_orders.
+                if _sl_oid:
+                    record_close_order(
+                        db, _sl_oid, str(position_id), symbol,
+                        int(instrument_id) if instrument_id else None,
+                    )
 
                 # ── Verify the full-close actually took effect ──────────────
                 from bot.core.trailing_stop import verify_full_close

@@ -839,6 +839,28 @@ class TradeEventRepo:
                 "CREATE INDEX IF NOT EXISTS idx_trades_apipos "
                 "ON trades(api_position_id)"
             )
+            # Phase 0a (2026-10-09): Close-Order-Wächter. Speichert alle
+            # wartenden Close-Orders aus clientPortfolio.ordersForClose,
+            # damit vor jedem neuen close_position() geprüft werden kann,
+            # ob schon ein Close in der Warteschlange steht (kein zweiter
+            # Close auf dieselbe Position).
+            self.db.execute("""
+                CREATE TABLE IF NOT EXISTS close_orders (
+                    order_id        TEXT PRIMARY KEY,
+                    position_id     TEXT NOT NULL,
+                    symbol          TEXT,
+                    instrument_id   INTEGER,
+                    placed_at       TEXT,
+                    status          TEXT NOT NULL DEFAULT 'OPEN',
+                    units_to_deduct REAL,
+                    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+                )
+            """)
+            self.db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_close_orders_pos "
+                "ON close_orders(position_id)"
+            )
         except Exception:
             pass  # bare test DBs / gleichzeitige Migration — fail-open
 
