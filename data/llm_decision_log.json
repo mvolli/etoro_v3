@@ -1976,9 +1976,9 @@
     },
     "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
     "baseline": null,
-    "outcome": null,
+    "outcome": "Signal TREND_PULLBACK,GOLDEN_CROSS: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
     "outcome_grade": null,
-    "outcome_date": null
+    "outcome_date": "2026-09-28"
   },
   {
     "date": "2026-09-25",
@@ -1992,6 +1992,570 @@
       "reason": "29% win rate and -0.31% avg PnL. Dip-buying signals are underperforming in CAUTION regime. Dampening to reduce frequency of falling-knife entries."
     },
     "reason": "29% win rate and -0.31% avg PnL. Dip-buying signals are underperforming in CAUTION regime. Dampening to reduce frequency of falling-knife entries.",
+    "baseline": null,
+    "outcome": "Signal MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROV: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-28"
+  },
+  {
+    "date": "2026-09-26",
+    "timestamp": "2026-09-26T20:30:57.255801+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
+    "outcome": "Signal TREND_PULLBACK,GOLDEN_CROSS: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-30"
+  },
+  {
+    "date": "2026-09-26",
+    "timestamp": "2026-09-26T20:30:57.258364+00:00",
+    "type": "signal_weight",
+    "key": "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING",
+    "old_value": 0.5,
+    "new_value": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "Negative Avg PnL (-0.31%) und hohe Reject-Rate (67%) deuten auf schlechte Entry-Qualität oder Markt-Ungunst hin.",
+      "_ratchet_frozen": true,
+      "_proposed": 0.7,
+      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.5 -> 0.7 blockiert (n_closed=184/20, pnl_usd=-165.29, realisiert=-73.33 USD)"
+    },
+    "reason": "RATCHET-FROZEN: Lockerung 0.5 -> 0.7 blockiert (n_closed=184/20, pnl_usd=-165.29, realisiert=-73.33 USD)",
+    "baseline": null,
+    "outcome": "Signal MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROV: 3 Trades, avg_pnl=-1.55% (Gewicht={'score_multiplier': 0.5, 'skip': False, 'reason': 'Negative Avg PnL (-0.31%) und hohe Reject-Rate (67%) deuten auf schlechte Entry-Qualität oder Markt-Ungunst hin.', '_ratchet_frozen': True, '_proposed': 0.7, '_ratchet_reason': 'RATCHET-FROZEN: Lockerung 0.5 -> 0.7 blockiert (n_closed=184/20, pnl_usd=-165.29, realisiert=-73.33 USD)'})",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-30"
+  },
+  {
+    "date": "2026-09-26",
+    "timestamp": "2026-09-26T20:30:57.260205+00:00",
+    "type": "signal_weight",
+    "key": "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20",
+    "old_value": 0.5,
+    "new_value": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "Negative Avg PnL (-1.44%) trotz hoher Success Rate. Dip-Buy Signale in CAUTION Regime sind riskant.",
+      "_ratchet_frozen": true,
+      "_proposed": 0.8,
+      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.5 -> 0.8 blockiert (n_closed=8/20, pnl_usd=-2.83, realisiert=-1.03 USD)"
+    },
+    "reason": "RATCHET-FROZEN: Lockerung 0.5 -> 0.8 blockiert (n_closed=8/20, pnl_usd=-2.83, realisiert=-1.03 USD)",
+    "baseline": null,
+    "outcome": "Signal RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-30"
+  },
+  {
+    "date": "2026-09-27",
+    "timestamp": "2026-09-27T20:31:22.295100+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
+    "outcome": "Signal TREND_PULLBACK,GOLDEN_CROSS: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-30"
+  },
+  {
+    "date": "2026-09-27",
+    "timestamp": "2026-09-27T20:31:22.297227+00:00",
+    "type": "signal_weight",
+    "key": "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING",
+    "old_value": 0.5,
+    "new_value": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "Hohe Reject-Rate (67%) und negative Avg PnL (-0.31%) deuten auf schlechte Entry-Qualitaet oder Liquiditaetsprobleme hin. Daempfung reduziert Exposure bei gleichzeitig hohem Rejection-Risiko.",
+      "_ratchet_frozen": true,
+      "_proposed": 0.7,
+      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.5 -> 0.7 blockiert (n_closed=184/20, pnl_usd=-165.29, realisiert=-73.33 USD)"
+    },
+    "reason": "RATCHET-FROZEN: Lockerung 0.5 -> 0.7 blockiert (n_closed=184/20, pnl_usd=-165.29, realisiert=-73.33 USD)",
+    "baseline": null,
+    "outcome": "Signal MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROV: 3 Trades, avg_pnl=-1.55% (Gewicht={'score_multiplier': 0.5, 'skip': False, 'reason': 'Hohe Reject-Rate (67%) und negative Avg PnL (-0.31%) deuten auf schlechte Entry-Qualitaet oder Liquiditaetsprobleme hin. Daempfung reduziert Exposure bei gleichzeitig hohem Rejection-Risiko.', '_ratchet_frozen': True, '_proposed': 0.7, '_ratchet_reason': 'RATCHET-FROZEN: Lockerung 0.5 -> 0.7 blockiert (n_closed=184/20, pnl_usd=-165.29, realisiert=-73.33 USD)'})",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-30"
+  },
+  {
+    "date": "2026-09-27",
+    "timestamp": "2026-09-27T20:31:22.299093+00:00",
+    "type": "signal_weight",
+    "key": "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20",
+    "old_value": 0.5,
+    "new_value": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "Kleine Stichprobe (n=8) mit negativer Avg PnL (-1.44%) und Winrate 37.5%. Vorsichtige Daempfung bis zu mehr Daten vorliegen, da RSI-Extremwerte oft Falling Knives sind.",
+      "_ratchet_frozen": true,
+      "_proposed": 0.8,
+      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.5 -> 0.8 blockiert (n_closed=8/20, pnl_usd=-2.83, realisiert=-1.03 USD)"
+    },
+    "reason": "RATCHET-FROZEN: Lockerung 0.5 -> 0.8 blockiert (n_closed=8/20, pnl_usd=-2.83, realisiert=-1.03 USD)",
+    "baseline": null,
+    "outcome": "Signal RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-30"
+  },
+  {
+    "date": "2026-09-28",
+    "timestamp": "2026-09-28T20:31:04.894649+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
+    "outcome": "Signal TREND_PULLBACK,GOLDEN_CROSS: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-30"
+  },
+  {
+    "date": "2026-09-28",
+    "timestamp": "2026-09-28T20:31:04.896904+00:00",
+    "type": "signal_weight",
+    "key": "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING",
+    "old_value": 0.25,
+    "new_value": {
+      "score_multiplier": 0.25,
+      "skip": false,
+      "reason": "Hohe Reject-Rate (65%) und negative Avg PnL (-0.32%) deuten auf schlechtes Timing oder Liquiditaetsprobleme hin. Daempfung reduziert Exposure.",
+      "_ratchet_frozen": true,
+      "_proposed": 0.7,
+      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.25 -> 0.7 blockiert (n_closed=195/20, pnl_usd=-168.80, realisiert=-75.95 USD)"
+    },
+    "reason": "RATCHET-FROZEN: Lockerung 0.25 -> 0.7 blockiert (n_closed=195/20, pnl_usd=-168.80, realisiert=-75.95 USD)",
+    "baseline": null,
+    "outcome": "Signal MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROV: 3 Trades, avg_pnl=-1.55% (Gewicht={'score_multiplier': 0.25, 'skip': False, 'reason': 'Hohe Reject-Rate (65%) und negative Avg PnL (-0.32%) deuten auf schlechtes Timing oder Liquiditaetsprobleme hin. Daempfung reduziert Exposure.', '_ratchet_frozen': True, '_proposed': 0.7, '_ratchet_reason': 'RATCHET-FROZEN: Lockerung 0.25 -> 0.7 blockiert (n_closed=195/20, pnl_usd=-168.80, realisiert=-75.95 USD)'})",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-30"
+  },
+  {
+    "date": "2026-09-28",
+    "timestamp": "2026-09-28T20:31:04.898690+00:00",
+    "type": "signal_weight",
+    "key": "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20",
+    "old_value": 0.5,
+    "new_value": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "Kleine Stichprobe (n=10) mit stark negativer Avg PnL (-1.88%) und Winrate 30%. Unterstuetzt These, dass RSI-Extremwerte oft Falling Knives sind."
+    },
+    "reason": "Kleine Stichprobe (n=10) mit stark negativer Avg PnL (-1.88%) und Winrate 30%. Unterstuetzt These, dass RSI-Extremwerte oft Falling Knives sind.",
+    "baseline": null,
+    "outcome": "Signal RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-30"
+  },
+  {
+    "date": "2026-09-29",
+    "timestamp": "2026-09-29T20:30:35.147242+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
+    "outcome": "Signal TREND_PULLBACK,GOLDEN_CROSS: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-30"
+  },
+  {
+    "date": "2026-09-29",
+    "timestamp": "2026-09-29T20:30:35.149569+00:00",
+    "type": "signal_weight",
+    "key": "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20",
+    "old_value": 0.5,
+    "new_value": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "Kleine Stichprobe (n=10) mit negativer Performance (-1.88% avg). Historisch sind RSI-Extremwerte oft Falling Knives. Dämpfung als Vorsichtsmaßnahme."
+    },
+    "reason": "Kleine Stichprobe (n=10) mit negativer Performance (-1.88% avg). Historisch sind RSI-Extremwerte oft Falling Knives. Dämpfung als Vorsichtsmaßnahme.",
+    "baseline": null,
+    "outcome": "Signal RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_grade": null,
+    "outcome_date": "2026-09-30"
+  },
+  {
+    "date": "2026-09-30",
+    "timestamp": "2026-09-30T20:30:40.106056+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
+    "outcome": "Signal TREND_PULLBACK,GOLDEN_CROSS: 1 Trades, avg_pnl=-3.97% (Gewicht={'action': 'LOCKED_OUT_BY_GUARD', 'reason': \"entry secured by 'VoLLi 2026-09-11'\"})",
+    "outcome_grade": null,
+    "outcome_date": "2026-10-01"
+  },
+  {
+    "date": "2026-09-30",
+    "timestamp": "2026-09-30T20:30:40.108483+00:00",
+    "type": "signal_weight",
+    "key": "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20",
+    "old_value": 0.5,
+    "new_value": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "High success rate but negative average PnL (-2.10%) suggests the signal captures falling knives or has poor exit timing. Dampening to reduce exposure."
+    },
+    "reason": "High success rate but negative average PnL (-2.10%) suggests the signal captures falling knives or has poor exit timing. Dampening to reduce exposure.",
+    "baseline": null,
+    "outcome": "Signal RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA: 1 Trades, avg_pnl=-4.50% (Gewicht={'score_multiplier': 0.5, 'skip': False, 'reason': 'High success rate but negative average PnL (-2.10%) suggests the signal captures falling knives or has poor exit timing. Dampening to reduce exposure.'})",
+    "outcome_grade": null,
+    "outcome_date": "2026-10-01"
+  },
+  {
+    "date": "2026-10-01",
+    "timestamp": "2026-10-01T20:30:42.206090+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
+    "outcome": "Signal TREND_PULLBACK,GOLDEN_CROSS: 2 Trades, avg_pnl=3.99% (Gewicht={'action': 'LOCKED_OUT_BY_GUARD', 'reason': \"entry secured by 'VoLLi 2026-09-11'\"})",
+    "outcome_grade": null,
+    "outcome_date": "2026-10-04"
+  },
+  {
+    "date": "2026-10-01",
+    "timestamp": "2026-10-01T20:30:42.209167+00:00",
+    "type": "signal_weight",
+    "key": "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20",
+    "old_value": 0.5,
+    "new_value": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "100% success rate but -2.25% avg PnL (n=16). High reject rate (21%) and negative profitability suggest entry quality issues or poor risk-reward despite avoiding SL."
+    },
+    "reason": "100% success rate but -2.25% avg PnL (n=16). High reject rate (21%) and negative profitability suggest entry quality issues or poor risk-reward despite avoiding",
+    "baseline": null,
+    "outcome": "Signal RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_grade": null,
+    "outcome_date": "2026-10-04"
+  },
+  {
+    "date": "2026-10-01",
+    "timestamp": "2026-10-01T20:30:42.211331+00:00",
+    "type": "signal_weight",
+    "key": "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING",
+    "old_value": 0.25,
+    "new_value": {
+      "score_multiplier": 0.25,
+      "skip": false,
+      "reason": "High reject rate (61%) and negative avg PnL (-0.43% avg, n=220). Dampening to reduce exposure to low-quality entries in DEFENSIVE regime.",
+      "_ratchet_frozen": true,
+      "_proposed": 0.7,
+      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.25 -> 0.7 blockiert (n_closed=220/20, pnl_usd=-190.57, realisiert=-88.93 USD)"
+    },
+    "reason": "RATCHET-FROZEN: Lockerung 0.25 -> 0.7 blockiert (n_closed=220/20, pnl_usd=-190.57, realisiert=-88.93 USD)",
+    "baseline": null,
+    "outcome": "Signal MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROV: 1 Trades, avg_pnl=-3.59% (Gewicht={'score_multiplier': 0.25, 'skip': False, 'reason': 'High reject rate (61%) and negative avg PnL (-0.43% avg, n=220). Dampening to reduce exposure to low-quality entries in DEFENSIVE regime.', '_ratchet_frozen': True, '_proposed': 0.7, '_ratchet_reason': 'RATCHET-FROZEN: Lockerung 0.25 -> 0.7 blockiert (n_closed=220/20, pnl_usd=-190.57, realisiert=-88.93 USD)'})",
+    "outcome_grade": null,
+    "outcome_date": "2026-10-04"
+  },
+  {
+    "date": "2026-10-02",
+    "timestamp": "2026-10-02T20:30:34.664670+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
+    "outcome": "Signal TREND_PULLBACK,GOLDEN_CROSS: 3 Trades, avg_pnl=3.48% (Gewicht={'action': 'LOCKED_OUT_BY_GUARD', 'reason': \"entry secured by 'VoLLi 2026-09-11'\"})",
+    "outcome_grade": null,
+    "outcome_date": "2026-10-05"
+  },
+  {
+    "date": "2026-10-02",
+    "timestamp": "2026-10-02T20:30:34.668854+00:00",
+    "type": "signal_weight",
+    "key": "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20",
+    "old_value": 0.5,
+    "new_value": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "Signal shows 13L/5W with -2.18% avg PnL. Despite high execution success, the trade outcome is poor, indicating entry timing or exit issues for this specific oversold pattern."
+    },
+    "reason": "Signal shows 13L/5W with -2.18% avg PnL. Despite high execution success, the trade outcome is poor, indicating entry timing or exit issues for this specific ove",
+    "baseline": null,
+    "outcome": "Signal RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_grade": null,
+    "outcome_date": "2026-10-05"
+  },
+  {
+    "date": "2026-10-03",
+    "timestamp": "2026-10-03T20:30:34.990515+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
+    "outcome": "Signal TREND_PULLBACK,GOLDEN_CROSS: 2 Trades, avg_pnl=-4.22% (Gewicht={'action': 'LOCKED_OUT_BY_GUARD', 'reason': \"entry secured by 'VoLLi 2026-09-11'\"})",
+    "outcome_grade": null,
+    "outcome_date": "2026-10-08"
+  },
+  {
+    "date": "2026-10-03",
+    "timestamp": "2026-10-03T20:30:34.994346+00:00",
+    "type": "signal_weight",
+    "key": "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20",
+    "old_value": 0.5,
+    "new_value": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "Low win rate (28%) and high average loss (-2.18%) indicate poor risk/reward. Dampening to reduce exposure to falling knives."
+    },
+    "reason": "Low win rate (28%) and high average loss (-2.18%) indicate poor risk/reward. Dampening to reduce exposure to falling knives.",
+    "baseline": null,
+    "outcome": "Signal RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA: 1 Trades, avg_pnl=-0.93% (Gewicht={'score_multiplier': 0.5, 'skip': False, 'reason': 'Low win rate (28%) and high average loss (-2.18%) indicate poor risk/reward. Dampening to reduce exposure to falling knives.'})",
+    "outcome_grade": null,
+    "outcome_date": "2026-10-08"
+  },
+  {
+    "date": "2026-10-03",
+    "timestamp": "2026-10-03T20:30:34.997054+00:00",
+    "type": "signal_weight",
+    "key": "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING",
+    "old_value": 0.25,
+    "new_value": {
+      "score_multiplier": 0.25,
+      "skip": false,
+      "reason": "High volume signal (n=229) with negative expectancy (-0.50% avg). Slight dampening to improve overall portfolio efficiency.",
+      "_ratchet_frozen": true,
+      "_proposed": 0.8,
+      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.25 -> 0.8 blockiert (n_closed=229/20, pnl_usd=-200.23, realisiert=-101.11 USD)"
+    },
+    "reason": "RATCHET-FROZEN: Lockerung 0.25 -> 0.8 blockiert (n_closed=229/20, pnl_usd=-200.23, realisiert=-101.11 USD)",
+    "baseline": null,
+    "outcome": "Signal MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROV: 0 Trades nach Gewichts-Aenderung — Signal nicht mehr gefeuert",
+    "outcome_grade": null,
+    "outcome_date": "2026-10-08"
+  },
+  {
+    "date": "2026-10-04",
+    "timestamp": "2026-10-04T20:31:19.040832+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-10-04",
+    "timestamp": "2026-10-04T20:31:19.044302+00:00",
+    "type": "signal_weight",
+    "key": "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20",
+    "old_value": 0.5,
+    "new_value": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "28% win rate and -2.18% avg PnL (n=18). Despite MACD turn, the extreme oversold condition acts as a falling knife indicator. Dampening to reduce exposure to high-volatility reversals."
+    },
+    "reason": "28% win rate and -2.18% avg PnL (n=18). Despite MACD turn, the extreme oversold condition acts as a falling knife indicator. Dampening to reduce exposure to hig",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-10-04",
+    "timestamp": "2026-10-04T20:31:19.046712+00:00",
+    "type": "signal_weight",
+    "key": "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING",
+    "old_value": 0.25,
+    "new_value": {
+      "score_multiplier": 0.25,
+      "skip": false,
+      "reason": "34% win rate and -0.50% avg PnL (n=229). The large sample size confirms a structural underperformance in the current market regime. Moderate dampening to preserve capital.",
+      "_ratchet_frozen": true,
+      "_proposed": 0.7,
+      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.25 -> 0.7 blockiert (n_closed=229/20, pnl_usd=-200.23, realisiert=-101.11 USD)"
+    },
+    "reason": "RATCHET-FROZEN: Lockerung 0.25 -> 0.7 blockiert (n_closed=229/20, pnl_usd=-200.23, realisiert=-101.11 USD)",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-10-05",
+    "timestamp": "2026-10-05T20:30:27.255935+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-10-05",
+    "timestamp": "2026-10-05T20:30:27.258476+00:00",
+    "type": "signal_weight",
+    "key": "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20",
+    "old_value": 0.5,
+    "new_value": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "Despite 100% success rate, average PnL is -2.18%. Likely due to slippage or poor exit timing on extreme oversold conditions. Dampening to reduce risk exposure."
+    },
+    "reason": "Despite 100% success rate, average PnL is -2.18%. Likely due to slippage or poor exit timing on extreme oversold conditions. Dampening to reduce risk exposure.",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-10-06",
+    "timestamp": "2026-10-06T20:30:46.600498+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-10-06",
+    "timestamp": "2026-10-06T20:30:46.603100+00:00",
+    "type": "signal_weight",
+    "key": "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20",
+    "old_value": 0.5,
+    "new_value": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "Negative average PnL (-2.03%) despite high success rate suggests poor risk/reward or exit timing. Dampening to protect capital in defensive regime.",
+      "_ratchet_frozen": true,
+      "_proposed": 0.6,
+      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.5 -> 0.6 blockiert (n_closed=19/20, pnl_usd=-23.37, realisiert=-21.32 USD)"
+    },
+    "reason": "RATCHET-FROZEN: Lockerung 0.5 -> 0.6 blockiert (n_closed=19/20, pnl_usd=-23.37, realisiert=-21.32 USD)",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-10-07",
+    "timestamp": "2026-10-07T20:30:36.419248+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-10-07",
+    "timestamp": "2026-10-07T20:30:36.422134+00:00",
+    "type": "signal_weight",
+    "key": "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20",
+    "old_value": 0.5,
+    "new_value": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "Hohe Reject-Rate (56%) und negative Durchschnitts-PnL (-2.07%). Signal zeigt Anzeichen von 'Falling Knife' ohne ausreichende MACD-Bestätigung.",
+      "_ratchet_frozen": true,
+      "_proposed": 0.7,
+      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.5 -> 0.7 blockiert (n_closed=20/20, pnl_usd=-24.12, realisiert=-21.73 USD)"
+    },
+    "reason": "RATCHET-FROZEN: Lockerung 0.5 -> 0.7 blockiert (n_closed=20/20, pnl_usd=-24.12, realisiert=-21.73 USD)",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-10-08",
+    "timestamp": "2026-10-08T20:30:45.710907+00:00",
+    "type": "signal_weight",
+    "key": "TREND_PULLBACK,GOLDEN_CROSS",
+    "old_value": 1.0,
+    "new_value": {
+      "action": "LOCKED_OUT_BY_GUARD",
+      "reason": "entry secured by 'VoLLi 2026-09-11'"
+    },
+    "reason": "decided-by-guard discarded LLM proposal for TREND_PULLBACK,GOLDEN_CROSS",
+    "baseline": null,
+    "outcome": null,
+    "outcome_grade": null,
+    "outcome_date": null
+  },
+  {
+    "date": "2026-10-08",
+    "timestamp": "2026-10-08T20:30:45.713742+00:00",
+    "type": "signal_weight",
+    "key": "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20",
+    "old_value": 0.5,
+    "new_value": {
+      "score_multiplier": 0.5,
+      "skip": false,
+      "reason": "Hohe Reject-Rate (45%) und negative avg PnL (-2.00%) trotz 100% Success-Rate deuten auf schlechte Entry-Qualität oder Slippage-Probleme hin.",
+      "_ratchet_frozen": true,
+      "_proposed": 0.8,
+      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.5 -> 0.8 blockiert (n_closed=23/20, pnl_usd=-27.19, realisiert=-24.76 USD)"
+    },
+    "reason": "RATCHET-FROZEN: Lockerung 0.5 -> 0.8 blockiert (n_closed=23/20, pnl_usd=-27.19, realisiert=-24.76 USD)",
     "baseline": null,
     "outcome": null,
     "outcome_grade": null,

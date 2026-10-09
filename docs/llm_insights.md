@@ -2326,3 +2326,283 @@
 - MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING shows a 29% win rate and -0.31% avg PnL, consistent with dip-buying in a CAUTION regime without sufficient trend confirmation.
 
 **LLM-Fazit:** Portfolio ist im CAUTION-Regime stabil, aber die Signal-Qualität leidet. TREND_PULLBACK,GOLDEN_CROSS (HIGH) und MACD-BB-Kombos zeigen hohe Verlustquoten und werden gedämpft. Keine strukturellen Ghost-Order-Probleme erkannt.
+
+## 2026-09-26 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/147)
+- `.L`: 0% (0/36) ← GEBLOCKT
+- `.ST`: 0% (0/25)
+- `.PA`: 0% (0/47)
+- `.MC`: 0% (0/15)
+- `.DE`: 0% (0/38)
+- `_ASIA`: 0% (0/78)
+- `.MI`: 0% (0/10)
+- `.CO`: 0% (0/5)
+- `.ASX`: 0% (0/43)
+
+**Anomalien:**
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING zeigt hohe Reject-Rate (67%) und negative Avg PnL (-0.31%)
+- TREND_PULLBACK,GOLDEN_CROSS bei HIGH Conviction hat extrem negative Avg PnL (-1.43%) bei 42% Winrate
+- RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20 hat negative Avg PnL (-1.44%) trotz 100% Success Rate
+
+**LLM-Fazit:** Keine strukturellen Ghost-Order-Probleme erkannt; alle Exchanges stabil. MACD-BB Signale und HIGH-Conviction Trend-Pullbacks zeigen negative PnL-Performance, was zu gezielten Score-Multiplier-Reduktionen führt. Regime CAUTION bleibt aktiv mit unveränderten Sizing-Parametern.
+
+## 2026-09-27 20:31 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/147)
+- `.L`: 0% (0/36) ← GEBLOCKT
+- `.ST`: 0% (0/25)
+- `.PA`: 0% (0/47)
+- `.MC`: 0% (0/15)
+- `.DE`: 0% (0/38)
+- `_ASIA`: 0% (0/78)
+- `.MI`: 0% (0/10)
+- `.CO`: 0% (0/5)
+- `.ASX`: 0% (0/43)
+
+**Anomalien:**
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING zeigt hohe Reject-Rate (67%) und negative Avg PnL (-0.31%), was auf schlechte Timing oder Liquiditaetsprobleme hindeutet.
+- TREND_PULLBACK,GOLDEN_CROSS mit HIGH Conviction ist stark unprofitabel (Avg PnL -1.43%, Winrate 26%), waehrend MEDIUM Conviction stabil bleibt.
+- RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20 hat eine sehr kleine Stichprobe (n=8) mit negativer Avg PnL (-1.44%), was die Zuverlaessigkeit der Signal-Qualitaet in Frage stellt.
+
+**LLM-Fazit:** Keine strukturellen Ghost-Order-Probleme erkannt; alle Exchanges stabil. MACD-BB Signale leiden unter hoher Reject-Rate und negativer Performance, waehrend HIGH Conviction Trend-Signale aktuell Geld verlieren. CAUTION-Regime aktiv, Portfolio bei 9211 USD.
+
+## 2026-09-28 20:31 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_ASIA`: 0% (0/79)
+- `_OTHER`: 0% (0/135)
+- `.L`: 0% (0/36) ← GEBLOCKT
+- `.ST`: 0% (0/25)
+- `.PA`: 0% (0/38)
+- `.MC`: 0% (0/15)
+- `.DE`: 0% (0/30)
+- `.MI`: 0% (0/6)
+- `.CO`: 0% (0/5)
+- `.ASX`: 0% (0/43)
+
+**Anomalien:**
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING zeigt hohe Reject-Rate (65%) und negative Avg PnL (-0.32%), was auf schlechtes Timing oder Liquiditaetsprobleme hindeutet.
+- TREND_PULLBACK,GOLDEN_CROSS mit HIGH Conviction ist stark unprofitabel (Avg PnL -1.43%, Winrate 26%), waehrend MEDIUM Conviction stabil bleibt (+0.27%).
+
+**LLM-Fazit:** Keine strukturellen Ghost-Order-Probleme erkannt; alle Exchanges stabil. MACD-BB Signale leiden unter hohen Reject-Raten und negativer Performance, waehrend HIGH Conviction Trend-Signale aktuell Geld verlieren. Regime ist DEFENSIVE, Konfiguration bleibt im gueltigen Bereich.
+
+## 2026-09-29 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/110)
+- `.PA`: 0% (0/28)
+- `.DE`: 0% (0/26)
+- `.ST`: 0% (0/26)
+- `_ASIA`: 0% (0/71)
+- `.ASX`: 0% (0/43)
+- `.L`: 0% (0/31) ← GEBLOCKT
+- `.MC`: 0% (0/15)
+- `.CO`: 0% (0/4)
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS (HIGH) zeigt massive Verluste (-1.43% avg) im Vergleich zu MEDIUM (+0.27% avg)
+- RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20 hat eine sehr kleine Stichprobe (n=10) mit negativer Performance (-1.88% avg)
+
+**LLM-Fazit:** Keine strukturellen Ghost-Order-Probleme erkannt; alle Exchanges stabil. Im DEFENSIVE-Regime läuft das Portfolio stabil, aber der Signal-Typ 'TREND_PULLBACK,GOLDEN_CROSS' mit HIGH Conviction performt deutlich schlechter als die MEDIUM-Stufe und wird gedämpft. RSI-Extremwerte bleiben weiterhin problematisch und werden vorsichtig behandelt.
+
+## 2026-09-30 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `.ST`: 0% (0/27)
+- `_OTHER`: 0% (0/105)
+- `.DE`: 0% (0/28)
+- `.MI`: 0% (0/3)
+- `.PA`: 0% (0/26)
+- `_ASIA`: 0% (0/69)
+- `.ASX`: 0% (0/39)
+- `.L`: 0% (0/13) ← GEBLOCKT
+- `.MC`: 0% (0/9)
+- `.CO`: 0% (0/3)
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS HIGH-Conviction shows severe negative PnL (-1.43% avg) compared to MEDIUM (+0.27% avg).
+- RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20 has a high success rate (1.0) but negative average PnL (-2.10%), indicating poor risk-reward or exit timing.
+
+**LLM-Fazit:** Keine strukturellen Ghost-Order-Probleme erkannt; alle Exchanges stabil. DEFENSIVE-Regime aktiv mit Equity bei 9050.76. Signal-Tuning empfohlen: TREND_PULLBACK,GOLDEN_CROSS (HIGH) und RSI_EXTREME_OVERSOLD-Kombos zeigen negative PnL trotz hohe Erfolgsraten, was auf Exit-Probleme oder schlechte Entry-Qualität hindeutet.
+
+## 2026-10-01 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/113)
+- `.PA`: 0% (0/24)
+- `.DE`: 0% (0/29)
+- `.MC`: 0% (0/8)
+- `.AE`: 0% (0/2)
+- `.ST`: 0% (0/26)
+- `.ASX`: 0% (0/35)
+- `_ASIA`: 0% (0/64)
+- `.MI`: 0% (0/3)
+- `.L`: 0% (0/13) ← GEBLOCKT
+- `.CO`: 0% (0/3)
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS HIGH conviction shows severe negative PnL (-1.43% avg) despite MEDIUM being profitable
+- RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20 has 100% success rate but negative PnL (-2.25% avg), indicating exit issues or small wins/large losses
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING has high reject rate (61%) and negative avg PnL (-0.43%)
+
+**LLM-Fazit:** Keine strukturellen Ghost-Order-Probleme erkannt; alle Exchanges stabil. DEFENSIVE-Regime aktiv mit Fokus auf Conviction-Filter: TREND_PULLBACK,GOLDEN_CROSS (HIGH) und RSI_EXTREME_OVERSOLD-Kombos zeigen negative PnL trotz hoher Success-Rates, was auf Exit-Probleme oder falsche Entry-Qualität hindeutet. Signal-Weights werden angepasst, um Verlusttreiber zu dämpfen.
+
+## 2026-10-02 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/120)
+- `.HE`: 0% (0/2)
+- `.PA`: 0% (0/23)
+- `.DE`: 0% (0/30)
+- `.MI`: 0% (0/5)
+- `_ASIA`: 0% (0/60)
+- `.ASX`: 0% (0/32)
+- `.MC`: 0% (0/7)
+- `.AE`: 0% (0/2)
+- `.ST`: 0% (0/25)
+- `.L`: 0% (0/13) ← GEBLOCKT
+- `.CO`: 0% (0/3)
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS (HIGH) zeigt extreme Verluste (-1.43% avg, 23L/8W) im Vergleich zu MEDIUM (+0.25% avg).
+- RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20 hat eine sehr hohe Verlustquote (13L/5W) und negativen Avg PnL (-2.18%), trotz 100% Success Rate in Order-Execution.
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING dominiert das Portfolio mit 229 Trades und negativer Avg PnL (-0.49%), was auf systematische Entry- oder Exit-Drift hindeutet.
+
+**LLM-Fazit:** Das Portfolio befindet sich im DEFENSIVE-Regime mit einer Equity von 8.926 USD. Es gibt keine strukturellen Ghost-Order-Probleme, da alle Exchange-Raten stabil bei 0% liegen. Die Hauptanomalie liegt in der Performance-Schere des Signals 'TREND_PULLBACK,GOLDEN_CROSS', wo die HIGH-Conviction-Stufe massiv unterperformt (-1.43% avg) im Vergleich zur MEDIUM-Stufe (+0.25% avg).
+
+## 2026-10-03 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/123)
+- `.HE`: 0% (0/2)
+- `.PA`: 0% (0/23)
+- `.DE`: 0% (0/30)
+- `.MI`: 0% (0/5)
+- `_ASIA`: 0% (0/60)
+- `.ASX`: 0% (0/32)
+- `.MC`: 0% (0/7)
+- `.AE`: 0% (0/2)
+- `.ST`: 0% (0/25)
+- `.L`: 0% (0/13) ← GEBLOCKT
+- `.CO`: 0% (0/3)
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS HIGH Conviction: 26% Win-Rate, avg PnL -1.43% (n=31) — severe underperformance vs MEDIUM tier
+- RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20: 28% Win-Rate, avg PnL -2.18% (n=18) — high risk/reward mismatch
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING: 30% Win-Rate, avg PnL -0.50% (n=229) — consistent small losses
+
+**LLM-Fazit:** DEFENSIVE-Regime aktiv (Equity 8934.13). Keine Ghost-Order-Probleme festgestellt. Signal-Analyse zeigt, dass TREND_PULLBACK,GOLDEN_CROSS bei HIGH Conviction und RSI_EXTREME_OVERSOLD-Kombos signifikant unterperformen; Gewichte werden entsprechend gedämpft.
+
+## 2026-10-04 20:31 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/123)
+- `.HE`: 0% (0/2)
+- `.PA`: 0% (0/23)
+- `.DE`: 0% (0/30)
+- `.MI`: 0% (0/5)
+- `_ASIA`: 0% (0/60)
+- `.ASX`: 0% (0/32)
+- `.MC`: 0% (0/7)
+- `.AE`: 0% (0/2)
+- `.ST`: 0% (0/25)
+- `.L`: 0% (0/13) ← GEBLOCKT
+- `.CO`: 0% (0/3)
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS (HIGH) has a 26% win rate and -1.43% avg PnL, indicating severe overconfidence in high-conviction trend entries.
+- RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20 shows a 28% win rate with -2.18% avg PnL, confirming the 'Falling Knife' risk despite MACD confirmation.
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING has a 34% win rate (69/229) and negative avg PnL, suggesting the mean-reversion entry logic is currently underperforming.
+
+**LLM-Fazit:** Das Portfolio befindet sich im DEFENSIVE-Regime mit einer Equity von 8.931 USD. Keine strukturellen Ghost-Order-Probleme wurden festgestellt, da alle Exchange-Raten stabil sind. Die Signal-Analyse zeigt jedoch, dass TREND_PULLBACK,GOLDEN_CROSS (HIGH) und RSI_EXTREME_OVERSOLD-Kombinationen aktuell Verluste generieren und daher gedämpft werden sollten.
+
+## 2026-10-05 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_ASIA`: 0% (0/56)
+- `_OTHER`: 0% (0/100)
+- `.HE`: 0% (0/2)
+- `.PA`: 0% (0/18)
+- `.DE`: 0% (0/24)
+- `.MI`: 0% (0/5)
+- `.ASX`: 0% (0/20)
+- `.MC`: 0% (0/6)
+- `.AE`: 0% (0/2)
+- `.ST`: 0% (0/18)
+- `.L`: 0% (0/13) ← GEBLOCKT
+- `.CO`: 0% (0/2)
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS HIGH conviction shows severe underperformance (avg -1.43%) compared to MEDIUM (+0.46%)
+- RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20 has high success rate (1.0) but negative avg PnL (-2.18%), indicating exit issues or high slippage
+
+**LLM-Fazit:** Keine Ghost-Order-Probleme erkannt; alle Exchanges stabil. DEFENSIVE-Regime aktiv mit Equity 8924.03. Signal-Tuning: TREND_PULLBACK,GOLDEN_CROSS (HIGH) und RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20 werden gedämpft aufgrund negativer PnL-Performance trotz hoher Erfolgsraten.
+
+## 2026-10-06 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_ASIA`: 0% (0/52)
+- `_OTHER`: 0% (0/76)
+- `.HE`: 0% (0/2)
+- `.PA`: 0% (0/15)
+- `.DE`: 0% (0/21)
+- `.MI`: 0% (0/5)
+- `.ASX`: 0% (0/12)
+- `.MC`: 0% (0/4)
+- `.AE`: 0% (0/2)
+- `.ST`: 0% (0/15)
+- `.L`: 0% (0/13) ← GEBLOCKT
+- `.CO`: 0% (0/2)
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS HIGH conviction shows severe underperformance (avg -1.43%) compared to MEDIUM (+0.46%)
+- RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20 has negative avg PnL (-2.03%) despite 100% success rate, indicating exit issues or high slippage
+- MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING is the primary driver of portfolio drawdown with avg -0.44% over 245 trades
+
+**LLM-Fazit:** Keine strukturellen Ghost-Order-Probleme erkannt; alle Exchanges stabil. DEFENSIVE-Regime aktiv. Hauptproblem: TREND_PULLBACK,GOLDEN_CROSS in HIGH Conviction verliert Geld (-1.43% avg), während MEDIUM profitiert. RSI_EXTREME_OVERSOLD Signale zeigen negative PnL trotz hoher Erfolgsrate, was auf Exit-Probleme hindeutet.
+
+## 2026-10-07 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_ASIA`: 0% (0/39)
+- `_OTHER`: 0% (0/48)
+- `.HE`: 0% (0/2)
+- `.PA`: 0% (0/15)
+- `.DE`: 0% (0/20)
+- `.MI`: 0% (0/4)
+- `.ASX`: 0% (0/11)
+- `.MC`: 0% (0/2)
+- `.AE`: 0% (0/2)
+- `.ST`: 0% (0/15)
+- `.L`: 0% (0/12) ← GEBLOCKT
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS mit HIGH Conviction zeigt extrem negative Performance (avg -1.43%, n=31) im Vergleich zu MEDIUM (+0.34%, n=47).
+- RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20 hat eine sehr hohe Reject-Rate (56%) und negative PnL (-2.07% avg), was auf übertriebene Dip-Buy-Aktivität hindeutet.
+
+**LLM-Fazit:** Das Portfolio befindet sich im DEFENSIVE-Regime mit einer stabilen Ghost-Order-Rate von 0%. Auffällig ist die schlechte Performance des Signals 'TREND_PULLBACK,GOLDEN_CROSS' bei HIGH Conviction, während die MEDIUM-Stufe profitabel ist. Zudem zeigt 'RSI_EXTREME_OVERSOLD' eine hohe Ablehnungsrate, was auf zu aggressive Einstiege in fallende Messer hindeutet.
+
+## 2026-10-08 20:30 UTC
+
+**Ghost-Raten (≥2 Trades):**
+- `_OTHER`: 0% (0/50)
+- `.PA`: 0% (0/9)
+- `.ASX`: 0% (0/12)
+- `_ASIA`: 0% (0/29)
+- `.HE`: 0% (0/2)
+- `.DE`: 0% (0/20)
+- `.MI`: 0% (0/4)
+- `.MC`: 0% (0/2)
+- `.AE`: 0% (0/2)
+- `.ST`: 0% (0/13)
+- `.L`: 0% (0/12) ← GEBLOCKT
+
+**Anomalien:**
+- TREND_PULLBACK,GOLDEN_CROSS (HIGH Conviction) zeigt eine extrem negative Performance (-1.43% avg PnL) im Vergleich zur MEDIUM-Stufe (+0.27% avg PnL).
+- RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20 hat trotz 100% Success-Rate eine sehr hohe Reject-Rate (45%) und negative PnL (-2.00% avg), was auf schlechte Entry-Qualität oder Slippage hindeutet.
+- SRB.L und NLOP weisen hohe Slippage-Reject-Raten auf, was die Ausführungseffizienz beeinträchtigt.
+
+**LLM-Fazit:** Das Portfolio befindet sich im DEFENSIVE-Regime mit einer Equity von 8.850,85 USD. Es gibt keine strukturellen Ghost-Order-Probleme, da alle Exchange-Trends stabil sind. Auffällig ist die schlechte Performance des Signals 'TREND_PULLBACK,GOLDEN_CROSS' in der HIGH-Conviction-Stufe, die deutlich unter der MEDIUM-Stufe liegt und daher gedämpft werden sollte.

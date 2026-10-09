@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-10-04T20:31:19.043444+00:00",
-  "auto_expires_at": "2026-10-18T20:31:19.043456+00:00",
+  "updated_at": "2026-10-08T20:30:45.712843+00:00",
+  "auto_expires_at": "2026-10-22T20:30:45.712854+00:00",
   "adjustments": {
     "TREND_PULLBACK,GOLDEN_CROSS": {
       "score_multiplier": 1.0,
@@ -46,14 +46,17 @@
     "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20": {
       "score_multiplier": 0.5,
       "skip": false,
-      "reason": "28% win rate and -2.18% avg PnL (n=18). Despite MACD turn, the extreme oversold condition acts as a falling knife indicator. Dampening to reduce exposure to high-volatility reversals."
+      "reason": "Hohe Reject-Rate (45%) und negative avg PnL (-2.00%) trotz 100% Success-Rate deuten auf schlechte Entry-Qualität oder Slippage-Probleme hin.",
+      "_ratchet_frozen": true,
+      "_proposed": 0.8,
+      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.5 -> 0.8 blockiert (n_closed=23/20, pnl_usd=-27.19, realisiert=-24.76 USD)"
     }
   },
   "strategy_notes": [
-    "High-conviction trend signals are currently failing to outperform medium-conviction ones, suggesting that conviction scoring may be too aggressive for current volatility conditions.",
-    "Mean-reversion signals (BB/MACD) are showing negative expectancy, indicating that the market may be trending rather than ranging, or that entry timing is too late in the dip."
+    "Die Conviction-Scoring-Logik für Trend-Signale sollte überprüft werden, da HIGH Conviction aktuell schlechter performt als MEDIUM.",
+    "Slippage-Rejects bei SRB.L und NLOP sollten im Order-Execution-Modul adressiert werden, um die tatsächliche Fill-Rate zu verbessern."
   ],
   "conviction_issues": [
-    "TREND_PULLBACK,GOLDEN_CROSS HIGH conviction has a 26% win rate, which is below the 25% threshold for 'very concrete reason' requirement, necessitating dampening."
+    "HIGH Conviction bei TREND_PULLBACK,GOLDEN_CROSS hat eine deutlich schlechtere Performance als MEDIUM Conviction, was auf ein Problem im Scoring-Algorithmus hindeutet."
   ]
 }

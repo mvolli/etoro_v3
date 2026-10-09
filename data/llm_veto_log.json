@@ -1,664 +1,6 @@
 {
  "entries": [
   {
-   "ts": "2026-09-08T00:34:35.097329+00:00",
-   "trade_id": 2003,
-   "symbol": "2871.T",
-   "yf_symbol": "2871.T",
-   "decision": "REDUCE",
-   "reason": "Signal-Kombo hat niedrige WR (31.2%) und MACD-Komponente; Risiko-Messing. Halbe Position als Vorsicht.",
-   "signal_price": 2109.0
-  },
-  {
-   "ts": "2026-09-08T02:04:41.227860+00:00",
-   "trade_id": 2004,
-   "symbol": "3969.HK",
-   "yf_symbol": "3969.HK",
-   "decision": "REDUCE",
-   "reason": "Signal-Kombo hat niedrige WR (31.2%) und MACD-Komponente; Halve Size als Vorsicht.",
-   "signal_price": 3.1449999809265137
-  },
-  {
-   "ts": "2026-09-08T02:19:42.595970+00:00",
-   "trade_id": 2005,
-   "symbol": "5101.T",
-   "yf_symbol": "5101.T",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat niedrige WR (31.2%) und MACD-Komponente; Halve Size zur Risikominimierung.",
-   "signal_price": 7012.0,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -2.52
-  },
-  {
-   "ts": "2026-09-08T07:05:05.111437+00:00",
-   "trade_id": 2008,
-   "symbol": "DWNI.DE",
-   "yf_symbol": "DWNI.DE",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat niedrige WR (31.2%) und MACD-Komponente; Halve Size zur Risikominimierung.",
-   "signal_price": 17.260000228881836,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -2.67
-  },
-  {
-   "ts": "2026-09-08T07:19:05.666911+00:00",
-   "trade_id": 2009,
-   "symbol": "SAX.DE",
-   "yf_symbol": "SAX.DE",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat niedrige WR (31.2%) und MACD-Komponente; Risiko-Messing. Position halbiert.",
-   "signal_price": 37.47999954223633,
-   "outcome": "MISSED_UPSIDE",
-   "outcome_delta_pct": 0.11
-  },
-  {
-   "ts": "2026-09-08T07:34:06.910166+00:00",
-   "trade_id": 2010,
-   "symbol": "FRE.DE",
-   "yf_symbol": "FRE.DE",
-   "decision": "REDUCE",
-   "reason": "Signal-Kombo hat niedrige WR (31.2%) und MACD-Komponente; Halve Size zur Risikominimierung.",
-   "signal_price": 43.94499969482422
-  },
-  {
-   "ts": "2026-09-09T00:34:26.710337+00:00",
-   "trade_id": 2015,
-   "symbol": "AIA.ASX",
-   "yf_symbol": "AIA.AX",
-   "decision": "REDUCE",
-   "reason": "Signal-Kombo hat niedrige WR (27.5%) und MACD-Komponente senkt Erfolgswahrscheinlichkeit. Position wird halbiert zur Risikominimierung.",
-   "signal_price": 6.909999847412109
-  },
-  {
-   "ts": "2026-09-09T05:04:48.552635+00:00",
-   "trade_id": 2016,
-   "symbol": "9863.HK",
-   "yf_symbol": "9863.HK",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.5%) und MACD-Komponente senkt Win-Rate deutlich. Halbe Position als Vorsicht.",
-   "signal_price": 35.15999984741211,
-   "outcome": "MISSED_UPSIDE",
-   "outcome_delta_pct": 0.11
-  },
-  {
-   "ts": "2026-09-09T07:35:00.631087+00:00",
-   "trade_id": 2018,
-   "symbol": "TOWNS",
-   "yf_symbol": "TOWNS-USD",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.5%) und MACD-Komponente senkt Historie auf 31%. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
-   "signal_price": 0.002094099996611476,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -9.69
-  },
-  {
-   "ts": "2026-09-09T08:34:05.521917+00:00",
-   "trade_id": 2019,
-   "symbol": "TOWNS",
-   "yf_symbol": "TOWNS-USD",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.5%) und MACD-Komponente senkt Historie auf 31%. Halbe Groesse als Vorsicht.",
-   "signal_price": 0.002085499931126833,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -8.89
-  },
-  {
-   "ts": "2026-09-09T09:04:07.835618+00:00",
-   "trade_id": 2020,
-   "symbol": "ANIM.MI",
-   "yf_symbol": "ANIM.MI",
-   "decision": "REDUCE",
-   "reason": "Signal-Kombo hat WR < 25% (27.5%) und MACD-Komponente senkt Historie auf 31%. Halbe Position als Vorsicht.",
-   "signal_price": 6.880000114440918
-  },
-  {
-   "ts": "2026-09-09T09:19:08.764665+00:00",
-   "trade_id": 2020,
-   "symbol": "ANIM.MI",
-   "yf_symbol": "ANIM.MI",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.5%) und MACD-Komponente senkt Historie auf 31%. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
-   "signal_price": 6.880000114440918,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -0.44
-  },
-  {
-   "ts": "2026-09-09T09:34:10.017249+00:00",
-   "trade_id": 2021,
-   "symbol": "TOWNS",
-   "yf_symbol": "TOWNS-USD",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.5%) und MACD-Komponente senkt Historie-WR. Halbe Groesse als Vorsicht.",
-   "signal_price": 0.0020836000330746174,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -9.69
-  },
-  {
-   "ts": "2026-09-09T10:34:18.878545+00:00",
-   "trade_id": 2023,
-   "symbol": "MEDCL.PA",
-   "yf_symbol": "MEDCL.PA",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.5%) und MACD-Komponente; Risiko-Messing. Halbe Position.",
-   "signal_price": 22.81999969482422,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -2.98
-  },
-  {
-   "ts": "2026-09-09T10:34:18.878545+00:00",
-   "trade_id": 2024,
-   "symbol": "EXA.PA",
-   "yf_symbol": "EXA.PA",
-   "decision": "REDUCE",
-   "reason": "Signal-Kombo hat WR < 25% (27.5%) und MACD-Komponente; Risiko-Messing. Halbe Position.",
-   "signal_price": 124.0999984741211
-  },
-  {
-   "ts": "2026-09-09T10:34:18.878545+00:00",
-   "trade_id": 2025,
-   "symbol": "ACE.MI",
-   "yf_symbol": "ACE.MI",
-   "decision": "REDUCE",
-   "reason": "Signal-Kombo hat WR < 25% (27.5%) und MACD-Komponente; Risiko-Messing. Halbe Position.",
-   "signal_price": 20.420000076293945
-  },
-  {
-   "ts": "2026-09-09T14:04:31.822548+00:00",
-   "trade_id": 2027,
-   "symbol": "MCD",
-   "yf_symbol": "MCD",
-   "decision": "REDUCE",
-   "reason": "Signal-Kombo hat WR < 25% (27.5%) und MACD-Komponente senkt Historie-WR. Halbe Groesse zur Risikominimierung.",
-   "signal_price": 255.27960205078125
-  },
-  {
-   "ts": "2026-09-09T14:34:37.229917+00:00",
-   "trade_id": 2029,
-   "symbol": "ABT.US",
-   "yf_symbol": "ABT",
-   "decision": "VETO",
-   "reason": "Kombi WR 27.5% < 25% Grenze knapp verfehlt, hohe SL-Kill Rate, RSI 43 nicht extrem oversold.",
-   "signal_price": 106.44999694824219,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -2.9
-  },
-  {
-   "ts": "2026-09-09T14:34:37.229917+00:00",
-   "trade_id": 2030,
-   "symbol": "TEG.DE",
-   "yf_symbol": "TEG.DE",
-   "decision": "REDUCE",
-   "reason": "Kombi WR 27.5% < 25% Grenze knapp verfehlt, RSI 35 naehert sich Oversold, aber MACD-Komponente schwach.",
-   "signal_price": 12.15999984741211
-  },
-  {
-   "ts": "2026-09-09T16:34:43.749653+00:00",
-   "trade_id": 2031,
-   "symbol": "NLOP",
-   "yf_symbol": "NLOP",
-   "decision": "REDUCE",
-   "reason": "Signal-Kombo hat WR < 25% (27.5%) und MACD-Komponente senkt Historie auf 31%. Markt leicht negativ. Halbe Position als Vorsicht.",
-   "signal_price": 11.069999694824219
-  },
-  {
-   "ts": "2026-09-10T05:49:58.163266+00:00",
-   "trade_id": 2032,
-   "symbol": "JIN.ASX",
-   "yf_symbol": "JIN.AX",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.6%) und MACD-Komponente senkt WR auf 31.2%. RSI 31 ist nicht extrem oversold. Halbe Position zur Risikominimierung.",
-   "signal_price": 6.489999771118164,
-   "outcome": "MISSED_UPSIDE",
-   "outcome_delta_pct": 0.62
-  },
-  {
-   "ts": "2026-09-10T06:20:00.669520+00:00",
-   "trade_id": 2033,
-   "symbol": "1585.HK",
-   "yf_symbol": "1585.HK",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat niedrige WR (27.6%) und MACD-Komponente; RSI 30.7 ist nicht extrem oversold. Halbe Position zur Risikominimierung.",
-   "signal_price": 8.6899995803833,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -1.5
-  },
-  {
-   "ts": "2026-09-10T11:34:27.069131+00:00",
-   "trade_id": 2034,
-   "symbol": "RHM.DE",
-   "yf_symbol": "RHM.DE",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat niedrige WR (27.6%) und MACD-Komponente; Halve Size als Vorsicht.",
-   "signal_price": 1019.7999877929688,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -0.06
-  },
-  {
-   "ts": "2026-09-10T13:34:36.685638+00:00",
-   "trade_id": 2035,
-   "symbol": "COST",
-   "yf_symbol": "COST",
-   "decision": "REDUCE",
-   "reason": "Signal-Kombo hat WR < 25% (27.6%) und MACD-Komponente senkt WR auf 31.2%. Markt ist feindlich (QQQ -1.16%). Halbe Position als Kompromiss.",
-   "signal_price": 907.0
-  },
-  {
-   "ts": "2026-09-10T14:34:44.183360+00:00",
-   "trade_id": 2036,
-   "symbol": "COST",
-   "yf_symbol": "COST",
-   "decision": "REDUCE",
-   "reason": "Signal-Kombo hat WR < 25% (27.6%) und MACD-Komponente senkt WR weiter. RSI 35 ist nicht tief genug for 'Oversold' safety. Halve size to mitigate risk.",
-   "signal_price": 904.5499877929688
-  },
-  {
-   "ts": "2026-09-10T14:34:44.183360+00:00",
-   "trade_id": 2037,
-   "symbol": "FME.DE",
-   "yf_symbol": "FME.DE",
-   "decision": "REDUCE",
-   "reason": "Signal-Kombo hat WR < 25% (27.6%). RSI 30.9 is better, but MACD component remains a negative factor. Halve size.",
-   "signal_price": 38.5099983215332
-  },
-  {
-   "ts": "2026-09-10T14:34:44.183360+00:00",
-   "trade_id": 2038,
-   "symbol": "PLNW.PA",
-   "yf_symbol": "PLNW.PA",
-   "decision": "VETO",
-   "reason": "Signal-Kombo has WR < 25% (27.6%). RSI 45 is neutral, not oversold. MACD component is a negative factor. Halve size.",
-   "signal_price": 23.399999618530273,
-   "outcome": "MISSED_UPSIDE",
-   "outcome_delta_pct": 0.21
-  },
-  {
-   "ts": "2026-09-10T15:19:45.344868+00:00",
-   "trade_id": 2039,
-   "symbol": "RHM.DE",
-   "yf_symbol": "RHM.DE",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.6%) und MACD-Komponente senkt WR weiter. Markt negativ (SPY/QQQ down). Halbe Position als Vorsicht.",
-   "signal_price": 1022.4000244140625,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -3.34
-  },
-  {
-   "ts": "2026-09-10T16:19:49.884582+00:00",
-   "trade_id": 2040,
-   "symbol": "COST",
-   "yf_symbol": "COST",
-   "decision": "REDUCE",
-   "reason": "Signal-Kombo hat WR < 25% (27.6%) und MACD-Komponente senkt Historie auf 31.2%. Markt ist negativ (SPY/QQQ down). Halbe Position als Vorsicht.",
-   "signal_price": 903.7100219726562
-  },
-  {
-   "ts": "2026-09-10T18:34:58.796088+00:00",
-   "trade_id": 2041,
-   "symbol": "DEO",
-   "yf_symbol": "DGE.L",
-   "decision": "REDUCE",
-   "reason": "Signal-Kombo hat WR < 25% (27.6% ist knapp, aber MACD-Komponente drückt WR auf 31.2% vs 48.3% ohne). Markt ist schwach (SPY -0.64%, QQQ -0.99%). Halbe Position als Vorsicht.",
-   "signal_price": 1602.5
-  },
-  {
-   "ts": "2026-09-10T18:34:58.796088+00:00",
-   "trade_id": 2042,
-   "symbol": "CL",
-   "yf_symbol": "CL",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.6% is knapp, but MACD-Komponente drückt WR auf 31.2% vs 48.3% ohne). Markt ist schwach (SPY -0.64%, QQQ -0.99%). Halbe Position als Vorsicht.",
-   "signal_price": 88.10579681396484,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -1.48
-  },
-  {
-   "ts": "2026-09-10T19:34:56.761624+00:00",
-   "trade_id": 2043,
-   "symbol": "CL",
-   "yf_symbol": "CL",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.6%) und MACD-Komponente senkt WR auf 31.2%. Markt ist negativ (SPY -0.58%, QQQ -0.98%). Halbe Position zur Risikominimierung.",
-   "signal_price": 88.02999877929688,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -1.4
-  },
-  {
-   "ts": "2026-09-10T19:49:57.707557+00:00",
-   "trade_id": 2044,
-   "symbol": "GOOG",
-   "yf_symbol": "GOOG",
-   "decision": "REDUCE",
-   "reason": "Signal-Kombo hat WR < 25% (27.6%) und MACD-Komponente senkt WR auf 31.2%. Markt ist negativ (SPY -0.57%, QQQ -1.0%). Halbe Position zur Risikominimierung.",
-   "signal_price": 330.8699035644531
-  },
-  {
-   "ts": "2026-09-11T02:20:11.227215+00:00",
-   "trade_id": 2087,
-   "symbol": "3401.T",
-   "yf_symbol": "3401.T",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (QQQ -1.06%). Halbe Position als Vorsicht.",
-   "signal_price": 1648.0,
-   "outcome": "MISSED_UPSIDE",
-   "outcome_delta_pct": 0.09
-  },
-  {
-   "ts": "2026-09-11T03:49:34.077134+00:00",
-   "trade_id": 2104,
-   "symbol": "4755.T",
-   "yf_symbol": "4755.T",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt Edge. Markt ist feindlich (QQQ -1.06%). Halbe Position als Kompromiss.",
-   "signal_price": 718.7000122070312,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -0.33
-  },
-  {
-   "ts": "2026-09-11T04:34:41.474762+00:00",
-   "trade_id": 2113,
-   "symbol": "4755.T",
-   "yf_symbol": "4755.T",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Position 4755.T ist bereits offen. Halbe Groesse zur Risikominimierung.",
-   "signal_price": 716.4000244140625,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -0.01
-  },
-  {
-   "ts": "2026-09-11T04:34:41.474762+00:00",
-   "trade_id": 2114,
-   "symbol": "7733.T",
-   "yf_symbol": "7733.T",
-   "decision": "REDUCE",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Halbe Groesse zur Risikominimierung.",
-   "signal_price": 1946.0
-  },
-  {
-   "ts": "2026-09-11T04:34:41.474762+00:00",
-   "trade_id": 2115,
-   "symbol": "9766.T",
-   "yf_symbol": "9766.T",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Halbe Groesse zur Risikominimierung.",
-   "signal_price": 20635.0,
-   "outcome": "MISSED_UPSIDE",
-   "outcome_delta_pct": 0.46
-  },
-  {
-   "ts": "2026-09-11T04:49:39.604491+00:00",
-   "trade_id": 2120,
-   "symbol": "JIN.ASX",
-   "yf_symbol": "JIN.AX",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (QQQ -1.06%). Halbe Position als Vorsicht.",
-   "signal_price": 6.510000228881836,
-   "outcome": "MISSED_UPSIDE",
-   "outcome_delta_pct": 0.61
-  },
-  {
-   "ts": "2026-09-11T07:04:53.333953+00:00",
-   "trade_id": 2147,
-   "symbol": "1585.HK",
-   "yf_symbol": "1585.HK",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und negative PnL; MACD-Komponente senkt WR signifikant. Halbe Position als Kompromiss.",
-   "signal_price": 8.600000381469727,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -0.47
-  },
-  {
-   "ts": "2026-09-11T07:19:55.329628+00:00",
-   "trade_id": 2152,
-   "symbol": "ELIS.PA",
-   "yf_symbol": "ELIS.PA",
-   "decision": "REDUCE",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. RSI 28.5 ist oversold, aber ohne MACD-Wende ist es ein Messer. Halbe Position als Kompromiss.",
-   "signal_price": 23.15999984741211
-  },
-  {
-   "ts": "2026-09-11T07:19:55.329628+00:00",
-   "trade_id": 2153,
-   "symbol": "EXA.PA",
-   "yf_symbol": "EXA.PA",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%). RSI 50.1 is neutral, not oversold, so the 'BB_LOW' context is weak. MACD component drags WR down. No concrete edge to approve.",
-   "signal_price": 124.0999984741211,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -0.08
-  },
-  {
-   "ts": "2026-09-11T08:19:58.694009+00:00",
-   "trade_id": 2158,
-   "symbol": "VU.PA",
-   "yf_symbol": "VU.PA",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (QQQ -1.06%). Halbe Position als Kompromiss.",
-   "signal_price": 118.0999984741211,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -1.44
-  },
-  {
-   "ts": "2026-09-11T08:34:59.288445+00:00",
-   "trade_id": 2163,
-   "symbol": "EXA.PA",
-   "yf_symbol": "EXA.PA",
-   "decision": "REDUCE",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (QQQ -1.06%). Halbe Position als Vorsicht.",
-   "signal_price": 124.0999984741211
-  },
-  {
-   "ts": "2026-09-11T09:20:08.203794+00:00",
-   "trade_id": 2171,
-   "symbol": "RHM.DE",
-   "yf_symbol": "RHM.DE",
-   "decision": "VETO",
-   "reason": "MACD-Kombo mit historisch schwacher WR (27%) und aktiver Position in PLNW.PA (Haufung/Risiko-Stacking). Reduzierung zur Absicherung.",
-   "signal_price": 1023.0,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -3.17
-  },
-  {
-   "ts": "2026-09-11T09:20:08.203794+00:00",
-   "trade_id": 2173,
-   "symbol": "PLNW.PA",
-   "yf_symbol": "PLNW.PA",
-   "decision": "VETO",
-   "reason": "Aktive Position in PLNW.PA vorhanden. Doppelte Exposure auf denselben Ticker erhöht das Risiko. Reduzierung empfohlen.",
-   "signal_price": 23.299999237060547,
-   "outcome": "MISSED_UPSIDE",
-   "outcome_delta_pct": 0.43
-  },
-  {
-   "ts": "2026-09-11T09:35:07.869922+00:00",
-   "trade_id": 2172,
-   "symbol": "AWE",
-   "yf_symbol": "AWE-USD",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt Edge. Markt schwach (QQQ -1.06%). Halbe Position als Kompromiss.",
-   "signal_price": 0.059209421277046204,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -0.22
-  },
-  {
-   "ts": "2026-09-11T09:35:07.869922+00:00",
-   "trade_id": 2174,
-   "symbol": "VU.PA",
-   "yf_symbol": "VU.PA",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt Edge. Markt schwach (QQQ -1.06%). Halbe Position als Kompromiss.",
-   "signal_price": 118.0999984741211,
-   "outcome": "MISSED_UPSIDE",
-   "outcome_delta_pct": 1.02
-  },
-  {
-   "ts": "2026-09-11T09:35:07.869922+00:00",
-   "trade_id": 2176,
-   "symbol": "MEDCL.PA",
-   "yf_symbol": "MEDCL.PA",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt Edge. Markt schwach (QQQ -1.06%). Halbe Position als Kompromiss.",
-   "signal_price": 21.940000534057617,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -0.82
-  },
-  {
-   "ts": "2026-09-11T10:19:09.991944+00:00",
-   "trade_id": 2181,
-   "symbol": "VU.PA",
-   "yf_symbol": "VU.PA",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (QQQ -1.06%). Halbe Position als Vorsicht.",
-   "signal_price": 117.5999984741211,
-   "outcome": "MISSED_UPSIDE",
-   "outcome_delta_pct": 1.45
-  },
-  {
-   "ts": "2026-09-11T10:34:14.419986+00:00",
-   "trade_id": 2182,
-   "symbol": "INVE-A.ST",
-   "yf_symbol": "INVE-A.ST",
-   "decision": "REDUCE",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (SPY -0.6%, QQQ -1.06%). Risiko minimieren.",
-   "signal_price": 399.70001220703125
-  },
-  {
-   "ts": "2026-09-11T10:34:14.419986+00:00",
-   "trade_id": 2183,
-   "symbol": "AWE",
-   "yf_symbol": "AWE-USD",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (SPY -0.6%, QQQ -1.06%). Risiko minimieren.",
-   "signal_price": 0.059027887880802155,
-   "outcome": "MISSED_UPSIDE",
-   "outcome_delta_pct": 0.06
-  },
-  {
-   "ts": "2026-09-11T10:34:14.419986+00:00",
-   "trade_id": 2184,
-   "symbol": "PLNW.PA",
-   "yf_symbol": "PLNW.PA",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (SPY -0.6%, QQQ -1.06%). Risiko minimieren.",
-   "signal_price": 23.25,
-   "outcome": "MISSED_UPSIDE",
-   "outcome_delta_pct": 0.65
-  },
-  {
-   "ts": "2026-09-11T10:49:13.311528+00:00",
-   "trade_id": 2189,
-   "symbol": "MEDCL.PA",
-   "yf_symbol": "MEDCL.PA",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. VIX 17.16 + QQQ -1.06% zeigt feindliches Umfeld fuer Longs. Bisherige Vetoes bei MEDCL.PA waren korrekt.",
-   "signal_price": 21.860000610351562,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -0.46
-  },
-  {
-   "ts": "2026-09-11T11:04:14.023624+00:00",
-   "trade_id": 2194,
-   "symbol": "JASMY",
-   "yf_symbol": "JASMY-USD",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (QQQ -1.06%). Halbe Position als Kompromiss.",
-   "signal_price": 0.003980000037699938,
-   "outcome": "MISSED_UPSIDE",
-   "outcome_delta_pct": 1.76
-  },
-  {
-   "ts": "2026-09-11T11:19:14.814299+00:00",
-   "trade_id": 2197,
-   "symbol": "VU.PA",
-   "yf_symbol": "VU.PA",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt Historie auf 30.4%. VIX normal, aber Marktumfeld negativ (QQQ -1.06%). Halbe Position als Kompromiss.",
-   "signal_price": 117.9000015258789,
-   "outcome": "MISSED_UPSIDE",
-   "outcome_delta_pct": 1.19
-  },
-  {
-   "ts": "2026-09-11T11:34:15.835235+00:00",
-   "trade_id": 2201,
-   "symbol": "PLNW.PA",
-   "yf_symbol": "PLNW.PA",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (QQQ -1.06%). Halbe Position als Vorsicht.",
-   "signal_price": 23.299999237060547,
-   "outcome": "MISSED_UPSIDE",
-   "outcome_delta_pct": 0.43
-  },
-  {
-   "ts": "2026-09-11T11:49:18.379505+00:00",
-   "trade_id": 2203,
-   "symbol": "MEDCL.PA",
-   "yf_symbol": "MEDCL.PA",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. VIX normal, aber statistisch schwaches Setup. Halbe Position als Kompromiss.",
-   "signal_price": 21.920000076293945,
-   "outcome": "GOOD",
-   "outcome_delta_pct": -0.73
-  },
-  {
-   "ts": "2026-09-11T12:04:19.525241+00:00",
-   "trade_id": 2208,
-   "symbol": "ACAST.ST",
-   "yf_symbol": "ACAST.ST",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (SPY -0.6%, QQQ -1.06%). Risiko-Messing. Halbe Position als Kompromiss.",
-   "signal_price": 33.849998474121094,
-   "outcome": "MISSED_UPSIDE",
-   "outcome_delta_pct": 0.74
-  },
-  {
-   "ts": "2026-09-11T12:19:20.156813+00:00",
-   "trade_id": 2209,
-   "symbol": "VU.PA",
-   "yf_symbol": "VU.PA",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (QQQ -1.06%). Halbe Position als Kompromiss.",
-   "signal_price": 117.9000015258789,
-   "outcome": "MISSED_UPSIDE",
-   "outcome_delta_pct": 1.19
-  },
-  {
-   "ts": "2026-09-11T12:34:27.416508+00:00",
-   "trade_id": 2210,
-   "symbol": "SIE.DE",
-   "yf_symbol": "SIE.DE",
-   "decision": "REDUCE",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (SPY -0.6%, QQQ -1.06%). Risiko-Minimierung.",
-   "signal_price": 263.1499938964844
-  },
-  {
-   "ts": "2026-09-11T12:34:27.416508+00:00",
-   "trade_id": 2211,
-   "symbol": "VIRP.PA",
-   "yf_symbol": "VIRP.PA",
-   "decision": "REDUCE",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (SPY -0.6%, QQQ -1.06%). Risiko-Minimierung.",
-   "signal_price": 309.5
-  },
-  {
-   "ts": "2026-09-11T12:34:27.416508+00:00",
-   "trade_id": 2212,
-   "symbol": "ATE.PA",
-   "yf_symbol": "ATE.PA",
-   "decision": "VETO",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (SPY -0.6%, QQQ -1.06%). Risiko-Minimierung.",
-   "signal_price": 69.0,
-   "outcome": "MISSED_UPSIDE",
-   "outcome_delta_pct": 0.94
-  },
-  {
-   "ts": "2026-09-11T12:34:27.416508+00:00",
-   "trade_id": 2213,
-   "symbol": "TFI.PA",
-   "yf_symbol": "TFI.PA",
-   "decision": "REDUCE",
-   "reason": "Signal-Kombo hat WR < 25% (27.1%) und MACD-Komponente senkt WR auf 30.4%. Markt ist negativ (SPY -0.6%, QQQ -1.06%). Risiko-Minimierung.",
-   "signal_price": 6.739999771118164
-  },
-  {
    "ts": "2026-09-11T12:49:28.401080+00:00",
    "trade_id": 2217,
    "symbol": "PLNW.PA",
@@ -3092,7 +2434,9 @@
    "yf_symbol": "3998.HK",
    "decision": "VETO",
    "reason": "Signal-Kombo hat WR < 25% (25.7% ist knapp, aber n=136 zeigt hohe SL-Kills) und ich habe dieses Ticker (3998.HK) bereits erfolgreich vetoed recently (-2.12% seither). Haeufung/Patt",
-   "signal_price": 3.950000047683716
+   "signal_price": 3.950000047683716,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.51
   },
   {
    "ts": "2026-09-25T02:34:41.793357+00:00",
@@ -3101,7 +2445,9 @@
    "yf_symbol": "1519.HK",
    "decision": "VETO",
    "reason": "Signal-Kombo hat WR < 25% (25.7%) bei n=136 und negative PnL. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
-   "signal_price": 8.664999961853027
+   "signal_price": 8.664999961853027,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.69
   },
   {
    "ts": "2026-09-25T03:34:49.371920+00:00",
@@ -3110,7 +2456,9 @@
    "yf_symbol": "3998.HK",
    "decision": "VETO",
    "reason": "Signal-Kombo hat WR < 25% (25.7%) und negative PnL. Veto-Historie fuer 3998.HK zeigt, dass Veto waere gut gewesen, aber REDUCE ist sicherer als VETO bei MEDIUM Score.",
-   "signal_price": 3.940000057220459
+   "signal_price": 3.940000057220459,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.76
   },
   {
    "ts": "2026-09-25T07:34:06.545708+00:00",
@@ -3119,7 +2467,9 @@
    "yf_symbol": "GRF.MC",
    "decision": "VETO",
    "reason": "Signal-Kombo hat WR < 25% (25.7%) bei n=136 und negative PnL. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
-   "signal_price": 9.430000305175781
+   "signal_price": 9.430000305175781,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.32
   },
   {
    "ts": "2026-09-25T10:49:24.551748+00:00",
@@ -3128,7 +2478,9 @@
    "yf_symbol": "CAST.ST",
    "decision": "VETO",
    "reason": "Signal-Kombo hat WR < 25% bei n>=5 (25.7% ist knapp, aber -193$ PnL und 70 SL-Kills zeigen hohe Whipsaw-Risiko). RSI 31 ist tief, aber ohne konkreten Grund fuer APPROVE bei schwach",
-   "signal_price": 124.94999694824219
+   "signal_price": 124.94999694824219,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.36
   },
   {
    "ts": "2026-09-25T10:49:24.551748+00:00",
@@ -3137,7 +2489,9 @@
    "yf_symbol": "ACAST.ST",
    "decision": "VETO",
    "reason": "Gleiche Signal-Schwaeche wie Trade 2688. WR 25.7% mit negativer PnL-Historie erfordert Vorsicht. Halbe Groesse zur Risikominimierung.",
-   "signal_price": 32.75
+   "signal_price": 32.75,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -2.44
   },
   {
    "ts": "2026-09-25T12:04:27.407642+00:00",
@@ -3146,7 +2500,9 @@
    "yf_symbol": "ACAST.ST",
    "decision": "VETO",
    "reason": "Signal-Kombo hat WR < 25% (25.7%) bei n>=5 und negative PnL. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
-   "signal_price": 32.75
+   "signal_price": 32.75,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -2.44
   },
   {
    "ts": "2026-09-25T12:34:30.964506+00:00",
@@ -3155,7 +2511,9 @@
    "yf_symbol": "CAST.ST",
    "decision": "VETO",
    "reason": "Signal-Kombo hat WR < 25% (25.7% ist knapp, aber n=136 zeigt hohe SL-Kill-Rate von 70). RSI 30.6 ist nahe Oversold, aber Markt ist flach. Halbe Position zur Risikominimierung.",
-   "signal_price": 124.8499984741211
+   "signal_price": 124.8499984741211,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.28
   },
   {
    "ts": "2026-09-25T13:20:29.058110+00:00",
@@ -3164,7 +2522,9 @@
    "yf_symbol": "ACAST.ST",
    "decision": "VETO",
    "reason": "Signal-Kombo hat WR < 25% (25.7%) bei n=136 und negative PnL. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
-   "signal_price": 32.70000076293945
+   "signal_price": 32.70000076293945,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -2.29
   },
   {
    "ts": "2026-09-25T16:35:02.417128+00:00",
@@ -3173,7 +2533,9 @@
    "yf_symbol": "F",
    "decision": "VETO",
    "reason": "Signal-Kombo hat WR < 25% (25.7% ist knapp, aber n=136 zeigt hohe SL-Kills). Halbe Position als Vorsicht.",
-   "signal_price": 12.739999771118164
+   "signal_price": 12.739999771118164,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.24
   },
   {
    "ts": "2026-09-25T16:35:02.417128+00:00",
@@ -3182,7 +2544,673 @@
    "yf_symbol": "PGR",
    "decision": "VETO",
    "reason": "Signal-Kombo hat WR < 25% (25.7% ist knapp, aber n=136 zeigt hohe SL-Kills). Halbe Position als Vorsicht.",
-   "signal_price": 205.14999389648438
+   "signal_price": 205.14999389648438,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.17
+  },
+  {
+   "ts": "2026-09-29T00:19:06.253849+00:00",
+   "trade_id": 2716,
+   "symbol": "1803.T",
+   "yf_symbol": "1803.T",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (25.8% ist knapp, aber n=155 zeigt hohe SL-Kill-Rate von 81). Kein konkreter Grund fuer volle Groesse, daher Reduktion zur Risikominimierung.",
+   "signal_price": 2200.0,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -3.8
+  },
+  {
+   "ts": "2026-09-29T01:04:11.348695+00:00",
+   "trade_id": 2717,
+   "symbol": "AOV.ASX",
+   "yf_symbol": "AOV.AX",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR 30% (n=10) und hohe SL-Rate; Markt neutral. Halbe Position zur Risikominimierung.",
+   "signal_price": 5.550000190734863,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 2.34
+  },
+  {
+   "ts": "2026-09-29T02:19:15.196005+00:00",
+   "trade_id": 2719,
+   "symbol": "AOV.ASX",
+   "yf_symbol": "AOV.AX",
+   "decision": "VETO",
+   "reason": "Kombo-WR 30% (n=10) unter 25% Schwelle nicht, aber nahe; 7 SL-Kills zeigen hohe Risiko. Markt schwach (SPY -0.74%, QQQ -1.07%). Halbe Position zur Risikominimierung.",
+   "signal_price": 5.550000190734863,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 3.6
+  },
+  {
+   "ts": "2026-09-29T03:34:22.161061+00:00",
+   "trade_id": 2721,
+   "symbol": "1772.HK",
+   "yf_symbol": "1772.HK",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (25.8% ist knapp, aber n=155 zeigt hohe SL-Kills). Markt ist negativ (SPY -0.74%, QQQ -1.07%). RSI 29.5 ist tief, aber ohne konkreter News-Flag oder feind",
+   "signal_price": 30.399999618530273,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.2
+  },
+  {
+   "ts": "2026-09-29T18:05:01.848229+00:00",
+   "trade_id": 2731,
+   "symbol": "MSDL",
+   "yf_symbol": "MSDL",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (25.8% ist knapp, aber n=155 zeigt hohe SL-Kill-Rate). MSDL ist kein Large Cap, erhöhtes Risiko. Halbe Position als Kompromiss.",
+   "signal_price": 14.180000305175781,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -3.88
+  },
+  {
+   "ts": "2026-09-29T18:35:03.661757+00:00",
+   "trade_id": 2732,
+   "symbol": "LHX",
+   "yf_symbol": "LHX",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat niedrige WR (30%) und hohe SL-Rate; Position wird halbiert zur Risikominimierung.",
+   "signal_price": 235.52000427246094
+  },
+  {
+   "ts": "2026-09-30T00:04:40.223922+00:00",
+   "trade_id": 2734,
+   "symbol": "APE.ASX",
+   "yf_symbol": "APE.AX",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (24.7%) bei n=166, Risiko minimieren.",
+   "signal_price": 18.350000381469727,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.22
+  },
+  {
+   "ts": "2026-09-30T00:49:43.360960+00:00",
+   "trade_id": 2735,
+   "symbol": "TCL.ASX",
+   "yf_symbol": "TCL.AX",
+   "decision": "REDUCE",
+   "reason": "Kombination hat niedrige WR (30%) und hohe SL-Rate; Markt ist schwach (SPY/QQQ negativ). Halbe Position zur Risikominimierung.",
+   "signal_price": 12.960000038146973
+  },
+  {
+   "ts": "2026-09-30T01:49:48.685584+00:00",
+   "trade_id": 2736,
+   "symbol": "06881.HK",
+   "yf_symbol": "6881.HK",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (24.7%) bei n=166. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
+   "signal_price": 7.210000038146973,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.42
+  },
+  {
+   "ts": "2026-09-30T02:04:48.657577+00:00",
+   "trade_id": 2737,
+   "symbol": "1171.HK",
+   "yf_symbol": "1171.HK",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (24.7%) bei n=166. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
+   "signal_price": 11.40999984741211,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.44
+  },
+  {
+   "ts": "2026-09-30T02:49:52.592212+00:00",
+   "trade_id": 2738,
+   "symbol": "06881.HK",
+   "yf_symbol": "6881.HK",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (24.7%) bei n=166. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
+   "signal_price": 7.190000057220459,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.14
+  },
+  {
+   "ts": "2026-09-30T03:49:59.411096+00:00",
+   "trade_id": 2739,
+   "symbol": "06881.HK",
+   "yf_symbol": "6881.HK",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (24.7%) bei n=166. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
+   "signal_price": 7.190000057220459,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.14
+  },
+  {
+   "ts": "2026-09-30T04:04:58.829028+00:00",
+   "trade_id": 2740,
+   "symbol": "1803.T",
+   "yf_symbol": "1803.T",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (24.7%) und hohe SL-Rate. Position wird halbiert zur Risikominimierung.",
+   "signal_price": 2142.5,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.93
+  },
+  {
+   "ts": "2026-09-30T05:20:04.536910+00:00",
+   "trade_id": 2743,
+   "symbol": "2282.T",
+   "yf_symbol": "2282.T",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (24.7%) bei n=166. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
+   "signal_price": 1981.5
+  },
+  {
+   "ts": "2026-09-30T07:04:18.059091+00:00",
+   "trade_id": 2744,
+   "symbol": "DTE.DE",
+   "yf_symbol": "DTE.DE",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (24.7%) bei n=166. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
+   "signal_price": 26.670000076293945,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -3.19
+  },
+  {
+   "ts": "2026-09-30T07:04:18.059091+00:00",
+   "trade_id": 2745,
+   "symbol": "UNI.MI",
+   "yf_symbol": "UNI.MI",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (24.7%) bei n=166. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
+   "signal_price": 27.010000228881836,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -1.67
+  },
+  {
+   "ts": "2026-09-30T07:34:19.963464+00:00",
+   "trade_id": 2746,
+   "symbol": "ACAST.ST",
+   "yf_symbol": "ACAST.ST",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (24.7%) bei n=166. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
+   "signal_price": 32.20000076293945,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 2.33
+  },
+  {
+   "ts": "2026-09-30T08:34:28.761119+00:00",
+   "trade_id": 2749,
+   "symbol": "PLX.PA",
+   "yf_symbol": "PLX.PA",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat sehr niedrige WR (24.7%) und hohe SL-Kill-Rate; Position groesse halbiert zur Risikominimierung.",
+   "signal_price": 14.390000343322754
+  },
+  {
+   "ts": "2026-09-30T09:04:28.633436+00:00",
+   "trade_id": 2751,
+   "symbol": "COV.PA",
+   "yf_symbol": "COV.PA",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat niedrige WR (30%) und hohe SL-Rate; Position wird halbiert zur Risikominimierung.",
+   "signal_price": 45.86000061035156,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -5.06
+  },
+  {
+   "ts": "2026-09-30T11:49:40.100929+00:00",
+   "trade_id": 2754,
+   "symbol": "RHM.DE",
+   "yf_symbol": "RHM.DE",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (24.7%) bei n=166. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
+   "signal_price": 962.4000244140625,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.96
+  },
+  {
+   "ts": "2026-09-30T12:49:44.736128+00:00",
+   "trade_id": 2755,
+   "symbol": "RHM.DE",
+   "yf_symbol": "RHM.DE",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (24.7%) bei n=166. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
+   "signal_price": 961.5999755859375,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.87
+  },
+  {
+   "ts": "2026-09-30T13:34:50.763280+00:00",
+   "trade_id": 2756,
+   "symbol": "POR",
+   "yf_symbol": "POR",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (24.7%) bei n=166. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
+   "signal_price": 44.720298767089844
+  },
+  {
+   "ts": "2026-09-30T13:34:50.763280+00:00",
+   "trade_id": 2757,
+   "symbol": "FSLR",
+   "yf_symbol": "FSLR",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (24.7%) bei n=166. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
+   "signal_price": 176.92999267578125,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -2.24
+  },
+  {
+   "ts": "2026-09-30T13:34:50.763280+00:00",
+   "trade_id": 2758,
+   "symbol": "COP",
+   "yf_symbol": "COP",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (24.7%) bei n=166. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
+   "signal_price": 126.04000091552734,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.88
+  },
+  {
+   "ts": "2026-09-30T13:49:49.022779+00:00",
+   "trade_id": 2759,
+   "symbol": "RHM.DE",
+   "yf_symbol": "RHM.DE",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (24.7%) bei n=166. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
+   "signal_price": 961.2999877929688,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.51
+  },
+  {
+   "ts": "2026-09-30T14:34:53.898301+00:00",
+   "trade_id": 2760,
+   "symbol": "SDF.DE",
+   "yf_symbol": "SDF.DE",
+   "decision": "REDUCE",
+   "reason": "Kombo WR 24.7% < 25% bei n=166, hohe SL-Kill-Rate, kein konkreter Grund fuer volle Groesse.",
+   "signal_price": 15.369999885559082
+  },
+  {
+   "ts": "2026-09-30T16:35:01.980641+00:00",
+   "trade_id": 2763,
+   "symbol": "MDT.US",
+   "yf_symbol": "MDT",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (24.7%) bei n=166. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
+   "signal_price": 87.36499786376953
+  },
+  {
+   "ts": "2026-10-01T00:04:41.628611+00:00",
+   "trade_id": 2764,
+   "symbol": "8604.T",
+   "yf_symbol": "8604.T",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (25.6%) und negative PnL; Risiko minimieren.",
+   "signal_price": 1551.0,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.16
+  },
+  {
+   "ts": "2026-10-01T00:34:48.827241+00:00",
+   "trade_id": 2766,
+   "symbol": "4755.T",
+   "yf_symbol": "4755.T",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (25.6% ist knapp, aber n=168 zeigt hohe SL-Kills). RSI 34 ist nicht extrem genug fuer einen Full-Size Entry ohne konkreten Katalysator. Halve Size zur Ris",
+   "signal_price": 675.7000122070312,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.92
+  },
+  {
+   "ts": "2026-10-01T00:34:48.827241+00:00",
+   "trade_id": 2767,
+   "symbol": "APE.ASX",
+   "yf_symbol": "APE.AX",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (25.6%). RSI 29 ist tief, aber das Signal hat historisch viele SL-Kills. Veto wuerde erneut MISSED_UPSIDE riskieren (siehe APE.ASX History), daher Reduce ",
+   "signal_price": 18.06999969482422,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -1.16
+  },
+  {
+   "ts": "2026-10-01T01:34:49.509163+00:00",
+   "trade_id": 2768,
+   "symbol": "APE.ASX",
+   "yf_symbol": "APE.AX",
+   "decision": "VETO",
+   "reason": "Signal-Historie schwach (WR 25.6%, -232$), VETO-Risiko durch vergangene MISSED_UPSIDE bei APE.ASX, daher Position halbiert.",
+   "signal_price": 18.09000015258789,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.88
+  },
+  {
+   "ts": "2026-10-01T12:19:42.745247+00:00",
+   "trade_id": 2776,
+   "symbol": "RHM.DE",
+   "yf_symbol": "RHM.DE",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (25.6%) bei n=168 und negativen PnL. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
+   "signal_price": 960.0999755859375,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.71
+  },
+  {
+   "ts": "2026-10-01T13:19:51.846039+00:00",
+   "trade_id": 2778,
+   "symbol": "RHM.DE",
+   "yf_symbol": "RHM.DE",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (25.6%) und negative PnL, daher Position groesse halbiert.",
+   "signal_price": 958.7000122070312,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.23
+  },
+  {
+   "ts": "2026-10-01T13:34:53.579378+00:00",
+   "trade_id": 2779,
+   "symbol": "MSDL",
+   "yf_symbol": "MSDL",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (25.6%) bei n=168 und negativen PnL. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
+   "signal_price": 13.625
+  },
+  {
+   "ts": "2026-10-01T14:34:58.429963+00:00",
+   "trade_id": 2781,
+   "symbol": "SLV",
+   "yf_symbol": null,
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (25.6%) und negative PnL, Risiko minimieren.",
+   "signal_price": 54.91999816894531
+  },
+  {
+   "ts": "2026-10-01T14:34:58.429963+00:00",
+   "trade_id": 2782,
+   "symbol": "DR0.DE",
+   "yf_symbol": "DR0.DE",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (25.6%) und negative PnL, Risiko minimieren.",
+   "signal_price": 80.69999694824219,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 2.6
+  },
+  {
+   "ts": "2026-10-01T15:35:01.580056+00:00",
+   "trade_id": 2784,
+   "symbol": "KO",
+   "yf_symbol": "KO",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (25.6%) bei n=168 und negativen PnL. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
+   "signal_price": 86.54499816894531
+  },
+  {
+   "ts": "2026-10-01T16:20:04.089336+00:00",
+   "trade_id": 2785,
+   "symbol": "FSLR",
+   "yf_symbol": "FSLR",
+   "decision": "VETO",
+   "reason": "Signal-Historie schwach (WR 25.6%, neg. PnL) und VETO-Vorgeschichte bei FSLR.",
+   "signal_price": 171.80999755859375,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 2.21
+  },
+  {
+   "ts": "2026-10-01T16:34:06.913535+00:00",
+   "trade_id": 2786,
+   "symbol": "MSI",
+   "yf_symbol": "MSI",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (25.6% ist knapp, aber n=168 zeigt hohe SL-Kills). RSI ~39 ist kein extremer Oversold. Halbe Position zur Risikominimierung.",
+   "signal_price": 447.1549987792969
+  },
+  {
+   "ts": "2026-10-01T16:34:06.913535+00:00",
+   "trade_id": 2787,
+   "symbol": "GCBC",
+   "yf_symbol": "GCBC",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (25.6% ist knapp, aber n=168 zeigt hohe SL-Kills). RSI ~38 ist kein extremer Oversold. Halbe Position zur Risikominimierung.",
+   "signal_price": 33.619998931884766,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 2.11
+  },
+  {
+   "ts": "2026-10-01T18:04:13.520546+00:00",
+   "trade_id": 2788,
+   "symbol": "ARI",
+   "yf_symbol": "ARI",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (26.7% ist knapp, aber n=15 mit 11 SL-Kills zeigt hohe Whipsaw-Risiko). Halbe Position als Vorsicht.",
+   "signal_price": 6.210000038146973
+  },
+  {
+   "ts": "2026-10-01T18:34:15.123078+00:00",
+   "trade_id": 2789,
+   "symbol": "CNOB",
+   "yf_symbol": "CNOB",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (25.6%) bei n=168 und negativen PnL. Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
+   "signal_price": 30.1299991607666
+  },
+  {
+   "ts": "2026-10-01T19:49:21.287475+00:00",
+   "trade_id": 2790,
+   "symbol": "FSLR",
+   "yf_symbol": "FSLR",
+   "decision": "VETO",
+   "reason": "Signal-Historie schwach (WR 25.6%, neg. PnL) und VETO-Vorgeschichte bei FSLR.",
+   "signal_price": 171.6875,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.25
+  },
+  {
+   "ts": "2026-10-02T00:04:41.416883+00:00",
+   "trade_id": 2791,
+   "symbol": "9503.T",
+   "yf_symbol": "9503.T",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber n=168 zeigt hohe SL-Kills). Halbe Position als Vorsicht.",
+   "signal_price": 2673.0,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -1.52
+  },
+  {
+   "ts": "2026-10-02T00:34:43.591186+00:00",
+   "trade_id": 2792,
+   "symbol": "KCN.ASX",
+   "yf_symbol": "KCN.AX",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber n=168 zeigt hohe SL-Kill-Rate). Kein konkreter Grund fuer volle Groesse, daher Reduktion.",
+   "signal_price": 4.820000171661377,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.62
+  },
+  {
+   "ts": "2026-10-02T07:04:13.792022+00:00",
+   "trade_id": 2795,
+   "symbol": "KWS.DE",
+   "yf_symbol": "KWS.DE",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber n=168 zeigt hohe SL-Kills). RSI 33.8 ist nicht extrem oversold. Halbe Position zur Risikominimierung.",
+   "signal_price": 70.30000305175781,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -1.56
+  },
+  {
+   "ts": "2026-10-02T07:34:16.730879+00:00",
+   "trade_id": 2796,
+   "symbol": "RHM.DE",
+   "yf_symbol": "RHM.DE",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber n=168 zeigt hohe SL-Kills). RSI 34 ist nicht extrem oversold. VETO-Historie fuer RHM.DE war korrekt (GOOD). Halve size to mitigate ",
+   "signal_price": 958.7000122070312,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.19
+  },
+  {
+   "ts": "2026-10-02T11:04:33.530229+00:00",
+   "trade_id": 2802,
+   "symbol": "SFER.MI",
+   "yf_symbol": "SFER.MI",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR 25.0% (n=16) und hohe SL-Rate; Position wird halbiert zur Risikominimierung.",
+   "signal_price": 7.010000228881836,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.21
+  },
+  {
+   "ts": "2026-10-02T13:19:43.406836+00:00",
+   "trade_id": 2803,
+   "symbol": "SFER.MI",
+   "yf_symbol": "SFER.MI",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR 25% (n=16) und hohe SL-Rate; Risiko minimieren.",
+   "signal_price": 7.010000228881836,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.21
+  },
+  {
+   "ts": "2026-10-02T13:34:44.258688+00:00",
+   "trade_id": 2804,
+   "symbol": "STZ",
+   "yf_symbol": "STZ",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR 25% (n=16) und hohe SL-Rate; Position wird halbiert zur Risikominimierung.",
+   "signal_price": 112.98999786376953
+  },
+  {
+   "ts": "2026-10-02T13:49:47.106357+00:00",
+   "trade_id": 2805,
+   "symbol": "CHG.DE",
+   "yf_symbol": "CHG.DE",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber n=168 zeigt hohe SL-Kill-Rate). RSI 25.8 ist extrem ueberverkauft, was bei diesem Signal-Typ oft zu Whipsaws fuehrt. Position groes",
+   "signal_price": 38.150001525878906,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.92
+  },
+  {
+   "ts": "2026-10-02T14:49:52.189018+00:00",
+   "trade_id": 2810,
+   "symbol": "MA",
+   "yf_symbol": "MA",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo hat WR < 25% (26.8% ist knapp, aber n=168 zeigt hohe SL-Kills). RSI 38.5 ist nicht extrem oversold. Halbe Position als Vorsicht.",
+   "signal_price": 552.39501953125
+  },
+  {
+   "ts": "2026-10-02T14:49:52.189018+00:00",
+   "trade_id": 2811,
+   "symbol": "HNVR",
+   "yf_symbol": "HNVR",
+   "decision": "VETO",
+   "reason": "Gleiche schwache Signal-Statistik (WR 26.8%, 86 SL-Kills). RSI 36.2 bietet keinen klaren Edge. Halbe Position.",
+   "signal_price": 25.09000015258789,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 2.19
+  },
+  {
+   "ts": "2026-10-02T15:19:52.720485+00:00",
+   "trade_id": 2812,
+   "symbol": "NLOP",
+   "yf_symbol": "NLOP",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR 25.0% (Grenzwert) und hohe SL-Kill-Rate (12/16). Position wird halbiert zur Risikominimierung.",
+   "signal_price": 9.8149995803833,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.56
+  },
+  {
+   "ts": "2026-10-02T16:19:58.393832+00:00",
+   "trade_id": 2813,
+   "symbol": "NLOP",
+   "yf_symbol": "NLOP",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR 25% (n=16) und hohe SL-Rate; Position wird halbiert zur Risikominimierung.",
+   "signal_price": 9.819999694824219,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.61
+  },
+  {
+   "ts": "2026-10-02T18:04:06.375462+00:00",
+   "trade_id": 2816,
+   "symbol": "NLOP",
+   "yf_symbol": "NLOP",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR 25.0% (Grenzwert) und hohe SL-Rate; Position wird halbiert zur Risikominimierung.",
+   "signal_price": 9.805000305175781,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.46
+  },
+  {
+   "ts": "2026-10-02T18:34:08.884068+00:00",
+   "trade_id": 2817,
+   "symbol": "HIFS",
+   "yf_symbol": "HIFS",
+   "decision": "VETO",
+   "reason": "Signal-Historie schwach (WR 26.8%), Position halbiert zur Risikominimierung.",
+   "signal_price": 285.0199890136719,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 0.97
+  },
+  {
+   "ts": "2026-10-02T18:34:08.884068+00:00",
+   "trade_id": 2818,
+   "symbol": "SLV",
+   "yf_symbol": null,
+   "decision": "REDUCE",
+   "reason": "Signal-Historie schwach (WR 26.8%), Position halbiert zur Risikominimierung.",
+   "signal_price": 54.41999816894531
+  },
+  {
+   "ts": "2026-10-02T19:04:26.899008+00:00",
+   "trade_id": 2819,
+   "symbol": "NLOP",
+   "yf_symbol": "NLOP",
+   "decision": "VETO",
+   "reason": "Signal-Kombo hat WR 25% (n=16) und hohe SL-Rate; Position wird halbiert zur Risikominimierung.",
+   "signal_price": 9.8149995803833,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.56
+  },
+  {
+   "ts": "2026-10-05T00:04:26.757732+00:00",
+   "trade_id": 2823,
+   "symbol": "9064.T",
+   "yf_symbol": "9064.T",
+   "decision": "VETO",
+   "reason": "NEWS-FLAG CAUTION: Preis 8% ueber Analysten-Kursziel, Signal-Score nur MEDIUM (33). Risiko-Minimierung.",
+   "signal_price": 1967.5,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.81
+  },
+  {
+   "ts": "2026-10-08T14:34:21.960139+00:00",
+   "trade_id": 2830,
+   "symbol": "CMCSA",
+   "yf_symbol": "CMCSA",
+   "decision": "VETO",
+   "reason": "Kombo mit WR < 35% und negativer P&L-Historie; Marktumfeld leicht negativ.",
+   "signal_price": 20.934999465942383
+  },
+  {
+   "ts": "2026-10-09T01:34:31.536515+00:00",
+   "trade_id": 2831,
+   "symbol": "9696.HK",
+   "yf_symbol": "9696.HK",
+   "decision": "VETO",
+   "reason": "Kombo mit WR 20% (<25%) und negativer P&L-Historie",
+   "signal_price": 27.219999313354492
+  },
+  {
+   "ts": "2026-10-09T13:34:43.078019+00:00",
+   "trade_id": 2835,
+   "symbol": "BAC",
+   "yf_symbol": "BAC",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo mit WR < 25% (20.0%) und negativer P&L-Historie, Position halbiert.",
+   "signal_price": 53.61000061035156
+  },
+  {
+   "ts": "2026-10-09T13:49:39.181490+00:00",
+   "trade_id": 2837,
+   "symbol": "CDA.PA",
+   "yf_symbol": "CDA.PA",
+   "decision": "REDUCE",
+   "reason": "Signal-Kombo mit WR < 25% (20.0%) und negativer P&L, Risiko minimieren.",
+   "signal_price": 16.579999923706055
   }
  ]
 }

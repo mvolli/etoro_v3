@@ -177,7 +177,8 @@
    "position_id": "3578690415",
    "instrument_id": 14526,
    "exit_pnl_pct": 0.19,
-   "outcome": null
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.89
   },
   {
    "ts": "2026-09-25T12:22:46",
@@ -186,6 +187,105 @@
    "position_id": "3578883868",
    "instrument_id": 2159,
    "exit_pnl_pct": 0.16,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.13
+  },
+  {
+   "ts": "2026-09-28T01:32:49",
+   "symbol": "9633.HK",
+   "yf_symbol": "9633.HK",
+   "position_id": "3580310609",
+   "instrument_id": 3364,
+   "exit_pnl_pct": 0.69,
+   "outcome": "GOOD",
+   "outcome_delta_pct": 0.96
+  },
+  {
+   "ts": "2026-09-28T01:52:51",
+   "symbol": "1044.HK",
+   "yf_symbol": "1044.HK",
+   "position_id": "3581136908",
+   "instrument_id": 2417,
+   "exit_pnl_pct": 0.22,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -0.91
+  },
+  {
+   "ts": "2026-09-28T02:37:54",
+   "symbol": "2607.HK",
+   "yf_symbol": "2607.HK",
+   "position_id": "3581140649",
+   "instrument_id": 13719,
+   "exit_pnl_pct": 0.3,
+   "outcome": "NEUTRAL",
+   "outcome_delta_pct": 2.4
+  },
+  {
+   "ts": "2026-09-28T02:52:55",
+   "symbol": "BRG.ASX",
+   "yf_symbol": "BRG.AX",
+   "position_id": "3581141346",
+   "instrument_id": 3347,
+   "exit_pnl_pct": -0.92,
+   "outcome": "GOOD",
+   "outcome_delta_pct": -1.07
+  },
+  {
+   "ts": "2026-09-28T14:07:42",
+   "symbol": "IWM",
+   "yf_symbol": "IR2E",
+   "position_id": "3579968740",
+   "instrument_id": 3005,
+   "exit_pnl_pct": -1.47,
+   "outcome": "NO_DATA"
+  },
+  {
+   "ts": "2026-10-01T00:03:10",
+   "symbol": "RIO.ASX",
+   "yf_symbol": "RIO.AX",
+   "position_id": "3580306684",
+   "instrument_id": 7006,
+   "exit_pnl_pct": -1.37,
+   "outcome": "GOOD",
+   "outcome_delta_pct": 1.2
+  },
+  {
+   "ts": "2026-10-05T01:30:25",
+   "symbol": "3998.HK",
+   "yf_symbol": "3998.HK",
+   "position_id": "3586298242",
+   "instrument_id": 13752,
+   "exit_pnl_pct": -0.79,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 6.35
+  },
+  {
+   "ts": "2026-10-05T09:22:27",
+   "symbol": "EZJ.L",
+   "yf_symbol": "EZJ.L",
+   "position_id": "3578827676",
+   "instrument_id": 2031,
+   "exit_pnl_pct": -0.14,
+   "outcome": "GOOD",
+   "outcome_delta_pct": 0.59
+  },
+  {
+   "ts": "2026-10-05T13:32:49",
+   "symbol": "TMUS",
+   "yf_symbol": "TMUS",
+   "position_id": "3586705551",
+   "instrument_id": 4254,
+   "exit_pnl_pct": -0.94,
+   "outcome": "MISSED_UPSIDE",
+   "outcome_delta_pct": 4.05
+  },
+  {
+   "ts": "2026-10-08T00:47:39",
+   "symbol": "CNU.ASX",
+   "yf_symbol": "CNU.AX",
+   "position_id": "3580258783",
+   "instrument_id": 7156,
+   "exit_pnl_pct": -1.47,
    "outcome": null
   }
  ]

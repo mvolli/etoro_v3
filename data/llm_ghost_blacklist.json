@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-09-25T20:31:03.055472+00:00",
-  "auto_expires_at": "2026-10-02T20:31:03.055483+00:00",
+  "updated_at": "2026-10-08T20:30:45.695539+00:00",
+  "auto_expires_at": "2026-10-15T20:30:45.695548+00:00",
   "exchanges": [
     ".L",
     ".OL",
@@ -11,55 +11,60 @@
   "symbols": [],
   "stats": {
     "_OTHER": {
-      "total": 149,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    ".L": {
-      "total": 36,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    ".ST": {
-      "total": 25,
+      "total": 50,
       "ghost": 0,
       "rate": 0.0
     },
     ".PA": {
-      "total": 47,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    ".MC": {
-      "total": 15,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    ".DE": {
-      "total": 38,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    "_ASIA": {
-      "total": 78,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    ".MI": {
-      "total": 10,
-      "ghost": 0,
-      "rate": 0.0
-    },
-    ".CO": {
-      "total": 5,
+      "total": 9,
       "ghost": 0,
       "rate": 0.0
     },
     ".ASX": {
-      "total": 43,
+      "total": 12,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    "_ASIA": {
+      "total": 29,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    ".HE": {
+      "total": 2,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    ".DE": {
+      "total": 20,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    ".MI": {
+      "total": 4,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    ".MC": {
+      "total": 2,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    ".AE": {
+      "total": 2,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    ".ST": {
+      "total": 13,
+      "ghost": 0,
+      "rate": 0.0
+    },
+    ".L": {
+      "total": 12,
       "ghost": 0,
       "rate": 0.0
     }
   },
-  "reason": "Portfolio ist im CAUTION-Regime stabil, aber die Signal-Qualität leidet. TREND_PULLBACK,GOLDEN_CROSS (HIGH) und MACD-BB-Kombos zeigen hohe Verlustquoten und werden gedämpft. Keine strukturellen Ghost-Order-Probleme erkannt."
+  "reason": "Das Portfolio befindet sich im DEFENSIVE-Regime mit einer Equity von 8.850,85 USD. Es gibt keine strukturellen Ghost-Order-Probleme, da alle Exchange-Trends stabil sind. Auffällig ist die schlechte Performance des Signals 'TREND_PULLBACK,GOLDEN_CROSS' in der HIGH-Conviction-Stufe, die deutlich unter der MEDIUM-Stufe liegt und daher gedämpft werden sollte."
 }
