@@ -1,7 +1,9 @@
 # ABSCHLUSS-REPORT — Signale, Quote & freies Kapital (2026-10-09)
 
 **Status:** Phasen 0a–4 vollständig. Alle Commits auf `main`, Tests grün
-(1850 passed, 7 warnings — Baseline war 1830/1707 je nach Stand).
+(1849 passed, 1 skipped — inkl. Nachfix `43e649e`: FP-Präzision in
+`test_edge_gate.py`, `pytest.approx`; die Session-1-Meldung „1850 passed"
+zählte den skipped Test mit).
 Geldwirksame Schwellen D1/D2/D3/D6 umgesetzt; D4/D5 als Vorschlag an VoLLi.
 
 **Live-Lage beim Abschluss:** Equity $8.843,81, Regime DEFENSIVE (Peak $10.000),
@@ -27,12 +29,12 @@ Geldwirksame Schwellen D1/D2/D3/D6 umgesetzt; D4/D5 als Vorschlag an VoLLi.
 > Phasen 0a–1e wurden in der Vorgänger-Session (deleg_f1a12c51) fertiggestellt.
 > Diese Session lieferte Phase 2, 3 und 4.
 
-### Test-Ausgaben (Abschluss-Lauf)
+### Test-Ausgaben (Abschluss-Lauf, verifiziert 2026-10-09 ~20:40 CEST)
 ```
-$ python -m pytest tests/ -q
-1850 passed, 7 warnings in 44.46s
+$ .venv/bin/python -m pytest tests/ -q
+1849 passed, 1 skipped in 46.33s
 ```
-Baseline war 1830 passed / 1 skipped. Delta = +20 Tests:
+Baseline war 1830 passed / 1 skipped. Delta = +19 Tests (+1 via Fix `43e649e`):
 - Phase 2: +9 Tests in `tests/unit/test_entry_type_quota.py`
   (Komponenten-Match, Kombo-Quote, In-Cycle, Strictness, SIGNAL_CATEGORY-Lücken)
 - Phase 3: +11 Tests in `tests/unit/test_edge_gate.py`
