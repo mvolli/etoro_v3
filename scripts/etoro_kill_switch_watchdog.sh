@@ -120,10 +120,35 @@ if [ -f "$DB" ] && command -v sqlite3 >/dev/null 2>&1; then
             elif [ "$HEAL_AGE" -lt "$HEAL_RETRY_COOLDOWN_S" ]; then
                 ESCALATE=1   # Heilversuch hat nicht geholfen → Alert
             elif [ -f "$WSCRIPT" ]; then
-                echo "$NOW_EPOCH" > "$MARKER"
-                nohup timeout 600 bash "$WSCRIPT" \
-                    >> "${HEAL_LOG_DIR}/watchdog_heal_${WNAME}.log" 2>&1 &
-                HEALED="${HEALED} ${WNAME}"
+                # D1 (2026-10-09, VoLLi): Cron-disablede Worker NICHT heilen.
+                # Der Watchdog heilt sonst Worker, die VoLLi bewusst pausiert hat
+                # (z.B. Risk Worker in D1: EMERGENCY-SL-Loop trotz Pause).
+                # WNAME hat Unteraestriche (risk_worker), Cron-Namen haben
+                # Leerzeichen (Risk Worker) — beides normalisieren.
+                WJOB_ENABLED=$(python3 -c "
+import json,sys
+try:
+    d=json.load(open('/home/mvolli/.hermes/cron/jobs.json'))
+    jobs=d.get('jobs',d) if isinstance(d,dict) else d
+    if isinstance(jobs,dict): jobs=list(jobs.values())
+    target=sys.argv[1].replace('_',' ').lower()
+    for j in jobs:
+        if isinstance(j,dict) and target in j.get('name','').lower():
+            print('1' if j.get('enabled',True) else '0')
+            break
+    else:
+        print('1')  # kein Match -> heilen (fail-open)
+except Exception:
+    print('1')  # Parse-Fehler -> heilen (fail-open)
+" "$WNAME" 2>/dev/null)
+                if [ "$WJOB_ENABLED" = "0" ]; then
+                    :   # Cron-Job disabled (z.B. D1-Pause) -> NICHT heilen
+                else
+                    echo "$NOW_EPOCH" > "$MARKER"
+                    nohup timeout 600 bash "$WSCRIPT" \
+                        >> "${HEAL_LOG_DIR}/watchdog_heal_${WNAME}.log" 2>&1 &
+                    HEALED="${HEALED} ${WNAME}"
+                fi
             else
                 ESCALATE=1   # kein Worker-Script vorhanden — nicht heilbar
             fi
