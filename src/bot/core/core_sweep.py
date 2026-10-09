@@ -234,6 +234,86 @@ def plan_core_sweep(
     if str(regime).upper() not in allowed_regimes:
         return [], [f"Core-Sweep: Regime {regime} nicht in {allowed_regimes} — pausiert"]
 
+    # ── D4 (2026-10-09): harter Cap max. 3 offene CORE_SWEEP-Positionen ─────
+    # Ohne Cap wirkt der 0.25x-DEFENSIVE-Faktor nicht — der $200-Floor im
+    # execution_worker hebt jede kleiner dimensionierte Sweep-Tranche auf
+    # $200, dadurch laeuft Core-Sweep in DEFENSIVE mit voller Groesse.
+    # Der Cap zaehlt offene CORE_SWEEP-Positionen (DB) und pausiert den
+    # Sweep, wenn er erreicht ist. Fail-open: DB-Fehler = Cap ignoriert.
+    _d4_max_open = int(cs.get("max_open_positions", 3))
+    if _d4_max_open > 0 and db is not None:
+        try:
+            _d4_row = db.fetchone("""
+                SELECT COUNT(*) AS n
+                FROM trades t
+                JOIN signals s ON s.id = t.signal_id
+                WHERE t.status IN ('APPROVED', 'SUBMITTING', 'ACTIVE', 'VERIFIED', 'OPEN')
+                  AND s.signal_type = 'CORE_SWEEP'
+            """)
+            _d4_open = int(_d4_row["n"]) if _d4_row else 0
+            if _d4_open >= _d4_max_open:
+                return [], [
+                    f"Core-Sweep (D4): {_d4_open} offene CORE_SWEEP-Positionen "
+                    f">= Cap {_d4_max_open} — pausiert"
+                ]
+            reasons.append(
+                f"Core-Sweep (D4): {_d4_open}/{_d4_max_open} offene "
+                f"CORE_SWEEP-Positionen"
+            )
+        except Exception:  # noqa: BLE001 — DB-Fehler -> Cap fail-open
+            pass
+
+    # ── D4 (2026-10-09): Vorregistrierte Abbruchregel ────────────────────────
+    # VoLLi-Entscheid (Report D4): CORE_SWEEP in DEFENSIVE laeuft mit
+    # vorregistrierter Abbruchregel — CORE_SWEEP-Drawdown > $150 ODER
+    # letzte 10 CORE_SWEEP-Trades mit WR < 30 % -> Sweep wird pausiert.
+    # Der Drawdown ist CORE_SWEEP-spezifisch (Summe negativer PnL der
+    # letzten 10 geschlossenen Sweep-Trades), NICHT der Portfolio-DD.
+    # Fail-open: DB-Fehler = Regel ignoriert.
+    if db is not None and str(regime).upper() == "DEFENSIVE":
+        try:
+            # Letzte 10 geschlossene CORE_SWEEP-Trades (neu zuerst).
+            _d4_recent = db.fetchall("""
+                SELECT t.pnl_usd
+                FROM trades t
+                JOIN signals s ON s.id = t.signal_id
+                WHERE s.signal_type = 'CORE_SWEEP'
+                  AND t.status = 'CLOSED'
+                  AND t.pnl_usd IS NOT NULL
+                ORDER BY t.closed_at DESC
+                LIMIT 10
+            """)
+            if len(_d4_recent) >= 5:  # min. 5 Trades fuer aussagekraeftige Regel
+                # (a) Drawdown > $150: Summe negativer PnL der letzten 10.
+                _d4_dd = sum(-r["pnl_usd"] for r in _d4_recent if r["pnl_usd"] < 0)
+                if _d4_dd > 150.0:
+                    return [], [
+                        f"Core-Sweep (D4-Abort): Sweep-DD ${_d4_dd:.0f} "
+                        f"> $150 (letzte {len(_d4_recent)} Trades) — pausiert"
+                    ]
+                # (b) WR < 30 %: Gewinnquote der letzten 10.
+                _d4_wins = sum(1 for r in _d4_recent if r["pnl_usd"] > 0)
+                _d4_wr = _d4_wins / len(_d4_recent)
+                if _d4_wr < 0.30:
+                    return [], [
+                        f"Core-Sweep (D4-Abort): WR letzter {len(_d4_recent)} "
+                        f"Sweep-Trades {_d4_wr:.0%} < 30% — pausiert"
+                    ]
+                reasons.append(
+                    f"Core-Sweep (D4-Abort): DD ${_d4_dd:.0f}<=150, "
+                    f"WR {_d4_wr:.0%}>=30% OK"
+                )
+            else:
+                reasons.append(
+                    f"Core-Sweep (D4-Abort): nur {len(_d4_recent)} "
+                    f"geschlossene Sweep-Trades (min. 5 fuer Regel) — skip"
+                )
+        except Exception as _d4_abort_exc:  # noqa: BLE001 — fail-open
+            reasons.append(
+                f"Core-Sweep (D4-Abort): Regel-Check fehlgeschlagen "
+                f"({_d4_abort_exc}) — fail-open"
+            )
+
     reserve_target_pct = float(cs.get("reserve_target_pct", 15.0))
     reserve_floor_pct = float(cs.get("reserve_floor_pct", 10.0))
     per_position_pct = float(cs.get("per_position_pct", 4.0))

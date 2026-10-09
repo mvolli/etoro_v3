@@ -160,7 +160,8 @@ trading:
                               # stale-Rejections in 30d). fail-open, BUY-Gate bleibt Letztlinie.
     reject_cooldown_after: 3  # Ab N REJECTED/FAILED Core-Sweep-Trades im Fenster -> Cooldown
     reject_cooldown_hours: 3.0  # Cooldown-Fenster in Stunden (0 = Check deaktivieren via cooldown_after)
-    regimes: ["NORMAL", "CAUTION"]  # Regime-Gate: pausiert in DEFENSIVE/CRITICAL
+    regimes: ["NORMAL", "CAUTION", "DEFENSIVE"]  # D4 (2026-10-09, VoLLi): DEFENSIVE frei (0.25x via entry_quality)
+    max_open_positions: 3    # D4 (2026-10-09): hartes Cap max. 3 offene CORE_SWEEP-Positionen
     whitelist:                # symbol -> instrument_id (validiert: tradable+aktiv, ATR vorhanden)
       SPY:  3000              # Index-Anker, ATR 1.1% (niedrigste Vola)
       AAPL: 1001
@@ -199,7 +200,10 @@ trading:
       core_sweep_regime:      # CORE_SWEEP ausserhalb allowed Regimes -> 0.25x
         enabled: true
         allowed_regimes: ["NORMAL", "CAUTION"]
-        trend_override: true
+        # D4 (2026-10-09, VoLLi): trend_override false -> DEFENSIVE IMMER
+        # 0.25x (deterministisch). Vorher true = bei Uptrend Full-Size,
+        # dadurch wirkte der D4-DEFENSIVE-Faktor nicht.
+        trend_override: false
         min_roc_5d_pct: -12.0
         # 2026-08-24: war 0.0 (Hard-Block). Phase 2 verbietet Hard-Blocks —
         # ein Block wuerde die Klemme auf min_size_mult umgehen UND die

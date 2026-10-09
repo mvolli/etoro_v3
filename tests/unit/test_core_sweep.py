@@ -26,6 +26,7 @@ def _make_cfg(
     rsi_overbought: float = 75.0,
     regimes: list[str] | None = None,
     whitelist: dict | None = None,
+    max_open_positions: int = 999,
 ) -> dict:
     if regimes is None:
         regimes = ["NORMAL", "CAUTION"]
@@ -49,6 +50,7 @@ def _make_cfg(
                 "rsi_overbought": rsi_overbought,
                 "regimes": regimes,
                 "whitelist": whitelist,
+                "max_open_positions": max_open_positions,
             }
         }
     }
@@ -590,3 +592,126 @@ class TestMarketOpenPredicate:
         assert "AAPL" in symbols
         assert "MSFT" in symbols
         assert any("SPY" in r and "market closed" in r for r in reasons)
+
+
+# ── D4 (2026-10-09): Cap-3 + Abort-Regeln ────────────────────────────────────
+
+class TestD4Cap:
+    """D4: harter Cap max. 3 offene CORE_SWEEP-Positionen."""
+
+    def _db_with_open_sweeps(self, n: int):
+        from bot.db.connection import DB
+        db = DB(db_path=":memory:")
+        db.execute("CREATE TABLE signals (id INTEGER PRIMARY KEY, signal_type TEXT)")
+        db.execute(
+            "CREATE TABLE trades (id INTEGER PRIMARY KEY, instrument_id INTEGER, "
+            "signal_id INTEGER, status TEXT, created_at TEXT, "
+            "pnl_usd REAL, closed_at TEXT)"
+        )
+        for _ in range(n):
+            sig_cur = db.execute(
+                "INSERT INTO signals (signal_type) VALUES ('CORE_SWEEP')")
+            db.execute(
+                "INSERT INTO trades (instrument_id, signal_id, status, created_at) "
+                "VALUES (?, ?, 'ACTIVE', datetime('now'))",
+                (1001, sig_cur.lastrowid),
+            )
+        return db
+
+    def test_cap3_blocks_at_three_open(self):
+        """3 offene CORE_SWEEP-Positionen -> Sweep pausiert."""
+        db = self._db_with_open_sweeps(3)
+        cfg = _make_cfg(max_open_positions=3)
+        orders, reasons = plan_core_sweep(
+            cfg, equity=10000, cash=6000, regime="NORMAL", db=db)
+        assert orders == []
+        assert any("Cap 3" in r for r in reasons)
+
+    def test_cap3_allows_two_open(self):
+        """2 offene CORE_SWEEP-Positionen -> Sweep laeuft."""
+        db = self._db_with_open_sweeps(2)
+        cfg = _make_cfg(max_open_positions=3)
+        orders, _ = plan_core_sweep(
+            cfg, equity=10000, cash=6000, regime="NORMAL", db=db)
+        assert len(orders) >= 1
+
+    def test_cap_disabled_at_zero(self):
+        """max_open_positions=0 -> Cap deaktiviert."""
+        db = self._db_with_open_sweeps(5)
+        cfg = _make_cfg(max_open_positions=0)
+        orders, _ = plan_core_sweep(
+            cfg, equity=10000, cash=6000, regime="NORMAL", db=db)
+        assert len(orders) >= 1
+
+
+class TestD4Abort:
+    """D4: Abbruchregel DD>$150 ODER WR<30% (nur DEFENSIVE)."""
+
+    def _db_with_closed_sweeps(self, pnls: list[float]):
+        """Erzeugt DB mit geschlossenen CORE_SWEEP-Trades (pnl_Liste, neu zuerst)."""
+        from bot.db.connection import DB
+        db = DB(db_path=":memory:")
+        db.execute("CREATE TABLE signals (id INTEGER PRIMARY KEY, signal_type TEXT)")
+        db.execute(
+            "CREATE TABLE trades (id INTEGER PRIMARY KEY, instrument_id INTEGER, "
+            "signal_id INTEGER, status TEXT, created_at TEXT, "
+            "pnl_usd REAL, closed_at TEXT)"
+        )
+        for i, pnl in enumerate(pnls):
+            sig_cur = db.execute(
+                "INSERT INTO signals (signal_type) VALUES ('CORE_SWEEP')")
+            db.execute(
+                "INSERT INTO trades (instrument_id, signal_id, status, "
+                "created_at, pnl_usd, closed_at) "
+                "VALUES (?, ?, 'CLOSED', datetime('now', ?), ?, datetime('now', ?))",
+                (1001, sig_cur.lastrowid, f"-{i} hours", pnl, f"-{i} hours"),
+            )
+        return db
+
+    def test_abort_dd_over_150(self):
+        """Sweep-DD > $150 in DEFENSIVE -> pausiert."""
+        # 5 Trades: -100, -100, -100, +50, +50 -> DD = 300 > 150
+        db = self._db_with_closed_sweeps([-100, -100, -100, 50, 50])
+        cfg = _make_cfg(regimes=["NORMAL", "CAUTION", "DEFENSIVE"])
+        orders, reasons = plan_core_sweep(
+            cfg, equity=10000, cash=6000, regime="DEFENSIVE", db=db)
+        assert orders == []
+        assert any("D4-Abort" in r and "$300" in r for r in reasons)
+
+    def test_abort_wr_under_30(self):
+        """WR < 30% in DEFENSIVE -> pausiert."""
+        # 5 Trades: 1 Winner, 4 Loser (klein genug dass DD < 150)
+        db = self._db_with_closed_sweeps([10, -20, -20, -20, -20])
+        cfg = _make_cfg(regimes=["NORMAL", "CAUTION", "DEFENSIVE"])
+        orders, reasons = plan_core_sweep(
+            cfg, equity=10000, cash=6000, regime="DEFENSIVE", db=db)
+        assert orders == []
+        assert any("D4-Abort" in r and "20%" in r for r in reasons)
+
+    def test_abort_ok_in_defensive(self):
+        """DD<150 + WR>=30% in DEFENSIVE -> Sweep laeuft."""
+        # 5 Trades: 3 Winners, 2 Loser, kleine Betraege
+        db = self._db_with_closed_sweeps([50, 50, 50, -20, -20])
+        cfg = _make_cfg(regimes=["NORMAL", "CAUTION", "DEFENSIVE"])
+        orders, _ = plan_core_sweep(
+            cfg, equity=10000, cash=6000, regime="DEFENSIVE", db=db)
+        assert len(orders) >= 1
+
+    def test_abort_not_checked_in_normal(self):
+        """Abort-Regel greift NUR in DEFENSIVE — NORMAL ist unaeffektiv."""
+        # Selbst bei DD>150: NORMAL-Regime = kein Abort-Check.
+        db = self._db_with_closed_sweeps([-100, -100, -100, 50, 50])
+        cfg = _make_cfg(regimes=["NORMAL", "CAUTION", "DEFENSIVE"])
+        orders, _ = plan_core_sweep(
+            cfg, equity=10000, cash=6000, regime="NORMAL", db=db)
+        assert len(orders) >= 1
+
+    def test_abort_min_trades_skip(self):
+        """Weniger als 5 geschlossene Sweep-Trades -> Regel skippt."""
+        db = self._db_with_closed_sweeps([-100, -100])
+        cfg = _make_cfg(regimes=["NORMAL", "CAUTION", "DEFENSIVE"])
+        orders, reasons = plan_core_sweep(
+            cfg, equity=10000, cash=6000, regime="DEFENSIVE", db=db)
+        # Kein Abort (zu wenig Trades), Sweep laeuft.
+        assert len(orders) >= 1
+        assert any("min. 5" in r for r in reasons)
