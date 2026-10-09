@@ -8,6 +8,13 @@ Kaufsignal-Familie MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING (MIXED)
 schlechten Typ zu dosieren (Deadlock-Befund 07-10). MIXED ging zurueck
 auf 1.0; diese Quote uebernimmt die Dosierung eines einzelnen Typs.
 
+fix/entry-quote-category (2026-10-09): das Matching laeuft NICHT mehr auf
+dem exakten signal_type-String, sondern auf Komponenten-Ebene
+(_quota_applies / _quota_state_for): ein Kombo "TREND_PULLBACK,
+GOLDEN_CROSS" zaehlt ab jetzt auf die Quote "TREND_PULLBACK" (BAC/CDA.PA-
+Schlupfloch) und "BB_UPPER_RSI_OVERBOUGHT" / "TREND_KIPP_1H" sind in
+SIGNAL_CATEGORY aufgenommen (fail-open-Luecke geschlossen).
+
 Gemeinsam mit tests/conftest.py: keine Schreibzugriffe auf data/ —
 die DB-Tests arbeiten auf einer tmp_path-Datei.
 """
@@ -17,6 +24,9 @@ from bot.db.connection import DB
 from bot.workers.signal_worker import (
     ENTRY_QUOTA_MAX,
     ENTRY_QUOTA_WINDOW_DAYS,
+    _quota_applies,
+    _quota_family_key,
+    _quota_state_for,
     _type_entry_counts,
     apply_entry_quota_config,
 )
@@ -125,3 +135,93 @@ def test_type_entry_counts_fail_open_beim_db_fehler(tmp_path):
         def fetchall(self, *a, **k):
             raise RuntimeError("db down")
     assert _type_entry_counts(Boom()) == {}
+
+
+# ── Kategorie-/Komponenten-Matching (fix/entry-quote-category 2026-10-09) ────
+
+def test_quota_family_key_einzelner_typ_blaibt_identisch():
+    assert _quota_family_key("TREND_PULLBACK") == "TREND_PULLBACK"
+    assert _quota_family_key("") == ""
+
+
+def test_quota_family_key_kombo_wird_sortiert():
+    # sortierte Komponenten — Key ist stabil, egal in welcher Reihenfolge
+    assert _quota_family_key("GOLDEN_CROSS,TREND_PULLBACK") == \
+        _quota_family_key("TREND_PULLBACK,GOLDEN_CROSS")
+
+
+def test_quota_applies_subset_matching():
+    """Quote greift, wenn ALLE Komponenten des Quote-Keys im Signal sind."""
+    # Einzel-Quote erfasst den reinen Typ UND jedes enthaltene Kombo
+    assert _quota_applies("TREND_PULLBACK", "TREND_PULLBACK")
+    assert _quota_applies("TREND_PULLBACK,GOLDEN_CROSS", "TREND_PULLBACK")
+    assert _quota_applies("GOLDEN_CROSS,TREND_PULLBACK", "TREND_PULLBACK")
+    # ... aber nicht den komplementaeren Typ
+    assert not _quota_applies("GOLDEN_CROSS", "TREND_PULLBACK")
+    # Kombo-Quote (MACD+BB) matcht exakt und jeden 3er-Kombo mit beiden
+    _macd_bb = "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING"
+    assert _quota_applies(_macd_bb, _macd_bb)
+    assert _quota_applies(
+        "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING",
+        _macd_bb)
+    assert not _quota_applies("MACD_TURN_BELOW_SMA20", _macd_bb)
+
+
+def test_quota_state_for_combo_zaehlt_auf_einzelquote(monkeypatch):
+    """BAC/CDA.PA-Fall: Quote 'TREND_PULLBACK' (max 2) + 2 offene
+    'TREND_PULLBACK,GOLDEN_CROSS' -> das Kombo-Signal ist jetzt QUOTIERT
+    (vorher: exakter String-Abgleich, Quote wirkte nicht)."""
+    monkeypatch.setattr("bot.workers.signal_worker.ENTRY_QUOTA_MAX",
+                        {"TREND_PULLBACK": 2})
+    counts = {"TREND_PULLBACK,GOLDEN_CROSS": 2}
+    state = _quota_state_for("TREND_PULLBACK,GOLDEN_CROSS", counts, {})
+    assert state is not None
+    key, used, mx = state
+    assert key == "TREND_PULLBACK"
+    assert used == 2
+    assert mx == 2
+
+
+def test_quota_state_for_unbetroffen_wohne_quote(monkeypatch):
+    monkeypatch.setattr("bot.workers.signal_worker.ENTRY_QUOTA_MAX",
+                        {"TREND_PULLBACK": 2})
+    assert _quota_state_for("BB_LOWER_RSI_OVERSOLD", {}, {}) is None
+
+
+def test_quota_state_for_in_cycle_wird_gezaehlt(monkeypatch):
+    """In-Cycle-Approval eines Kombos belegt den Quote-Slot sofort."""
+    monkeypatch.setattr("bot.workers.signal_worker.ENTRY_QUOTA_MAX",
+                        {"TREND_PULLBACK": 1})
+    counts = {"TREND_PULLBACK,GOLDEN_CROSS": 1}
+    # DB-Bestand allein hat die Quote (1/1) schon aufgebraucht
+    assert _quota_state_for("TREND_PULLBACK,GOLDEN_CROSS", counts, {}) == \
+        ("TREND_PULLBACK", 1, 1)
+    # in_cycle zusaetzlich: 2/1 (Striktste Quote bleibt dieselbe)
+    assert _quota_state_for(
+        "TREND_PULLBACK,GOLDEN_CROSS", counts,
+        {"TREND_PULLBACK,GOLDEN_CROSS": 1}) == ("TREND_PULLBACK", 2, 1)
+
+
+def test_quota_state_for_strikteste_quote_gewinnt(monkeypatch):
+    """Zwei Quotes greifen -> die mit dem hoechsten Ausfuehrungsgrad
+    bestimmt den Skip (2/2 > 1/2)."""
+    monkeypatch.setattr("bot.workers.signal_worker.ENTRY_QUOTA_MAX",
+                        {"TREND_PULLBACK": 2, "GOLDEN_CROSS": 2})
+    counts = {"TREND_PULLBACK,GOLDEN_CROSS": 2}
+    state = _quota_state_for("TREND_PULLBACK,GOLDEN_CROSS", counts, {})
+    assert state == ("TREND_PULLBACK", 2, 2)
+
+
+def test_signal_category_enthaelt_fail_open_luecken():
+    """BB_UPPER_RSI_OVERBOUGHT und TREND_KIPP_1H sind jetzt kartografiert —
+    die Diversity-Gate-Warnung 'nicht in SIGNAL_CATEGORY' darf fuer sie
+    nicht mehr feuern (Fail-Open-Luecke aus dem Plan)."""
+    from bot.workers.signal_worker import (
+        SIGNAL_CATEGORY,
+        _get_signal_category,
+    )
+    assert SIGNAL_CATEGORY["BB_UPPER_RSI_OVERBOUGHT"] == "MEAN_REVERSION"
+    assert SIGNAL_CATEGORY["TREND_KIPP_1H"] == "TREND_FOLLOWING"
+    # Kombos mit SELL-Teil: nur das bekannte Teil maechtigt
+    assert _get_signal_category("TREND_KIPP_1H,SELL") == "TREND_FOLLOWING"
+    assert _get_signal_category("BB_UPPER_RSI_OVERBOUGHT") == "MEAN_REVERSION"

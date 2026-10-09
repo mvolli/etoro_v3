@@ -327,9 +327,17 @@ SIGNAL_CATEGORY: dict[str, str] = {
     "BB_EXTREME_RSI_OVERSOLD": "MEAN_REVERSION",
     "RSI_EXTREME_OVERSOLD":    "MEAN_REVERSION",
     "BB_LOW_MACD_IMPROVING":   "MEAN_REVERSION",
+    # fix/entry-quote-category (2026-10-09): Fail-Open-Luecke schliessen.
+    # BB_UPPER_RSI_OVERBOUGHT ist der Gegenpart zu den Oversold-Typen
+    # (Mean-Reversion-SELL, nicht TREND_FOLLOWING).
+    "BB_UPPER_RSI_OVERBOUGHT": "MEAN_REVERSION",
     "MACD_TURN_BELOW_SMA20":   "TREND_FOLLOWING",
     "TREND_PULLBACK":          "TREND_FOLLOWING",
     "GOLDEN_CROSS":            "TREND_FOLLOWING",
+    # fix/entry-quote-category (2026-10-09): TREND_KIPP_1H ist ein
+    # Trend-Flip-Signal (TREND_FOLLOWING), kam als "TREND_KIPP_1H,SELL"
+    # in der DB und lief fail-open.
+    "TREND_KIPP_1H":           "TREND_FOLLOWING",
     # fix/diversity-mixed-cap (2026-08-28): CORE_SWEEP fehlte, das Gate lief
     # dafuer fail-open und schrieb in JEDEM Lauf eine Warnung.
     "CORE_SWEEP":              "CORE",
@@ -1067,13 +1075,18 @@ def _open_signal_categories(db) -> dict[str, int]:
 
 
 def _type_entry_counts(db) -> dict[str, int]:
-    """Neueinstiege je Signaltyp im rollierenden ENTRY_QUOTA_WINDOW_DAYS-Fenster.
+    """Neueinstiege je Quote-Familie im rollierenden ENTRY_QUOTA_WINDOW_DAYS-Fenster.
 
     fix/entry-type-quote (2026-10-07): Zaehlt trades (status ACTIVE, created_at
     im Fenster) pro signal_type — die Basisfuer die Entry-Quote. Der Nenner ist
     bewusst der BESTAND (ACTIVE), nicht die Signale: eine zugekaufte Position,
     die noch offen ist, belegt ihren Quote-Slot, bis sie geschlossen ist.
     Fail-open wie _open_signal_categories: leerer Dict bei DB-Problem.
+
+    fix/entry-quote-category (2026-10-09): die Rohzaehlung pro exaktem
+    signal_type wird in _quota_family_key reaggregiert — Kombo-Signale
+    ("TREND_PULLBACK,GOLDEN_CROSS") zaehlen so auf jede Quote, deren
+    Komponenten sie enthaelt (subset-Match), statt nur auf den exakten String.
     """
     _counts: dict[str, int] = {}
     try:
@@ -1086,10 +1099,75 @@ def _type_entry_counts(db) -> dict[str, int]:
             GROUP BY sig.signal_type
         """, (f"-{ENTRY_QUOTA_WINDOW_DAYS} days",))
         for _r in _rows:
-            _counts[str(_r["signal_type"])] = int(_r["n"])
+            _key = _quota_family_key(str(_r["signal_type"]))
+            _counts[_key] = _counts.get(_key, 0) + int(_r["n"])
     except Exception as _eq_exc:
         logger.debug("SignalWorker: Entry-Quote Daten nicht verfuegbar: %s", _eq_exc)
     return _counts
+
+
+def _quota_components(key: str) -> set[str]:
+    """Komponenten-Menge eines Quote-Keys (Komma-Kombo wird gesplittet)."""
+    return {p.strip().upper() for p in (key or "").split(",") if p.strip()}
+
+
+def _quota_family_key(signal_type: str) -> str:
+    """Quote-Familien-Key eines Signal-Typs (fix/entry-quote-category 2026-10-09).
+
+    Kombo-Signale ("TREND_PULLBACK,GOLDEN_CROSS") bekommen als Familien-Key
+    die sortierten Komponenten — so zaehlen sie auf JEDER Quote, deren
+    Komponenten sie enthaelt (z.B. die Quote "TREND_PULLBACK" erfasst ab jetzt
+    auch "TREND_PULLBACK,GOLDEN_CROSS", das BAC/CDA.PA-Schlupfloch). Einzelne
+    Typen bleiben unveraendert (Key == Typ).
+    """
+    parts = sorted({p.strip() for p in (signal_type or "").split(",") if p.strip()})
+    if not parts:
+        return ""
+    if len(parts) == 1:
+        return parts[0]
+    return ",".join(parts)
+
+
+def _quota_applies(signal_type: str, quota_key: str) -> bool:
+    """Gilt die Quote `quota_key` fuer dieses Signal (Komponenten-Subset)?
+
+    Die Quote greift, wenn ALLE Komponenten des Quote-Keys in den
+    Komponenten des Signals vorkommen. "TREND_PULLBACK" matcht damit
+    "TREND_PULLBACK" UND "TREND_PULLBACK,GOLDEN_CROSS"; der Kombo-Key
+    "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING" matcht jedes Signal, das
+    beide Typen traegt (inkl. 3er-Kombos).
+    """
+    return _quota_components(quota_key) <= _quota_components(signal_type)
+
+
+def _quota_state_for(signal_type: str,
+                     counts: dict[str, int],
+                     in_cycle: dict[str, int]) -> tuple[str, int, int] | None:
+    """Striktste aktive Quote fuer ein Signal (fix/entry-quote-category).
+
+    Liefert (quote_key, used, max) der Quote mit dem hoechsten Ausfuehrungsgrad
+    (used/max), None wenn keine Quote greift. `used` fuer eine Quote K = Summe
+    aller Zaeuhler-Eintraege (DB-Familien aus `_type_entry_counts` und
+    In-Cycle-Keys, beide exakt signal_type-basiert), die alle Komponenten von
+    K enthalten — die Quote "TREND_PULLBACK" zaehlt damit sowohl
+    "TREND_PULLBACK" als auch "TREND_PULLBACK,GOLDEN_CROSS".
+    """
+    fam = _quota_family_key(signal_type)
+    best: tuple[str, int, int, float] | None = None
+    for key, maxn in ENTRY_QUOTA_MAX.items():
+        if not _quota_applies(signal_type, key):
+            continue
+        used = sum(
+            n for f, n in counts.items() if _quota_applies(f, key)
+        ) + sum(
+            n for f, n in in_cycle.items() if _quota_applies(f, key)
+        )
+        ratio = used / maxn if maxn > 0 else 0.0
+        if best is None or ratio > best[3]:
+            best = (key, used, maxn, ratio)
+    if best is None:
+        return None
+    return (best[0], best[1], best[2])
 
 
 def _commodity_state(db, cfg: dict) -> tuple[dict, set[int], int]:
@@ -1295,15 +1373,18 @@ def _filter_eligible(
         # oben, aber pro Signaltyp-Familie statt pro Kategorie). Skip statt
         # REJECT: bleibt FRESH, wird neu geprüft, sobald die Quote frei ist.
         # Zähler = DB-Bestand (ACTIVE, 7d) + In-Cycle-Approvals dieses Laufs.
-        _eq_type = signal.get("signal_type", "")
-        _eq_max = ENTRY_QUOTA_MAX.get(_eq_type)
-        if _eq_max is not None:
-            _eq_used = (
-                _type_entry_counts_local.get(_eq_type, 0)
-                + _quota_in_cycle.get(_eq_type, 0)
-            )
+        # fix/entry-quote-category (2026-10-09): Match auf Komponenten-/
+        # Familien-Ebene (_quota_state_for) statt exaktem signal_type-String —
+        # die Quote "TREND_PULLBACK" erfasst damit auch "TREND_PULLBACK,
+        # GOLDEN_CROSS" (BAC/CDA.PA-Schlupfloch), analog zum Diversity-Gate.
+        _eq_state = _quota_state_for(
+            signal.get("signal_type", ""),
+            _type_entry_counts_local, _quota_in_cycle,
+        )
+        if _eq_state is not None:
+            _eq_key, _eq_used, _eq_max = _eq_state
             if _eq_used >= _eq_max:
-                skipped_diversity.append(f"{symbol}(quote:{_eq_type[:20]})")
+                skipped_diversity.append(f"{symbol}(quote:{_eq_key[:20]})")
                 _skip["entry_quote"].append(symbol)
                 continue
 
@@ -2885,17 +2966,19 @@ def main() -> None:
                 # das Signal bleibt FRESH und wird neu geprüft, wenn die Quote
                 # frei ist — das stille Verfaellen des 28-08-Deadlocks wird
                 # bewusst vermieden, nur dosiert.
-                _eq_type = signal.get("signal_type", "")
-                _eq_max = ENTRY_QUOTA_MAX.get(_eq_type)
-                if _eq_max is not None:
-                    _eq_used = (
-                        _type_entry_counts_local.get(_eq_type, 0)
-                        + _quota_in_cycle.get(_eq_type, 0)
-                    )
+                # fix/entry-quote-category (2026-10-09): Komponenten-Match
+                # (_quota_state_for) statt exaktem String — Kombos zaehlen
+                # auf jede enthaltene Quote.
+                _eq_state = _quota_state_for(
+                    signal.get("signal_type", ""),
+                    _type_entry_counts_local, _quota_in_cycle,
+                )
+                if _eq_state is not None:
+                    _eq_key, _eq_used, _eq_max = _eq_state
                     if _eq_used >= _eq_max:
                         logger.info(
                             "SignalWorker: Entry-Quote: %s (%s) %d/%d Neueinstiege in %dd — übersprungen (bleibt FRESH)",
-                            _eq_type[:40], symbol, _eq_used, _eq_max,
+                            _eq_key[:40], symbol, _eq_used, _eq_max,
                             ENTRY_QUOTA_WINDOW_DAYS,
                         )
                         _skip["entry_quote"].append(symbol)
@@ -3015,9 +3098,12 @@ def main() -> None:
                 # Entry-Quote In-Cycle-Zähler (fix/entry-type-quote 2026-10-07):
                 # genehmigtes Quotesignal belegt einen Quote-Slot in diesem Lauf,
                 # die DB-Zaehler (_type_entry_counts_local) sehen den Trade noch nicht.
-                _appr_type = signal.get("signal_type", "")
-                if _appr_type in ENTRY_QUOTA_MAX:
-                    _quota_in_cycle[_appr_type] = _quota_in_cycle.get(_appr_type, 0) + 1
+                _appr_fam = _quota_family_key(signal.get("signal_type", ""))
+                if _appr_fam and _quota_state_for(
+                        _appr_fam, _type_entry_counts_local,
+                        _quota_in_cycle) is not None:
+                    _quota_in_cycle[_appr_fam] = (
+                        _quota_in_cycle.get(_appr_fam, 0) + 1)
     
                 logger.info(
                     "SignalWorker: APPROVED trade #%d — %s %s $%.2f (conviction=%s score=%.2f signal_price=%.4f)",
