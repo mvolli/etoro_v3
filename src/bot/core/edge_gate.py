@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""eToro Trading Bot V3 — Edge-Gate (SHADOW-MODUS)
+"""eToro Trading Bot V3 — Edge-Gate (LIVE-MODUS)
 src/bot/core/edge_gate.py
 
 Phase 3 (2026-10-09): Deterministisches Edge-Gate pro Signaltyp-Familie.
+D6 (2026-10-09, VoLLi): Shadow → LIVE-Umschaltung.
 
 Fragt fuer einen Signal-Typ die netto Forward-Returns (fwd_5d_pnl, 1.1 %
 Kosten) aus signal_outcomes (Phase 1a hat die Tabelle befuellt; Fallback:
@@ -12,16 +13,15 @@ trade_events) und berechnet:
     lcb     : Lower Confidence Bound 95 % einseitig (z = 1.645)
     n       : Stichprobenumfang
 
-Entscheidung (SHADOW-MODUS — keine Live-Blockade, nur Log + Kennzeichnung):
+Entscheidung (LIVE-MODUS seit 2026-10-09, VoLLi-Freigabe D6):
 
     n < n_min   -> SHADOW   (nicht fail-open: zu wenig Daten = keine Freigabe)
     lcb < 0     -> SHADOW   (keine nachweisbar positive Kante)
     sonst       -> LIVE     (freigegeben)
 
-Warum SHADOW-MODUS: D6 — 24-h-Beobachtungsfenster des Fee-Fixes 7cd4cda
-(Ende ~14:20 UTC am 10.10.). Das Gate laeuft parallel zur Live-Kette und
-kennzeichnet Schatten-Trades in signal_outcomes, blockt aber nichts. Nach
-dem Fenster wird der Shadow->Live-Umschalter dokumentiert (Abschluss-Report).
+LIVE-MODUS: Das Gate blockt Shadow-Trades in der Execution-Kette
+(execution_worker b3b). CORE_SWEEP ist ausgenommen (D4: VoLLi-Freigabe,
+eigene Schutzregeln 0.25x + Cap 3 + Abort).
 
 Regime-Konditionierung: signal_outcomes traegt (noch) keine Regime-Spalte,
 deshalb ist `regime` ein Kontext-Label, das in die Shadow-Kennzeichnung
@@ -40,6 +40,17 @@ logger = logging.getLogger("edge_gate")
 Z_ONE_SIDED_95 = 1.645          # einseitiges 95 %-Quantil (Standardnormal)
 N_MIN = 25                      # Mindeststichprobenumfang, sonst SHADOW
 FORWARD_COL = "fwd_5d_pnl"      # netter 5d-Forward-Return (1.1 % Kosten)
+
+# D6 (2026-10-09, VoLLi): LIVE-MODUS. True = Gate blockt Shadow-Trades.
+# CORE_SWEEP ist ausgenommen (D4: eigene Schutzregeln, VoLLi-Freigabe).
+LIVE_MODE = True
+
+# D4: CORE_SWEEP ist vom Edge-Gate ausgenommen — VoLLi hat D4 (CORE_SWEEP
+# 0.25x DEFENSIVE + Cap 3 + Abort) explizit befreit. CORE_SWEEP hat
+# LCB −0.0014 (knapp negativ), ist aber der einzige klar positive Pfad
+# (+$192, WR 47 %). Die D4-Schutzregeln (0.25x, Cap 3, DD>150/WR<30%)
+# ersetzen die Gate-Blockade fuer diesen Typ.
+GATE_EXEMPT_TYPES = frozenset({"CORE_SWEEP"})
 
 
 def _components(signal_type: str) -> set[str]:
@@ -186,4 +197,6 @@ def evaluate(signal_type: str, regime: str, db) -> dict:
         "signal_type": signal_type, "regime": regime,
         "exp_net": exp_net, "lcb": lcb, "n": n,
         "shadow": shadow, "reason": reason, "source": source,
+        "live_mode": LIVE_MODE,
+        "exempt": signal_type.upper() in GATE_EXEMPT_TYPES,
     }

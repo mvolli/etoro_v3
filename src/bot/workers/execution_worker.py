@@ -880,17 +880,17 @@ def main() -> None:
                     failed_count += 1
                     continue
 
-            # b3b. Edge-Gate (SHADOW-MODUS) — Phase 3 (2026-10-09), D6:
+            # b3b. Edge-Gate (LIVE-MODUS) — Phase 3 (2026-10-09), D6:
             #     Laeuft VOR dem $200-Floor. Frage die Edge-Statistik
             #     (exp_net / LCB 95 % / n) des Signal-Typs aus
-            #     signal_outcomes (Fallback trade_events). SHADOW-MODUS:
-            #     kein Live-Skip — der Trade wird wie ueblich ausgefuehrt,
-            #     aber als Schatten-Trage gekennzeichnet (Log +
-            #     signal_outcomes.edge_shadow) und in den Stats
-            #     ausgegeben, damit das 24-h-Beobachtungsfenster des
-            #     Fee-Fixes (7cd4cda, Ende ~14:20 UTC 10.10.) mit
-            #     Gate-Entscheidung parallel zur Live-Kette laeuft.
+            #     signal_outcomes (Fallback trade_events). LIVE-MODUS
+            #     (VoLLi-Freigabe 2026-10-09, D6): Shadow-Trades werden
+            #     BLOCKT (Trade nicht ausgefuehrt, failed_count += 1),
+            #     EXEMPT-Typen (CORE_SWEEP, D4) gehen durch. Die
+            #     Gate-Entscheidung wird weiterhin in
+            #     signal_outcomes.edge_shadow + Stats protokolliert.
             #     n < n_min -> SHADOW (NICHT fail-open); LCB < 0 -> SHADOW.
+            #     Fail-open: Gate-Fehler -> Trade laeuft normal weiter.
             try:
                 from bot.core import edge_gate as _eg
                 _eg_sig_id = trade.get("signal_id")
@@ -909,32 +909,39 @@ def main() -> None:
                 except Exception:  # noqa: BLE001
                     pass
                 _eg_res = _eg.evaluate(_eg_sig_type, _eg_regime, db)
+                _eg_shadow = _eg_res["shadow"]
+                _eg_exempt = _eg_res["exempt"]
+                _eg_live = _eg_res["live_mode"]
+                # D6: LIVE-MODUS + Shadow + nicht exempt -> BLOCKT.
+                _eg_block = _eg_live and _eg_shadow and not _eg_exempt
                 logger.info(
-                    "ExecutionWorker: EdgeGate SHADOW trade #%d %s type=%s "
-                    "regime=%s exp_net=%.5f lcb=%.5f n=%d -> %s (%s)",
+                    "ExecutionWorker: EdgeGate trade #%d %s type=%s regime=%s "
+                    "exp_net=%.5f lcb=%.5f n=%d -> %s (%s)%s",
                     trade_id, symbol, _eg_sig_type, _eg_regime,
                     _eg_res["exp_net"], _eg_res["lcb"], _eg_res["n"],
-                    "SHADOW" if _eg_res["shadow"] else "LIVE",
+                    "BLOCK" if _eg_block else ("SHADOW" if _eg_shadow else "LIVE"),
                     _eg_res["reason"],
+                    " [EXEMPT/D4]" if _eg_exempt else "",
                 )
                 log_repo.write(
                     "INFO", "execution_worker",
-                    f"EdgeGate SHADOW trade #{trade_id} {symbol} "
-                    f"type={_eg_sig_type} regime={_eg_regime} "
-                    f"exp_net={_eg_res['exp_net']:.5f} "
+                    f"EdgeGate trade #{trade_id} {symbol} type={_eg_sig_type} "
+                    f"regime={_eg_regime} exp_net={_eg_res['exp_net']:.5f} "
                     f"lcb={_eg_res['lcb']:.5f} n={_eg_res['n']} "
-                    f"-> {'SHADOW' if _eg_res['shadow'] else 'LIVE'} "
-                    f"({_eg_res['reason']})",
+                    f"-> {'BLOCK' if _eg_block else ('SHADOW' if _eg_shadow else 'LIVE')} "
+                    f"({_eg_res['reason']})"
+                    + (" [EXEMPT/D4]" if _eg_exempt else ""),
                     {"trade_id": trade_id, "symbol": symbol,
                      "signal_type": _eg_sig_type, "regime": _eg_regime,
                      "exp_net": _eg_res["exp_net"], "lcb": _eg_res["lcb"],
-                     "n": _eg_res["n"], "shadow": _eg_res["shadow"],
+                     "n": _eg_res["n"], "shadow": _eg_shadow,
+                     "exempt": _eg_exempt, "blocked": _eg_block,
                      "reason": _eg_res["reason"]},
                 )
-                # Shadow-Kennzeichnung in signal_outcomes (SHADOW-MODUS,
-                # keine Blockade): die Zeile des zugrundeliegenden Signals
-                # wird um die Gate-Entscheidung angereichert, falls die
-                # Spalte existiert; sonst no-op (fail-open auf die Doku).
+                # Shadow-Kennzeichnung in signal_outcomes (LIVE-MODUS,
+                # Blockade + Doku): die Zeile des zugrundeliegenden
+                # Signals wird um die Gate-Entscheidung angereichert,
+                # falls die Spalte existiert; sonst no-op.
                 try:
                     _eg_cols = {r["name"] for r in db.fetchall(
                         "PRAGMA table_info(signal_outcomes)")}
@@ -955,15 +962,28 @@ def main() -> None:
                                 LIMIT 1
                             )
                             """,
-                            (1 if _eg_res["shadow"] else 0, _eg_sig_id),
+                            (1 if _eg_shadow else 0, _eg_sig_id),
                         )
                 except Exception as _eg_mark_exc:  # noqa: BLE001
                     logger.debug(
                         "EdgeGate: Shadow-Kennzeichnung fehlgeschlagen: %s",
                         _eg_mark_exc)
+                # D6 LIVE-Blockade: Shadow-Trade wird nicht ausgefuehrt.
+                if _eg_block:
+                    failed_count += 1
+                    log_repo.write(
+                        "WARN", "execution_worker",
+                        f"EdgeGate LIVE-BLOCK trade #{trade_id} {symbol} "
+                        f"type={_eg_sig_type}: {_eg_res['reason']} "
+                        f"— Trade nicht ausgefuehrt",
+                        {"trade_id": trade_id, "symbol": symbol,
+                         "signal_type": _eg_sig_type,
+                         "reason": _eg_res["reason"]},
+                    )
+                    continue
             except Exception as _eg_exc:  # noqa: BLE001
-                # Gate ist SHADOW/Beobachtung — darf die Live-Kette nie brechen.
-                logger.warning("EdgeGate (SHADOW) evaluation fehlgeschlagen: %s", _eg_exc)
+                # Gate-Fehler -> fail-open (Trade laeuft normal weiter).
+                logger.warning("EdgeGate (LIVE) evaluation fehlgeschlagen: %s", _eg_exc)
 
             # b4. $200 hard floor — fix/fee-flat (2026-10-09, VoLLi-Entscheid):
             #    Flat-Fee $1/$2 pro Order. Bei $60-130 = 1.5-3 % Fee-Last,
