@@ -22,6 +22,8 @@ from __future__ import annotations
 
 import math
 
+import pytest
+
 from bot.db.connection import DB
 from bot.core import edge_gate
 
@@ -89,8 +91,8 @@ def test_lcb_formel_einseitig_95():
     exp, lcb, n = 0.025, None, 25
     samples = [0.025] * 25  # std = 0 -> LCB == exp
     std = edge_gate._std(samples)
-    assert std == 0.0
-    assert edge_gate._lcb(exp, std, n) == exp
+    assert std == pytest.approx(0.0, abs=1e-12)  # FP: 25x identisch -> ~1e-18
+    assert edge_gate._lcb(exp, std, n) == pytest.approx(exp, abs=1e-12)
 
     # mit Streuung
     samples = [0.0] * 12 + [0.05] * 13  # mean ~ 0.025
