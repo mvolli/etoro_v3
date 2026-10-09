@@ -19,8 +19,6 @@ from pathlib import Path
 
 import yaml
 
-from bot.core.close_dedup import extract_order_id, trade_already_closed
-
 # ── Path setup ────────────────────────────────────────────────────────────────
 # Allow running directly or via -m from project root
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
@@ -28,6 +26,10 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 SRC_DIR = PROJECT_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
+
+# Import erst NACH dem Path-Bootstrap: 'bot' ist vorher nicht auffindbar,
+# wenn die Datei direkt als Skript laeuft (src/ liegt dann nicht in sys.path).
+from bot.core.close_dedup import extract_order_id, trade_already_closed
 
 # ── Discord Embeds ─────────────────────────────────────────────────────────────
 try:
