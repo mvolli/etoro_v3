@@ -48,6 +48,17 @@ _SYMBOL_FIELDS: tuple[str, ...] = (
 )
 
 
+# Symbol-Aliasse: yfinance-Notation → eToro-Notation (SELBES Instrument).
+# fix/ftse-uk100-alias (2026-10-10): Discovery verwarf ^FTSE (ID 30) als
+# "Identity MISMATCH: lokal '^FTSE' ≠ eToro 'UK100'" — dieselbe Zuordnung,
+# zwei Notationen (DB: symbol=UK100, yfinance_symbol=^FTSE). Der Alias
+# wird NACH dem Suffix-Strip angewendet, damit er nie mit Exchange-Suffixen
+# interferiert. Mirrors EToroClient._normalize_symbol_for_comparison.
+SYMBOL_ALIASES: dict[str, str] = {
+    "^FTSE": "UK100",
+}
+
+
 def normalize_symbol(sym: str) -> str:
     """Loosely normalize a ticker for identity comparison.
 
@@ -55,14 +66,15 @@ def normalize_symbol(sym: str) -> str:
     'DOT-USD' matches a live-API 'DOT'. Exchange suffixes like '.L' are
     KEPT — 'VALT.L' and 'VALT' are different listings on purpose.
 
-    One documented alias (fix/asx-namespace-alias, 2026-08-28): the ASX
-    is written '.AX' by yfinance and '.ASX' by eToro for the SAME
-    listing (CNU.AX / CNU.ASX, TLC.AX / TLC.ASX, MAF.AX / MAF.ASX were
-    hard-rejected as identity mismatches on valid instrument_ids). Both
-    are unified to the eToro form '.ASX'. No other exchange suffix is
-    touched — different listings stay different. Mirrors the looser
-    EToroClient._normalize_symbol_for_comparison on the execution path,
-    without weakening the gate for other markets.
+    Documented aliases:
+    - ASX namespace (fix/asx-namespace-alias, 2026-08-28): yfinance '.AX'
+      == eToro '.ASX' (same listing) — unified to the eToro form '.ASX'.
+    - SYMBOL_ALIASES (fix/ftse-uk100-alias, 2026-10-10): yfinance '^FTSE'
+      == eToro 'UK100' (FTSE 100 Index, instrument_id 30).
+
+    No other symbol is touched — different listings stay different.
+    Mirrors the looser EToroClient._normalize_symbol_for_comparison on
+    the execution path, without weakening the gate for other markets.
     """
     if not sym:
         return ""
@@ -73,7 +85,7 @@ def normalize_symbol(sym: str) -> str:
             break
     if s.endswith(".AX"):
         s = s[: -len(".AX")] + ".ASX"
-    return s
+    return SYMBOL_ALIASES.get(s, s)
 
 
 def extract_live_symbol(meta: dict | None) -> str:

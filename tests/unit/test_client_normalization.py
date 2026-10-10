@@ -54,6 +54,18 @@ class TestNormalize:
     def test_empty(self):
         assert EToroClient._normalize_symbol_for_comparison("") == ""
 
+    def test_ftse_uk100_alias(self):
+        # fix/ftse-uk100-alias (2026-10-10): ^FTSE (yfinance) == UK100 (eToro), ID 30.
+        assert (
+            EToroClient._normalize_symbol_for_comparison("^FTSE")
+            == EToroClient._normalize_symbol_for_comparison("UK100")
+            == "UK100"
+        )
+        # Kleine Schreibweise normalisiert vor dem Alias-Lookup.
+        assert EToroClient._normalize_symbol_for_comparison("^ftse") == "UK100"
+        # Alias greift NACH dem USD-Strip: ^FTSE-USD → ^FTSE → UK100
+        assert EToroClient._normalize_symbol_for_comparison("^FTSE-USD") == "UK100"
+
 
 # ─── verify_instrument_identity via Fake-Client ───────────────────────────────
 
@@ -73,6 +85,12 @@ class TestVerifyInstrumentIdentity:
     def test_asx_ax_alias_ok(self):
         # Same regression case, exercised through the public method.
         ok, reason = _verify("CAR.AX", {"symbolFull": "CAR.ASX"})
+        assert ok
+        assert "Identity OK" in reason
+
+    def test_ftse_uk100_alias_ok(self):
+        # fix/ftse-uk100-alias: der Discovery-Verwerfungsfall (ID 30).
+        ok, reason = _verify("^FTSE", {"symbolFull": "UK100"})
         assert ok
         assert "Identity OK" in reason
 

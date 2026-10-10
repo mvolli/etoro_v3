@@ -584,6 +584,10 @@ class EToroClient:
 
         Exchange suffixes are stripped BEFORE quote-currency suffixes so
         that compound forms like ``CAR.ASX-USD`` normalise to ``CAR``.
+
+        Symbol aliases (fix/ftse-uk100-alias, 2026-10-10): yfinance
+        '^FTSE' == eToro 'UK100' (same instrument, ID 30). Applied as
+        final step via SYMBOL_ALIASES (lazy import — no circular dep).
         """
         if not sym:
             return ""
@@ -609,7 +613,8 @@ class EToroClient:
             if s.endswith(suffix) and len(s) > len(suffix):
                 s = s[: -len(suffix)]
                 break
-        return s
+        from bot.core.instrument_verification import SYMBOL_ALIASES
+        return SYMBOL_ALIASES.get(s, s)
 
     def verify_instrument_identity(
         self, instrument_id: int, expected_symbol: str

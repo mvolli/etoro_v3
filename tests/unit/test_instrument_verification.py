@@ -52,6 +52,15 @@ class TestNormalize:
         # Compound form: .ASX with quote currency still unifies with .AX
         assert normalize_symbol("CNU.AX") == normalize_symbol("CNU.ASX-USD")
 
+    def test_ftse_uk100_alias(self):
+        # fix/ftse-uk100-alias (2026-10-10): ^FTSE (yfinance) == UK100 (eToro), ID 30.
+        assert normalize_symbol("^FTSE") == normalize_symbol("UK100") == "UK100"
+        assert normalize_symbol("^ftse") == "UK100"
+        assert normalize_symbol("^FTSE-USD") == "UK100"
+        # Nicht-aliase bleiben unangetastet (kein False-Friendly-Match).
+        assert normalize_symbol("US100") == "US100"
+        assert normalize_symbol("UK100-USD") == "UK100"
+
 
 class TestExtractLiveSymbol:
     def test_priority_symbolfull_first(self):
@@ -101,6 +110,13 @@ class TestIdentity:
                             ("MAF.AX", "MAF.ASX")):
             ok, reason = check_identity(local, {"symbolFull": live})
             assert ok, f"{local} vs {live}: {reason}"
+
+    def test_ftse_uk100_alias_passes(self):
+        # fix/ftse-uk100-alias (2026-10-10): ID 30, Discovery verwarf ^FTSE
+        # gegen eToro 'UK100' — muss jetzt durchgehen.
+        ok, reason = check_identity("^FTSE", {"symbolFull": "UK100"})
+        assert ok, reason
+        assert "Identity OK" in reason
 
     def test_genuine_mismatch_still_blocked(self):
         # The alias must NOT let a truly different instrument through.
