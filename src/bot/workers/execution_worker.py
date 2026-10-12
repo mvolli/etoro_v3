@@ -969,13 +969,28 @@ def main() -> None:
                         "EdgeGate: Shadow-Kennzeichnung fehlgeschlagen: %s",
                         _eg_mark_exc)
                 # D6 LIVE-Blockade: Shadow-Trade wird nicht ausgefuehrt.
+                # fix/edge-gate-block-failed (2026-10-12): Trade sofort
+                # FAILED setzen — vorher blieb er in SUBMITTING, und der
+                # Reconciler 9b pickte ihn ~10 min spaeter als "stale
+                # SUBMITTING" auf (LVS 3x, ANA.MC 3x am 12.10.). Das
+                # erzeugte einen Loop: discovery -> neues Signal ->
+                # APPROVED -> SUBMITTING -> Block -> stale -> FAILED ->
+                # discovery -> ... Jetzt: sauberes FAILED mit Grund.
                 if _eg_block:
                     failed_count += 1
+                    trade_repo.update_status(
+                        trade_id, "FAILED",
+                        rejection_reason=(
+                            f"EdgeGate LIVE-BLOCK: {_eg_res['reason']} "
+                            f"(type={_eg_sig_type})"
+                        ),
+                        closed_at=_utcnow(),
+                    )
                     log_repo.write(
                         "WARN", "execution_worker",
                         f"EdgeGate LIVE-BLOCK trade #{trade_id} {symbol} "
                         f"type={_eg_sig_type}: {_eg_res['reason']} "
-                        f"— Trade nicht ausgefuehrt",
+                        f"— Trade FAILED",
                         {"trade_id": trade_id, "symbol": symbol,
                          "signal_type": _eg_sig_type,
                          "reason": _eg_res["reason"]},

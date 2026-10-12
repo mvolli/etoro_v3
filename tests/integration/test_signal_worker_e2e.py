@@ -362,3 +362,42 @@ def test_extra_slots_doppeln_keinen_kandidaten(world):
     world.run()
     got = world.approved()
     assert all(len(v) == 1 for v in got.values()), f"Instrument doppelt: {got}"
+
+
+def test_edge_gate_loopbrecher_verwirft_signal(world):
+    """Edge-Gate-Loopbrecher (fix/edge-gate-block-failed 2026-10-12):
+
+    War dasselbe Instrument in den letzten 6h an der Edge-Gate LIVE-Blockade
+    gescheitert (trade FAILED mit rejection_reason 'EdgeGate LIVE-BLOCK...'),
+    verwirft signal_worker das FRESH-Signal des Instruments als REJECTED —
+    kein neuer APPROVED-Trade, kein Loop (discovery -> Signal -> APPROVED ->
+    Block -> FAILED -> discovery -> ...).
+    """
+    world.con.execute(
+        "INSERT INTO trades(instrument_id,symbol,direction,amount_usd,status,"
+        "rejection_reason,closed_at) VALUES (1,'BTC','BUY',200,'FAILED',?,"
+        "datetime('now','-2 hours'))",
+        ("EdgeGate LIVE-BLOCK: LCB<0 (type=MACD_BULLISH_CROSS)",),
+    )
+    world.con.commit()
+    world.run()
+    assert "BTC" not in world.approved(), (
+        f"BTC trotz frischem Edge-Gate-Block approved: {world.approved()}")
+    assert world.signal_status(1) == ["REJECTED"], (
+        f"BTC-Signal nicht REJECTED: {world.signal_status(1)}")
+    # Andere Instrumente sind nicht betroffen
+    assert "ETH" in world.approved(), "ETH-Approval durch Loopbrecher verloren"
+
+
+def test_edge_gate_loopbrecher_nur_6h_fenster(world):
+    """Alter > 6h: der Loopbrecher greift NICHT (fail-open, Signal laeuft)."""
+    world.con.execute(
+        "INSERT INTO trades(instrument_id,symbol,direction,amount_usd,status,"
+        "rejection_reason,closed_at) VALUES (1,'BTC','BUY',200,'FAILED',?,"
+        "datetime('now','-7 hours'))",
+        ("EdgeGate LIVE-BLOCK: LCB<0 (type=MACD_BULLISH_CROSS)",),
+    )
+    world.con.commit()
+    world.run()
+    assert "BTC" in world.approved(), (
+        f"BTC-Approval fehlend, obwohl Block >6h alt: {world.approved()}")

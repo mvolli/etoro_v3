@@ -2415,7 +2415,41 @@ def main() -> None:
             conviction = signal.get("conviction", "MEDIUM")
             score = float(signal.get("score", 0))
             signal_id = signal.get("id")
-    
+
+            # Edge-Gate-Loopbrecher (fix/edge-gate-block-failed 2026-10-12):
+            # War dasselbe Instrument in den letzten 6h an der Edge-Gate
+            # LIVE-Blockade gescheitert, kein neuer Trade aus diesem Signal.
+            # ohne den Brecher laeuft der Loop: discovery -> FRESH-Signal
+            # -> APPROVED -> Edge-Gate-Block -> FAILED -> discovery -> ...
+            # (Beleg 2026-10-12: ANA.MC 3x, LVS 3x, je ~1h Zyklus). Das
+            # Gate blockt typenweiser und deterministisch — ein 15-min-
+            # Retry waere identisch. Das Signal wird REJECTED (keine
+            # FRESH-Schleife), nicht nur uebersprungen.
+            try:
+                _eg_loop_row = signal_repo.db.fetchone(
+                    "SELECT closed_at FROM trades "
+                    "WHERE instrument_id = ? AND status = 'FAILED' "
+                    "AND rejection_reason LIKE 'EdgeGate LIVE-BLOCK%' "
+                    "AND closed_at >= datetime('now', '-6 hours') "
+                    "ORDER BY closed_at DESC LIMIT 1",
+                    (instrument_id,),
+                )
+            except Exception:
+                _eg_loop_row = None  # fail-open
+            if _eg_loop_row:
+                logger.info(
+                    "SignalWorker: %s Edge-Gate-Loopbrecher (Block %s) — "
+                    "Signal REJECTED",
+                    symbol, _eg_loop_row["closed_at"],
+                )
+                signal_repo.update_signal_status(signal_id, "REJECTED")
+                blocked_reasons.append(
+                    f"{symbol}: Edge-Gate-Loopbrecher (LIVE-Block "
+                    f"{_eg_loop_row['closed_at']})"
+                )
+                continue
+
+
             # a. Current amount + fragment count for pyramiding check
             snap_rows = portfolio_repo.get_by_instrument(instrument_id)
             current_symbol_amount = sum(
