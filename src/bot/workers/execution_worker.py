@@ -995,6 +995,17 @@ def main() -> None:
                          "signal_type": _eg_sig_type,
                          "reason": _eg_res["reason"]},
                     )
+                    # P18 (2026-10-13): Edge-Gate-Block wird jetzt als Embed
+                    # in #etoro-trades angezeigt — schließt die Lücke zwischen
+                    # Veto-Allclear ("alle freigegeben") und dem tatsächlichen
+                    # Block im zweiten Gate.
+                    _post('post_edge_gate_block_embed',
+                        trade_id=trade_id, symbol=symbol,
+                        signal_type=_eg_sig_type, regime=_eg_regime,
+                        exp_net=_eg_res["exp_net"], lcb=_eg_res["lcb"],
+                        n=_eg_res["n"], reason=_eg_res["reason"],
+                        amount_usd=amount_usd, dry_run=False,
+                    )
                     continue
             except Exception as _eg_exc:  # noqa: BLE001
                 # Gate-Fehler -> fail-open (Trade laeuft normal weiter).

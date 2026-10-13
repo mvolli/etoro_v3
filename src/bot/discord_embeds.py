@@ -2109,3 +2109,80 @@ def post_signal_worker_embed(
             f"{len(buys)} BUY / {len(sells)} SELL im Bericht",
         )
     return ok
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# P18 — EDGE GATE BLOCK (D6 LIVE: Shadow-Trade blockt, keine positive Kante)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def post_edge_gate_block_embed(
+    trade_id: int,
+    symbol: str,
+    signal_type: str,
+    regime: str,
+    exp_net: float,
+    lcb: float,
+    n: int,
+    reason: str,
+    amount_usd: float = 0.0,
+    dry_run: bool = False,
+) -> bool:
+    """Edge-Gate LIVE-BLOCK → #etoro-trades.
+
+    D6 (2026-10-09): Shadow-Trades (LCB 95 % < 0 ODER n < n_min) werden im
+    LIVE-Modus BLOCKT, bevor sie ausgeführt werden — nach dem Pre-Trade-Veto,
+    das sie bereits freigegeben hat. Dieses Embed schließt die Sichtbarkeits-
+    Lücke: der Veto-Allclear-Post („alle freigegeben") klingt nach Ausführung,
+    aber der Edge-Gate ist das zweite Gate und blockt hier. Data-rich mit der
+    Edge-Statistik (LCB / Exp-Netto / n), damit der Block auf einen Blick
+    begründet ist.
+    """
+    sig_parts = [
+        p.strip().replace("_", " ").title()
+        for p in str(signal_type).split(",") if p.strip()
+    ]
+    sig_short = " + ".join(sig_parts) or "?"
+    _amt = f"${amount_usd:,.0f}" if amount_usd else "—"
+
+    fields = [
+        {
+            "name":   "📉 Edge-Statistik",
+            "value":  (
+                f"LCB 95 %: `{lcb:+.5f}` — unter 0 = keine positive Kante\n"
+                f"Erwartet. Netto: `{exp_net:+.5f}`\n"
+                f"Stichproben: `n={n}`"
+            ),
+            "inline": False,
+        },
+        {
+            "name":   "🧾 Trade",
+            "value":  (
+                f"#{trade_id} `{symbol}` · {_amt} · "
+                f"{sig_short} · Regime **{regime}**"
+            ),
+            "inline": False,
+        },
+    ]
+
+    embed = {
+        "title":       f"🚫 Edge Gate — {symbol} blockiert",
+        "description": (
+            f"**{reason}**\n"
+            f"Das Pre-Trade-Veto hatte `#{trade_id}` freigegeben — der "
+            f"Edge-Gate (zweites Gate) lässt den Signal-Typ nicht durch: "
+            f"historisch keine statistisch positive Kante."
+        ),
+        "color":       COLOR_ORANGE,
+        "fields":      fields,
+        "footer":      {"text": "eToro RoBoCop · Edge Gate · D6"},
+        "timestamp":   _ts(),
+    }
+
+    ok = _post_embed(embed, DISCORD_TRADE_CHANNEL, dry_run)
+    if ok:
+        insert_system_log(
+            "WARN", "discord_embeds",
+            f"P18 Edge Gate BLOCK: #{trade_id} {symbol} "
+            f"LCB={lcb:+.5f} exp_net={exp_net:+.5f} n={n}",
+        )
+    return ok
