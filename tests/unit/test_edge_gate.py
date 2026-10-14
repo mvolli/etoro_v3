@@ -150,6 +150,54 @@ def test_evaluate_keine_daten_shadows(tmp_path):
     assert "keine Outcome-Daten" in res["reason"]
 
 
+def test_evaluate_keine_daten_hat_live_mode_und_exempt_keys(tmp_path):
+    """fix/edge-gate-n0-keys (2026-10-14): die n=0-Frueh-Rueckgabe MUSS
+    live_mode + exempt mitliefern — execution_worker (913/914) liest beides.
+    Ohne die Keys warf es KeyError -> outer except -> FAIL-OPEN (Trade
+    laeuft trotz "n < n_min -> SHADOW, NICHT fail-open"). Regression:
+    beide Keys muessen existieren und korrekt sein (n=0 -> shadow=True,
+    LIVE_MODE=True, exempt=False fuer keinen EXEMPT-Typ)."""
+    db = _mkdb(tmp_path)
+    res = edge_gate.evaluate("BRAND_NEU", "DEFENSIVE", db)
+    assert res["n"] == 0
+    assert res["shadow"] is True
+    # Die beiden Keys, die execution_worker zwingend liest:
+    assert "live_mode" in res
+    assert "exempt" in res
+    assert res["live_mode"] is edge_gate.LIVE_MODE
+    assert res["exempt"] is False  # BRAND_NEU ist kein GATE_EXEMPT_TYPE
+    # Simuliere den execution_worker-Block-Entscheid (912-916):
+    block = res["live_mode"] and res["shadow"] and not res["exempt"]
+    assert block is True  # n=0 in LIVE-Modus -> SHADOW-blockt (nicht fail-open)
+
+
+def test_evaluate_leerer_typ_fail_open(tmp_path):
+    """fix/edge-gate-n0-keys (Advisor-Gegenprobe 3a): ein LEERER/
+    nicht auflösbarer Signal-Typ (fehlendes signal_id) ist eine
+    Daten-Lücke, kein Edge-Beweis -> fail-open (shadow=False), damit
+    ein D4-exempter Core-Sweep-Trade mit nicht gelöster signal_id
+    nicht still blockiert wird (D4 nicht verschärfen)."""
+    db = _mkdb(tmp_path)
+    res = edge_gate.evaluate("", "DEFENSIVE", db)
+    assert res["n"] == 0
+    assert res["shadow"] is False  # fail-open, kein Block
+    assert "live_mode" in res and "exempt" in res
+    block = res["live_mode"] and res["shadow"] and not res["exempt"]
+    assert block is False  # leerer Typ -> kein Block
+
+
+def test_evaluate_keine_daten_exempt_typ_nicht_blockiert(tmp_path):
+    """fix/edge-gate-n0-keys: ein EXEMPT-Typ (CORE_SWEEP, D4) mit n=0
+    darf in LIVE-Modus NICHT blockiert werden (exempt=True -> Block=False),
+    auch wenn shadow=True. Die D4-Schutzregeln ersetzen die Gate-Blockade."""
+    db = _mkdb(tmp_path)
+    res = edge_gate.evaluate("CORE_SWEEP", "DEFENSIVE", db)
+    assert res["n"] == 0
+    assert res["exempt"] is True
+    block = res["live_mode"] and res["shadow"] and not res["exempt"]
+    assert block is False  # EXEMPT -> kein Block
+
+
 # ── Komponenten-Broadening (Kombo-Signale) ───────────────────────────────────
 
 def test_evaluate_kombo_broadening_zaehlt_auf_familie(tmp_path):

@@ -179,11 +179,36 @@ def evaluate(signal_type: str, regime: str, db) -> dict:
 
     n = len(samples)
     if n == 0:
+        # fix/edge-gate-n0-keys (2026-10-14): die n=0-Frueh-Rueckgabe
+        # hatte live_mode + exempt NICHT — execution_worker (913/914)
+        # warf KeyError -> outer except -> FAIL-OPEN (Trade laeuft). Das
+        # widersprach dem Gate-Vertrag "n < n_min -> SHADOW (nicht
+        # fail-open)": ein Typ ohne Outcome-Daten ist n=0 < n_min=25 und
+        # muess in LIVE-Modus SHADOW-blocken (wenn nicht exempt), nicht
+        # durchfallen. Keys jetzt konsistent zum Haupt-Pfad.
+        #
+        # Leerer/nicht auflösbarer Signal-Typ (fehlendes signal_id) ist
+        # eine Daten-Lücke, KEIN Edge-Beweis. Fail-open (Alt-Verhalten),
+        # damit ein D4-exempter Core-Sweep-Trade mit nicht gelöster
+        # signal_id nicht still blockiert wird (D4 nicht verschärfen —
+        # Advisor-Gegenprobe 3a, 2026-10-14).
+        if not (signal_type or "").strip():
+            return {
+                "signal_type": signal_type, "regime": regime,
+                "exp_net": 0.0, "lcb": 0.0, "n": 0,
+                "shadow": False,
+                "reason": "leerer Signal-Typ (fail-open)",
+                "source": source,
+                "live_mode": LIVE_MODE,
+                "exempt": False,
+            }
         return {
             "signal_type": signal_type, "regime": regime,
             "exp_net": 0.0, "lcb": 0.0, "n": 0,
             "shadow": True, "reason": "keine Outcome-Daten",
             "source": source,
+            "live_mode": LIVE_MODE,
+            "exempt": signal_type.upper() in GATE_EXEMPT_TYPES,
         }
     exp_net = sum(samples) / n
     lcb = _lcb(exp_net, _std(samples), n)

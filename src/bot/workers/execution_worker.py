@@ -1009,7 +1009,22 @@ def main() -> None:
                     continue
             except Exception as _eg_exc:  # noqa: BLE001
                 # Gate-Fehler -> fail-open (Trade laeuft normal weiter).
+                # fix/edge-gate-n0-keys (Advisor-Gegenprobe 3c, 2026-10-14):
+                # bisher nur logger.warning -> der Fail-open war in der DB
+                # unsichtbar (genau die Luecke, die den n=0-KeyError-Bug
+                # verdeckt hat). Jetzt log_repo (system_log) belegt jeden
+                # Fail-open nachträglich. Geldverhalten aendert sich nicht.
                 logger.warning("EdgeGate (LIVE) evaluation fehlgeschlagen: %s", _eg_exc)
+                try:
+                    log_repo.write(
+                        "WARN", "execution_worker",
+                        f"EdgeGate FAIL-OPEN trade #{trade_id} {symbol}: "
+                        f"{_eg_exc} — Gate-Fehler, Trade laeuft weiter",
+                        {"trade_id": trade_id, "symbol": symbol,
+                         "exception": str(_eg_exc)},
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
 
             # b4. $200 hard floor — fix/fee-flat (2026-10-09, VoLLi-Entscheid):
             #    Flat-Fee $1/$2 pro Order. Bei $60-130 = 1.5-3 % Fee-Last,
