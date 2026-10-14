@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-10-08T20:30:45.712843+00:00",
-  "auto_expires_at": "2026-10-22T20:30:45.712854+00:00",
+  "updated_at": "2026-10-13T20:30:52.588340+00:00",
+  "auto_expires_at": "2026-10-27T20:30:52.588345+00:00",
   "adjustments": {
     "TREND_PULLBACK,GOLDEN_CROSS": {
       "score_multiplier": 1.0,
@@ -46,17 +46,17 @@
     "RSI_EXTREME_OVERSOLD,MACD_TURN_BELOW_SMA20": {
       "score_multiplier": 0.5,
       "skip": false,
-      "reason": "Hohe Reject-Rate (45%) und negative avg PnL (-2.00%) trotz 100% Success-Rate deuten auf schlechte Entry-Qualität oder Slippage-Probleme hin.",
+      "reason": "Hohe Fehlerrate (4 FAILED) und negative durchschnittliche PnL (-2.03%). Signal zeigt sich im aktuellen Marktumfeld als unzuverlässig.",
       "_ratchet_frozen": true,
-      "_proposed": 0.8,
-      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.5 -> 0.8 blockiert (n_closed=23/20, pnl_usd=-27.19, realisiert=-24.76 USD)"
+      "_proposed": 0.7,
+      "_ratchet_reason": "RATCHET-FROZEN: Lockerung 0.5 -> 0.7 blockiert (n_closed=27/20, pnl_usd=-33.05, realisiert=-31.09 USD)"
     }
   },
   "strategy_notes": [
-    "Die Conviction-Scoring-Logik für Trend-Signale sollte überprüft werden, da HIGH Conviction aktuell schlechter performt als MEDIUM.",
-    "Slippage-Rejects bei SRB.L und NLOP sollten im Order-Execution-Modul adressiert werden, um die tatsächliche Fill-Rate zu verbessern."
+    "Die Unterscheidung nach Conviction-Level ist entscheidend: Bei TREND_PULLBACK,GOLDEN_CROSS ist die HIGH-Stufe ein Verlusttreiber, während MEDIUM profitabel ist. Dies bestätigt die Notwendigkeit granularer Gewichtsverteilung.",
+    "RSI_EXTREME_OVERSOLD-Kombinationen leiden unter hohen Fehlschlägen, was darauf hindeutet, dass die Entry-Kriterien für extreme RSI-Werte im DEFENSIVE-Regime zu locker sind."
   ],
   "conviction_issues": [
-    "HIGH Conviction bei TREND_PULLBACK,GOLDEN_CROSS hat eine deutlich schlechtere Performance als MEDIUM Conviction, was auf ein Problem im Scoring-Algorithmus hindeutet."
+    "TREND_PULLBACK,GOLDEN_CROSS: HIGH Conviction hat eine Verlustquote von 74% (23/31) und einen negativen Durchschnitts-PnL, während MEDIUM positiv ist."
   ]
 }
