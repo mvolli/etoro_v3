@@ -5,6 +5,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
 from signal_hygiene import _is_sell, _trimmed_mean, _stat  # noqa: E402
+import signal_hygiene as sh  # noqa: E402
+import pytest  # noqa: E402
 
 
 class TestIsSell:
@@ -104,3 +106,43 @@ class TestPnlFlipDb:
             else:
                 assert pnl > 0
         db.close()
+
+
+class TestSellKostenVorzeichen:
+    """fix/sell-cost-sign (2026-10-16): fwd_Nd ist netto (roh - cost).
+    SELL netto = -roh - cost = -fwd_Nd - 2*cost. Frueher: -fwd_Nd (Kosten als Bonus)."""
+
+    def _db(self):
+        import sqlite3
+        db = sqlite3.connect(":memory:")
+        db.row_factory = sqlite3.Row
+        db.execute("CREATE TABLE signal_outcomes (signal_type TEXT, fwd_1d REAL, "
+                   "fwd_3d REAL, fwd_5d REAL, fwd_10d REAL, cost REAL DEFAULT 0.011)")
+        # Preis faellt um 0,9 % -> fwd netto = -0.009 - 0.011 = -0.020
+        db.execute("INSERT INTO signal_outcomes VALUES ('TREND_KIPP_1H,SELL', NULL, NULL, -0.020, -0.020, 0.011)")
+        # BUY: Preis steigt 2 % -> fwd netto = 0.02 - 0.011 = 0.009
+        db.execute("INSERT INTO signal_outcomes VALUES ('MACD_TURN_BELOW_SMA20', NULL, NULL, 0.009, 0.009, 0.011)")
+        return db
+
+    def test_sell_kosten_werden_abgezogen_nicht_addiert(self):
+        db = self._db()
+        sh.add_direction(db)
+        sh.add_pnl_columns(db)
+        sell = db.execute("SELECT fwd_5d_pnl FROM signal_outcomes WHERE direction='SELL'").fetchone()[0]
+        # Short-Gewinn roh +0.009, minus Kosten 0.011 -> -0.002 (nicht +0.020)
+        assert sell == pytest.approx(-0.002)
+
+    def test_buy_unveraendert(self):
+        db = self._db()
+        sh.add_direction(db)
+        sh.add_pnl_columns(db)
+        buy = db.execute("SELECT fwd_5d_pnl FROM signal_outcomes WHERE direction='BUY'").fetchone()[0]
+        assert buy == pytest.approx(0.009)
+
+    def test_idempotent(self):
+        db = self._db()
+        sh.add_direction(db)
+        sh.add_pnl_columns(db)
+        sh.add_pnl_columns(db)
+        sell = db.execute("SELECT fwd_5d_pnl FROM signal_outcomes WHERE direction='SELL'").fetchone()[0]
+        assert sell == pytest.approx(-0.002)

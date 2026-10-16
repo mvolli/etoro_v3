@@ -14,11 +14,13 @@ Zwei Probleme der Signal-Statistik:
 2. **SELL-Typen aus BUY-Statistik trennen:** ~42 % der Outcomes sind
    SELL-Richtung (TREND_KIPP_1H,SELL + BB_UPPER_RSI_OVERBOUGHT). Ihre
    Forward-Returns sind PREIS-basiert (Preis rauf = positiv) — für ein SELL
-   ist das aber ein VERLUST. In der kombinierten Statistik erscheinen die
-   besten Signale (SELL: Profit-WR 74-76 %) damit als mittelmäßig.
+   ist das aber ein VERLUST.
 
    Lösung: `direction`-Spalte (BUY/SELL) + `fwd_Nd_pnl`-Spalten, bei SELL
-   vorzeichen-gedreht (Profit = Preis runter). Die Typ-Logik in risk.py/
+   vorzeichen-gedreht (Profit = Preis runter) und mit korrekt abgezogenen
+   Kosten (fix/sell-cost-sign 2026-10-16: die frühere Fassung verbuchte die
+   Kosten bei SELL als Bonus; die SELL-Typen lagen dadurch um 2,2 Pp zu hoch
+   und wirkten profitabel — netto sind sie es nicht). Die Typ-Logik in risk.py/
    sizing.py bleibt UNVERÄNDERT (nur die Statistik trennt).
 
 Idempotent: ADD COLUMN via PRAGMA-Check, UPDATE ist stabil.
@@ -120,14 +122,22 @@ def add_direction(db: sqlite3.Connection) -> None:
 
 
 def add_pnl_columns(db: sqlite3.Connection) -> None:
-    """fwd_Nd_pnl: BUY = fwd_Nd, SELL = -fwd_Nd (Profit = Preis runter)."""
+    """fwd_Nd_pnl: BUY = fwd_Nd, SELL = -fwd_Nd - 2*cost (Profit = Preis runter).
+
+    fix/sell-cost-sign (2026-10-16): fwd_Nd ist bereits NETTO
+    (roh - cost, signal_forward_returns.py). Ein reines Vorzeichen-Drehen
+    machte aus den Kosten einen Bonus: -(roh - cost) = -roh + cost. Netto
+    fuer SELL ist -roh - cost = -(fwd_Nd + cost) - cost = -fwd_Nd - 2*cost.
+    Der alte Wert lag je SELL-Zeile um 2*cost (2,2 Pp) zu hoch.
+    """
+    cost = f"COALESCE(cost, {COST})"
     for col in ("fwd_1d", "fwd_3d", "fwd_5d", "fwd_10d"):
         pnl = f"{col}_pnl"
         if not _has_col(db, "signal_outcomes", pnl):
             db.execute(f"ALTER TABLE signal_outcomes ADD COLUMN {pnl} REAL")
         db.execute(
             f"UPDATE signal_outcomes SET {pnl} = "
-            f"CASE WHEN direction = 'SELL' THEN -{col} ELSE {col} END"
+            f"CASE WHEN direction = 'SELL' THEN -{col} - 2 * {cost} ELSE {col} END"
             f" WHERE {col} IS NOT NULL"
         )
     db.commit()
