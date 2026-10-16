@@ -260,8 +260,8 @@ trading:
 
 risk:
   daily_loss_limit_pct: 5.0   # Auto-kill-switch: intraday equity drop from day start (%; 0 = disabled)
-  weekly_loss_limit_pct: 8.0  # Auto-kill-switch: max drawdown from 7-day equity high (%; 0 = disabled)
-  monthly_loss_limit_pct: 12.0 # Auto-kill-switch: max drawdown from 30-day equity high (%; 0 = disabled)
+  weekly_loss_limit_pct: 15.0 # Auto-kill-switch: max drawdown from 7-day equity high (%; 0 = disabled). VoLLi 2026-10-16: 8 -> 15 (anheben; Wert = Agent-Vorschlag)
+  monthly_loss_limit_pct: 45.0 # Auto-kill-switch: max drawdown from 30-day equity high (%; 0 = disabled). VoLLi 2026-10-16: 12 -> 45 = Notbremse HINTER Konto-CRITICAL 40 % (CRITICAL erholt sich selbst, Kill-Switch braucht manuellen Reset)
   exposure_auto_trim: true    # fix/exposure-auto-trim (User-Entscheid 2026-08-12):
                               # Gesamt-Exposure ueber MAX_TOTAL_EXPOSURE_PCT (75%)
                               # wird vom risk_worker SELBST korrigiert (LIFO-Close

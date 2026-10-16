@@ -78,8 +78,11 @@ BIBLE_HARD_LIMITS: dict[str, tuple] = {
     "trading.max_fragments_per_instrument": (1, 5, int),
     "trading.cash_target_min_pct":   (5.0,  40.0,  float),
     "risk.daily_loss_limit_pct":     (2.0,  15.0,  float),
-    "risk.weekly_loss_limit_pct":    (3.0,  20.0,  float),
-    "risk.monthly_loss_limit_pct":   (5.0,  25.0,  float),
+    # VoLLi 2026-10-16: Woche 15 %, Monat 45 % (Notbremse hinter Konto-CRITICAL
+    # 40 %). Grenzen klammern die Werte ein, damit die LLM sie nachjustieren,
+    # aber nicht unter die Konto-Stufen druecken kann.
+    "risk.weekly_loss_limit_pct":    (10.0, 25.0,  float),
+    "risk.monthly_loss_limit_pct":   (35.0, 50.0,  float),
     "regime.caution_pct":            (1.0,  8.0,   float),
     "regime.defensive_pct":          (3.0,  15.0,  float),
     "regime.critical_pct":           (8.0,  25.0,  float),
@@ -95,6 +98,22 @@ BIBLE_HARD_LIMITS: dict[str, tuple] = {
     # sofort teilgeschlossen wird; 1.0 ist der historische Stand.
     "trailing.profit_ladder.atr_scale":  (0.2, 1.0,  float),
 }
+
+# feat/llm-limit-guardrails (2026-10-16, VoLLi): die LLM darf Regime- und
+# Verlustlimits weiter selbst nachjustieren, aber nur in kleinen Schritten
+# (Pp je Aenderung, zusaetzlich zum 24h-Cooldown) und jede Aenderung wird in
+# Discord gemeldet. Anlass: 09.07. senkte die LLM regime.caution_pct 4 -> 3
+# unbemerkt; das erzeugte eine verdrehte Hysterese, die drei Monate blieb.
+MAX_STEP_PER_CHANGE: dict[str, float] = {
+    "risk.daily_loss_limit_pct":   1.0,
+    "risk.weekly_loss_limit_pct":  2.0,
+    "risk.monthly_loss_limit_pct": 5.0,
+    "regime.caution_pct":          5.0,
+    "regime.defensive_pct":        5.0,
+    "regime.critical_pct":         5.0,
+}
+NOTIFY_PREFIXES: tuple[str, ...] = ("risk.", "regime.")
+
 
 STALE_OUTCOMES_PATH = PROJECT_ROOT / "data" / "stale_exit_outcomes.json"
 
@@ -593,8 +612,11 @@ Gib JSON mit genau diesen Feldern zurück:
             "sizing.medium_pct": raw_cfg.get("sizing", {}).get("medium_pct"),
             "trading.max_trades_per_day": raw_cfg.get("trading", {}).get("max_trades_per_day"),
             "risk.daily_loss_limit_pct": raw_cfg.get("risk", {}).get("daily_loss_limit_pct"),
+            "risk.weekly_loss_limit_pct": raw_cfg.get("risk", {}).get("weekly_loss_limit_pct"),
+            "risk.monthly_loss_limit_pct": raw_cfg.get("risk", {}).get("monthly_loss_limit_pct"),
             "regime.caution_pct": raw_cfg.get("regime", {}).get("caution_pct"),
             "regime.defensive_pct": raw_cfg.get("regime", {}).get("defensive_pct"),
+            "regime.critical_pct": raw_cfg.get("regime", {}).get("critical_pct"),
         }
         limits_summary = {k: {"min": v[0], "max": v[1]} for k, v in BIBLE_HARD_LIMITS.items()}
     except Exception:
@@ -607,6 +629,15 @@ Gib JSON mit genau diesen Feldern zurück:
 
 ## Bible Hard Limits (darf die LLM NIEMALS ueberschreiten)
 {json.dumps(limits_summary, ensure_ascii=False)}
+
+WICHTIG (VoLLi 2026-10-16): Das Regime kommt aus dem MARKT (S&P 500). Die Keys
+regime.caution_pct / defensive_pct / critical_pct sind seit 16.10. KONTO-Bremsstufen
+(Drawdown vom 30-Tage-Hoch, VoLLi-Werte 20 / 30 / 40 %) — KEINE engen Drawdown-
+Schwellen mehr; nicht Richtung alter Werte (3-15 %) korrigieren. risk.monthly_loss_limit_pct
+(45 %) ist die Notbremse HINTER Konto-CRITICAL, risk.weekly_loss_limit_pct 15 %.
+Nachjustieren ist erlaubt, aber nur in kleinen Schritten (max. 5 Pp Regime/Monat,
+2 Pp Woche, 1 Pp Tag je Aenderung) und mit konkreter Begruendung aus Messdaten.
+Austrittswerte werden automatisch abgeleitet. Jede Aenderung wird in Discord gemeldet.
 
 WICHTIG: Die Conviction-Leiter muss MONOTON bleiben (very_high_pct >=
 high_pct >= medium_pct >= low_pct) — invertierende Aenderungen werden
@@ -965,6 +996,13 @@ def _update_config_yaml(adjustments: dict, baseline: dict | None = None) -> list
             skipped.append(f"{key}: unveraendert ({validated}) — kein Update")
             continue
 
+        # feat/llm-limit-guardrails: Hoechstschrittweite je Aenderung
+        _max_step = MAX_STEP_PER_CHANGE.get(key)
+        if _max_step is not None and current_val is not None and abs(float(validated) - float(current_val)) > _max_step:
+            skipped.append(
+                f"{key}: Schritt {current_val} -> {validated} > max. {_max_step} Pp je Aenderung")
+            continue
+
         # 24h-Cooldown: Config-Key nicht mehrfach am selben Tag aendern
         from datetime import datetime as _dt, timezone as _tz, timedelta as _td
         _cutoff = (_dt.now(_tz.utc) - _td(hours=24)).isoformat()
@@ -992,6 +1030,16 @@ def _update_config_yaml(adjustments: dict, baseline: dict | None = None) -> list
         print(f"[llm_review] Config-Updates: {len(applied)} angewendet, {len(skipped)} abgelehnt")
         for a in applied:
             print(f"  + {a}")
+        # feat/llm-limit-guardrails: jede Regime-/Limit-Aenderung sichtbar melden
+        _limit_changes = [a for a in applied if a.startswith(NOTIFY_PREFIXES)]
+        if _limit_changes:
+            _discord(
+                "post_alert_embed",
+                title="⚙️ LLM hat Regime-/Verlustlimits geaendert",
+                description="\n".join(f"• {a}" for a in _limit_changes)
+                + "\n\nVoLLi-Werte 2026-10-16: Konto-Stufen 20/30/40 %, Woche 15 %, Monat 45 %.",
+                severity="WARNING",
+            )
     for s in skipped:
         print(f"  SKIP {s}")
     return applied
