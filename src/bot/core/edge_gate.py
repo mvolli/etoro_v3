@@ -10,7 +10,8 @@ Kosten) aus signal_outcomes (Phase 1a hat die Tabelle befuellt; Fallback:
 trade_events) und berechnet:
 
     exp_net : Mittelwert der netten 5d-Forward-Returns
-    lcb     : Lower Confidence Bound 95 % einseitig (z = 1.645)
+    lcb     : Lower Confidence Bound 95 % einseitig (z = 1.645), SE
+              pro Handelstag geclustert (seit 2026-10-16, _cluster_lcb)
     n       : Stichprobenumfang
 
 Entscheidung (LIVE-MODUS seit 2026-10-09, VoLLi-Freigabe D6):
@@ -83,17 +84,42 @@ def _lcb(exp_net: float, std: float, n: int) -> float:
     return exp_net - Z_ONE_SIDED_95 * std / math.sqrt(n)
 
 
-def _collect_from_signal_outcomes(db, signal_type: str) -> list[float]:
-    """Netto-Forward-Returns fuer signal_type (exakter String, dann
-    Komponenten-Superset als Datenerweiterung bei Sparse-Typs)."""
-    exact: list[float] = []
+def _cluster_lcb(samples: list[tuple[float, str]]) -> tuple[float, float, int]:
+    """(Mittel, LCB 95 % einseitig, Anzahl Cluster) mit Cluster-robustem SE.
+
+    feat/edge-gate-cluster (2026-10-16, VoLLi): Signale desselben Handelstags
+    sind nicht unabhaengig — an einem schlechten Markttag fallen viele
+    gemeinsam. Der i.i.d.-SE unterschaetzte die Unsicherheit (MACD-Familie:
+    537 Signale, aber nur 51 Tage) und haette einen Typ knapp ueber null zu
+    leicht freigegeben. Mittel bleibt das gepoolte (jeder Trade gleich
+    gewichtet, wie das Geld eingesetzt wird); nur der SE wird pro Tag
+    geclustert (Liang-Zeger mit G/(G-1)-Korrektur). G < 2 -> LCB = -inf.
+    """
+    n = len(samples)
+    if n == 0:
+        return 0.0, 0.0, 0
+    mean = sum(v for v, _ in samples) / n
+    resid: dict[str, float] = {}
+    for v, key in samples:
+        resid[key] = resid.get(key, 0.0) + (v - mean)
+    g = len(resid)
+    if g < 2:
+        return mean, float("-inf"), g
+    var = sum(r * r for r in resid.values()) / (n * n) * g / (g - 1)
+    return mean, mean - Z_ONE_SIDED_95 * math.sqrt(var), g
+
+
+def _collect_from_signal_outcomes(db, signal_type: str) -> list[tuple[float, str]]:
+    """(Netto-Forward-Return, Signaltag) fuer signal_type (exakter String,
+    dann Komponenten-Superset als Datenerweiterung bei Sparse-Typs)."""
+    exact: list[tuple[float, str]] = []
     try:
         rows = db.fetchall(
-            f"SELECT {FORWARD_COL} FROM signal_outcomes "
+            f"SELECT {FORWARD_COL}, signal_date FROM signal_outcomes "
             f"WHERE signal_type = ? AND {FORWARD_COL} IS NOT NULL",
             (signal_type,),
         )
-        exact = [float(r[FORWARD_COL]) for r in rows]
+        exact = [(float(r[FORWARD_COL]), str(r["signal_date"])[:10]) for r in rows]
     except Exception as exc:  # noqa: BLE001 — Fallback soll nie werfen
         logger.debug("edge_gate: signal_outcomes exakt nicht abrufbar: %s", exc)
     if len(exact) >= N_MIN:
@@ -103,26 +129,29 @@ def _collect_from_signal_outcomes(db, signal_type: str) -> list[float]:
     comp = _components(signal_type)
     if not comp:
         return exact
-    broad: list[float] = []
+    broad: list[tuple[float, str]] = []
     try:
         rows = db.fetchall(
-            f"SELECT signal_type, {FORWARD_COL} FROM signal_outcomes "
+            f"SELECT signal_type, {FORWARD_COL}, signal_date FROM signal_outcomes "
             f"WHERE {FORWARD_COL} IS NOT NULL"
         )
         for r in rows:
             if comp <= _components(str(r["signal_type"])):
-                broad.append(float(r[FORWARD_COL]))
+                broad.append((float(r[FORWARD_COL]), str(r["signal_date"])[:10]))
     except Exception as exc:  # noqa: BLE001
         logger.debug("edge_gate: signal_outcomes Broadening fehlgeschlagen: %s", exc)
     return broad if len(broad) > len(exact) else exact
 
 
-def _collect_from_trade_events(db, signal_type: str) -> list[float]:
+def _collect_from_trade_events(db, signal_type: str) -> list[tuple[float, str]]:
     """Fallback: geschlossene Trades (CLOSE) mit pnl_pct, gruppiert ueber
-    trade_events -> trades -> signals.signal_type (exakter String)."""
+    trade_events -> trades -> signals.signal_type (exakter String).
+    Cluster = Tag des Close (event_at); ohne Spalte je Zeile ein Cluster."""
     try:
-        rows = db.fetchall("""
-            SELECT e.pnl_pct
+        cols = {r["name"] for r in db.fetchall("PRAGMA table_info(trade_events)")}
+        day = "substr(e.event_at, 1, 10)" if "event_at" in cols else "e.rowid"
+        rows = db.fetchall(f"""
+            SELECT e.pnl_pct, {day} AS k
             FROM trade_events e
             JOIN trades t  ON t.id = e.trade_id
             JOIN signals s ON s.id = t.signal_id
@@ -130,7 +159,7 @@ def _collect_from_trade_events(db, signal_type: str) -> list[float]:
               AND e.pnl_pct IS NOT NULL
               AND s.signal_type = ?
         """, (signal_type,))
-        return [float(r["pnl_pct"]) for r in rows]
+        return [(float(r["pnl_pct"]), str(r["k"])) for r in rows]
     except Exception as exc:  # noqa: BLE001
         logger.debug("edge_gate: trade_events-Fallback fehlgeschlagen: %s", exc)
         return []
@@ -150,8 +179,7 @@ def type_edge(signal_type: str, regime: str, db) -> tuple[float, float, int]:
     n = len(samples)
     if n == 0:
         return (0.0, 0.0, 0)
-    exp_net = sum(samples) / n
-    lcb = _lcb(exp_net, _std(samples), n)
+    exp_net, lcb, _g = _cluster_lcb(samples)
     return (exp_net, lcb, n)
 
 
@@ -252,10 +280,11 @@ def evaluate(signal_type: str, regime: str, db) -> dict:
             "live_mode": LIVE_MODE,
             "exempt": signal_type.upper() in GATE_EXEMPT_TYPES,
         }
-    exp_net = sum(samples) / n
-    lcb = _lcb(exp_net, _std(samples), n)
+    exp_net, lcb, n_days = _cluster_lcb(samples)
     if n < N_MIN:
         shadow, reason = True, f"n={n} < n_min={N_MIN} (nicht fail-open)"
+    elif n_days < 2:
+        shadow, reason = True, f"nur {n_days} Handelstag (kein Cluster-SE)"
     elif lcb < 0.0:
         shadow, reason = True, f"LCB={lcb:.5f} < 0 (keine positive Kante)"
     else:
@@ -264,6 +293,7 @@ def evaluate(signal_type: str, regime: str, db) -> dict:
         "signal_type": signal_type, "regime": regime,
         "exp_net": exp_net, "lcb": lcb, "n": n,
         "shadow": shadow, "reason": reason, "source": source,
+        "n_days": n_days,
         "live_mode": LIVE_MODE,
         "exempt": signal_type.upper() in GATE_EXEMPT_TYPES,
     }

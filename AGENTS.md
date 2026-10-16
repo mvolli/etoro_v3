@@ -243,9 +243,15 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   ⇒ Signal REJECTED, kein Trade, kein Veto-LLM, kein Block-Embed (Skip-Key
   `edge_gate` im Signal-Report). `execution_worker` b3b bleibt Rückfallsicherung.
   Blockregel nur über `edge_gate.blocks()`, Markierung nur über `mark_shadow()`.
-  `signal_outcomes` ist ein Schnappschuss (Signale bis 29.09., geschrieben
-  09.10. von `scripts/signal_forward_returns.py`, kein Cron): die Gate-Statistik
-  ist eingefroren, bis das Skript erneut läuft.
+  LCB mit pro Handelstag geclustertem SE (`_cluster_lcb`, seit 2026-10-16,
+  VoLLi): Signale eines Tages sind nicht unabhängig; < 2 Handelstage ⇒ Block.
+  `signal_outcomes` wird täglich 06:40 fortgeschrieben (Hermes-Cron
+  `v3_outcome_refresh.sh` → `scripts/refresh_signal_outcomes.py --write`,
+  Logik `bot/core/outcome_refresh.py`): Kurse aus `ohlcv_daily`, nur fertige
+  Kerzen (< heute UTC), Signale der letzten 30 Tage per Upsert neu, ältere
+  Zeilen unberührt. Ohne `--write` Probelauf mit Gate-Tabelle vorher/nachher;
+  kippt ein Typ auf frei ⇒ WARN im `system_log`. Abdeckung ~60 % (Signale
+  ohne `ohlcv_daily`-Kurs fehlen, v. a. Krypto/BB_UPPER).
 
 ## Portfolio-Grenzen (Stand 2026-08-12)
 

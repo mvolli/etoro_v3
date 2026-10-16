@@ -278,3 +278,40 @@ def test_e2e_negativer_typ_200_floor_shadow(tmp_path):
 
     # -- Live-Kette ist nicht blockiert: der Trade geht mit $200 durch --
     assert floored > 0, "SHADOW-MODUS blockt nichts — der Trade wird ausgefuehrt"
+
+
+# ── feat/edge-gate-cluster (2026-10-16): SE pro Handelstag geclustert ─────────
+
+def test_cluster_lcb_identisch_bei_einem_signal_je_tag():
+    """Ein Signal pro Tag: Cluster-SE ~ i.i.d.-SE (bis auf ddof-Faktor)."""
+    samples = [(v, f"d{i}") for i, v in enumerate([0.01, -0.02, 0.03, 0.00, 0.015, -0.005])]
+    m, lcb, g = edge_gate._cluster_lcb(samples)
+    vals = [v for v, _ in samples]
+    iid = edge_gate._lcb(m, edge_gate._std(vals), len(vals))
+    assert g == 6
+    assert lcb == pytest.approx(iid, rel=1e-9)
+
+
+def test_cluster_lcb_breiter_bei_gehaeuften_tagen():
+    """Viele Signale an wenigen Tagen mit gemeinsamem Tagesschock ->
+    LCB deutlich unter dem i.i.d.-LCB (das war der Befund 16.10.)."""
+    samples = []
+    for d, shock in enumerate([0.05, -0.03, 0.04, -0.025, 0.02]):
+        samples += [(shock + 0.001 * k, f"d{d}") for k in range(20)]
+    m, lcb, g = edge_gate._cluster_lcb(samples)
+    vals = [v for v, _ in samples]
+    iid = edge_gate._lcb(m, edge_gate._std(vals), len(vals))
+    assert g == 5 and m > 0
+    assert iid > 0 > lcb  # i.i.d. haette freigegeben, geclustert nicht
+
+
+def test_cluster_lcb_ein_tag_ist_shadow(tmp_path):
+    db = _mkdb(tmp_path)
+    for i in range(30):
+        db.execute(
+            "INSERT INTO signal_outcomes (signal_date, instrument_id, symbol,"
+            " signal_type, status, fwd_5d_pnl) VALUES ('2026-09-01',?,?,?,'CONSUMED',?)",
+            (2000 + i, "T", "ONEDAY", 0.03 + 0.001 * i))
+    res = edge_gate.evaluate("ONEDAY", "NORMAL", db)
+    assert res["n"] == 30 and res["n_days"] == 1
+    assert res["shadow"] is True and "Handelstag" in res["reason"]

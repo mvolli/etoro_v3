@@ -33,8 +33,9 @@ def db(tmp_path):
     rows = []
     # BAD: n=40, klar negativ. GOOD: n=40, klar positiv.
     for i in range(40):
-        rows.append(("2026-09-01", 100 + i, "BAD", -0.02 + (i % 3) * 0.001, None))
-        rows.append(("2026-09-01", 200 + i, "GOOD", 0.03 + (i % 3) * 0.001, None))
+        d = f"2026-09-{(i % 20) + 1:02d}"   # 20 Handelstage (Cluster-SE)
+        rows.append((d, 100 + i, "BAD", -0.02 + (i % 3) * 0.001, None))
+        rows.append((d, 200 + i, "GOOD", 0.03 + (i % 3) * 0.001, None))
     con.executemany("INSERT INTO signal_outcomes (signal_date, instrument_id, signal_type, "
                     "fwd_5d_pnl, edge_shadow) VALUES (?,?,?,?,?)", rows)
     con.execute("INSERT INTO signals VALUES (1, 100, 'BAD', '2026-09-01 10:00:00')")
