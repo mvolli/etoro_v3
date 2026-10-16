@@ -1851,6 +1851,18 @@ def _run_core_index(
                            f"— {plan.reason} (kein Trade angelegt)")
             return approved_count, cash_estimate
         iid = int(ci_cfg["instrument_id"])
+        # fix/core-index-market-open (2026-10-16): nur bei offener Boerse
+        # freigeben. execution_worker verwirft APPROVED-Trades nach
+        # market_closed_max_hours (4 h) als veraltet — ohne dieses Gate legte
+        # der Kern am Wochenende alle 15 min eine neue Freigabe an (#2932).
+        from bot.core.market_hours import is_market_open as _ci_open
+        from bot.core.market_hours import resolve_market_fields as _ci_mf
+        _ci_f = _ci_mf(db, iid)
+        if _ci_f and not _ci_open(_ci_f[0] or str(ci_cfg["symbol"]), _ci_f[1], _ci_f[2],
+                                  fail_open=False):
+            logger.info("SignalWorker: Core-Index %s — Markt geschlossen, Tranche wartet",
+                        ci_cfg["symbol"])
+            return approved_count, cash_estimate
         sig_id = signal_repo.create(
             instrument_id=iid, signal_type=_ci.SIGNAL_TYPE, conviction="MEDIUM",
             score=0.0, rsi=None, ttl_minutes=5,

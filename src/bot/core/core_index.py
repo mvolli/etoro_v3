@@ -39,6 +39,8 @@ logger = logging.getLogger(__name__)
 SIGNAL_TYPE = "CORE_INDEX"
 VALID_MODES = ("off", "shadow", "live")
 
+CAP_HEADROOM = 0.98   # Tranche hoechstens 98 % des Regime-Caps
+
 DEFAULT_CONFIG: dict = {
     "mode": "off",            # off | shadow | live
     "symbol": "",             # USD-gelistetes Breit-ETF, z. B. ACWI / VTI
@@ -157,7 +159,10 @@ def plan_tranche(*, cfg: dict, equity: float, cash: float, core_usd: float,
     if gap <= band:
         base.reason = f"Kern ${core_usd:.0f} im Band (Ziel ${target:.0f}, Band ${band:.0f})"
         return base
-    cap = equity * float(regime_max_trade_pct or 0.0) / 100.0
+    # 2 % Luft unter dem Regime-Cap: execution_worker prueft den Cap mit der
+    # Equity zum Ausfuehrungszeitpunkt; eine Tranche genau AM Cap faellt beim
+    # kleinsten Equity-Rueckgang als "Groessenlimit ueberschritten" durch.
+    cap = equity * float(regime_max_trade_pct or 0.0) / 100.0 * CAP_HEADROOM
     floor_cash = equity * float(cfg.get("min_cash_pct") or 0.0) / 100.0
     amount = min(gap, cap, max(0.0, cash - floor_cash))
     min_order = float(cfg.get("min_order_usd") or 0.0)

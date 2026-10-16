@@ -75,12 +75,12 @@ def test_ohne_symbol_nichts():
 
 
 def test_tranche_auf_regime_cap_begrenzt():
-    # Luecke $5000, Cap 10 % von $10k = $1000
-    assert _plan().amount_usd == 1000.0
+    # Luecke $5000, Cap 10 % von $10k = $1000, davon 98 % (CAP_HEADROOM)
+    assert _plan().amount_usd == 980.0
 
 
 def test_defensive_cap_kleiner():
-    assert _plan(regime="DEFENSIVE", regime_max_trade_pct=5.0).amount_usd == 500.0
+    assert _plan(regime="DEFENSIVE", regime_max_trade_pct=5.0).amount_usd == 490.0
 
 
 def test_critical_kauft_nie():
@@ -247,10 +247,10 @@ def test_signal_worker_shadow_loggt_ohne_trade(monkeypatch):
 
 def test_signal_worker_live_legt_approved_trade_an(monkeypatch):
     out, trades, sigs, _ = _run(monkeypatch, "live")
-    assert out == (1, 7_500.0)                          # DEFENSIVE-Cap 5 % = $500
+    assert out == (1, 7_510.0)                          # DEFENSIVE-Cap 5 % = $500 x 0,98
     assert sigs.created[0]["signal_type"] == "CORE_INDEX"
     t = trades.created[0]
-    assert t["amount_usd"] == 500.0 and t["stop_loss_pct"] == 25.0 and t["symbol"] == "ACWI"
+    assert t["amount_usd"] == 490.0 and t["stop_loss_pct"] == 25.0 and t["symbol"] == "ACWI"
     assert (1, "APPROVED") in trades.status
 
 
@@ -324,3 +324,19 @@ def test_exposure_abzug_nach_cash_schaetzung():
     i_core = src.index("_ci.core_exposure(portfolio_repo.get_all(), _core_ids)")
     i_step = src.index("_run_core_index(")
     assert i_cash < i_core < i_step
+
+
+def test_signal_worker_markt_zu_keine_freigabe(monkeypatch):
+    """fix/core-index-market-open: bei geschlossener Boerse keine Freigabe —
+    execution_worker verwirft APPROVED nach 4 h, sonst Freigabe-Schleife (#2932)."""
+    from bot.core import market_hours as mh
+    monkeypatch.setattr(mh, "resolve_market_fields", lambda db, iid: ("ACWI", "ACWI", "stocks"))
+    monkeypatch.setattr(mh, "is_market_open", lambda *a, **k: False)
+    out, trades, sigs, _ = _run(monkeypatch, "live")
+    assert out == (0, 8_000.0) and trades.created == [] and sigs.created == []
+
+
+def test_tranche_bleibt_unter_dem_execution_cap():
+    """Equity faellt bis zur Ausfuehrung um 1 %: die Tranche passt noch."""
+    p = _plan()
+    assert p.amount_usd <= 10_000.0 * 0.99 * 0.10
