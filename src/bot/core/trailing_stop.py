@@ -89,6 +89,16 @@ MIN_PARTIAL_CLOSE_USD = 10.0
 # SL, STALE_EXIT und FULL_EXIT sind Verlustschutz bzw. Zielerreichung und
 # laufen in jedem Regime.
 SUPPRESS_LADDER_REGIMES: tuple[str, ...] = ('DEFENSIVE', 'CRITICAL')
+# feat/ladder-decouple (2026-10-16, VoLLi): die Leiter haengt nicht mehr am
+# Regime. Eigener Schalter trailing.profit_ladder.enabled; die Regime-Liste
+# ist per trailing.ladder_suppressed_regimes konfigurierbar (Config: []).
+# Code-Defaults = bisheriges Verhalten (an, in DEFENSIVE/CRITICAL gesperrt).
+LADDER_ENABLED: bool = True
+
+
+def ladder_suppressed(regime: str) -> bool:
+    """True, wenn eine Leiter-Stufe (PARTIAL_CLOSE) nicht feuern darf."""
+    return (not LADDER_ENABLED) or (regime in SUPPRESS_LADDER_REGIMES)
 
 
 # ── Dynamic Quick-Profit (Stufe 1) ────────────────────────────────────────────
@@ -273,6 +283,7 @@ def apply_config(cfg: dict) -> None:
     global STALE_EXIT_ENABLED, STALE_MIN_DAYS, STALE_PNL_BAND_PCT
     global STALE_MIN_PEAK_PCT, STALE_LLM_HOLD_GRACE_H, STALE_MAX_DAYS
     global PROFIT_LADDER_ATR_SCALE, MIN_PARTIAL_CLOSE_USD
+    global LADDER_ENABLED, SUPPRESS_LADDER_REGIMES
     global FULL_EXIT_ENABLED, FULL_EXIT_ATR_MULT, FULL_EXIT_MIN_PCT, FULL_EXIT_MAX_PCT
     global MIN_REMAINING_PCT
     global MIN_HOLD_HOURS
@@ -294,6 +305,12 @@ def apply_config(cfg: dict) -> None:
         PROFIT_LADDER_ATR_SCALE = max(0.05, min(1.0, _scale))
     except (TypeError, ValueError):
         pass
+    # feat/ladder-decouple (2026-10-16)
+    if 'enabled' in pl and pl.get('enabled') is not None:
+        LADDER_ENABLED = bool(pl.get('enabled'))
+    _lsr = t.get('ladder_suppressed_regimes')
+    if isinstance(_lsr, (list, tuple)):
+        SUPPRESS_LADDER_REGIMES = tuple(str(r).upper() for r in _lsr)
     se = (t.get('stale_exit') or {})
     if 'enabled' in se:
         STALE_EXIT_ENABLED = bool(se['enabled'])
@@ -1053,7 +1070,7 @@ def evaluate_trailing(
             # Ein in FULL_EXIT umgeschlagener Rung ist KEIN Teilverkauf und
             # laeuft wie bisher in ALLEN Regimes (Untergrenzen-Schutz).
             if (_resolved.action == 'PARTIAL_CLOSE'
-                    and regime in SUPPRESS_LADDER_REGIMES):
+                    and ladder_suppressed(regime)):
                 logger.debug(
                     '[trailing] Ladder-Stufe +%.1f%% in %s schon in der '
                     'Entscheidungsstufe unterdrueckt: %s %+.1f%% — '
@@ -1543,7 +1560,7 @@ def execute_trailing_actions(
             # evaluate_trailing() Ladder-Stufen schon vorher heraus, sodass
             # dieser Zweig fuer sie nicht mehr greift. Er bleibt stehen, weil
             # er jede andere Quelle eines PARTIAL_CLOSE ebenfalls abdeckt.
-            if not is_fade and regime in SUPPRESS_LADDER_REGIMES:
+            if not is_fade and ladder_suppressed(regime):
                 logger.debug('[trailing] PARTIAL_CLOSE skipped in %s: %s %+.1f%%', regime, action.symbol, action.pnl_pct)
                 continue
 

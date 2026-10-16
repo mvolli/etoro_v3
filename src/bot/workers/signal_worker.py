@@ -2096,6 +2096,20 @@ def _run_core_sweep(
                         )
             except Exception:
                 logger.debug("entry_quality: core-sweep gate fehlgeschlagen (fail-open)", exc_info=True)
+            # feat/sweep-fixed-tranche (2026-10-16, VoLLi): jeder Sweep-Kauf fix
+            # core_sweep.fixed_tranche_usd (200), unabhaengig von Regime, Kelly und
+            # Entry-Quality (deren Faktoren bleiben oben im Log sichtbar). Grund:
+            # CORE_SWEEP ist Broker brutto −$118 seit 10.09.; ohne Fixierung kaeme
+            # er im Marktregime NORMAL auf ~$352 je Position. 0 = aus.
+            try:
+                _cs_fixed = float(((cfg.get("trading", {}) or {}).get("core_sweep", {}) or {})
+                                  .get("fixed_tranche_usd", 0) or 0)
+            except (TypeError, ValueError):
+                _cs_fixed = 0.0
+            if _cs_fixed > 0 and _cs_amt != _cs_fixed:
+                logger.info("SignalWorker: Core-Sweep %s fix $%.2f (statt $%.2f)",
+                            _o.symbol, _cs_fixed, _cs_amt)
+                _cs_amt = _cs_fixed
             # feat/core-sweep-buy-gate (2026-09-26): Instrument-, Sektor- und
             # Regionen-Grenze wie im Signal-Pfad. Vorher kannte der Sweep nur
             # Exposure, Korrelation und Cash — der Pfad, aus dem zeitweise

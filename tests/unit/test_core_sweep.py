@@ -697,14 +697,16 @@ class TestD4Abort:
             cfg, equity=10000, cash=6000, regime="DEFENSIVE", db=db)
         assert len(orders) >= 1
 
-    def test_abort_not_checked_in_normal(self):
-        """Abort-Regel greift NUR in DEFENSIVE — NORMAL ist unaeffektiv."""
-        # Selbst bei DD>150: NORMAL-Regime = kein Abort-Check.
+    def test_abort_also_checked_in_normal(self):
+        """feat/ladder-decouple (2026-10-16, VoLLi): Abort-Regel gilt in JEDEM
+        Regime. Vorher nur DEFENSIVE — mit dem Marktregime (NORMAL) waere sie
+        still abgeschaltet worden."""
         db = self._db_with_closed_sweeps([-100, -100, -100, 50, 50])
         cfg = _make_cfg(regimes=["NORMAL", "CAUTION", "DEFENSIVE"])
-        orders, _ = plan_core_sweep(
+        orders, reasons = plan_core_sweep(
             cfg, equity=10000, cash=6000, regime="NORMAL", db=db)
-        assert len(orders) >= 1
+        assert orders == []
+        assert any("D4-Abort" in r for r in reasons)
 
     def test_abort_min_trades_skip(self):
         """Weniger als 5 geschlossene Sweep-Trades -> Regel skippt."""

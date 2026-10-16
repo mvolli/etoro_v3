@@ -270,7 +270,9 @@ def plan_core_sweep(
     # Der Drawdown ist CORE_SWEEP-spezifisch (Summe negativer PnL der
     # letzten 10 geschlossenen Sweep-Trades), NICHT der Portfolio-DD.
     # Fail-open: DB-Fehler = Regel ignoriert.
-    if db is not None and str(regime).upper() == "DEFENSIVE":
+    # feat/ladder-decouple (2026-10-16): Abbruchregel gilt jetzt in JEDEM Regime
+    # (vorher nur DEFENSIVE -> mit dem Marktregime waere sie still abgeschaltet).
+    if db is not None:
         try:
             # Letzte 10 geschlossene CORE_SWEEP-Trades (neu zuerst).
             _d4_recent = db.fetchall("""
