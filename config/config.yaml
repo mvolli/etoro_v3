@@ -270,15 +270,22 @@ risk:
                               # false = warn-only (altes Verhalten).
                               # Kill-Switch hat Vorrang: aktiv = kein Trim.
 
-regime:                       # Drawdown-from-rolling-peak → 4-state regime (reduces sizing)
-  # Entry thresholds — regime escalates immediately on breach.
-  caution_pct: 3.0            # DD ≥ 4%  → CAUTION   (risk_scalar 0.75, MEDIUM+ only)
-  defensive_pct: 8.0          # DD ≥ 8%  → DEFENSIVE (risk_scalar 0.50, HIGH+ only)
-  critical_pct: 15.0          # DD ≥ 15% → CRITICAL  (risk_scalar 0.25, VERY_HIGH only)
-  # Exit thresholds — sticky hysteresis: de-escalate only below these.
-  caution_exit_pct: 3.5       # DD < 3.5% → back to NORMAL
-  defensive_exit_pct: 7.0     # DD < 7.0% → back to CAUTION
-  critical_exit_pct: 13.0     # DD < 13.0% → back to DEFENSIVE
+regime:                       # feat/market-regime (VoLLi 2026-10-16): Regime = STRENGERES aus Markt (SPY) und Konto
+  source: "market"            # "market" | "account" (alt). Rueckweg: "account" + Konto-Stufen 3/8/15, exits 3.5/7/13
+  # Konto-Bremse: Drawdown vom 30-Tage-Hoch (VoLLi: NORMAL < 20, CAUTION bis 30, CRITICAL > 40; DEFENSIVE 30-40 = Ergaenzung)
+  caution_pct: 20.0
+  defensive_pct: 30.0
+  critical_pct: 40.0
+  caution_exit_pct: 18.0      # Austritt immer < Eintritt (Code erzwingt Eintritt - 2 bei Verletzung)
+  defensive_exit_pct: 28.0
+  critical_exit_pct: 38.0
+  # Marktstufen (SPY: SMA200 + Abstand vom 52W-Hoch). Rueckrechnung 2022-23: 10 Wechsel, DEFENSIVE im Baerenmarkt
+  market_caution_dd_pct: 10.0          # unter SMA200 ODER >= 10 % unter Hoch -> CAUTION
+  market_caution_exit_dd_pct: 8.0      # Austritt: > SMA200*1.01 UND < 8 %
+  market_defensive_dd_pct: 15.0        # unter SMA200 UND >= 15 % -> DEFENSIVE
+  market_defensive_exit_dd_pct: 12.0
+  market_critical_dd_pct: 25.0         # >= 25 % -> CRITICAL (keine Kaeufe)
+  market_critical_exit_dd_pct: 20.0
 
   # fix/regime-min-conviction-config (2026-08-28, Entscheid VoLLi):
   # Mindest-Conviction pro Regime. Stand vorher hart in regime.py.

@@ -40,6 +40,7 @@ import yaml  # type: ignore[import]
 from bot.api.client import APIError, ClientConfig, EToroClient
 from bot.api.instruments import get_instrument_map
 from bot.core.regime import update_regime
+from bot.core.regime import get_min_conviction as _min_conv
 from bot.db.connection import DB
 from bot.db.repo import LogRepo, PortfolioRepo, StateRepo, TradeRepo
 
@@ -101,10 +102,13 @@ def maybe_post_regime_alert(state_repo, regime: str, drawdown_pct: float,
         "post_alert_embed",
         title=f"{'🔴' if regime == 'CRITICAL' else '🟠'} {regime}-Regime aktiv",
         description=(
-            f"Drawdown: **{drawdown_pct:.2f}%** | risk_scalar={risk_scalar:.2f}\n"
+            f"Markt: **{state_repo.get('MARKET_REGIME') or '—'}** "
+            f"(SPY {state_repo.get('MARKET_VS_SMA200_PCT') or '?'}% vs SMA200, "
+            f"{state_repo.get('MARKET_DD_PCT') or '?'}% unter Hoch) | "
+            f"Konto: **{state_repo.get('ACCOUNT_REGIME') or '—'}**\n"
+            f"Konto-Drawdown: **{drawdown_pct:.2f}%** | risk_scalar={risk_scalar:.2f}\n"
             f"Equity: **${current_equity:.2f}** | Peak: **${peak_equity:.2f}**\n"
-            f"{'Nur VERY_HIGH Signale' if regime == 'CRITICAL' else 'Nur HIGH+ Signale'}"
-            " — kein Pyramiding."
+            f"Min. Conviction: {_min_conv(regime)} — kein Pyramiding."
         ),
         severity="CRITICAL" if regime == "CRITICAL" else "WARNING",
     )

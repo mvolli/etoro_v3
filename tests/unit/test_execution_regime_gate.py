@@ -30,7 +30,9 @@ def test_defensive_wird_nicht_mehr_pauschal_abgeworfen():
         "Der Pauschalstopp fuer DEFENSIVE ist wieder da — damit ist jeder "
         "DEFENSIVE-Parameter in _REGIME_PARAMS erneut wirkungslos"
     )
-    assert 'if regime == "DEFENSIVE":' in SRC
+    # feat/max-trade-all-regimes (VoLLi 2026-10-16): Groessenpruefung in
+    # NORMAL/CAUTION/DEFENSIVE (vorher nur DEFENSIVE), nie unter $200.
+    assert 'if regime in ("NORMAL", "CAUTION", "DEFENSIVE"):' in SRC
 
 
 def test_defensive_prueft_gegen_max_trade_pct():

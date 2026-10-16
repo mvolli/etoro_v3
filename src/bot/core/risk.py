@@ -340,7 +340,10 @@ def check_regime_gate(regime: str) -> GateResult:
         # Still allows VERY_HIGH signals — signal_worker filters conviction
         return GateResult(True, [f"REGIME {regime}: nur VERY_HIGH Signale (Quarter-Kelly)"])
     if regime == "DEFENSIVE":
-        return GateResult(True, [f"REGIME {regime}: nur HIGH+ Signale (Half-Kelly)"])
+        # Text folgt der Config (regime.min_conviction, aktuell MEDIUM) — vorher
+        # stand hier fest "HIGH+", obwohl die Config MEDIUM vorgibt (2026-10-16).
+        from bot.core.regime import get_min_conviction as _gmc
+        return GateResult(True, [f"REGIME {regime}: min. Conviction {_gmc(regime)} (Half-Kelly)"])
     if regime == "CAUTION":
         return GateResult(True, [f"REGIME {regime}: nur MEDIUM+ Signale (75% Sizing)"])
     if regime == "NORMAL":

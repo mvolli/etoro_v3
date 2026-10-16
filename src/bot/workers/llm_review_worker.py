@@ -83,9 +83,14 @@ BIBLE_HARD_LIMITS: dict[str, tuple] = {
     # aber nicht unter die Konto-Stufen druecken kann.
     "risk.weekly_loss_limit_pct":    (10.0, 25.0,  float),
     "risk.monthly_loss_limit_pct":   (35.0, 50.0,  float),
-    "regime.caution_pct":            (1.0,  8.0,   float),
-    "regime.defensive_pct":          (3.0,  15.0,  float),
-    "regime.critical_pct":           (8.0,  25.0,  float),
+    # feat/market-regime (VoLLi 2026-10-16): Konto-Stufen 20/30/40 % (Drawdown vom
+    # 30-Tage-Hoch); das Regime selbst kommt aus dem Markt (market_*-Keys).
+    "regime.caution_pct":            (15.0, 30.0,  float),
+    "regime.defensive_pct":          (25.0, 40.0,  float),
+    "regime.critical_pct":           (35.0, 50.0,  float),
+    "regime.market_caution_dd_pct":  (6.0,  15.0,  float),
+    "regime.market_defensive_dd_pct": (10.0, 25.0, float),
+    "regime.market_critical_dd_pct": (18.0, 40.0,  float),
     # fix/stale-exit (2026-07-15): LLM darf die Stale-Parameter nachjustieren
     # (z.B. nach MISSED_UPSIDE-Haeufung min_days erhoehen) — in harten Grenzen.
     "trailing.stale_exit.min_days":      (5,   30,   int),
@@ -111,6 +116,9 @@ MAX_STEP_PER_CHANGE: dict[str, float] = {
     "regime.caution_pct":          5.0,
     "regime.defensive_pct":        5.0,
     "regime.critical_pct":         5.0,
+    "regime.market_caution_dd_pct":   2.0,
+    "regime.market_defensive_dd_pct": 2.0,
+    "regime.market_critical_dd_pct":  2.0,
 }
 NOTIFY_PREFIXES: tuple[str, ...] = ("risk.", "regime.")
 
@@ -617,6 +625,9 @@ Gib JSON mit genau diesen Feldern zurück:
             "regime.caution_pct": raw_cfg.get("regime", {}).get("caution_pct"),
             "regime.defensive_pct": raw_cfg.get("regime", {}).get("defensive_pct"),
             "regime.critical_pct": raw_cfg.get("regime", {}).get("critical_pct"),
+            "regime.market_caution_dd_pct": raw_cfg.get("regime", {}).get("market_caution_dd_pct"),
+            "regime.market_defensive_dd_pct": raw_cfg.get("regime", {}).get("market_defensive_dd_pct"),
+            "regime.market_critical_dd_pct": raw_cfg.get("regime", {}).get("market_critical_dd_pct"),
         }
         limits_summary = {k: {"min": v[0], "max": v[1]} for k, v in BIBLE_HARD_LIMITS.items()}
     except Exception:
@@ -635,8 +646,10 @@ regime.caution_pct / defensive_pct / critical_pct sind seit 16.10. KONTO-Bremsst
 (Drawdown vom 30-Tage-Hoch, VoLLi-Werte 20 / 30 / 40 %) — KEINE engen Drawdown-
 Schwellen mehr; nicht Richtung alter Werte (3-15 %) korrigieren. risk.monthly_loss_limit_pct
 (45 %) ist die Notbremse HINTER Konto-CRITICAL, risk.weekly_loss_limit_pct 15 %.
-Nachjustieren ist erlaubt, aber nur in kleinen Schritten (max. 5 Pp Regime/Monat,
-2 Pp Woche, 1 Pp Tag je Aenderung) und mit konkreter Begruendung aus Messdaten.
+Die Marktstufen regime.market_*_dd_pct (Abstand SPY vom 52W-Hoch, aktuell 10/15/25 %)
+bestimmen das eigentliche Regime. Nachjustieren ist erlaubt, aber nur in kleinen
+Schritten (max. 5 Pp Konto/Monat, 2 Pp Markt/Woche, 1 Pp Tag je Aenderung) und mit
+konkreter Begruendung aus Messdaten.
 Austrittswerte werden automatisch abgeleitet. Jede Aenderung wird in Discord gemeldet.
 
 WICHTIG: Die Conviction-Leiter muss MONOTON bleiben (very_high_pct >=

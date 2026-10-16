@@ -36,6 +36,30 @@ CAUTION_EXIT:    float = 3.5   # < 3.5% from CAUTION → NORMAL
 DEFENSIVE_EXIT:  float = 7.0   # < 7.0% from DEFENSIVE → CAUTION
 CRITICAL_EXIT:   float = 13.0  # < 13.0% from CRITICAL → DEFENSIVE
 
+# ── feat/market-regime (2026-10-16, VoLLi) ───────────────────────────────────
+# Das Regime kommt aus dem MARKT (S&P 500 / SPY: SMA200 + Abstand vom
+# 52-Wochen-Hoch). Der Konto-Drawdown (Konstanten oben, Config 20/30/40 %) ist
+# nur noch die gestufte Bremse. Es gilt das STRENGERE von beiden.
+# regime.source: "account" (Code-Default, altes Verhalten) | "market".
+REGIME_SOURCE: str = "account"
+MARKET_INSTRUMENT_ID: int = 3000          # SPY
+MARKET_CAUTION_DD_PCT: float = 10.0       # >= 10 % unter 52W-Hoch -> CAUTION
+MARKET_CAUTION_EXIT_DD_PCT: float = 8.0
+MARKET_SMA_EXIT_BUFFER_PCT: float = 1.0   # CAUTION-Austritt erst > SMA200 * 1.01
+MARKET_DEFENSIVE_DD_PCT: float = 15.0     # unter SMA200 UND >= 15 % -> DEFENSIVE
+MARKET_DEFENSIVE_EXIT_DD_PCT: float = 12.0
+MARKET_CRITICAL_DD_PCT: float = 25.0      # >= 25 % -> CRITICAL
+MARKET_CRITICAL_EXIT_DD_PCT: float = 20.0
+MARKET_MAX_STALENESS_DAYS: int = 4        # Kalendertage (Wochenende toleriert)
+EXIT_GAP_PCT: float = 2.0                 # erzwungener Abstand Austritt < Eintritt
+
+_SEVERITY = {"NORMAL": 0, "CAUTION": 1, "DEFENSIVE": 2, "CRITICAL": 3}
+
+
+def stricter(a: str, b: str) -> str:
+    """Das strengere von zwei Regimen."""
+    return a if _SEVERITY.get(a, 0) >= _SEVERITY.get(b, 0) else b
+
 REGIMES = frozenset({"NORMAL", "CAUTION", "DEFENSIVE", "CRITICAL"})
 
 
@@ -59,6 +83,9 @@ def apply_config(cfg: dict) -> None:
     """
     global CAUTION_THRESHOLD, DEFENSIVE_THRESHOLD, CRITICAL_THRESHOLD
     global CAUTION_EXIT, DEFENSIVE_EXIT, CRITICAL_EXIT
+    global REGIME_SOURCE, MARKET_CAUTION_DD_PCT, MARKET_CAUTION_EXIT_DD_PCT
+    global MARKET_DEFENSIVE_DD_PCT, MARKET_DEFENSIVE_EXIT_DD_PCT
+    global MARKET_CRITICAL_DD_PCT, MARKET_CRITICAL_EXIT_DD_PCT
     if not cfg:
         return
     rc = cfg.get("regime", {}) or {}
@@ -70,6 +97,16 @@ def apply_config(cfg: dict) -> None:
         CAUTION_EXIT = float(rc.get("caution_exit_pct", CAUTION_EXIT))
         DEFENSIVE_EXIT = float(rc.get("defensive_exit_pct", DEFENSIVE_EXIT))
         CRITICAL_EXIT = float(rc.get("critical_exit_pct", CRITICAL_EXIT))
+        # feat/market-regime (2026-10-16)
+        _src = str(rc.get("source", REGIME_SOURCE) or "account").lower()
+        REGIME_SOURCE = _src if _src in ("account", "market") else "account"
+        MARKET_CAUTION_DD_PCT = float(rc.get("market_caution_dd_pct", MARKET_CAUTION_DD_PCT))
+        MARKET_CAUTION_EXIT_DD_PCT = float(rc.get("market_caution_exit_dd_pct", MARKET_CAUTION_EXIT_DD_PCT))
+        MARKET_DEFENSIVE_DD_PCT = float(rc.get("market_defensive_dd_pct", MARKET_DEFENSIVE_DD_PCT))
+        MARKET_DEFENSIVE_EXIT_DD_PCT = float(rc.get("market_defensive_exit_dd_pct", MARKET_DEFENSIVE_EXIT_DD_PCT))
+        MARKET_CRITICAL_DD_PCT = float(rc.get("market_critical_dd_pct", MARKET_CRITICAL_DD_PCT))
+        MARKET_CRITICAL_EXIT_DD_PCT = float(rc.get("market_critical_exit_dd_pct", MARKET_CRITICAL_EXIT_DD_PCT))
+        _enforce_exit_below_entry()
     except (TypeError, ValueError):
         import logging
         logging.getLogger(__name__).error(
@@ -201,7 +238,7 @@ _REGIME_PARAMS: dict[str, dict] = {
         "signal_floor_usd":       200.0,   # fix/fee-flat: $200-Floor
         "allow_pyramiding":   False,  # No adding to existing positions
         "min_conviction":     "HIGH",  # Only HIGH and VERY_HIGH
-        "description":        "Defensiv — kein Pyramiding, nur HIGH+ Signale",
+        "description":        "Defensiv — kein Pyramiding, min. Conviction laut Config (MEDIUM)",
     },
     "CRITICAL": {
         "cash_min_pct":       30.0,
@@ -379,6 +416,114 @@ def get_rolling_peak(db, current_equity: float, days: int = ROLLING_PEAK_DAYS) -
 
 # ─── StateRepo Integration ────────────────────────────────────────────────────
 
+def _enforce_exit_below_entry() -> None:
+    """feat/market-regime: Austritt muss UNTER dem Eintritt liegen.
+
+    Anlass: die LLM senkte am 09.07. regime.caution_pct 4 -> 3, der Austritt
+    blieb 3.5 — die Hysterese war drei Monate verdreht. Jetzt wird jeder
+    Austritt >= Eintritt auf Eintritt - EXIT_GAP_PCT gesetzt (laut geloggt).
+    """
+    global CAUTION_EXIT, DEFENSIVE_EXIT, CRITICAL_EXIT
+    global MARKET_CAUTION_EXIT_DD_PCT, MARKET_DEFENSIVE_EXIT_DD_PCT, MARKET_CRITICAL_EXIT_DD_PCT
+    import logging
+    _log = logging.getLogger(__name__)
+    pairs = [
+        ("CAUTION_EXIT", "CAUTION_THRESHOLD"), ("DEFENSIVE_EXIT", "DEFENSIVE_THRESHOLD"),
+        ("CRITICAL_EXIT", "CRITICAL_THRESHOLD"),
+        ("MARKET_CAUTION_EXIT_DD_PCT", "MARKET_CAUTION_DD_PCT"),
+        ("MARKET_DEFENSIVE_EXIT_DD_PCT", "MARKET_DEFENSIVE_DD_PCT"),
+        ("MARKET_CRITICAL_EXIT_DD_PCT", "MARKET_CRITICAL_DD_PCT"),
+    ]
+    g = globals()
+    for exit_name, entry_name in pairs:
+        if g[exit_name] >= g[entry_name]:
+            fixed = round(g[entry_name] - EXIT_GAP_PCT, 4)
+            _log.error("regime: %s=%.2f >= %s=%.2f — Austritt auf %.2f gesetzt (Hysterese)",
+                       exit_name, g[exit_name], entry_name, g[entry_name], fixed)
+            g[exit_name] = fixed
+
+
+def market_metrics(db, instrument_id: int | None = None) -> dict | None:
+    """SPY-Kennzahlen aus ohlcv_daily: Schluss, SMA200, Abstand vom 52W-Hoch.
+
+    None, wenn weniger als 200 Schlusskurse vorliegen.
+    """
+    iid = int(instrument_id or MARKET_INSTRUMENT_ID)
+    rows = db.fetchall(
+        "SELECT substr(date,1,10) AS d, close FROM ohlcv_daily "
+        "WHERE instrument_id = ? AND close > 0 ORDER BY date", (iid,))
+    if not rows or len(rows) < 200:
+        return None
+    closes = [float(r["close"]) for r in rows]
+    sma = sum(closes[-200:]) / 200.0
+    hi = max(closes[-252:])
+    return {"date": rows[-1]["d"], "close": closes[-1], "sma200": sma,
+            "dd_pct": (hi - closes[-1]) / hi * 100.0 if hi > 0 else 0.0,
+            "n": len(closes)}
+
+
+def detect_market_regime(m: dict, previous: str | None) -> tuple[str, str]:
+    """Marktregime aus SPY-Kennzahlen, mit Hysterese gegen ``previous``."""
+    dd, close, sma = float(m["dd_pct"]), float(m["close"]), float(m["sma200"])
+    below = close < sma
+    prev = previous if previous in _SEVERITY else "NORMAL"
+    vs = (close / sma - 1.0) * 100.0 if sma > 0 else 0.0
+    tag = f"SPY {vs:+.1f}% vs SMA200, {dd:.1f}% unter 52W-Hoch"
+    if dd >= MARKET_CRITICAL_DD_PCT:
+        return "CRITICAL", tag
+    if prev == "CRITICAL" and dd > MARKET_CRITICAL_EXIT_DD_PCT:
+        return "CRITICAL", tag + " (Hysterese)"
+    if below and dd >= MARKET_DEFENSIVE_DD_PCT:
+        return "DEFENSIVE", tag
+    if prev in ("DEFENSIVE", "CRITICAL") and dd > MARKET_DEFENSIVE_EXIT_DD_PCT:
+        return "DEFENSIVE", tag + " (Hysterese)"
+    if below or dd >= MARKET_CAUTION_DD_PCT:
+        return "CAUTION", tag
+    if prev in ("CAUTION", "DEFENSIVE", "CRITICAL") and (
+            close < sma * (1.0 + MARKET_SMA_EXIT_BUFFER_PCT / 100.0)
+            or dd > MARKET_CAUTION_EXIT_DD_PCT):
+        return "CAUTION", tag + " (Hysterese)"
+    return "NORMAL", tag
+
+
+def _market_regime_step(state_repo) -> tuple[str, str]:
+    """Marktregime berechnen und persistieren. Bei fehlenden/veralteten Daten:
+    mindestens CAUTION (stricter(letztes Marktregime, CAUTION)) + einmal
+    taeglich ein Alert — NIE auf die (weiten) Konto-Stufen allein zurueckfallen."""
+    import logging
+    from datetime import date, datetime, timezone
+    prev = state_repo.get("MARKET_REGIME") or "NORMAL"
+    m = None
+    try:
+        m = market_metrics(state_repo.db)
+    except Exception as exc:
+        logging.getLogger(__name__).error("regime: Marktdaten nicht lesbar: %s", exc)
+    today = datetime.now(timezone.utc).date()
+    stale = m is None or (today - date.fromisoformat(m["date"])).days > MARKET_MAX_STALENESS_DAYS
+    if stale:
+        fallback = stricter(prev, "CAUTION")
+        why = ("keine 200 SPY-Kurse" if m is None
+               else f"letzter SPY-Kurs {m['date']} aelter als {MARKET_MAX_STALENESS_DAYS} Tage")
+        logging.getLogger(__name__).error("regime: Marktdaten fehlen/veraltet (%s) -> %s", why, fallback)
+        if state_repo.get("MARKET_STALE_ALERT_DATE") != today.isoformat():
+            state_repo.set("MARKET_STALE_ALERT_DATE", today.isoformat())
+            try:
+                from bot.discord_embeds import post_alert_embed
+                post_alert_embed(title="⚠️ Marktregime: SPY-Daten fehlen/veraltet",
+                                 description=f"{why}. Regime mindestens CAUTION ({fallback}), "
+                                             f"bis der Data-Worker SPY nachfuehrt.",
+                                 severity="WARNING")
+            except Exception:
+                pass
+        return fallback, f"Marktdaten veraltet ({why}) -> mind. CAUTION"
+    regime, reason = detect_market_regime(m, prev)
+    state_repo.set("MARKET_REGIME", regime)
+    state_repo.set("MARKET_DD_PCT", f"{m['dd_pct']:.2f}")
+    state_repo.set("MARKET_VS_SMA200_PCT", f"{(m['close'] / m['sma200'] - 1) * 100:.2f}")
+    state_repo.set("MARKET_DATA_DATE", m["date"])
+    return regime, reason
+
+
 def update_regime(state_repo, equity: float) -> tuple[str, bool]:
     """Detect and persist current regime. Returns (new_regime, changed).
 
@@ -398,7 +543,18 @@ def update_regime(state_repo, equity: float) -> tuple[str, bool]:
         # Fail-safe: ohne History wie bisher gegen den All-Time-Peak rechnen
         peak_equity = all_time_peak
 
-    new_regime, reason = detect_regime(equity, peak_equity, previous_regime)
+    # feat/market-regime: Konto-Stufe mit EIGENER Hysterese (ACCOUNT_REGIME),
+    # sonst haelt ein Markt-CAUTION die Konto-Stufe ueber deren Hysterese fest.
+    account_prev = state_repo.get("ACCOUNT_REGIME") or previous_regime
+    account_regime, account_reason = detect_regime(equity, peak_equity, account_prev)
+    state_repo.set("ACCOUNT_REGIME", account_regime)
+    if REGIME_SOURCE == "market":
+        market_regime, market_reason = _market_regime_step(state_repo)
+        new_regime = stricter(market_regime, account_regime)
+        reason = (f"Markt {market_regime} ({market_reason}) | "
+                  f"Konto {account_regime} ({account_reason}) -> {new_regime}")
+    else:
+        new_regime, reason = account_regime, account_reason
     changed = new_regime != previous_regime
 
     # Update regime and risk scalar

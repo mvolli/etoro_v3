@@ -51,16 +51,17 @@ def test_geklammerter_betrag_passiert_den_execution_guard(equity):
     assert not (geklammert > cap)
 
 
-def test_klammer_greift_nur_in_defensive():
-    """Sie spiegelt den execution_worker — der prueft nur DEFENSIVE.
-
-    Griffe sie in jedem Regime, wuerde sie die 6-%-Basis in NORMAL sofort auf
-    max_trade_pct 5.0 % stutzen (501.41 -> 417.84) und damit genau das
-    aufheben, wofuer sie eingefuehrt wurde.
+def test_klammer_greift_in_jedem_regime():
+    """feat/max-trade-all-regimes (VoLLi 2026-10-16): Klammer in JEDEM Regime,
+    nie unter $200 (Signal-Floor). Vorher nur DEFENSIVE — NORMAL 10 % und
+    CAUTION 7,5 % waren wirkungslos. Die 10-%-Basis in NORMAL (fix/fee-flat)
+    liegt genau auf dem NORMAL-Limit und wird daher nicht gestutzt; erst
+    der Deployment-Boost (1,25x) wird auf 10 % zurueckgeklammert.
     """
-    assert 'if regime == "DEFENSIVE" and _mt_pct > 0 and equity > 0:' in SW_SRC
-    # Gegenprobe: der execution_worker guardet ebenfalls nur DEFENSIVE.
-    assert 'if regime == "DEFENSIVE":' in EX_SRC
+    assert 'if regime == "DEFENSIVE" and _mt_pct > 0 and equity > 0:' not in SW_SRC
+    assert "if _mt_pct > 0 and equity > 0:" in SW_SRC
+    # Gegenprobe: der execution_worker guardet dieselben Regime.
+    assert 'if regime in ("NORMAL", "CAUTION", "DEFENSIVE"):' in EX_SRC
 
 
 def test_normal_basis_bleibt_ungeklammert():

@@ -2735,9 +2735,15 @@ def main() -> None:
             # Entscheidung: entweder max_trade_pct nachziehen oder die Basis
             # senken. Nicht hier nebenbei mitentscheiden.
             _mt_pct = float(regime_params.get("max_trade_pct", 100.0))
-            _mt_cap = None  # nur in DEFENSIVE gesetzt (Guard-Spiegelung)
-            if regime == "DEFENSIVE" and _mt_pct > 0 and equity > 0:
-                _mt_cap = round(equity * _mt_pct / 100.0, 2)
+            _mt_cap = None
+            # feat/max-trade-all-regimes (VoLLi 2026-10-16): Klammer in JEDEM
+            # Regime (vorher nur DEFENSIVE; NORMAL 10 % / CAUTION 7,5 % waren
+            # wirkungslos). Nie unter dem Signal-Floor ($200): $200 je Kauf ist
+            # das Minimum, das Regime begrenzt nur nach oben. Spiegelung des
+            # execution_worker-Guards (Klammer und Guard IMMER gemeinsam).
+            if _mt_pct > 0 and equity > 0:
+                _mt_cap = max(round(equity * _mt_pct / 100.0, 2),
+                              float(regime_params.get("signal_floor_usd", 200.0)))
                 if buy_amount > _mt_cap:
                     logger.info(
                         "SignalWorker: %s auf max_trade_pct geklammert "
@@ -2785,7 +2791,7 @@ def main() -> None:
                 # max_trade_pct-Klammer (DEFENSIVE, Spiegelung des
                 # execution_worker-Guards) bleibt in Kraft: Klammer + Guard
                 # IMMER gemeinsam.
-                _dep_cap = _mt_cap if regime == "DEFENSIVE" else None
+                _dep_cap = _mt_cap
                 _dep_amt, _dep_bumped = _deploy_bump_or_reject(
                     log_repo, signal_repo, blocked_reasons,
                     symbol=symbol, signal_id=signal_id, buy_amount=buy_amount,

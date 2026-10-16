@@ -845,11 +845,16 @@ def main() -> None:
                 )
                 failed_count += 1
                 continue
-            if regime == "DEFENSIVE":
+            # feat/max-trade-all-regimes (VoLLi 2026-10-16): Groessengrenze in
+            # JEDEM Regime (CRITICAL wurde oben schon abgewiesen), nie unter
+            # dem $200-Floor. Der signal_worker klammert identisch, hier landen
+            # also nur Trades, die unter lockererem Regime dimensioniert wurden.
+            if regime in ("NORMAL", "CAUTION", "DEFENSIVE"):
                 from bot.core.regime import get_regime_params as _grp
                 _rp = _grp(regime)
                 _eq = state_repo.get_equity()
-                _cap = _eq * float(_rp.get("max_trade_pct", 3.0)) / 100.0
+                _cap = max(_eq * float(_rp.get("max_trade_pct", 3.0)) / 100.0,
+                           float(_rp.get("signal_floor_usd", 200.0)))
                 # _eq <= 0 heisst: Equity noch nicht synchronisiert. Dann nicht
                 # blind durchlassen und nicht blind blocken — die Pruefung
                 # entfaellt, der Trade wurde vom signal_worker bereits gegen
@@ -857,23 +862,23 @@ def main() -> None:
                 if _eq > 0 and amount_usd > _cap:
                     logger.warning(
                         "ExecutionWorker: Trade #%d (%s) $%.2f ueberschreitet das "
-                        "DEFENSIVE-Limit $%.2f (%.1f%% von $%.2f) — unter lockererem "
+                        "%s-Limit $%.2f (%.1f%% von $%.2f) — unter lockererem "
                         "Regime dimensioniert, verworfen",
-                        trade_id, symbol, amount_usd, _cap,
+                        trade_id, symbol, amount_usd, regime, _cap,
                         float(_rp.get("max_trade_pct", 3.0)), _eq,
                     )
                     trade_repo.update_status(
                         trade_id,
                         "REJECTED",
                         rejection_reason=(
-                            f"DEFENSIVE: ${amount_usd:.2f} > max_trade_pct-Limit "
+                            f"{regime}: ${amount_usd:.2f} > max_trade_pct-Limit "
                             f"${_cap:.2f} — unter lockererem Regime dimensioniert"
                         ),
                     )
                     log_repo.write(
                         "WARN",
                         "execution_worker",
-                        f"Trade #{trade_id} REJECTED — DEFENSIVE-Groessenlimit "
+                        f"Trade #{trade_id} REJECTED — {regime}-Groessenlimit "
                         f"${_cap:.2f} ueberschritten",
                         {"symbol": symbol, "amount_usd": amount_usd, "cap": _cap},
                     )
@@ -1036,6 +1041,14 @@ def main() -> None:
             if 0 < amount_usd < 200.0:
                 _old_amt = amount_usd
                 amount_usd = 200.0
+                # fix/floor-amount-bookkeeping (2026-10-16): trades.amount_usd
+                # behielt den Betrag VOR dem Hochrunden (CDA.PA $97,64, beim
+                # Broker $200). Den tatsaechlich gesendeten Betrag zurueckschreiben.
+                try:
+                    trade_repo.db.execute(
+                        "UPDATE trades SET amount_usd = ? WHERE id = ?", (amount_usd, trade_id))
+                except Exception as _fl_exc:
+                    logger.debug("ExecutionWorker: Floor-Betrag nicht zurueckgeschrieben: %s", _fl_exc)
                 logger.info(
                     "ExecutionWorker: Trade #%d (%s) $%.2f < $200 Floor — "
                     "auf $200.00 gerundet (fee-flat)",
