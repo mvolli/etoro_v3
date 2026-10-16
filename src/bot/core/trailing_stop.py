@@ -1061,15 +1061,38 @@ def evaluate_trailing(
                     level['threshold'], regime, symbol, pnl_pct,
                 )
                 continue
+            # feat/partial-min-tranche (2026-10-16): Gebuehren-Schwelle ebenfalls
+            # in der Entscheidungsstufe, aus demselben Grund (vor dem LLM-Call).
+            # Gleiche Semantik wie oben: Stufe bleibt faellig, kein Durchfallen.
+            if (_resolved.action == 'PARTIAL_CLOSE'
+                    and _pcp.below_min_tranche(_resolved.amount_usd, _resolved.close_pct)):
+                logger.debug(
+                    '[trailing] Ladder-Stufe +%.1f%%: Tranche unter '
+                    'partial_close.min_tranche_usd — %s %+.1f%% unterdrueckt',
+                    level['threshold'], symbol, pnl_pct,
+                )
+                continue
             actions.append(_resolved)
         elif should_momentum_fade(pnl_pct, peak, faded):
             # No ladder level due, but a built-up gain is fading back → lock it.
             _fa = _fade_action()
-            actions.append(
+            _fr = (
                 _as_full_exit(_fa, remaining_frac)
                 if would_breach_min_remaining(remaining_frac, _fa.close_pct or 0.0)
                 else _fa
             )
+            # feat/partial-min-tranche: kleiner Fade-Teilverkauf -> unterdrueckt,
+            # Position laeuft bis BE/SL/Vollausstieg. Ein in FULL_EXIT
+            # umgeschlagener Fade ist kein Teilverkauf und laeuft immer.
+            if (_fr.action == 'MOMENTUM_FADE'
+                    and _pcp.below_min_tranche(_fr.amount_usd, _fr.close_pct)):
+                logger.debug(
+                    '[trailing] Momentum-Fade: Tranche unter '
+                    'partial_close.min_tranche_usd — %s %+.1f%% unterdrueckt',
+                    symbol, pnl_pct,
+                )
+                continue
+            actions.append(_fr)
         elif pnl_pct >= BREAK_EVEN_TRIGGER_PCT:
             # Only break-even (BE-trigger..first-rung range, or all due levels taken)
             actions.append(TrailingAction(

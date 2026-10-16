@@ -6,9 +6,10 @@ Epoche: Konto-Neustart am **10.09. 19:31 mit $10.000 und 0 Positionen**.
 
 ## 1. Kurzfazit
 
-1. **85 % des Verlusts sind Gebühren, nicht schlechte Trades.** Von −$1.198 seit
-   10.09. sind ~$1.015 Flat-Fees ($397 Käufe, ~$618 Schließungen). Kursverlust
-   realisiert: nur −$249.
+1. **~82 % des Verlusts sind Gebühren, nicht schlechte Trades.** Von −$1.198 seit
+   10.09. erklärt die Flat-Fee auf jede Order ~$983–997 (Broker-Basis). Kursverlust
+   realisiert: nur −$249. (Die Ledger-Schätzung $397 Kauf + $618 Schließung = $1.015
+   liegt ~3 % zu hoch: das Ledger hat 515 Schließ-Orders, der Broker 473.)
 2. **Kein Signaltyp hat nach Kosten einen positiven Erwartungswert** — weder in
    Broker-Wahrheit noch in den Forward-Returns. Auch CORE_SWEEP nicht.
 3. **Das Edge-Gate (live seit 09.10.) arbeitet richtig**: es blockt die negativen
@@ -63,8 +64,15 @@ Median-Einsatz je geschlossener Position: **$55** → 4–7 % Kosten je Runde.
   Median 0,00 %, getrimmt +0,55 %.
 - **Teilschließungen sind Gebührenverbrennung**: 101 `sell_exit`-Teilverkäufe
   brutto +$17, Gebühren $131. Fix: `partial_close.min_tranche_usd` (`cb9b582`, Default aus).
+- **LLM-Ausstiege (Broker-Basis):** `llm_exit` −$203 (n=68), LLM-Tighten voll +$6 (n=4),
+  LLM-Tighten Teilverkauf −$7 (n=19). Die Ledger-Zahl „LLM-Tighten +$92“ war Doppelbuchung.
+  Die LLM-Positionsrunde bleibt pausiert (VoLLi, 16.10.).
 - Label `reconciler_9d` ist **kein** 9-Tage-Zeitexit, sondern „vom Reconciler beim
   Broker entdeckte Schließung“ (meist Broker-Stop).
+
+**Lücke im Edge-Gate:** Es bewertet 5-Tage-Forward-Returns, live werden Positionen aber
+binnen Stunden bis Tagen ausgestoppt oder per Leiter verkleinert. Ein Gate-Pass beweist
+daher nicht, dass der Trade unter den Exit-Regeln des Bots Geld verdient.
 
 ## 5. Regime: Teufelskreis aus Gebühren
 
@@ -91,7 +99,7 @@ Rechnung Index-Kern $6.000: +$420–600/Jahr bei 7–10 % Drift; Rückweg auf $1
 
 | Commit | Inhalt | Wirkung |
 |---|---|---|
-| `cb9b582` | `partial_close.min_tranche_usd` | Default 0 = aus; bei $100: alle 184 Teilverkäufe seit Epoch unterdrückt, ~$214 gespart |
+| `cb9b582` + Folgecommit | `partial_close.min_tranche_usd`, Filter in der Entscheidungsstufe `evaluate_trailing` (vor dem KI-Profit-Advisor-LLM-Call) | Default 0 = aus; bei $100: alle 184 Teilverkäufe seit Epoch unterdrückt, ~$214 gespart |
 | `b114b9c` | SELL-Kostenvorzeichen in `signal_hygiene` | SELL-Typen korrekt negativ; Edge-Gate (nur BUY) unverändert |
 | `f929fdb` | Rekonziliationsbericht: Kaufgebühren-Zeile + Schätzung Schließgebühren | Tagesbericht geht auf; Residuum erklärt |
 | (Cron) | Risk Worker wieder aktiv (VoLLi, 16.10.) | erster Lauf: 1 Order, KO +4,9 % voll geschlossen |

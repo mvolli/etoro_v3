@@ -124,6 +124,24 @@ def _min_tranche_usd(override: Optional[float]) -> float:
         return 0.0
 
 
+def below_min_tranche(amount_usd: Optional[float], close_pct: Optional[float],
+                      min_tranche_usd: Optional[float] = None) -> bool:
+    """True, wenn eine TEILschliessung unter der Mindest-Tranche liegt.
+
+    Fuer die Entscheidungsstufe in trailing_stop.evaluate_trailing — dort muss
+    die Regel VOR dem KI-Profit-Advisor (LLM-Call im risk_worker) greifen,
+    sonst feuert die unterdrueckte Stufe jeden 5-min-Zyklus einen Call ohne
+    Order (vgl. fix/ladder-regime-decision-stage: 191 Calls fuer eine Stufe).
+    Fail-open: Regel aus, Wert/Anteil unbekannt oder volle Schliessung -> False.
+    """
+    min_tr = _min_tranche_usd(min_tranche_usd)
+    if min_tr <= 0 or amount_usd is None or amount_usd <= 0 or close_pct is None:
+        return False
+    if close_pct >= float(load_config().get("partial_threshold_pct", 99.5)):
+        return False
+    return amount_usd * close_pct / 100.0 < min_tr
+
+
 def evaluate(pnl_pct: Optional[float], close_pct: Optional[float],
              mode: Optional[str] = None, amount_usd: Optional[float] = None,
              min_tranche_usd: Optional[float] = None) -> PolicyDecision:
