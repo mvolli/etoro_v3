@@ -56,6 +56,14 @@ DEFAULT_CONFIG: dict = {
     # decision stage (new row). Code default is authoritative; config.yaml may
     # override it but does not have to.
     "dedup_pnl_tolerance_pct": 2.0,
+    # feat/partial-min-tranche (2026-10-16): eToro bucht je Order eine Flat-Fee
+    # ($1 Standard, $2 an .ASX/.HK/.T/.AX/.AE) — auch auf jede Teilschliessung.
+    # Gemessen seit Epoch 10.09.: 184 Teilschliessungen, Ø-Tranche $38, also
+    # ~2,6 % Gebuehr auf die Tranche. Eine Teilschliessung, deren Tranche
+    # (Positionswert x close_pct) unter diesem Betrag liegt, wird in JEDEM
+    # Modus unterdrueckt; die Position laeuft bis zum vollen Exit weiter.
+    # 0 = aus (Verhalten wie bisher). Wert ist geldwirksam -> VoLLi-Entscheid.
+    "min_tranche_usd": 0.0,
 }
 
 VALID_MODES = ("current", "no_partials", "loss_only")
@@ -106,13 +114,27 @@ class PolicyDecision:
     suppressed_reason: Optional[str] = None  # set when not allowed (else None)
 
 
+def _min_tranche_usd(override: Optional[float]) -> float:
+    """Konfigurierte Mindest-Tranche; fail-open auf 0.0 bei unlesbarem Wert."""
+    if override is not None:
+        return float(override)
+    try:
+        return max(0.0, float(load_config().get("min_tranche_usd", 0.0) or 0.0))
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def evaluate(pnl_pct: Optional[float], close_pct: Optional[float],
-             mode: Optional[str] = None) -> PolicyDecision:
+             mode: Optional[str] = None, amount_usd: Optional[float] = None,
+             min_tranche_usd: Optional[float] = None) -> PolicyDecision:
     """Pure decision. Fail-open: bad input -> allowed=True (never suppress
     on a data gap). Only acts on a genuine partial (close_pct < threshold).
     Full closes (close_pct >= threshold) always pass through.
 
     mode: None -> read from config; pass an explicit mode in tests.
+    amount_usd: Positionswert zum Entscheidungszeitpunkt (Vertrag wie in
+        check()). Nur fuer die Mindest-Tranche; None -> Regel greift nicht.
+    min_tranche_usd: None -> aus config; explizit in Tests.
     """
     m = mode if mode is not None else load_config().get("mode", "current")
     thr = float(load_config().get("partial_threshold_pct", 99.5))
@@ -123,6 +145,14 @@ def evaluate(pnl_pct: Optional[float], close_pct: Optional[float],
     if close_pct >= thr:
         # Full close (or effectively full) — never touched by this gate.
         return PolicyDecision(True, m, None)
+    # feat/partial-min-tranche: Gebuehren-Schwelle vor dem Modus — sie gilt in
+    # allen Modi. Ohne bekannten Positionswert kein Eingriff (fail-open).
+    min_tr = _min_tranche_usd(min_tranche_usd)
+    if min_tr > 0 and amount_usd is not None and amount_usd > 0:
+        tranche = amount_usd * close_pct / 100.0
+        if tranche < min_tr:
+            return PolicyDecision(
+                False, m, f"min_tranche:{tranche:.2f}<{min_tr:.2f}")
     if pnl_pct is None:
         # Data gap — fail-open, allow the partial.
         return PolicyDecision(True, m, "pnl-unknown-fail-open")
@@ -176,7 +206,7 @@ def check(db: Any, *, path: str, symbol: str, position_id: Optional[str],
             Messzeitpunkte in derselben Zeile.
     """
     m = mode()
-    d = evaluate(pnl_pct, close_pct, mode=m)
+    d = evaluate(pnl_pct, close_pct, mode=m, amount_usd=amount_usd)
     if record:
         try:
             record_decision(db, mode=m, path=path, symbol=symbol,
