@@ -24,6 +24,18 @@ Plan + Schattenphase dauern Tage.
 | **A (Empfehlung):** `risk.monthly_loss_limit_pct` jetzt 12 → **20** | Schwelle ~$7.818, Puffer ~$980. Entspricht deiner neuen NORMAL-Grenze, liegt innerhalb der heutigen Schutzgrenze (≤ 25). Reine Config-Änderung. |
 | B: belassen | Kill-Switch kann bei ~2 % Rückgang auslösen, Reset von Hand. |
 
+**Dringlichkeit nimmt täglich ab:** Mit dem rollenden 30-Tage-Fenster wächst der Puffer
+(bei gleicher Equity) von ~$200 heute auf ~$275 morgen, ~$360 am 19.10. und ~$690 am 26.10.
+Das Risiko von B liegt also vor allem in den nächsten 3–5 Tagen.
+
+**Option A braucht einen Schutz gegen die LLM.** `risk.monthly_loss_limit_pct` steht in
+`BIBLE_HARD_LIMITS` (5–25) — der tägliche LLM-Review (22:30) darf den Wert autonom ändern.
+Der `_decided_by`-Schutz gilt nur für Signal-Gewichte, nicht für `config.yaml`. Beleg, dass
+das passiert: am 09.07. senkte die LLM `regime.caution_pct` von 4,0 auf 3,0 (daher der
+Widerspruch in §4). → A nur zusammen mit: Key aus `BIBLE_HARD_LIMITS` entfernen (kleine
+Code-Änderung mit Test). Der Kill-Switch-Watchdog hat keine eigenen Schwellen (liest nur
+`data/kill_switch.flag`).
+
 ## 1. Marktregime (Kern des Umbaus)
 
 **Gemessen:** SPY lag vom 25.08. bis 15.10. durchgehend **+6 bis +8,5 % über dem
@@ -62,9 +74,22 @@ Liste, die die LLM-Selbstoptimierung **autonom ändern darf**. Sie würde Werte 
 Rahmens zurückziehen. → Diese Keys aus `BIBLE_HARD_LIMITS` nehmen (dann nicht mehr
 LLM-änderbar) oder die Grenzen anheben. Empfehlung: herausnehmen.
 
+**Achtung Wochenlimit:** Mit Konto-Stufen 20/30/40 wird das Wochenlimit **8 %** (Kill-Switch,
+manueller Reset) zur eigentlich bindenden Grenze — deutlich enger als die gewünschte Toleranz.
+Eine schlechte Marktwoche (v. a. mit Index-Kern) löst es aus. Bewusst entscheiden.
+
 **Tag (5 %) und Woche (8 %)** bleiben unverändert als Kill-Switch-Notbremse, bis du anders
 entscheidest. Der **Monats-Kill-Switch** entfällt zugunsten der Konto-Stufen (die heben
 sich bei Erholung selbst auf, kein manueller Reset).
+
+**Datenquelle (Schritt 1a):** `backtest_cache/SPY_*` endet am 21.08., `ohlcv_daily` hat SPY erst
+seit Juni. Für einen laufenden SMA200 braucht es eine gepflegte Reihe von 200+ Tagen:
+`ohlcv_daily` aus dem Cache auffüllen und sicherstellen, dass der Data-Worker SPY täglich
+nachführt.
+
+**SPY oder ACWI:** Default SPY (Daten vorhanden, Bärenmarkt 2022 als Kalibrierfall). Der Bot
+handelt aber überwiegend HK/ASX/Tokio/EU — ACWI läuft in der Schattenphase parallel mit;
+Entscheidung danach.
 
 ## 2. Was „Markt = NORMAL“ ab Tag 1 einschaltet
 
@@ -142,7 +167,8 @@ $200 (die meisten der 12 offenen) werden nicht angefasst.
 
 | # | Schritt | Schalter / Default | Entscheidung |
 |---|---|---|---|
-| 0 | Monatslimit 12 → 20 % (sofort) | `risk.monthly_loss_limit_pct` | **VoLLi, heute** |
+| 0 | Monatslimit 12 → 20 % (sofort) + Key aus `BIBLE_HARD_LIMITS` | `risk.monthly_loss_limit_pct` | **VoLLi, heute** |
+| 1a | SPY-Reihe ≥ 200 Tage in `ohlcv_daily`, Data-Worker pflegt sie | — | Bau: Agent |
 | 1 | Marktregime im Schatten + Rückblick 2021–23 | `regime.source: account` | Bau: Agent |
 | 2 | Leiter-Unterdrückung + Sweep-Cap vom Regime entkoppeln | eigene Schalter, Default heute | VoLLi |
 | 3 | `max_trade_pct` in allen Regimen, `cap ≥ $200` | — | VoLLi |
