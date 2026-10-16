@@ -373,6 +373,15 @@ bleibt sie 0.0 — und 0.0 ist nicht > 0, ein Fehler führt also nie zu einer
 Freigabe. Belege: `workspace/references/ratschen-mass-2026-09-12.md`,
 Regression `tests/unit/test_ratsche_beide_masse.py`.
 
+**Gebühren-Wahrheit (Broker-Abgleich 2026-10-16):** eToro bucht die Flat-Fee
+($1, $2 an .ASX/.HK/.T/.AX/.AE) auf JEDE Order — Kauf, Schließung,
+Teilschließung. Broker-`netProfit` enthält sie nicht, das History-Feld `fees`
+ist leer. Seit Epoch 10.09. ~85 % des Kontoverlusts. P&L-Aussagen pro Familie
+nur gegen Broker-`netProfit` minus Fee je Order, nie gegen Ledger allein
+(Ledger hatte CORE_SWEEP +$192, Broker −$412). Teilschließungen unter
+`partial_close.min_tranche_usd` werden unterdrückt (Default 0 = aus).
+Beleg: `docs/ANALYSE-gewinnzone-2026-10-16.md`.
+
 **Interpreter-Regel:** die Suite IMMER mit `/usr/bin/python3` (System-Python,
 hat matplotlib 3.10.8) ausführen — die Cron-Worker laufen exakt darauf. Das bare
 `python3` auf der WSL-PATH ist der `~/.hermes/hermes-agent/venv`, in dem
