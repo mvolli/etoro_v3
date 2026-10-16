@@ -1196,6 +1196,29 @@ def _commodity_state(db, cfg: dict) -> tuple[dict, set[int], int]:
     return _comm_cfg, _comm_ids, _comm_open
 
 
+def _edge_gate_blocks(db, signal_type: str, signal_id,
+                      cache: dict[str, dict | None]) -> bool:
+    """True, wenn der Edge-Gate (LIVE) diesen Signaltyp blockt.
+
+    Ein evaluate() pro Typ und Lauf (der Broadening-Pfad scannt die ganze
+    Tabelle). Fail-open: Gate-Fehler -> False, der execution_worker-Gate
+    bleibt als zweite Linie.
+    """
+    from bot.core import edge_gate as _eg
+    if signal_type not in cache:
+        try:
+            cache[signal_type] = _eg.evaluate(signal_type, "signal_worker", db)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("SignalWorker: Edge-Gate-Vorfilter fehlgeschlagen (%s): %s",
+                           signal_type[:40], exc)
+            cache[signal_type] = None
+    res = cache[signal_type]
+    if res is None:
+        return False
+    _eg.mark_shadow(db, signal_id, bool(res["shadow"]))
+    return _eg.blocks(res)
+
+
 def _filter_eligible(
     *, db, cfg: dict, trade_repo, signal_repo, portfolio_repo,
     buy_signals: list[dict], _llm_blacklist: dict, _llm_signal_weights: dict,
@@ -1260,6 +1283,7 @@ def _filter_eligible(
         _approved_ids = trade_repo.get_approved_instrument_ids()
     except Exception:
         _approved_ids = set()  # fail-open wenn Methode fehlt
+    _eg_cache: dict[str, dict | None] = {}
     for signal in buy_signals:
         instrument_id = signal["instrument_id"]
         signal_id = signal.get("id")
@@ -1325,6 +1349,16 @@ def _filter_eligible(
                         symbol, _sig_type[:40], _sig_reason[:60])
             signal_repo.update_signal_status(signal_id, "REJECTED")
             _skip["llm_signaltyp_gesperrt"].append(symbol)
+            continue
+
+        # Edge-Gate-Vorfilter (2026-10-16): der Gate entscheidet pro Typ und
+        # deterministisch. Bisher wurde trotzdem ein APPROVED-Trade angelegt,
+        # vom Veto-LLM geprueft, in Discord gemeldet und erst im
+        # execution_worker FAILED gesetzt (61 Stueck am 16.10.). Jetzt wird
+        # das Signal hier REJECTED; der execution_worker-Gate bleibt Rueckfall.
+        if _edge_gate_blocks(db, _sig_type, signal_id, _eg_cache):
+            signal_repo.update_signal_status(signal_id, "REJECTED")
+            _skip["edge_gate"].append(symbol)
             continue
 
         # Signal-Type Cooldown (fix/signal-type-cooldown: gleiche

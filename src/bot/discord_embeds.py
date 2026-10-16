@@ -1980,6 +1980,7 @@ def post_signal_worker_embed(
         "diversity_kappe":              "Diversity",
         "news_avoid":                   "News",
         "slippage_blacklist":           "Slippage",
+        "edge_gate":                    "Edge-Gate",
         "llm_exchange_blacklist":       "Exchange",
         "nicht bewertet (Slots belegt)": "kein Slot",
         "bewertet, kein Trade":         "kein Trade",

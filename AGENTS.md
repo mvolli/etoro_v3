@@ -238,6 +238,14 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   als Handels-Exposure (Exposure, Positionszahl, Diversität, Sweep-Headroom),
   aber in Equity/Regime/Verlustlimits. Alle `core_index`-Werte sind
   geldwirksam (VoLLi) und NICHT in `BIBLE_HARD_LIMITS`.
+- **Edge-Gate (`bot/core/edge_gate.py`, LIVE seit 2026-10-09) prüft ZWEIMAL.**
+  Vorfilter in `signal_worker._filter_eligible` (seit 2026-10-16): geblockter Typ
+  ⇒ Signal REJECTED, kein Trade, kein Veto-LLM, kein Block-Embed (Skip-Key
+  `edge_gate` im Signal-Report). `execution_worker` b3b bleibt Rückfallsicherung.
+  Blockregel nur über `edge_gate.blocks()`, Markierung nur über `mark_shadow()`.
+  `signal_outcomes` ist ein Schnappschuss (Signale bis 29.09., geschrieben
+  09.10. von `scripts/signal_forward_returns.py`, kein Cron): die Gate-Statistik
+  ist eingefroren, bis das Skript erneut läuft.
 
 ## Portfolio-Grenzen (Stand 2026-08-12)
 

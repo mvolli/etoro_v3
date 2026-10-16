@@ -169,6 +169,43 @@ def is_shadow(exp_net: float, lcb: float, n: int,
     return False
 
 
+def blocks(res: dict) -> bool:
+    """LIVE-Blockade-Entscheidung aus einem evaluate()-Ergebnis."""
+    return bool(res.get("live_mode")) and bool(res.get("shadow")) and not res.get("exempt")
+
+
+def mark_shadow(db, signal_id, shadow: bool) -> None:
+    """Gate-Entscheidung an die signal_outcomes-Zeile des Signals schreiben.
+
+    Exakte Zeile (signal_date + instrument_id ueber signals), nicht alle
+    Zeilen desselben Typs. No-op ohne Spalte/Zeile; wirft nie.
+    """
+    if not signal_id:
+        return
+    try:
+        cols = {r["name"] for r in db.fetchall("PRAGMA table_info(signal_outcomes)")}
+        if "edge_shadow" not in cols:
+            return
+        db.execute(
+            """
+            UPDATE signal_outcomes SET edge_shadow = ?
+            WHERE id = (
+                SELECT so.id FROM signal_outcomes so
+                JOIN signals s
+                  ON s.instrument_id = so.instrument_id
+                 AND s.signal_type = so.signal_type
+                 AND s.generated_at LIKE so.signal_date || '%'
+                WHERE s.id = ?
+                ORDER BY so.signal_date DESC
+                LIMIT 1
+            )
+            """,
+            (1 if shadow else 0, signal_id),
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("edge_gate: Shadow-Kennzeichnung fehlgeschlagen: %s", exc)
+
+
 def evaluate(signal_type: str, regime: str, db) -> dict:
     """Vollstaendige Gate-Bewertung als Dict (fuer Log + Kennzeichnung).
 

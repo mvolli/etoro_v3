@@ -254,7 +254,10 @@ def test_confirmation_only_for_symbols_with_a_gap():
 
 # ── confirm_corporate_action (Netz gestubbt) ─────────────────────────────────
 
-def _stub_yf(monkeypatch, splits=None, dividends=None, date="2026-08-17"):
+def _stub_yf(monkeypatch, splits=None, dividends=None, date=None):
+    # Relativ zu heute: ein festes Datum fiel nach CA_CONFIRM_LOOKBACK_DAYS
+    # aus dem Fenster (Tests seit Mitte Oktober 2026 rot, Code unveraendert).
+    date = date or (pd.Timestamp.now('UTC') - pd.Timedelta(days=5)).strftime('%Y-%m-%d')
     idx = pd.to_datetime([date], utc=True)
     empty = pd.Series(dtype=float)
 

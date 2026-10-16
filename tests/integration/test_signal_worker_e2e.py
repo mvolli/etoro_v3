@@ -209,6 +209,14 @@ def world(tmp_path, monkeypatch):
     monkeypatch.setattr(nfw, "pull_regel_flags", _fake_pull)
     World.news_flags = {}
 
+    # Edge-Gate-Vorfilter (2026-10-16): die synthetische DB hat keine
+    # signal_outcomes — ohne Stub waere jeder Typ n=0 -> geblockt. Die
+    # Gate-Statistik selbst testet tests/unit/test_edge_gate_prefilter.py;
+    # hier steuert World.edge_block_types, welche Typen der Gate blockt.
+    World.edge_block_types = set()
+    monkeypatch.setattr(sw, "_edge_gate_blocks",
+                        lambda db, st, sid, cache: st in World.edge_block_types)
+
     for k in ("ETORO_BOT_API_KEY", "ETORO_BOT_USER_KEY"):
         monkeypatch.delenv(k, raising=False)
     monkeypatch.setattr("bot.config.HERMES_ENV_PATH", tmp_path / "keine.env")
@@ -387,6 +395,21 @@ def test_edge_gate_loopbrecher_verwirft_signal(world):
         f"BTC-Signal nicht REJECTED: {world.signal_status(1)}")
     # Andere Instrumente sind nicht betroffen
     assert "ETH" in world.approved(), "ETH-Approval durch Loopbrecher verloren"
+
+
+def test_edge_gate_vorfilter_verwirft_vor_trade_anlage(world):
+    """Edge-Gate-Vorfilter (2026-10-16): ein geblockter Typ erzeugt keinen
+    APPROVED-Trade mehr (kein Veto-LLM, kein Block-Embed, kein FAILED),
+    das Signal wird REJECTED. Andere Typen und der Core-Sweep laufen."""
+    World.edge_block_types = {"MACD_BULLISH_CROSS"}
+    world.run()
+    got = world.approved()
+    assert "BTC" not in got, f"BTC trotz Edge-Gate-Block approved: {got}"
+    assert world.signal_status(1) == ["REJECTED"]
+    assert "ETH" in got and "AAPL" in got, got
+    trades = world.con.execute(
+        "SELECT COUNT(*) FROM trades WHERE instrument_id=1").fetchone()[0]
+    assert trades == 0, "geblockter Typ hat trotzdem eine Trade-Zeile erzeugt"
 
 
 def test_edge_gate_loopbrecher_nur_6h_fenster(world):

@@ -894,6 +894,9 @@ def main() -> None:
             #     EXEMPT-Typen (CORE_SWEEP, D4) gehen durch. Die
             #     Gate-Entscheidung wird weiterhin in
             #     signal_outcomes.edge_shadow + Stats protokolliert.
+            #     Seit 2026-10-16 filtert signal_worker._filter_eligible
+            #     blockierte Typen schon VOR der Trade-Anlage; dieser Block
+            #     ist nur noch die Rueckfallsicherung (Embed feuert selten).
             #     n < n_min -> SHADOW (NICHT fail-open); LCB < 0 -> SHADOW.
             #     Fail-open: Gate-Fehler -> Trade laeuft normal weiter.
             try:
@@ -916,9 +919,8 @@ def main() -> None:
                 _eg_res = _eg.evaluate(_eg_sig_type, _eg_regime, db)
                 _eg_shadow = _eg_res["shadow"]
                 _eg_exempt = _eg_res["exempt"]
-                _eg_live = _eg_res["live_mode"]
                 # D6: LIVE-MODUS + Shadow + nicht exempt -> BLOCKT.
-                _eg_block = _eg_live and _eg_shadow and not _eg_exempt
+                _eg_block = _eg.blocks(_eg_res)
                 logger.info(
                     "ExecutionWorker: EdgeGate trade #%d %s type=%s regime=%s "
                     "exp_net=%.5f lcb=%.5f n=%d -> %s (%s)%s",
@@ -947,32 +949,7 @@ def main() -> None:
                 # Blockade + Doku): die Zeile des zugrundeliegenden
                 # Signals wird um die Gate-Entscheidung angereichert,
                 # falls die Spalte existiert; sonst no-op.
-                try:
-                    _eg_cols = {r["name"] for r in db.fetchall(
-                        "PRAGMA table_info(signal_outcomes)")}
-                    if "edge_shadow" in _eg_cols and _eg_sig_id:
-                        # Exakte Zeile des Signals (nicht alle Zeilen desselben
-                        # Typs): signal_date + instrument_id ueber signals joinen.
-                        db.execute(
-                            """
-                            UPDATE signal_outcomes SET edge_shadow = ?
-                            WHERE id = (
-                                SELECT so.id FROM signal_outcomes so
-                                JOIN signals s
-                                  ON s.instrument_id = so.instrument_id
-                                 AND s.signal_type = so.signal_type
-                                 AND s.generated_at LIKE so.signal_date || '%'
-                                WHERE s.id = ?
-                                ORDER BY so.signal_date DESC
-                                LIMIT 1
-                            )
-                            """,
-                            (1 if _eg_shadow else 0, _eg_sig_id),
-                        )
-                except Exception as _eg_mark_exc:  # noqa: BLE001
-                    logger.debug(
-                        "EdgeGate: Shadow-Kennzeichnung fehlgeschlagen: %s",
-                        _eg_mark_exc)
+                _eg.mark_shadow(db, _eg_sig_id, _eg_shadow)
                 # D6 LIVE-Blockade: Shadow-Trade wird nicht ausgefuehrt.
                 # fix/edge-gate-block-failed (2026-10-12): Trade sofort
                 # FAILED setzen — vorher blieb er in SUBMITTING, und der
