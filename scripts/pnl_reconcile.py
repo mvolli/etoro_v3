@@ -41,8 +41,12 @@ DB_PATH = PROJECT_ROOT / "data" / "trading.db"
 def _bericht(db, since: str | None = None) -> dict:
     from bot.core.trade_pnl import reconcile
     r = reconcile(db, since=since)
+    # fix/reconcile-fee-line (2026-10-16): reconcile() zieht fee_usd im
+    # Residuum ab, die Ausgabe zeigte die Zeile aber nicht — "erwartet" und
+    # "Residuum" passten nicht zusammen (Luecke = fee_usd). Jetzt identisch.
     erwartet = (r["start_equity"] + r["realized_usd"]
-                + r.get("unattributed_usd", 0.0) + r["unrealized_usd"])
+                + r.get("unattributed_usd", 0.0) + r["unrealized_usd"]
+                - r.get("fee_usd", 0.0))
     if since:
         print("── Rekonziliation SEIT RESET " + "─" * 34)
         print(f"  Epoche ab {since}")
@@ -59,6 +63,8 @@ def _bericht(db, since: str | None = None) -> dict:
         print(f"  + ohne Trade-Bezug ({r['unattributed_tranchen']:>4} Tranchen)        "
               f"${r['unattributed_usd']:>+12,.2f}")
     print(f"  unrealisiert (offene Positionen)          ${r['unrealized_usd']:>+12,.2f}")
+    print(f"  - Kaufgebuehren ({r.get('fee_opens', 0):>4} Kaeufe, Flat-Modell)   "
+          f"${-r.get('fee_usd', 0.0):>+12,.2f}")
     print(f"  {'-' * 58}")
     print(f"  = erwartete Equity                        ${erwartet:>12,.2f}")
     if r["equity"] is None:
@@ -66,6 +72,18 @@ def _bericht(db, since: str | None = None) -> dict:
         return r
     print(f"  tatsaechliche Equity                      ${r['equity']:>12,.2f}")
     print(f"  RESIDUUM (kein Trade-Datensatz)           ${r['residual_usd']:>+12,.2f}")
+
+    # fix/reconcile-fee-line (2026-10-16): eToro bucht die Flat-Fee auch auf
+    # jede Schliessung und Teilschliessung (Broker-Abgleich 10.09.-15.10.:
+    # Fee auf jede Order erklaert das Residuum auf 1,5 % genau, Fee nur auf
+    # Kaeufe nur 40 %). reconcile() kennt nur Kaufgebuehren — hier die
+    # Schaetzung fuer die Schliessungen, damit das Residuum lesbar wird.
+    cf = _close_fee_estimate(db, since)
+    if cf["orders"] and r["residual_usd"] is not None:
+        print(f"    davon Schliessgebuehren ({cf['orders']:>4} Orders, Schaetzung) "
+              f"${-cf['fee_usd']:>+12,.2f}")
+        print(f"    Rest (Spread, Slippage, FX, Unklares)    "
+              f"${r['residual_usd'] + cf['fee_usd']:>+12,.2f}")
 
     fills = _fill_count(db, since)
     if fills and r["residual_usd"] is not None:
@@ -82,10 +100,35 @@ def _bericht(db, since: str | None = None) -> dict:
         print(f"  davon im Residuum erklaert:  "
               f"{100 * abs(k['cost_usd']) / max(abs(r['residual_usd']), 1e-9):.0f} %")
 
-    print("\n  Das Residuum ist NICHT bewiesen als Kosten — es ist alles, was")
-    print("  kein Trade-Datensatz erklaert. Weder `trades` noch `trade_events`")
-    print("  haben eine Spalte fuer Spread, Gebuehr oder Slippage.")
+    print("\n  Das Residuum ist alles, was kein Trade-Datensatz erklaert. Kauf-")
+    print("  gebuehren stehen in trade_events.fee_usd; Schliessgebuehren sind")
+    print("  oben nur geschaetzt (Flat $1 / $2 je Order, nicht abgerechnet).")
     return r
+
+
+def _close_fee_estimate(db, since: str | None = None) -> dict:
+    """{orders, fee_usd}: Flat-Fee je Schliess-Order (CLOSE/PARTIAL_CLOSE).
+
+    fix/reconcile-fee-line (2026-10-16). Dedup wie _fill_count
+    (trade_id, event_at, close_pct). SCHAETZUNG, keine Abrechnung.
+    Fail-open: bei Fehler {0, 0.0}.
+    """
+    out = {"orders": 0, "fee_usd": 0.0}
+    try:
+        from bot.core.fee_model import estimate_open_fee
+        rows = db.fetchall(
+            "SELECT DISTINCT trade_id, event_at, close_pct, amount_usd, symbol "
+            "FROM trade_events WHERE event_type IN ('CLOSE','PARTIAL_CLOSE') "
+            "AND (? IS NULL OR event_at >= ?)",
+            (since, since))
+        for row in rows or []:
+            out["orders"] += 1
+            fee = estimate_open_fee(row["amount_usd"], row["symbol"] or "")
+            out["fee_usd"] += float(fee) if fee is not None else 1.0
+    except Exception:
+        return {"orders": 0, "fee_usd": 0.0}
+    out["fee_usd"] = round(out["fee_usd"], 2)
+    return out
 
 
 def _fill_count(db, since: str | None = None) -> int:
