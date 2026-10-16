@@ -6,10 +6,12 @@ Epoche: Konto-Neustart am **10.09. 19:31 mit $10.000 und 0 Positionen**.
 
 ## 1. Kurzfazit
 
-1. **~82 % des Verlusts sind Gebühren, nicht schlechte Trades.** Von −$1.198 seit
-   10.09. erklärt die Flat-Fee auf jede Order ~$983–997 (Broker-Basis). Kursverlust
-   realisiert: nur −$249. (Die Ledger-Schätzung $397 Kauf + $618 Schließung = $1.015
-   liegt ~3 % zu hoch: das Ledger hat 515 Schließ-Orders, der Broker 473.)
+1. **Gebühren sind der größte Einzelposten — wie groß genau, ist offen.** Von −$1.198
+   seit 10.09. sind ~$397 gesicherte **Kaufgebühren**; Kursverlust realisiert −$249.
+   Die übrigen **~$588** passen zu „Gebühr auch auf jede Schließung“ (Modell trifft das
+   Residuum auf 1,5 %), aber zwei Befunde widersprechen: teilverkaufte Positionen zeigen
+   nur die Kaufgebühr, und SPY kostete $0,30 statt $1. Alternative: Währungsumrechnung
+   bei Nicht-USD-Titeln. **Messung läuft** (`workspace/fee_probe.py`).
 2. **Kein Signaltyp hat nach Kosten einen positiven Erwartungswert** — weder in
    Broker-Wahrheit noch in den Forward-Returns. Auch CORE_SWEEP nicht.
 3. **Das Edge-Gate (live seit 09.10.) arbeitet richtig**: es blockt die negativen
@@ -36,7 +38,8 @@ Epoche: Konto-Neustart am **10.09. 19:31 mit $10.000 und 0 Positionen**.
 | Flat-Fee nur auf Käufe | 314 | $395 (40 %) |
 | **Flat-Fee auf jede Order** (Kauf, Schließung, Teilschließung) | 787 | **$997 (101,5 %)** |
 
-→ eToro bucht $1 (Standard) bzw. $2 (.ASX/.HK/.T/.AX/.AE) **auf jede Order**.
+→ Hypothese: Fee auf jede Order. **Nicht bewiesen** — Teilverkaufte Positionen zeigen nur die
+Kaufgebühr, SPY $0,30. Alternative für den Rest: Währungsumrechnung. Messung läuft.
 Median-Einsatz je geschlossener Position: **$55** → 4–7 % Kosten je Runde.
 Ø 2,65 Orders je Trade; 184 Teilschließungen mit Ø-Tranche **$38**.
 
@@ -99,7 +102,7 @@ Rechnung Index-Kern $6.000: +$420–600/Jahr bei 7–10 % Drift; Rückweg auf $1
 
 | Commit | Inhalt | Wirkung |
 |---|---|---|
-| `cb9b582` + Folgecommit | `partial_close.min_tranche_usd`, Filter in der Entscheidungsstufe `evaluate_trailing` (vor dem KI-Profit-Advisor-LLM-Call) | Default 0 = aus; bei $100: alle 184 Teilverkäufe seit Epoch unterdrückt, ~$214 gespart |
+| `cb9b582` + Folgecommit | `partial_close.min_tranche_usd`, Filter in der Entscheidungsstufe `evaluate_trailing` (vor dem KI-Profit-Advisor-LLM-Call) | Default 0 = aus; bei $100: alle 184 Teilverkäufe seit Epoch unterdrückt — spart ~$214 NUR falls Schließungen Gebühren kosten (offen) |
 | `b114b9c` | SELL-Kostenvorzeichen in `signal_hygiene` | SELL-Typen korrekt negativ; Edge-Gate (nur BUY) unverändert |
 | `f929fdb` | Rekonziliationsbericht: Kaufgebühren-Zeile + Schätzung Schließgebühren | Tagesbericht geht auf; Residuum erklärt |
 | (Cron) | Risk Worker wieder aktiv (VoLLi, 16.10.) | erster Lauf: 1 Order, KO +4,9 % voll geschlossen |

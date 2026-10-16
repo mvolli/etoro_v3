@@ -373,13 +373,15 @@ bleibt sie 0.0 — und 0.0 ist nicht > 0, ein Fehler führt also nie zu einer
 Freigabe. Belege: `workspace/references/ratschen-mass-2026-09-12.md`,
 Regression `tests/unit/test_ratsche_beide_masse.py`.
 
-**Gebühren-Wahrheit (Broker-Abgleich 2026-10-16):** eToro bucht die Flat-Fee
-($1, $2 an .ASX/.HK/.T/.AX/.AE) auf JEDE Order — Kauf, Schließung,
-Teilschließung. Broker-`netProfit` enthält sie nicht, das History-Feld `fees`
-ist leer. Seit Epoch 10.09. ~85 % des Kontoverlusts. P&L-Aussagen pro Familie
-nur gegen Broker-`netProfit` minus Fee je Order, nie gegen Ledger allein
-(Ledger hatte CORE_SWEEP +$192, Broker −$412). Teilschließungen unter
-`partial_close.min_tranche_usd` werden unterdrückt (Default 0 = aus).
+**Gebühren (Stand 2026-10-16, teils HYPOTHESE):** Gesichert: eToro bucht beim
+Kauf eine Fee (`totalExternalFees`, meist $1, $2 an .ASX/.HK/.T/.AX/.AE, SPY
+$0,30). Broker-`netProfit` enthält sie nicht, das History-Feld `fees` ist leer.
+OFFEN: ob auch Schließungen/Teilschließungen kosten — oder ob der Rest des
+Residuums (~$588 seit 10.09.) aus Währungsumrechnung o. ä. stammt. Messung
+läuft (`workspace/fee_probe.py`, Cash-Delta je Ereignis). Bis dahin nicht als
+Tatsache verwenden. P&L je Familie nur gegen Broker-`netProfit`, nie gegen
+Ledger allein (Ledger hatte CORE_SWEEP +$192, Broker brutto −$118).
+`partial_close.min_tranche_usd` (Default 0 = aus) bleibt 0 bis zur Klärung.
 Beleg: `docs/ANALYSE-gewinnzone-2026-10-16.md`.
 
 **Interpreter-Regel:** die Suite IMMER mit `/usr/bin/python3` (System-Python,

@@ -80,9 +80,9 @@ def _bericht(db, since: str | None = None) -> dict:
     # Schaetzung fuer die Schliessungen, damit das Residuum lesbar wird.
     cf = _close_fee_estimate(db, since)
     if cf["orders"] and r["residual_usd"] is not None:
-        print(f"    davon Schliessgebuehren ({cf['orders']:>4} Orders, Ledger-Schaetzung) "
+        print(f"    falls Schliessgebuehr ({cf['orders']:>4} Orders, HYPOTHESE)    "
               f"${-cf['fee_usd']:>+12,.2f}")
-        print(f"    Rest (Spread, Slippage, FX, Unklares)    "
+        print(f"    Rest bei dieser Hypothese                "
               f"${r['residual_usd'] + cf['fee_usd']:>+12,.2f}")
 
     fills = _fill_count(db, since)
@@ -102,8 +102,8 @@ def _bericht(db, since: str | None = None) -> dict:
 
     print("\n  Das Residuum ist alles, was kein Trade-Datensatz erklaert. Kauf-")
     print("  gebuehren stehen in trade_events.fee_usd; Schliessgebuehren sind")
-    print("  oben nur geschaetzt (Flat $1 / $2 je Order, nicht abgerechnet; das Ledger")
-    print("  zaehlt Schliessungen doppelt -> Schaetzung eher ~9 % zu hoch).")
+    print("  oben nur HYPOTHESE (Flat $1 / $2 je Schliess-Order) — offen, ob")
+    print("  Schliessungen kosten oder der Rest aus Waehrungsumrechnung stammt.")
     return r
 
 
