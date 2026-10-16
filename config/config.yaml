@@ -687,10 +687,11 @@ execution:
 # limit, 15 % CRITICAL; Analyse docs/ANALYSE-gewinnzone-2026-10-16.md).
 # ALLE Werte geldwirksam -> nur VoLLi. Nicht in BIBLE_HARD_LIMITS (LLM-sicher).
 core_index:
-  mode: "off"          # "off" | "shadow" (plant + loggt, kein Trade) | "live" — Anfuehrungszeichen noetig (YAML: off = false)
-  symbol: ""           # USD-gelistetes Breit-ETF, z. B. ACWI (4002) / VTI (4237) — nicht SPY (CORE_SWEEP)
-  instrument_id: 0
-  target_pct: 0.0      # Zielgroesse in % Equity
+  mode: "live"         # "off" | "shadow" (plant + loggt, kein Trade) | "live" — Anfuehrungszeichen noetig (YAML: off = false)
+                       # VoLLi 2026-10-16: live mit ACWI, Ziel 30 %, SL 25 % (4002 per API geprueft: ACWI, handelbar)
+  symbol: "ACWI"       # USD-gelistetes Breit-ETF, z. B. ACWI (4002) / VTI (4237) — nicht SPY (CORE_SWEEP)
+  instrument_id: 4002
+  target_pct: 30.0     # Zielgroesse in % Equity
   band_pct: 2.0        # Nachkauf erst bei Luecke > band_pct der Equity
   sl_pct: 25.0         # Broker-Stop beim Kauf (Broker erlaubt 0-100 %, Bot-Gate < 50 %)
   min_order_usd: 200.0

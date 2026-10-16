@@ -229,7 +229,10 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   gilt in allen Regimen, nie unter $200. Plan/Rückweg:
   `docs/PLAN-marktregime-limits-2026-10-16.md`.
 - **Index-Kern (`CORE_INDEX`, seit 2026-10-16) ist für JEDEN Ausstiegspfad tabu.**
-  `bot/core/core_index.py`, Config `core_index` (Default `mode: "off"`).
+  `bot/core/core_index.py`, Config `core_index` (Code-Default `mode: "off"`;
+  LIVE seit 2026-10-16, VoLLi: ACWI/4002, Ziel 30 % Equity, SL 25 %, eine
+  Tranche/Tag ≤ `max_trade_pct`). Vom Edge-Gate UND vom Pre-Trade-Veto
+  ausgenommen (wie CORE_SWEEP).
   Kern-Positionen werden in `risk_worker._exclude_core_positions` vor allen
   Exit-Schritten herausgefiltert; `client.close_position` verweigert sie als
   Sicherheitsnetz (Rückgabe `{}`), bewusster Verkauf nur mit `allow_core=True`.
@@ -238,6 +241,9 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   als Handels-Exposure (Exposure, Positionszahl, Diversität, Sweep-Headroom),
   aber in Equity/Regime/Verlustlimits. Alle `core_index`-Werte sind
   geldwirksam (VoLLi) und NICHT in `BIBLE_HARD_LIMITS`.
+- **Pre-Trade-Veto REDUCE unter $200 ⇒ Veto** (VoLLi 2026-10-16,
+  `trade_veto_worker._reduce_floor` = `signal_floor_usd`). Der $200-Floor in
+  `execution_worker` b4 darf eine LLM-Verkleinerung nie wieder hochrunden.
 - **Edge-Gate (`bot/core/edge_gate.py`, LIVE seit 2026-10-09) prüft ZWEIMAL.**
   Vorfilter in `signal_worker._filter_eligible` (seit 2026-10-16): geblockter Typ
   ⇒ Signal REJECTED, kein Trade, kein Veto-LLM, kein Block-Embed (Skip-Key

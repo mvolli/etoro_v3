@@ -140,3 +140,19 @@ def test_kaputte_signals_tabelle_kippt_die_ablehnung_nicht(db):
     out = _apply_decision(db, _trade(db), {"decision": "VETO", "reason": "x"}, 50.0)
     assert out == "VETO"
     assert db.fetchone("SELECT status FROM trades WHERE id=1")["status"] == "REJECTED"
+
+
+# ── VoLLi 2026-10-16: REDUCE unter $200 ist ein Veto ─────────────────────────
+
+def test_reduce_floor_ist_der_200_dollar_floor():
+    from bot.workers.trade_veto_worker import _reduce_floor
+    assert _reduce_floor({"trading": {"min_buy_usd": 50.0}}) == 200.0
+    assert _reduce_floor({}) == 200.0
+
+
+def test_reduce_auf_61_dollar_wird_veto(db):
+    """Der Fall vom 16.10.: $121 -> 50 % = $61 wurde in b4 auf $200 hochgerundet."""
+    from bot.workers.trade_veto_worker import _reduce_floor
+    out = _apply_decision(db, _trade(db), {"decision": "REDUCE", "reduce_to_pct": 50},
+                          _reduce_floor({}))
+    assert out == "VETO"

@@ -9,7 +9,7 @@ News-Flags und den Outcomes seiner letzten Vetos vor.
 
 ASYMMETRISCHE RECHTE (Kern-Designprinzip):
   APPROVE  → nichts tun (Default)
-  REDUCE   → amount_usd auf 25–75% verkleinern (unter min_buy → VETO)
+  REDUCE   → amount_usd auf 25–75% verkleinern (unter $200-Floor → VETO)
   VETO     → Trade REJECTED mit Grund
 Das LLM kann NIE vergroessern oder Trades hinzufuegen. Ein halluziniertes
 Veto kostet eine Gelegenheit — ein halluzinierter Boost wuerde Geld kosten.
@@ -200,6 +200,22 @@ def _signal_rejected(db, trade: dict) -> None:
                      WORKER_NAME, exc_info=True)
 
 
+def _reduce_floor(cfg: dict) -> float:
+    """Untergrenze fuer REDUCE; darunter wird der Trade zum Veto.
+
+    VoLLi 2026-10-16: REDUCE unter die Eroeffnungs-Mindestgroesse ($200,
+    signal_floor_usd) ist ein Veto. Vorher galt trading.min_buy_usd ($50),
+    und execution_worker b4 rundete einen auf $61 verkleinerten Trade wieder
+    auf $200 hoch — die LLM-Verkleinerung war still wirkungslos.
+    """
+    floor = float((cfg.get("trading", {}) or {}).get("min_buy_usd", MIN_BUY_FALLBACK))
+    try:
+        from bot.core.regime import get_regime_params
+        return max(floor, float(get_regime_params("NORMAL").get("signal_floor_usd", 200.0)))
+    except Exception:  # noqa: BLE001
+        return max(floor, 200.0)
+
+
 def _apply_decision(db, trade: dict, decision: dict, min_buy: float) -> str:
     """Wendet eine validierte LLM-Entscheidung race-safe an.
     Rueckgabe: 'VETO' | 'REDUCE' | 'APPROVE' | 'NOOP' (Race verloren/ungueltig)."""
@@ -294,7 +310,7 @@ def main() -> int:
             cfg = yaml.safe_load((PROJECT_ROOT / "config" / "config.yaml").read_text()) or {}
         except Exception:
             pass
-        min_buy = float(cfg.get("trading", {}).get("min_buy_usd", MIN_BUY_FALLBACK))
+        min_buy = _reduce_floor(cfg)
 
         db = DB(db_path=PROJECT_ROOT / "data" / "trading.db")
         try:
@@ -313,7 +329,7 @@ def main() -> int:
             LEFT JOIN signals s ON s.id = t.signal_id
             LEFT JOIN instruments i ON i.instrument_id = t.instrument_id
             WHERE t.status = 'APPROVED'
-              AND s.signal_type != 'CORE_SWEEP'
+              AND s.signal_type NOT IN ('CORE_SWEEP', 'CORE_INDEX')
               AND (t.order_id IS NULL OR t.order_id = '')
         """)]
         if not trades:
