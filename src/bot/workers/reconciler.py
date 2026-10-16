@@ -628,6 +628,19 @@ def main() -> int:
             logger.critical(f"[{WORKER_NAME}] FATAL: Cannot load config: {exc}")
             return 1
     
+        # fix/regime-config-reconciler (2026-10-16): der Reconciler ruft
+        # update_regime() auf, muess aber wie der risk_worker ZUERST die
+        # Regime-Schwellen aus config.yaml laden (feat/market-regime
+        # e89f02c: source=market, Konto 20/30/40). Ohne apply_config lief
+        # der Reconciler auf den Code-Defaults (8% DEFENSIVE) und schrieb
+        # CURRENT_REGIME=DEFENSIVE, waehrend der risk_worker (30%)
+        # NORMAL schrieb -> 5-min-Whipsaw am selben Equity-Punkt.
+        try:
+            from bot.core.regime import apply_config as _apply_regime_config
+            _apply_regime_config(cfg)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(f"[{WORKER_NAME}] Regime-Config-Load fehlgeschlagen: {exc}")
+
         # ── 2. Initialise DB ───────────────────────────────────────────────────────
         db_cfg = cfg.get("db", {})
         db_path = PROJECT_ROOT / db_cfg.get("path", "data/trading.db")
