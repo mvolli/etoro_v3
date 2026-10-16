@@ -220,6 +220,14 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   Timeout, obwohl der Close real ist. Unverifiziert ⇒ PENDING verbuchen, NICHT
   als Fehler (sonst Retry-Schleife: 165 s Blockade je 5-min-Lauf, belegt am
   2026-08-12 mit 2883.HK bei geschlossener HK-Börse).
+- **Regime = strengeres aus Markt (SPY) und Konto-Bremse (seit 2026-10-16).**
+  `regime.source: market`. Markt: SMA200 + Abstand vom 52W-Hoch (10/15/25 %),
+  Konto: Drawdown vom 30-Tage-Hoch (20/30/40 %). Getrennte Zustände
+  `MARKET_REGIME`/`ACCOUNT_REGIME`, ein Codepfad `regime.update_regime`. SPY-Daten
+  > 4 Tage alt ⇒ mindestens CAUTION. Austritt < Eintritt wird erzwungen. Gewinn-
+  leiter und Sweep-Regeln hängen NICHT am Regime (eigene Schalter). `max_trade_pct`
+  gilt in allen Regimen, nie unter $200. Plan/Rückweg:
+  `docs/PLAN-marktregime-limits-2026-10-16.md`.
 - **Index-Kern (`CORE_INDEX`, seit 2026-10-16) ist für JEDEN Ausstiegspfad tabu.**
   `bot/core/core_index.py`, Config `core_index` (Default `mode: "off"`).
   Kern-Positionen werden in `risk_worker._exclude_core_positions` vor allen

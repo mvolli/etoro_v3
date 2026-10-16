@@ -1,6 +1,22 @@
 # Plan: Marktregime, Verlust-Stufen, $200-Mindestgröße (2026-10-16)
 
-Status: **PLAN — nichts umgesetzt.** Alle Punkte sind geldwirksam, Entscheidung VoLLi.
+Status: **UMGESETZT 2026-10-16, live seit 12:52** (VoLLi: ohne Schattenphase, alles live).
+Commits: `38dbdde` (Limits + LLM-Leitplanken), `e59ca1d` (Entkopplung, Sweep fix $200),
+`e89f02c` (Marktregime, Konto-Stufen, max_trade in allen Regimen). Erster Live-Lauf
+12:57: Markt NORMAL (SPY +7,0 % vs SMA200, 0,9 % unter Hoch), Konto NORMAL (DD 10 %),
+Regime NORMAL, Größenfaktor 1,0.
+
+Abweichungen vom Plan (VoLLi-Entscheide 16.10.): Monats-Kill-Switch **45 %** (nicht 20),
+Woche 15 %, LLM darf weiter nachjustieren (Grenzen + Schrittweite + Discord-Meldung statt
+Herausnahme), Teilverkäufe unter $200 erlaubt (keine Rest-Untergrenze), CORE_SWEEP fix $200,
+Gewinnleiter per Schalter aus (`trailing.profit_ladder.enabled: false`).
+
+**Rückweg:** `regime.source: "account"`, Konto-Stufen 3/8/15, Austritte 3,5/7/13,
+BIBLE regime (1,8)/(3,15)/(8,25), Klammer + Guard wieder nur DEFENSIVE (Commit e89f02c).
+
+---
+
+Ursprünglicher Plan (zur Nachvollziehbarkeit):
 Grundlage: VoLLi 16.10. „leite das Regime vom Markt ab; Monatslimit NORMAL < 20 %,
 CAUTION bis 30 %, CRITICAL über 40 %; CAUTION-Schwellen bereinigen; DEFENSIVE-Conviction
 prüfen; $200 je Trade immer anstreben, keine Position darunter schrumpfen; max-trade-size
