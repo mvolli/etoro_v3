@@ -220,6 +220,16 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   Timeout, obwohl der Close real ist. Unverifiziert ⇒ PENDING verbuchen, NICHT
   als Fehler (sonst Retry-Schleife: 165 s Blockade je 5-min-Lauf, belegt am
   2026-08-12 mit 2883.HK bei geschlossener HK-Börse).
+- **Index-Kern (`CORE_INDEX`, seit 2026-10-16) ist für JEDEN Ausstiegspfad tabu.**
+  `bot/core/core_index.py`, Config `core_index` (Default `mode: "off"`).
+  Kern-Positionen werden in `risk_worker._exclude_core_positions` vor allen
+  Exit-Schritten herausgefiltert; `client.close_position` verweigert sie als
+  Sicherheitsnetz (Rückgabe `{}`), bewusster Verkauf nur mit `allow_core=True`.
+  Ein NEUER Pfad, der Positionen schließt, nimmt seine Positionen aus der
+  gefilterten Liste oder prüft `core_index.is_core_position`. Kern zählt nicht
+  als Handels-Exposure (Exposure, Positionszahl, Diversität, Sweep-Headroom),
+  aber in Equity/Regime/Verlustlimits. Alle `core_index`-Werte sind
+  geldwirksam (VoLLi) und NICHT in `BIBLE_HARD_LIMITS`.
 
 ## Portfolio-Grenzen (Stand 2026-08-12)
 
