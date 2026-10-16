@@ -547,6 +547,22 @@ def _get_portfolio_symbols(db: DB) -> list[dict]:
         return []
 
 
+def _with_benchmark(items: list[dict]) -> list[dict]:
+    """feat/market-regime (2026-10-16): Benchmark (SPY) IMMER mitladen.
+
+    Das Marktregime (regime.update_regime) braucht frische SPY-Tageskurse in
+    ohlcv_daily. Bisher kam SPY nur, solange der Bot es hielt (Tier 1 =
+    Portfolio). Ohne SPY sind die Daten nach 4 Tagen veraltet und das Regime
+    bleibt auf mindestens CAUTION stehen.
+    """
+    from bot.core.regime import MARKET_INSTRUMENT_ID
+    if any(it.get("instrument_id") == MARKET_INSTRUMENT_ID or it.get("yf_symbol") == "SPY"
+           for it in items):
+        return items
+    return list(items) + [{"symbol": "SPY", "yf_symbol": "SPY",
+                           "instrument_id": MARKET_INSTRUMENT_ID}]
+
+
 def _get_watchlist_from_db(db: DB) -> list[dict]:
     """Load watchlist instruments from DB with category and yfinance_symbol.
 
@@ -717,7 +733,7 @@ def run(project_root: Path | None = None) -> dict:
     # 2. Determine symbol lists -----------------------------------------------
 
     # Tier 1: always fetch (need fresh prices for SL checks)
-    tier1_items: list[dict] = _get_portfolio_symbols(db)
+    tier1_items: list[dict] = _with_benchmark(_get_portfolio_symbols(db))
     logger.info("[%s] Tier 1 (portfolio): %d symbols", WORKER_NAME, len(tier1_items))
 
     # Tier 2: watchlist from DB — market-aware filtering

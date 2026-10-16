@@ -243,3 +243,21 @@ def test_defensive_text_folgt_config(monkeypatch):
     msg = check_regime_gate("DEFENSIVE").reasons[0]
     assert "MEDIUM" in msg and "HIGH+" not in msg
     assert "HIGH+" not in rg.get_regime_params("DEFENSIVE")["description"]
+
+
+# ── Datenkontinuitaet: SPY immer laden ───────────────────────────────────────
+def test_benchmark_wird_ergaenzt_wenn_nicht_gehalten():
+    from bot.workers.data_worker import _with_benchmark
+    out = _with_benchmark([{"symbol": "KO", "yf_symbol": "KO", "instrument_id": 1024}])
+    assert any(it["instrument_id"] == 3000 and it["yf_symbol"] == "SPY" for it in out)
+
+
+def test_benchmark_nicht_doppelt():
+    from bot.workers.data_worker import _with_benchmark
+    items = [{"symbol": "SPY", "yf_symbol": "SPY", "instrument_id": 3000}]
+    assert _with_benchmark(items) == items
+
+
+def test_data_worker_nutzt_benchmark_in_tier1():
+    src = (REPO / "src/bot/workers/data_worker.py").read_text(encoding="utf-8")
+    assert "tier1_items: list[dict] = _with_benchmark(_get_portfolio_symbols(db))" in src
