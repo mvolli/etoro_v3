@@ -1205,11 +1205,41 @@ class EToroClient:
             logger.warning("get_position_units(%s) fehlgeschlagen: %s", position_id, exc)
         return None
 
+    @staticmethod
+    def _is_core_index_position(position_id: str | int) -> bool:
+        """feat/core-index (2026-10-16): Sicherheitsnetz fuer close_position.
+
+        True, wenn die Position zum Index-Kern gehoert (Trade mit Signal
+        CORE_INDEX). Liest direkt aus data/trading.db (wie der Preis-Fallback
+        in open_position). Fail-OPEN bei DB-Fehler: ein kaputter Lookup darf
+        nie eine Stop-Loss-Schliessung blockieren.
+        """
+        import sqlite3
+        from pathlib import Path
+        db_path = Path(__file__).resolve().parent.parent.parent.parent / "data" / "trading.db"
+        conn = None
+        try:
+            conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5)
+            row = conn.execute(
+                "SELECT 1 FROM trades t JOIN signals s ON s.id = t.signal_id "
+                "WHERE s.signal_type = 'CORE_INDEX' AND t.api_position_id = ? "
+                "AND t.status NOT IN ('CLOSED','FAILED','REJECTED','CANCELLED') LIMIT 1",
+                (str(position_id),),
+            ).fetchone()
+            return row is not None
+        except Exception as exc:
+            logger.error("close_position: Core-Index-Pruefung fehlgeschlagen (erlaube Close): %s", exc)
+            return False
+        finally:
+            if conn is not None:
+                conn.close()
+
     def close_position(
         self,
         position_id: str | int,
         instrument_id: int,
         units_to_deduct: float | None = None,
+        allow_core: bool = False,
     ) -> dict:
         """Close an existing open position, fully or partially.
 
@@ -1246,6 +1276,16 @@ class EToroClient:
         this patch. Before relying on this for real partial closes, run
         one small test against the Demo trading environment.
         """
+        # feat/core-index (2026-10-16): Index-Kern-Positionen werden von keinem
+        # Ausstiegspfad geschlossen (risk_worker filtert sie vorher heraus).
+        # Greift ein Pfad trotzdem zu, wird hier verweigert. Rueckgabe {} —
+        # alle Aufrufer werten ein leeres Ergebnis als Fehlschlag und buchen
+        # nichts. Ein bewusster Kern-Verkauf uebergibt allow_core=True.
+        if not allow_core and self._is_core_index_position(position_id):
+            logger.warning(
+                "close_position VERWEIGERT: Position %s gehoert zum Index-Kern "
+                "(CORE_INDEX) — kein Ausstiegspfad darf sie schliessen", position_id)
+            return {}
         endpoint = (
             f"/trading/execution/market-close-orders/positions/{position_id}"
         )

@@ -50,7 +50,12 @@ LIVE_MODE = True
 # LCB −0.0014 (knapp negativ), ist aber der einzige klar positive Pfad
 # (+$192, WR 47 %). Die D4-Schutzregeln (0.25x, Cap 3, DD>150/WR<30%)
 # ersetzen die Gate-Blockade fuer diesen Typ.
-GATE_EXEMPT_TYPES = frozenset({"CORE_SWEEP"})
+# (Korrektur 2026-10-16: "+$192" war Ledger; Broker brutto −$118 seit 10.09.,
+#  siehe docs/ANALYSE-gewinnzone-2026-10-16.md. Ausnahme bleibt VoLLi-Entscheid.)
+# feat/core-index (2026-10-16): CORE_INDEX ist kein Signal-Trade, sondern ein
+# Marktexposure-Kern (VoLLi-Entscheid 16.10.). Ein 5-Tage-Forward-Edge ist dafuer
+# das falsche Mass; seine Schutzregeln liegen in core_index.plan_tranche.
+GATE_EXEMPT_TYPES = frozenset({"CORE_SWEEP", "CORE_INDEX"})
 
 
 def _components(signal_type: str) -> set[str]:

@@ -232,6 +232,28 @@ def _post_sl_close_embed(db, client, pos: dict, symbol: str, position_id,
         logger.debug("Discord %s failed: %s", what, _emb_exc)
 
 
+def _exclude_core_positions(db, raw_positions: list[dict]) -> list[dict]:
+    """feat/core-index (2026-10-16): Index-Kern-Positionen laufen durch KEINEN
+    Ausstiegspfad (SL-Checks inkl. Emergency-SL, Konzentration, Trailing/
+    Leiter, Exit-Monitor, SELL-Exits, Earnings-Exit). Schutz nach unten ist der
+    weite Broker-Stop. Equity/Regime/Verlustlimits rechnen weiter mit dem
+    Gesamtportfolio, nicht mit dieser Liste. Fehler -> Liste unveraendert
+    (dann greift das Sicherheitsnetz in client.close_position).
+    """
+    try:
+        from bot.core import core_index as _ci
+        _core_ids = _ci.core_position_ids(db)
+        if not _core_ids:
+            return raw_positions
+        kept = _ci.exclude_core(raw_positions, _core_ids)
+        logger.info("RiskWorker: %d Index-Kern-Position(en) von Ausstiegspfaden ausgenommen",
+                    len(raw_positions) - len(kept))
+        return kept
+    except Exception as _ci_exc:
+        logger.warning("RiskWorker: Core-Index-Filter fehlgeschlagen: %s", _ci_exc)
+        return raw_positions
+
+
 def _run_sl_checks(db, client, state_repo, log_repo, raw_positions: list[dict]
                    ) -> tuple[int, int, int, list[dict]]:
     """Schritt 3: Stop-Loss je Position (evaluate_sl), CLOSE inkl.
@@ -1325,7 +1347,10 @@ def main() -> None:
             or portfolio.get("positions")   # fallback if already unwrapped
             or []
         )
-    
+        # feat/core-index (2026-10-16): Kern-Positionen vor ALLEN Ausstiegs-
+        # schritten herausnehmen (s. _exclude_core_positions).
+        raw_positions = _exclude_core_positions(db, raw_positions)
+
         # ── 3. Evaluate stop-loss for each position ────────────────────────────────
         # hotfix/risk-worker-position-id: the /trading/info/real/pnl payload
         # uses capital-ID field names (positionID, instrumentID) — the old

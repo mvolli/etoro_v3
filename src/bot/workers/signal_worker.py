@@ -341,6 +341,9 @@ SIGNAL_CATEGORY: dict[str, str] = {
     # fix/diversity-mixed-cap (2026-08-28): CORE_SWEEP fehlte, das Gate lief
     # dafuer fail-open und schrieb in JEDEM Lauf eine Warnung.
     "CORE_SWEEP":              "CORE",
+    # feat/core-index (2026-10-16): eigener Typ, aus der Diversitaets-Zaehlung
+    # ausgenommen (_open_signal_categories), hier nur gegen die Fail-open-Warnung.
+    "CORE_INDEX":              "CORE_INDEX",
 }
 MAX_CATEGORY_FRACTION = 0.45
 
@@ -1064,6 +1067,7 @@ def _open_signal_categories(db) -> dict[str, int]:
             FROM portfolio_snapshot ps
             JOIN trades t ON t.instrument_id = ps.instrument_id AND t.status = 'ACTIVE'
             JOIN signals sig ON sig.id = t.signal_id
+            WHERE sig.signal_type != 'CORE_INDEX'
             GROUP BY sig.signal_type
         """)
         for _r in _cat_rows:
@@ -1776,6 +1780,68 @@ def _core_sweep_portfolio_gate(
         return False, amount, f"Portfolio-Gate-Fehler (fail-closed): {_exc}"
 
 
+def _run_core_index(
+    *, cfg: dict, db, trade_repo, signal_repo, log_repo, portfolio_repo,
+    equity: float, regime: str, regime_params: dict, cash_estimate: float,
+    core_ids: set, approved_count: int,
+) -> tuple[int, float]:
+    """feat/core-index (2026-10-16): Index-Kern-Tranche planen und (live) anlegen.
+
+    Gleiche Bahn wie der Core-Sweep: synthetisches Signal CORE_INDEX (CONSUMED)
+    -> Trade APPROVED -> execution_worker (erbt SL-Clamp, Market-Open-Guard,
+    Ghost-Order-Pipeline). Die Tranche liegt nie ueber max_trade_pct des
+    Regimes, daher passt sie durch den DEFENSIVE-Groessencheck der Execution.
+    mode=shadow loggt nur. Fail-open: ein Fehler darf den Signallauf nie kippen.
+    Rueckgabe: (approved_count, cash_estimate).
+    """
+    try:
+        from bot.core import core_index as _ci
+        ci_cfg = _ci.load_config(cfg)
+        if ci_cfg["mode"] == "off":
+            return approved_count, cash_estimate
+        core_usd, _ = _ci.core_exposure(portfolio_repo.get_all(), core_ids)
+        plan = _ci.plan_tranche(
+            cfg=ci_cfg, equity=equity, cash=cash_estimate, core_usd=core_usd,
+            regime=regime,
+            regime_max_trade_pct=float((regime_params or {}).get("max_trade_pct", 0.0)),
+            pending_core_trade=_ci.pending_core_trade(db),
+            bought_today=_ci.bought_today(db),
+        )
+        logger.info("SignalWorker: Core-Index [%s] %s — %s",
+                    ci_cfg["mode"], ci_cfg["symbol"], plan.reason)
+        if plan.amount_usd is None:
+            return approved_count, cash_estimate
+        if ci_cfg["mode"] != "live":
+            log_repo.write("INFO", "signal_worker",
+                           f"Core-Index SHADOW: {ci_cfg['symbol']} BUY ${plan.amount_usd:.2f} "
+                           f"— {plan.reason} (kein Trade angelegt)")
+            return approved_count, cash_estimate
+        iid = int(ci_cfg["instrument_id"])
+        sig_id = signal_repo.create(
+            instrument_id=iid, signal_type=_ci.SIGNAL_TYPE, conviction="MEDIUM",
+            score=0.0, rsi=None, ttl_minutes=5,
+        )
+        signal_repo.update_signal_status(sig_id, "CONSUMED")
+        tid = trade_repo.create(
+            instrument_id=iid, symbol=str(ci_cfg["symbol"]), direction="BUY",
+            amount_usd=plan.amount_usd, stop_loss_pct=float(ci_cfg["sl_pct"]),
+            signal_id=sig_id, signal_price=None,
+        )
+        from datetime import datetime as _cidt, timezone as _citz
+        trade_repo.update_status(
+            tid, "APPROVED",
+            approved_at=_cidt.now(_citz.utc).strftime("%Y-%m-%d %H:%M:%S"))
+        logger.info("SignalWorker: CORE-INDEX APPROVED #%d — %s $%.2f (SL %.1f%%)",
+                    tid, ci_cfg["symbol"], plan.amount_usd, float(ci_cfg["sl_pct"]))
+        log_repo.write("INFO", "signal_worker",
+                       f"Core-Index APPROVED: {ci_cfg['symbol']} BUY ${plan.amount_usd:.2f} "
+                       f"— {plan.reason}")
+        return approved_count + 1, cash_estimate - plan.amount_usd
+    except Exception as exc:  # noqa: BLE001 — fail-open
+        logger.warning("SignalWorker: Core-Index-Schritt fehlgeschlagen (uebersprungen): %s", exc)
+        return approved_count, cash_estimate
+
+
 def _run_core_sweep(
     *, cfg: dict, db, trade_repo, signal_repo, log_repo,
     equity: float, regime: str, regime_params: dict,
@@ -2294,6 +2360,21 @@ def main() -> None:
             cash_estimate = max(0.0, equity - total_exposure)
             logger.info("SignalWorker: AVAILABLE_CASH nicht gesetzt — nutze Schätzung equity−exposure")
 
+        # feat/core-index (2026-10-16): der Index-Kern ist kein Handels-Exposure.
+        # Er zaehlt nicht gegen Exposure-Cap, Positionszahl, Diversitaet und die
+        # Core-Sweep-Headroom — sonst wuerde ein grosser Kern jeden Signal-Kauf
+        # blockieren. Bewusst NACH der Cash-Schaetzung (das Geld ist real weg).
+        _core_ids: set[str] = set()
+        try:
+            from bot.core import core_index as _ci
+            _core_ids = _ci.core_position_ids(db)
+            if _core_ids:
+                _c_usd, _c_n = _ci.core_exposure(portfolio_repo.get_all(), _core_ids)
+                total_exposure = max(0.0, total_exposure - _c_usd)
+                position_count = max(0, position_count - _c_n)
+        except Exception as _ci_exc:
+            logger.debug("SignalWorker: Core-Index-Ausschluss fehlgeschlagen: %s", _ci_exc)
+
         # ── fix/autonomy-hardening: daily trade-count brake ───────────────────────
         # Hard ceiling on new trades per UTC day. Protects against signal
         # storms (e.g. a market-wide selloff generating 'oversold' BUYs on
@@ -2387,6 +2468,9 @@ def main() -> None:
     
         # Fetch open positions once for asset-class gate (list of {symbol, amount_usd})
         open_positions_raw = portfolio_repo.get_all()
+        if _core_ids:  # feat/core-index: Kern nicht in Asset-/Sektor-/Sweep-Gates
+            from bot.core import core_index as _ci
+            open_positions_raw = _ci.exclude_core(open_positions_raw, _core_ids)
         open_positions = [
             {"symbol": p.get("symbol", ""), "amount_usd": float(p.get("amount_usd") or 0.0)}
             for p in open_positions_raw
@@ -3194,6 +3278,14 @@ def main() -> None:
             approved_count=approved_count, cash_estimate=cash_estimate,
             total_exposure=total_exposure, position_count=position_count,
             sector_by_symbol=_sector_map, region_by_symbol=_region_by_symbol,
+        )
+
+        # ── 5c. Core-Index (feat/core-index, 2026-10-16): Default mode=off.
+        approved_count, cash_estimate = _run_core_index(
+            cfg=cfg, db=db, trade_repo=trade_repo, signal_repo=signal_repo,
+            log_repo=log_repo, portfolio_repo=portfolio_repo, equity=equity,
+            regime=regime, regime_params=regime_params, cash_estimate=cash_estimate,
+            core_ids=_core_ids, approved_count=approved_count,
         )
 
         try:

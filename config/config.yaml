@@ -667,3 +667,27 @@ memory:                       # feat/qmd-memory 2026-07-22: Bot liest+schreibt d
 
 execution:
   market_closed_max_hours: 4.0  # fix/market-closed-ttl: APPROVED-Trade nach X h Marktschluss verwerfen
+
+# ── Index-Kern (feat/core-index, 2026-10-16, VoLLi-Entscheid "Bot-Index-Kern bauen") ──
+# Vom Bot verwalteter Marktexposure-Kern: Kauf-only in Tranchen (<= max_trade_pct
+# des Regimes, max. 1/Tag), von ALLEN Ausstiegspfaden ausgenommen (Schutz = weiter
+# Broker-Stop sl_pct), zaehlt nicht als Handels-Exposure. Equity/Regime/Verlust-
+# limits enthalten ihn weiter -> Groesse an den Puffern ausrichten (12 %-Monats-
+# limit, 15 % CRITICAL; Analyse docs/ANALYSE-gewinnzone-2026-10-16.md).
+# ALLE Werte geldwirksam -> nur VoLLi. Nicht in BIBLE_HARD_LIMITS (LLM-sicher).
+core_index:
+  mode: "off"          # "off" | "shadow" (plant + loggt, kein Trade) | "live" — Anfuehrungszeichen noetig (YAML: off = false)
+  symbol: ""           # USD-gelistetes Breit-ETF, z. B. ACWI (4002) / VTI (4237) — nicht SPY (CORE_SWEEP)
+  instrument_id: 0
+  target_pct: 0.0      # Zielgroesse in % Equity
+  band_pct: 2.0        # Nachkauf erst bei Luecke > band_pct der Equity
+  sl_pct: 25.0         # Broker-Stop beim Kauf (Broker erlaubt 0-100 %, Bot-Gate < 50 %)
+  min_order_usd: 200.0
+  min_cash_pct: 18.0   # Cash-Reserve nach dem Kauf
+
+# ── Teilschliessungen (feat/partial-min-tranche, 2026-10-16) ──
+# Teilverkaeufe mit Tranche < min_tranche_usd werden unterdrueckt (Position laeuft
+# bis zum vollen Exit). 0 = aus. Bleibt 0, bis fee_probe klaert, ob Schliessungen
+# ueberhaupt Gebuehren kosten. Wert geldwirksam -> VoLLi.
+partial_close:
+  min_tranche_usd: 0.0
