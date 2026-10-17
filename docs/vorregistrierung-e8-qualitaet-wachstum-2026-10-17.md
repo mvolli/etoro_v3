@@ -132,6 +132,40 @@ gemessen und im Nachtrag festgehalten.
 **Angenommen = alle Kriterien erfüllt.** Bestehen mehrere Varianten, gilt die mit
 dem höchsten t.
 
+## Nachtrag vor dem Lauf (17.10., Abdeckung geprüft, noch keine Rendite berechnet)
+
+**Abdeckung:** Gemessen wurde der Anteil der Nicht-Finanzwerte mit vollständigen
+Kennzahlen (Jahresmittel).
+
+| | 2009 | 2010 | 2011 | 2012 | 2014 | 2018 | 2022 | 2026 |
+|---|---|---|---|---|---|---|---|---|
+| alle | 14 % | 30 % | 58 % | 68 % | 69 % | 72 % | 71 % | 72 % |
+| S&P 600 | 3 % | 14 % | 50 % | 72 % | 72 % | 73 % | 71 % | 72 % |
+
+**Ursache der Lücke:** Ab 2022 hatten 14 174 Meldungen alle Kennzahlen. Bei
+5 311 fehlten Herstellkosten bzw. Bruttogewinn (Airlines, GE, Dienstleister),
+bei 375 der Umsatz-Tag (vor allem Versorger). Die Lücke ist also strukturell,
+und die Abdeckung bleibt ab 2012 bei 68–72 %.
+
+**Änderung der Startregel:** Die 70-%-Schwelle liegt mitten in diesem
+Plateau-Rauschen. Sie hätte den Start auf den 2017-08-31 gelegt, obwohl der
+XBRL-Phase-in längst abgeschlossen war (Sprung in 2011 Q3). Das verfehlt den
+Zweck der Regel, Ränge über eine reine Large-Cap-Menge zu vermeiden.
+
+- **Neue Regel:** Die Achse beginnt mit dem ersten Stichtag, an dem die Abdeckung
+  der **S&P-600-Nicht-Finanzwerte ≥ 90 % ihres eigenen Medians ab 2014** liegt.
+- Der Median beträgt 71,7 %, die Schwelle also 64,5 %.
+- Ergebnis: Start am **2011-08-31**.
+
+Die Tag-Listen bleiben unverändert.
+
+**Zusätzlicher sekundärer Vergleich:** Gegen die gleichgewichtete Rangmenge zum
+Stichtag M, also alle Titel mit vollständigen Kennzahlen, über dieselben Tage.
+Grund: Rund 30 % der Nicht-Finanzwerte (Versorger, Airlines, Dienstleister)
+können nie gewählt werden. Die primäre Zielgröße bleibt unverändert.
+
+Es gibt genau einen Lauf, nur nach dieser Regel.
+
 ## Grenzen (vorab)
 
 - **Survivorship:** Das Universum ist das von heute, ebenso die
