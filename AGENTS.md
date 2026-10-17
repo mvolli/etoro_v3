@@ -242,6 +242,9 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   als Handels-Exposure (Exposure, Positionszahl, Diversität, Sweep-Headroom),
   aber in Equity/Regime/Verlustlimits. Alle `core_index`-Werte sind
   geldwirksam (VoLLi) und NICHT in `BIBLE_HARD_LIMITS`.
+- **LLM-TIGHTEN mit Order erst ab `llm_execution.tighten_min_pnl_pct` (+3 %)**
+  Gewinn (VoLLi 2026-10-17, bis E5-Ergebnis). Darunter bleibt die Empfehlung offen
+  (Retry, solange frisch); EXIT unberührt; PnL unbekannt ⇒ fail-open.
 - **Pre-Trade-Veto REDUCE unter $200 ⇒ Veto** (VoLLi 2026-10-16,
   `trade_veto_worker._reduce_floor` = `signal_floor_usd`). Der $200-Floor in
   `execution_worker` b4 darf eine LLM-Verkleinerung nie wieder hochrunden.

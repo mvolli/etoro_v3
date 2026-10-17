@@ -485,6 +485,11 @@ sizing:                       # Position size as % of portfolio equity
   # 0 = Schrumpfung aus (altes Verhalten).
   kelly_shrink_k0: 50.0
 
+llm_execution:                # LLM-Positions-Empfehlungen (bot/core/llm_execution.py)
+  tighten_min_pnl_pct: 3.0    # VoLLi 2026-10-17: TIGHTEN mit Order erst ab +3 % Gewinn (0 = aus).
+                              # 10.09.-16.10.: 173 KI-Tighten-Ausstiege bei Ø +1,16 %, Verlierer bis SL -4 %.
+                              # Gilt bis zum E5-Ergebnis; EXIT nicht betroffen.
+
 partial_close:                # feat/partial-close-policy (2026-10-01) — Teilschliessungen
                               # Config-gated mode selector for ALL partial-close paths
                               # (trailing ladder + momentum fade, LLM EXIT/TIGHTEN, SELL-Exit).

@@ -124,6 +124,37 @@ def _append_outcome_entry(
         logger.debug("[llm_execution] Outcome-Entry fehlgeschlagen: %s", _oe)
 
 
+_TIGHTEN_MIN_CACHE: float | None = None
+
+
+def _tighten_min_pnl_pct() -> float:
+    """config.yaml llm_execution.tighten_min_pnl_pct (0 = aus). Fail-open 0."""
+    global _TIGHTEN_MIN_CACHE
+    if _TIGHTEN_MIN_CACHE is None:
+        try:
+            import yaml
+            from bot.config import _PROJECT_ROOT
+            raw = yaml.safe_load((_PROJECT_ROOT / "config" / "config.yaml").read_text()) or {}
+            _TIGHTEN_MIN_CACHE = max(0.0, float(
+                (raw.get("llm_execution") or {}).get("tighten_min_pnl_pct", 0.0) or 0.0))
+        except Exception:  # noqa: BLE001
+            _TIGHTEN_MIN_CACHE = 0.0
+    return _TIGHTEN_MIN_CACHE
+
+
+def _snapshot_pnl_pct(db, position_id) -> float | None:
+    """Unrealisierter PnL % der Position aus portfolio_snapshot (None = unbekannt)."""
+    try:
+        row = db.fetchone(
+            "SELECT unrealized_pnl_pct FROM portfolio_snapshot WHERE api_position_id = ?",
+            (str(position_id),))
+        if row and row["unrealized_pnl_pct"] is not None:
+            return float(row["unrealized_pnl_pct"])
+    except Exception:  # noqa: BLE001
+        pass
+    return None
+
+
 def execute_llm_recommendations(
     client: "EToroClient",
     db: "DB",
@@ -261,6 +292,21 @@ def execute_llm_recommendations(
                             symbol, rec_close_pct)
                 stats["skip_count"] += 1
                 continue
+
+            # feat/tighten-min-gain (VoLLi 2026-10-17): TIGHTEN mit Order erst
+            # ab llm_execution.tighten_min_pnl_pct Gewinn. Gemessen 10.09.-16.10.:
+            # 173 KI-Tighten-Ausstiege bei Ø +1,16 %, Verlierer laufen bis zum SL
+            # (-4 %) — Gewinner wurden zu frueh abgeschnitten. Unter der Schwelle
+            # bleibt die Empfehlung offen (retry, solange sie frisch ist).
+            # EXIT ist nicht betroffen; PnL unbekannt -> fail-open.
+            _min_gain = _tighten_min_pnl_pct()
+            if recommendation == "TIGHTEN" and _min_gain > 0:
+                _tg_pnl = _snapshot_pnl_pct(db, position_id)
+                if _tg_pnl is not None and _tg_pnl < _min_gain:
+                    logger.info("[llm_execution] TIGHTEN %s: PnL %+.1f%% < +%.1f%% — gehalten",
+                                symbol, _tg_pnl, _min_gain)
+                    stats["skip_count"] += 1
+                    continue
 
             # fix/llm-tighten-remaining (2026-09-05): Dieser Pfad hat die
             # 50%-Untergrenze BISHER NICHT geprueft und die Restmenge NICHT

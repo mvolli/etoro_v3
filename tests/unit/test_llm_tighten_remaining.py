@@ -214,3 +214,43 @@ def test_tighten_mit_order_wartet_bei_geschlossenem_markt(tmp_path, monkeypatch)
     assert stats["skip_count"] == 1
     recs = json.loads((tmp_path / "recs.json").read_text())
     assert not any(r.get("executed") for r in recs)
+
+
+# ── feat/tighten-min-gain (VoLLi 2026-10-17) ─────────────────────────────────
+
+class _PnlDB(_DB):
+    def __init__(self, pnl):
+        super().__init__()
+        self.pnl = pnl
+
+    def fetchone(self, sql, params=()):
+        if "unrealized_pnl_pct FROM portfolio_snapshot" in sql and "amount_usd" not in sql:
+            return {"unrealized_pnl_pct": self.pnl}
+        return None
+
+
+def _run_pnl(tmp_path, monkeypatch, pnl, recommendation="TIGHTEN", close_pct=25.0):
+    monkeypatch.setattr(LE, "_TIGHTEN_MIN_CACHE", 3.0)
+    _write_rec(tmp_path, close_pct, recommendation)
+    monkeypatch.setattr(TS, "load_position_dynamic", lambda _db, pids: {"P1": {"remaining": 1.0}})
+    monkeypatch.setattr(TS, "apply_partial_to_remaining", lambda *a, **k: None)
+    client = _Client()
+    stats = LE.execute_llm_recommendations(client, _PnlDB(pnl), {"P1"}, _Log())
+    return client, stats
+
+
+def test_tighten_unter_mindestgewinn_wird_gehalten(tmp_path, monkeypatch):
+    client, stats = _run_pnl(tmp_path, monkeypatch, pnl=1.2)
+    assert client.calls == [] and stats["skip_count"] == 1
+    recs = json.loads((tmp_path / "recs.json").read_text())
+    assert not recs[0].get("executed")             # bleibt offen fuer den Retry
+
+
+def test_tighten_ab_mindestgewinn_laeuft(tmp_path, monkeypatch):
+    client, _ = _run_pnl(tmp_path, monkeypatch, pnl=4.0)
+    assert len(client.calls) == 1
+
+
+def test_exit_ignoriert_mindestgewinn(tmp_path, monkeypatch):
+    client, _ = _run_pnl(tmp_path, monkeypatch, pnl=-2.0, recommendation="EXIT", close_pct=100.0)
+    assert len(client.calls) == 1 and client.calls[0]["full"]
