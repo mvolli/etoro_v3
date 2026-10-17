@@ -35,6 +35,7 @@ DEFAULTS: dict = {
     "reserve_pct": 18.0,            # Cash-Reserve nach dem Kauf (wie core_index.min_cash_pct)
     "exclude_suffixes": [],
     "exclude_asset_classes": [],
+    "since": None,                  # nur Trades ab diesem Datum zaehlen gegen max_open (Altbestand nicht)
 }
 OPEN_STATUSES = ("APPROVED", "SUBMITTING", "PENDING", "ACTIVE")
 
@@ -89,9 +90,14 @@ def open_count(db: Any, st_cfg: dict) -> int:
         return 0
     try:
         ph = ",".join("?" * len(OPEN_STATUSES))
-        rows = db.fetchall(
-            f"SELECT s.signal_type FROM trades t JOIN signals s ON s.id = t.signal_id "
-            f"WHERE t.status IN ({ph})", OPEN_STATUSES)
+        since = st_cfg.get("since")
+        q = (f"SELECT s.signal_type FROM trades t JOIN signals s ON s.id = t.signal_id "
+             f"WHERE t.status IN ({ph})")
+        args = list(OPEN_STATUSES)
+        if since:
+            q += " AND t.created_at >= ?"
+            args.append(str(since))
+        rows = db.fetchall(q, tuple(args))
         return sum(1 for r in rows if components(r["signal_type"]) in fams)
     except Exception as exc:  # noqa: BLE001
         logger.warning("signal_trades: open_count fehlgeschlagen (blockiert): %s", exc)

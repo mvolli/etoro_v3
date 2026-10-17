@@ -87,3 +87,17 @@ def test_edge_gate_blockt_ausgenommene_familie_nicht(monkeypatch, tmp_path):
     res = edge_gate.evaluate("TREND_PULLBACK", "NORMAL", DB(p))
     assert res["shadow"] is True and res["exempt"] is True
     assert edge_gate.blocks(res) is False
+
+
+def test_open_count_ab_startdatum(tmp_path):
+    p = tmp_path / "t.db"
+    con = sqlite3.connect(p)
+    con.executescript("""
+        CREATE TABLE signals (id INTEGER PRIMARY KEY, signal_type TEXT);
+        CREATE TABLE trades (id INTEGER PRIMARY KEY, signal_id INTEGER, status TEXT, created_at TEXT);
+        INSERT INTO signals VALUES (1,'TREND_PULLBACK');
+        INSERT INTO trades VALUES (1,1,'ACTIVE','2026-10-09 10:00:00'), (2,1,'ACTIVE','2026-10-18 10:00:00');
+    """)
+    con.commit(); con.close()
+    c = st.load_config({"trading": {"signal_trades": dict(CFG["trading"]["signal_trades"], since="2026-10-17")}})
+    assert st.open_count(DB(p), c) == 1

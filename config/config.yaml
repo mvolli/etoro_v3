@@ -191,7 +191,8 @@ trading:
       - "MACD_TURN_BELOW_SMA20"
       - "TREND_PULLBACK"
       - "TREND_PULLBACK,GOLDEN_CROSS"
-    max_open: 8                     # VoLLi: 8 gleichzeitig (Cash/Index-Kern begrenzen real auf ~5)
+    max_open: 8                     # VoLLi: 8 gleichzeitig (Cash/Index-Kern begrenzen real auf ~3)
+    since: "2026-10-17"             # nur neue Trades zaehlen (kleiner MACD-Altbestand nicht)
     cap_headroom: 0.98              # Tranche = max_trade_pct x 0,98 (NORMAL 10 % ~ $860), max 10 %
     min_usd: 200.0
     reserve_pct: 18.0               # Cash nach dem Kauf >= 18 % Equity + offene Index-Kern-Luecke
