@@ -238,6 +238,9 @@ def world(tmp_path, monkeypatch):
     cs["enabled"] = True
     cs["market_open_only"] = False
     cs["whitelist"] = {"AAPL": 1001, "MSFT": 1002}
+    # feat/signal-trades (2026-10-17): die Altszenarien pruefen die alte
+    # Sizing-Kette; der neue Pfad hat eigene Szenarien unten.
+    t.setdefault("signal_trades", {})["enabled"] = False
     w.cfg = cfg
     w.posts = posts
     monkeypatch.setattr(sw, "_load_config", lambda: w.cfg)
@@ -424,3 +427,42 @@ def test_edge_gate_loopbrecher_nur_6h_fenster(world):
     world.run()
     assert "BTC" in world.approved(), (
         f"BTC-Approval fehlend, obwohl Block >6h alt: {world.approved()}")
+
+
+# ── feat/signal-trades (VoLLi 2026-10-17) ─────────────────────────────────────
+
+def _enable_signal_trades(world, families=("TREND_PULLBACK",), max_open=8):
+    st = world.cfg["trading"]["signal_trades"]
+    st.update({"enabled": True, "families": list(families), "max_open": max_open,
+               "cap_headroom": 0.98, "min_usd": 200.0, "reserve_pct": 18.0,
+               "exclude_suffixes": [".ASX", ".HK", ".T"], "exclude_asset_classes": ["crypto"]})
+    world.cfg["trading"]["core_sweep"]["enabled"] = False
+    world.cfg.setdefault("core_index", {})["mode"] = "off"
+    world.con.execute(
+        "INSERT INTO signals(instrument_id,signal_type,conviction,score,price,status,"
+        "expires_at,rsi) VALUES (1003,'TREND_PULLBACK','MEDIUM',0.8,500,'FRESH',"
+        "datetime('now','+6 hours'),45)")
+    world.con.commit()
+
+
+def test_signal_trade_bekommt_feste_tranche(world):
+    """NVDA TREND_PULLBACK: feste Tranche 10 % x 0,98 von $10.000 = $980."""
+    _enable_signal_trades(world)
+    world.run()
+    got = world.approved()
+    assert got.get("NVDA") == [980.0], got
+
+
+def test_signal_trade_krypto_wird_verworfen(world):
+    """ETH (crypto) mit derselben Familie: kein Trade, Signal REJECTED."""
+    _enable_signal_trades(world)
+    world.run()
+    assert "ETH" not in world.approved()
+    assert world.signal_status(2) == ["REJECTED"]
+
+
+def test_signal_trade_max_open(world):
+    _enable_signal_trades(world, max_open=0)
+    world.run()
+    assert "NVDA" not in world.approved()
+    assert world.signal_status(1003, "TREND_PULLBACK") == ["FRESH"]

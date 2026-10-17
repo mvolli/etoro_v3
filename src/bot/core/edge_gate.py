@@ -58,6 +58,34 @@ LIVE_MODE = True
 # das falsche Mass; seine Schutzregeln liegen in core_index.plan_tranche.
 GATE_EXEMPT_TYPES = frozenset({"CORE_SWEEP", "CORE_INDEX"})
 
+# feat/signal-trades (VoLLi 2026-10-17): die in trading.signal_trades
+# zugelassenen Familien sind ausgenommen (Komponenten-Menge exakt). VoLLi hat
+# sie trotz negativer Live-Statistik bewusst freigegeben (E5: absolut leicht
+# positiv bei ~$880 und "laufen lassen"). None = noch nicht geladen.
+_EXTRA_EXEMPT: set | None = None
+
+
+def _extra_exempt_sets() -> set:
+    global _EXTRA_EXEMPT
+    if _EXTRA_EXEMPT is None:
+        try:
+            import yaml
+            from bot.config import _PROJECT_ROOT
+            from bot.core.signal_trades import load_config
+            raw = yaml.safe_load((_PROJECT_ROOT / "config" / "config.yaml").read_text()) or {}
+            st = load_config(raw)
+            _EXTRA_EXEMPT = set(st["family_sets"]) if st["enabled"] else set()
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("edge_gate: signal_trades-Ausnahmen nicht geladen: %s", exc)
+            _EXTRA_EXEMPT = set()
+    return _EXTRA_EXEMPT
+
+
+def is_exempt(signal_type: str) -> bool:
+    """CORE_SWEEP/CORE_INDEX oder eine zugelassene signal_trades-Familie."""
+    st = (signal_type or "").upper()
+    return st in GATE_EXEMPT_TYPES or _components(st) in _extra_exempt_sets()
+
 
 def _components(signal_type: str) -> set[str]:
     """Komponenten-Menge eines Signal-Typs (Komma-Kombo wird gesplittet).
@@ -278,7 +306,7 @@ def evaluate(signal_type: str, regime: str, db) -> dict:
             "shadow": True, "reason": "keine Outcome-Daten",
             "source": source,
             "live_mode": LIVE_MODE,
-            "exempt": signal_type.upper() in GATE_EXEMPT_TYPES,
+            "exempt": is_exempt(signal_type),
         }
     exp_net, lcb, n_days = _cluster_lcb(samples)
     if n < N_MIN:
@@ -295,5 +323,5 @@ def evaluate(signal_type: str, regime: str, db) -> dict:
         "shadow": shadow, "reason": reason, "source": source,
         "n_days": n_days,
         "live_mode": LIVE_MODE,
-        "exempt": signal_type.upper() in GATE_EXEMPT_TYPES,
+        "exempt": is_exempt(signal_type),
     }

@@ -119,7 +119,7 @@ def test_dust_floor_pruefung_steht_vor_dem_order_create():
     kein Multiplikator/Clamp/Reduktion mehr greifen — der Bump-Writeback
     (buy_amount = _dep_amt) ist die letzte Groessenentscheidung.
     """
-    pruefung = SW_SRC.rindex("if buy_amount < dust_floor:")
+    pruefung = SW_SRC.rindex("if buy_amount < dust_floor and _st_fixed is None:")  # feat/signal-trades
     create = SW_SRC.index("trade_id = trade_repo.create(")
     assert pruefung < create, "Dust-Floor-Pruefung liegt nicht mehr vor der Order"
     dazwischen = SW_SRC[pruefung:create]

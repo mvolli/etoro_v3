@@ -250,6 +250,15 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   Exposure-Trim, LLM-EXIT. Beleg `docs/e5-ergebnis-2026-10-17.md`. Rückweg: die
   Schalter in `config/config.yaml` (Kommentar dort). `tighten_min_pnl_pct` (+3 %)
   wirkt nur, wenn `tighten_orders` wieder true ist.
+- **Signal-Trades (`trading.signal_trades`, `bot/core/signal_trades.py`, VoLLi
+  2026-10-17):** Familien A/C/D/E aus E5 (exakte Komponenten-Menge) kaufen mit
+  fester Tranche = `max_trade_pct` × 0,98 (max 10 %, ≥ $200) statt der
+  Sizing-Kette; nur $1-Börsen, kein Krypto (`_filter_eligible`, Skip-Key
+  `markt_gebuehr`); höchstens `max_open` (8); Cash nach Kauf ≥ 18 % Equity +
+  offene Index-Kern-Lücke. Vom Edge-Gate ausgenommen (`edge_gate.is_exempt`),
+  keine Abbruchregel. Floors (signal/dust) gelten für sie nicht; Entry-Quote
+  (MACD+BB 2/7 d), Diversity-Kappe, Buy-Gate, Slippage und Veto gelten weiter.
+  Rückweg: `enabled: false`. Plan `docs/PLAN-aktienhandel-laufen-lassen-2026-10-17.md`.
 - **Pre-Trade-Veto REDUCE unter $200 ⇒ Veto** (VoLLi 2026-10-16,
   `trade_veto_worker._reduce_floor` = `signal_floor_usd`). Der $200-Floor in
   `execution_worker` b4 darf eine LLM-Verkleinerung nie wieder hochrunden.

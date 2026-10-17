@@ -1196,6 +1196,15 @@ def _commodity_state(db, cfg: dict) -> tuple[dict, set[int], int]:
     return _comm_cfg, _comm_ids, _comm_open
 
 
+def _asset_class_of(db, instrument_id) -> str:
+    try:
+        row = db.fetchone("SELECT asset_class FROM instruments WHERE instrument_id = ?",
+                          (instrument_id,))
+        return str(row["asset_class"] or "") if row else ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def _edge_gate_blocks(db, signal_type: str, signal_id,
                       cache: dict[str, dict | None]) -> bool:
     """True, wenn der Edge-Gate (LIVE) diesen Signaltyp blockt.
@@ -1284,6 +1293,8 @@ def _filter_eligible(
     except Exception:
         _approved_ids = set()  # fail-open wenn Methode fehlt
     _eg_cache: dict[str, dict | None] = {}
+    from bot.core import signal_trades as _st_mod
+    _st_cfg = _st_mod.load_config(cfg)
     for signal in buy_signals:
         instrument_id = signal["instrument_id"]
         signal_id = signal.get("id")
@@ -1349,6 +1360,15 @@ def _filter_eligible(
                         symbol, _sig_type[:40], _sig_reason[:60])
             signal_repo.update_signal_status(signal_id, "REJECTED")
             _skip["llm_signaltyp_gesperrt"].append(symbol)
+            continue
+
+        # feat/signal-trades (VoLLi 2026-10-17): Kauf-Signale nur an $1-Boersen,
+        # kein Krypto — $2 bzw. 1 %/Seite frisst die Kante. REJECTED, weil sich
+        # das fuer dieses Instrument nie aendert.
+        if _st_cfg["enabled"] and _st_mod.excluded_market(
+                symbol, _asset_class_of(db, instrument_id), _st_cfg):
+            signal_repo.update_signal_status(signal_id, "REJECTED")
+            _skip["markt_gebuehr"].append(symbol)
             continue
 
         # Edge-Gate-Vorfilter (2026-10-16): der Gate entscheidet pro Typ und
@@ -2554,9 +2574,20 @@ def main() -> None:
         # es braucht keinen Backfill. Fail-open wie die Sektor-Map.
         _region_by_symbol = _load_region_map(signal_repo)
     
+        # feat/signal-trades (VoLLi 2026-10-17): feste Groesse fuer die
+        # zugelassenen Familien, hoechstens max_open gleichzeitig, Index-Kern
+        # hat Vorrang (Reserve + offene Kern-Luecke bleiben Cash).
+        from bot.core import signal_trades as _st_mod
+        _st_cfg = _st_mod.load_config(cfg)
+        _st_open = _st_mod.open_count(db, _st_cfg) if _st_cfg["enabled"] else 0
+        _st_core_gap = (_st_mod.core_gap_usd(cfg, equity, portfolio_repo.get_all(), _core_ids)
+                        if _st_cfg["enabled"] else 0.0)
+        _st_reserve = _st_mod.reserve_usd(equity, _st_core_gap, _st_cfg)
+
         for signal, symbol in candidates:
             instrument_id = signal["instrument_id"]
             conviction = signal.get("conviction", "MEDIUM")
+            _st_fixed = None
             score = float(signal.get("score", 0))
             signal_id = signal.get("id")
 
@@ -2601,6 +2632,26 @@ def main() -> None:
             )
             existing_fragments = len(snap_rows)
     
+            # feat/signal-trades (VoLLi 2026-10-17): zugelassene Familien
+            # bekommen eine feste Tranche = max_trade_pct x 0,98 (>= $200). Die
+            # Multiplikator-Kette darunter laeuft nur noch protokollierend; die
+            # Floor-Pruefungen sind fuer sie aus, am Kettenende gilt _st_fixed.
+            if _st_mod.is_family(signal.get("signal_type", ""), _st_cfg):
+                if _st_open >= int(_st_cfg.get("max_open") or 0):
+                    _skip["signal_max_open"].append(symbol)
+                    logger.info("SignalWorker: %s Signal-Trades %d/%d offen — uebersprungen (bleibt FRESH)",
+                                symbol, _st_open, int(_st_cfg.get("max_open") or 0))
+                    continue
+                _st_amt = _st_mod.fixed_amount(
+                    equity, float(regime_params.get("max_trade_pct", 0.0)), _st_cfg)
+                if cash_estimate - _st_amt < _st_reserve:
+                    _skip["signal_reserve"].append(symbol)
+                    logger.info("SignalWorker: %s feste Tranche $%.2f — Cash danach $%.2f unter Reserve "
+                                "$%.2f (inkl. Index-Kern-Luecke $%.2f) — uebersprungen",
+                                symbol, _st_amt, cash_estimate - _st_amt, _st_reserve, _st_core_gap)
+                    continue
+                _st_fixed = _st_amt
+
             # b. Buy amount based on conviction × risk_scalar (V5)
             pct = conviction_pct.get(conviction.upper(), conviction_pct["MEDIUM"])
             buy_amount = round((pct / 100.0) * equity * buy_aggressiveness, 2)
@@ -2825,7 +2876,7 @@ def main() -> None:
                 _deploy_cfg_pct > 0
                 and _deploy_bump_active(cash_estimate, equity, _deploy_cfg_pct)
             )
-            if buy_amount < signal_floor:
+            if buy_amount < signal_floor and _st_fixed is None:
                 # feat/deploy-idle-cash (2026-08-29, VoLLi-Direktive): Free
                 # Cash >= deploy_idle_cash_min_free_cash_pct des Equity und
                 # das Signal waere NUR wegen des Regime-Floors zu klein →
@@ -3009,6 +3060,10 @@ def main() -> None:
                 if gate_entry_price > 0 else 0.0
             )
 
+            # feat/signal-trades: feste Tranche (oben bestimmt) fuer das Gate.
+            if _st_fixed is not None:
+                buy_amount = _st_fixed
+
             gate = check_buy_gate(
                 symbol=symbol,
                 buy_amount=buy_amount,
@@ -3058,7 +3113,7 @@ def main() -> None:
                     # ATR-Risk-Parity, die gar nicht geprueft wurde — derselbe
                     # Endbetrag wurde also akzeptiert oder verworfen, je
                     # nachdem WELCHER Daempfer ihn erzeugt hatte.
-                    if buy_amount < dust_floor:
+                    if buy_amount < dust_floor and _st_fixed is None:
                         # Korrelations-Haircut bringt den Endbetrag unter den
                         # DUST-Floor → Bump (Deploy-Modus) statt Reject (e0).
                         _dep_amt, _dep_bumped = _deploy_bump_or_reject(
@@ -3104,7 +3159,7 @@ def main() -> None:
                                 "SignalWorker: %s Groesse $%.2f → $%.2f — %s",
                                 symbol, _before, buy_amount, _rreason,
                             )
-                            if buy_amount < dust_floor:
+                            if buy_amount < dust_floor and _st_fixed is None:
                                 # Region-Damper bringt den Endbetrag unter
                                 # den DUST-Floor → Bump (Deploy-Modus)
                                 # statt Reject (e0).
@@ -3214,6 +3269,13 @@ def main() -> None:
                         # Fail-open: Preis nicht ermittelbar → execution-Gate entscheidet
                         logger.debug("SignalWorker: Pre-Check für %s übersprungen (%s)", symbol, _slip_exc)
 
+                # feat/signal-trades: feste Tranche gegen Korrelations-/Region-
+                # Daempfer durchsetzen — VOR e0, damit der DUST-Floor die letzte
+                # Groessenentscheidung bleibt (fuer _st_fixed ist er aus, >= $200).
+                if _st_fixed is not None:
+                    _trace.append(f"Signal-Trade fix ${_st_fixed:,.2f} (Kette waere ${buy_amount:,.2f})")
+                    buy_amount = _st_fixed
+
                 # e0. DUST-FLOOR, letzte Instanz vor der Order.
                 # Bis 2026-08-28 endete die Kette ohne Pruefung des ENDbetrags
                 # gegen einen regimebewussten Boden: der Regime-Floor lief bei
@@ -3224,7 +3286,7 @@ def main() -> None:
                 # ATR-Risk-Parity x0.60 -> 79.00, und 79 > 50 passierte.
                 # Diese Pruefung steht bewusst NACH allen Multiplikatoren —
                 # jeder kuenftige Daempfer laeuft automatisch dagegen.
-                if buy_amount < dust_floor:
+                if buy_amount < dust_floor and _st_fixed is None:
                     # DUST-Floor verletzt → Bump (Deploy-Modus) statt Reject.
                     _dep_amt, _dep_bumped = _deploy_bump_or_reject(
                         log_repo, signal_repo, blocked_reasons,
@@ -3269,6 +3331,8 @@ def main() -> None:
                     "sizing_trace": list(_trace),
                 })
     
+                if _st_fixed is not None:
+                    _st_open += 1
                 # Update running totals so subsequent signals see projected state
                 total_exposure += buy_amount
                 cash_estimate -= buy_amount

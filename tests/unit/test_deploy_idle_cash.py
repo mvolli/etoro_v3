@@ -264,7 +264,7 @@ def test_deploy_setup_once_per_cycle():
 def test_signal_floor_site_wired_to_bump():
     src = _sw_source()
     m = re.search(
-        r"if buy_amount < signal_floor:\s*\n"
+        r"if buy_amount < signal_floor(?: and _st_fixed is None)?:\s*\n"
         r"\s*#\s*feat/deploy-idle-cash.*?\n"
         r"\s*_dep_amt, _dep_bumped = _deploy_bump_or_reject\(.*?kind=\"SIGNAL_FLOOR\"",
         src, re.DOTALL)
@@ -273,9 +273,9 @@ def test_signal_floor_site_wired_to_bump():
 
 def test_all_dust_floor_sites_wired_to_bump():
     src = _sw_source()
-    sites = re.findall(r"if buy_amount < dust_floor:", src)
+    sites = re.findall(r"if buy_amount < dust_floor(?: and _st_fixed is None)?:", src)
     assert len(sites) == 3, f"erwartet 3 DUST-Floor-Stellen, gefunden {len(sites)}"
-    for m in re.finditer(r"if buy_amount < dust_floor:", src):
+    for m in re.finditer(r"if buy_amount < dust_floor(?: and _st_fixed is None)?:", src):
         window = src[m.start(): m.start() + 400]
         assert "_deploy_bump_or_reject(" in window, (
             f"DUST-Floor-Stelle @ {m.start()} nicht durch Bump-Helper "
@@ -321,7 +321,7 @@ def test_dust_floor_kettenende_still_last_check():
     """Am Kettenende (vor DB-Insertion) muss die DUST-Floor-Pruefung die
     letzte Groessenentscheidung sein — kein Multiplikator/Clamp nach ihr."""
     src = _sw_source()
-    last_dust = src.rindex("if buy_amount < dust_floor:")
+    last_dust = src.rindex("if buy_amount < dust_floor and _st_fixed is None:")  # feat/signal-trades
     create = src.index("trade_id = trade_repo.create(")
     assert last_dust < create, "Dust-Floor-Pruefung liegt nicht mehr vor der Order"
     dazwischen = src[last_dust:create]
