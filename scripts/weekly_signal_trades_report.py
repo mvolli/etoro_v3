@@ -144,7 +144,8 @@ def veto_summary(path=ROOT / "data" / "llm_veto_log.json") -> str:
         return "Veto-Log nicht lesbar"
     out = []
     for dec in ("VETO", "REDUCE"):
-        d = [e["delta_28d_pct"] for e in entries if e.get("decision") == dec and "delta_28d_pct" in e]
+        d = [e["delta_28d_pct"] for e in entries
+             if e.get("decision") == dec and e.get("delta_28d_pct") is not None]
         if d:
             good = sum(1 for x in d if x < 0)
             out.append(f"{dec}: n={len(d)}, Kurs danach Ø {sum(d) / len(d):+.1f} %, richtig {good}/{len(d)}")

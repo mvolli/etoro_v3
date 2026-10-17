@@ -174,7 +174,7 @@ def _grade_28d(entries: list[dict]) -> None:
                 closes = (data[e["yf_symbol"]]["Close"] if len(syms) > 1 else data["Close"]).dropna()
                 e["delta_28d_pct"] = round((float(closes.iloc[-1]) / float(e["signal_price"]) - 1) * 100, 2)
             except Exception:
-                pass
+                e["delta_28d_pct"] = None     # kein Kurs (delistet) -> nicht endlos neu versuchen
     except Exception as exc:
         logger.debug("[%s] 28d-Bewertung uebersprungen: %s", WORKER_NAME, exc)
 
