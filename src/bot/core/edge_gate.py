@@ -56,7 +56,8 @@ LIVE_MODE = True
 # feat/core-index (2026-10-16): CORE_INDEX ist kein Signal-Trade, sondern ein
 # Marktexposure-Kern (VoLLi-Entscheid 16.10.). Ein 5-Tage-Forward-Edge ist dafuer
 # das falsche Mass; seine Schutzregeln liegen in core_index.plan_tranche.
-GATE_EXEMPT_TYPES = frozenset({"CORE_SWEEP", "CORE_INDEX"})
+GATE_EXEMPT_TYPES = frozenset({"CORE_SWEEP", "CORE_INDEX",
+                               "SCREEN_Q2", "EARN_S1"})   # Analysten-Strategie (E8/E6/E9)
 
 # feat/signal-trades (VoLLi 2026-10-17): die in trading.signal_trades
 # zugelassenen Familien sind ausgenommen (Komponenten-Menge exakt). VoLLi hat

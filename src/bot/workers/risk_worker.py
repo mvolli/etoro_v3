@@ -242,11 +242,14 @@ def _exclude_core_positions(db, raw_positions: list[dict]) -> list[dict]:
     """
     try:
         from bot.core import core_index as _ci
-        _core_ids = _ci.core_position_ids(db)
+        from bot.core import analyst_strategy as _an
+        # feat/analyst-strategy (VoLLi 2026-10-17): Q2/S1-Positionen haben eigene
+        # Ausstiege (analyst_worker: 126 Handelstage, Broker-SL -15 %, harte News).
+        _core_ids = _ci.core_position_ids(db) | _an.position_ids(db)
         if not _core_ids:
             return raw_positions
         kept = _ci.exclude_core(raw_positions, _core_ids)
-        logger.info("RiskWorker: %d Index-Kern-Position(en) von Ausstiegspfaden ausgenommen",
+        logger.info("RiskWorker: %d Index-Kern-/Analysten-Position(en) von Ausstiegspfaden ausgenommen",
                     len(raw_positions) - len(kept))
         return kept
     except Exception as _ci_exc:

@@ -1222,7 +1222,8 @@ class EToroClient:
             conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5)
             row = conn.execute(
                 "SELECT 1 FROM trades t JOIN signals s ON s.id = t.signal_id "
-                "WHERE s.signal_type = 'CORE_INDEX' AND t.api_position_id = ? "
+                "WHERE s.signal_type IN ('CORE_INDEX', 'SCREEN_Q2', 'EARN_S1') "
+                "AND t.api_position_id = ? "
                 "AND t.status NOT IN ('CLOSED','FAILED','REJECTED','CANCELLED') LIMIT 1",
                 (str(position_id),),
             ).fetchone()
@@ -1281,10 +1282,13 @@ class EToroClient:
         # Greift ein Pfad trotzdem zu, wird hier verweigert. Rueckgabe {} —
         # alle Aufrufer werten ein leeres Ergebnis als Fehlschlag und buchen
         # nichts. Ein bewusster Kern-Verkauf uebergibt allow_core=True.
+        # feat/analyst-strategy (2026-10-17): ebenso Q2/S1-Positionen — nur der
+        # analyst_worker schliesst sie (allow_core=True).
         if not allow_core and self._is_core_index_position(position_id):
             logger.warning(
-                "close_position VERWEIGERT: Position %s gehoert zum Index-Kern "
-                "(CORE_INDEX) — kein Ausstiegspfad darf sie schliessen", position_id)
+                "close_position VERWEIGERT: Position %s gehoert zum Index-Kern oder "
+                "zur Analysten-Strategie — kein generischer Ausstiegspfad darf sie "
+                "schliessen", position_id)
             return {}
         endpoint = (
             f"/trading/execution/market-close-orders/positions/{position_id}"

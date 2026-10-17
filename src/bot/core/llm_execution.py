@@ -172,6 +172,16 @@ def _snapshot_pnl_pct(db, position_id) -> float | None:
     return None
 
 
+def _protected_ids(db) -> set:
+    """api_position_ids von Index-Kern und Analysten-Strategie (fail-open: leer)."""
+    try:
+        from bot.core import analyst_strategy as _an
+        from bot.core import core_index as _ci
+        return _ci.core_position_ids(db) | _an.position_ids(db)
+    except Exception:  # noqa: BLE001
+        return set()
+
+
 def execute_llm_recommendations(
     client: "EToroClient",
     db: "DB",
@@ -245,6 +255,19 @@ def execute_llm_recommendations(
             rec["executed"]        = True
             rec["executed_at"]     = now.isoformat()[:19]
             rec["executed_reason"] = "position_already_closed"
+            changed = True
+            stats["skip_count"] += 1
+            continue
+
+        # feat/analyst-strategy (VoLLi 2026-10-17): Index-Kern und Q2/S1 haben
+        # eigene Ausstiege, kein LLM-EXIT/TIGHTEN (close_position wuerde ohnehin
+        # verweigern — hier sauber als erledigt markieren statt Fehler-Schleife).
+        if position_id and str(position_id) in _protected_ids(db):
+            logger.info("[llm_execution] %s %s: geschuetzte Strategie-Position — übersprungen",
+                        recommendation, symbol)
+            rec["executed"]        = True
+            rec["executed_at"]     = now.isoformat()[:19]
+            rec["executed_reason"] = "geschuetzte_strategie"
             changed = True
             stats["skip_count"] += 1
             continue

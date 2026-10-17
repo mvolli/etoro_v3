@@ -145,6 +145,19 @@ def is_us_stock(symbol: str, asset_class: str | None) -> bool:
     return str(asset_class or "") == "stock" and "." not in str(symbol or "")
 
 
+def yahoo_symbol(trade: dict) -> str:
+    """Yahoo-Symbol fuer Headlines/Earnings.
+
+    US-Aktien: der eToro-Ticker selbst. `instruments.yfinance_symbol` ist dort
+    systematisch falsch befuellt (gemessen 17.10.: 5 704 von 6 266, z. B.
+    DPZ -> 'DPI', FAST -> 'FC_4212', MRK -> 'M&C'). Sonst yfinance_symbol.
+    """
+    sym = str(trade.get("symbol") or "")
+    if is_us_stock(sym, trade.get("asset_class")):
+        return sym.replace(".", "-")
+    return str(trade.get("yfinance_symbol") or sym)
+
+
 def sec_cik(symbol: str) -> int | None:
     """Ticker -> CIK aus SEC company_tickers.json (woechentlich aufgefrischt)."""
     try:
@@ -346,7 +359,7 @@ def rule_block_reason(trade: dict, flags: dict | None = None) -> str | None:
     f = flags.get(sym)
     if f and str(f.get("flag", "")).upper() == "AVOID":
         return f"News-Flag AVOID: {str(f.get('reason', ''))[:120]}"
-    yf_sym = trade.get("yfinance_symbol") or sym
+    yf_sym = yahoo_symbol(trade)
     if str(trade.get("asset_class") or "") == "stock":
         r = earnings_block_reason(yf_sym)
         if r:

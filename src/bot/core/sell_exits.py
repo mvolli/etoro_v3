@@ -212,8 +212,13 @@ def execute_sell_exits(
     actions: list[SellExitAction],
     dry_run: bool = False,
     db: Any = None,
+    allow_core: bool = False,
+    source: str = "sell_exit",
 ) -> dict:
     """Execute SELL-Exit-Aktionen mit Verifikation.
+
+    allow_core/source (feat/analyst-strategy 2026-10-17): der analyst_worker
+    schliesst seine geschuetzten Positionen ueber denselben Pfad.
 
     Signal wird CONSUMED markiert sobald eToro die Order AKZEPTIERT —
     Settlement-Latenz darf dasselbe Signal im nächsten 5-min-Zyklus nicht
@@ -366,6 +371,7 @@ def execute_sell_exits(
                 position_id=action.position_id,
                 instrument_id=action.instrument_id,
                 units_to_deduct=None if is_full else units_to_deduct,
+                **({"allow_core": True} if allow_core else {}),
             )
             _se_oid = extract_order_id(result)
             # Phase 0a: Wächter sofort scharf nach neuem Close.
@@ -413,7 +419,7 @@ def execute_sell_exits(
                     client=client, db=db,
                     instrument_id=action.instrument_id,
                     units=total_units,
-                    source="sell_exit",
+                    source=source,
                     order_id=_se_oid,
                 )
             else:
@@ -453,7 +459,7 @@ def execute_sell_exits(
                     client=client, db=db,
                     instrument_id=action.instrument_id,
                     units=units_to_deduct,
-                    source="sell_exit",
+                    source=source,
                     order_id=_se_oid,
                 )
             time.sleep(0.5)

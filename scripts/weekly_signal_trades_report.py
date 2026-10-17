@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Wochenbericht Signal-Trades -> Discord #reports (feat/signal-trades, VoLLi 2026-10-17).
+"""Wochenbericht Strategien -> Discord #reports (feat/signal-trades, VoLLi 2026-10-17).
+
+Seit 17.10. zwei Bloecke: Analysten-Strategie (Q2 + S1, analyst_worker) und die
+auslaufenden Signal-Trades A/C/D/E; dazu die 28-Tage-Bilanz des Pre-Trade-Vetos.
 
 VoLLi hat statt einer Abbruchregel einen Wochenbericht gewaehlt. Basis ist die
 Broker-Wahrheit (`/trading/info/trade/history`, gruppiert ueber orderId):
@@ -23,6 +26,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
+from bot.core import analyst_strategy as an  # noqa: E402
 from bot.core import signal_trades as st  # noqa: E402
 from bot.core.outcome_refresh import TWO_DOLLAR_SUFFIXES  # noqa: E402
 
@@ -75,7 +79,7 @@ def build(cfg, client, today: datetime) -> dict:
     by_oid, by_pid = {}, {}
     for r in con.execute("""SELECT t.order_id, t.api_position_id, s.signal_type, t.symbol
                             FROM trades t JOIN signals s ON s.id = t.signal_id"""):
-        if st.components(r["signal_type"]) not in fams:
+        if r["signal_type"] not in an.TYPES and st.components(r["signal_type"]) not in fams:
             continue
         if r["order_id"]:
             by_oid[str(r["order_id"])] = (r["signal_type"], r["symbol"])
@@ -100,15 +104,19 @@ def build(cfg, client, today: datetime) -> dict:
             continue                                   # noch Teil offen
         gross = sum(float(h["netProfit"]) for h in v)
         fees = fee * (1 + len(v))
-        rows.append(dict(sym=sym, sig=sig, inv=inv, gross=gross, fees=fees, net=gross - fees,
+        rows.append(dict(sym=sym, sig=sig, strat="Analyst" if sig in an.TYPES else "Signal",
+                         inv=inv, gross=gross, fees=fees, net=gross - fees,
                          d0=v[0]["openTimestamp"][:10], d1=v[-1]["closeTimestamp"][:10]))
     bars = _acwi(START, today.strftime("%Y-%m-%d")) if rows else {}
     for r in rows:
         b = _bench(bars, r["d0"], r["d1"])
         r["bench_usd"] = None if b is None else r["inv"] * b
     open_n = st.open_count(_DBWrap(con), stc)
+    acfg = an.load_config(cfg)
+    an_open = len(an.open_rows(_DBWrap(con)))
     return dict(all=rows, week=[r for r in rows if r["d1"] >= week0], open_n=open_n,
-                max_open=stc.get("max_open"), week0=week0)
+                max_open=stc.get("max_open"), week0=week0, an_open=an_open,
+                an_max=acfg.get("max_open"), an_mode=acfg.get("mode"))
 
 
 class _DBWrap:
@@ -153,13 +161,19 @@ def veto_summary(path=ROOT / "data" / "llm_veto_log.json") -> str:
 
 
 def embed(rep: dict, today: datetime) -> dict:
-    lines = [f"`{r['sym'][:10]:10s} {r['net']:+7.2f} $  {r['d0'][5:]}→{r['d1'][5:]}`"
+    lines = [f"`{r['sym'][:10]:10s} {r['net']:+7.2f} $  {r['d0'][5:]}→{r['d1'][5:]}` {r.get('strat', '')}"
              for r in sorted(rep["week"], key=lambda r: r["d1"])][:20]
     return {
-        "title": f"📈 Signal-Trades — Woche bis {today:%d.%m.%Y}",
-        "description": (f"**Diese Woche:** {_summary(rep['week'])}\n"
-                        f"**Seit Start {START[8:10]}.{START[5:7]}.:** {_summary(rep['all'])}\n"
-                        f"Offen: {rep['open_n']}/{rep['max_open']}\n"
+        "title": f"📈 Strategien — Woche bis {today:%d.%m.%Y}",
+        "description": (
+            f"__Analysten-Strategie (Q2 + Earnings, {rep.get('an_mode')})__\n"
+            f"**Diese Woche:** {_summary([r for r in rep['week'] if r.get('strat') == 'Analyst'])}\n"
+            f"**Seit Start:** {_summary([r for r in rep['all'] if r.get('strat') == 'Analyst'])}\n"
+            f"Offen: {rep.get('an_open', 0)}/{rep.get('an_max')}\n"
+            f"__Signal-Trades A/C/D/E (laufen aus)__\n"
+            f"**Diese Woche:** {_summary([r for r in rep['week'] if r.get('strat') != 'Analyst'])}\n"
+            f"**Seit Start {START[8:10]}.{START[5:7]}.:** {_summary([r for r in rep['all'] if r.get('strat') != 'Analyst'])}\n"
+            f"Offen: {rep['open_n']}\n"
                         f"**Pre-Trade-Veto (28 Tage):** {veto_summary()}"),
         "color": 0x2ECC71 if sum(r["net"] for r in rep["week"]) >= 0 else 0xE67E22,
         "fields": [{"name": "Geschlossen diese Woche", "value": "\n".join(lines) or "—", "inline": False}],

@@ -293,6 +293,29 @@ def classify_requeue(trade: dict, now: datetime | None = None) -> bool:
 DEFER_CAP = 3  # max. DEFER-Zyklen pro Order (Spiegel des Portfolio-Polling-Caps)
 
 
+# feat/analyst-strategy (VoLLi 2026-10-17): Strategien, die von wenigen grossen
+# Gewinnern leben (Q2/S1: beste 5 % der Trades +45 bis +70 %), und der
+# Index-Kern (Langfrist-Halten, „fuer JEDEN Ausstiegspfad tabu“) bekommen KEIN
+# Broker-Take-Profit. Das Sicherheitsnetz +25 % (feat/tp-safety-net) haette
+# genau diese Gewinner gekappt.
+NO_TP_SIGNAL_TYPES = frozenset({"CORE_INDEX", "SCREEN_Q2", "EARN_S1"})
+
+
+def _safety_tp_pct(db, trade: dict, cfg: dict):
+    """Broker-TP in % oder None (kein TP) fuer Strategien ohne Gewinn-Deckel."""
+    default = float(cfg.get("sl", {}).get("safety_tp_pct", 25.0))
+    sid = trade.get("signal_id")
+    if not sid:
+        return default
+    try:
+        row = db.fetchone("SELECT signal_type FROM signals WHERE id = ?", (sid,))
+        if row and str(row["signal_type"] or "") in NO_TP_SIGNAL_TYPES:
+            return None
+    except Exception:  # noqa: BLE001 — im Zweifel das bisherige Netz
+        pass
+    return default
+
+
 def market_closed_too_old(trade: dict, max_hours: float, now=None) -> bool:
     """True wenn ein bei geschlossenem Markt haengender APPROVED-Trade zu alt ist.
 
@@ -1273,7 +1296,7 @@ def main() -> None:
                     amount_usd=amount_usd,
                     stop_loss_pct=stop_loss_pct,
                     symbol=_canonical_symbol(db, instrument_id, symbol),
-                    take_profit_pct=float(cfg.get("sl", {}).get("safety_tp_pct", 25.0)),
+                    take_profit_pct=_safety_tp_pct(db, trade, cfg),
                     is_crypto=_is_crypto,  # fix/crypto-entry-orders: 24/7-Market-Order
                     # feat/commodity-leverage: Rohstoffe brauchen 1000 USD
                     # Mindest-Exposure. Bei Hebel 2 reichen dafuer 500 USD

@@ -262,13 +262,49 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   Wochenbericht Sa 10:00 → #reports (`v3_weekly_signal_trades.sh` →
   `scripts/weekly_signal_trades_report.py`, Broker-netProfit minus $1/$2 je Order,
   gegen ACWI). Rückweg: `enabled: false`. Plan `docs/PLAN-aktienhandel-laufen-lassen-2026-10-17.md`.
-- **Long-Signal-Forschung E4–E8 (Stand 2026-10-17): alle verworfen, nichts
-  davon ist live.** Getestet wurden Trend-Familien, Signal-Exits,
+- **Analysten-Strategie (`analyst_strategy`, LIVE seit 2026-10-17, VoLLi).**
+  Der Bot wählt Aktien selbst; Ziel ist die Gewinnzone, nicht den Markt zu
+  schlagen. Belege: `docs/e8-`, `e6-`, `e9-ergebnis-2026-10-17.md`.
+  - **Kandidaten:**
+    - Q2 = monatlicher Screen (GP/A, Accruals, Umsatzwachstum, 12-1-Momentum;
+      Rangmenge = Nicht-Finanzwerte S&P 1500, kaufbar nur S&P 500/400);
+    - S1 = Earnings-Katalysator (Überraschung ≥ 5 %, Reaktion ≥ +2 % gegen SPY,
+      über SMA200; Einstieg day0+2).
+  - **Ausstieg X0:** 126 Handelstage, Broker-SL −15 %, sonst nur harte
+    News-Ausstiege: 8-K 1.03/3.01/4.02 seit Einstieg oder AVOID mit
+    `source=news_llm`. Kein Earnings-Exit, kein Trailing, kein LLM-EXIT, **kein
+    Broker-TP** (`execution_worker.NO_TP_SIGNAL_TYPES`, gilt auch für
+    CORE_INDEX).
+  - **Kapital:** 8 Plätze à 6,5 % Equity (≤ 98 % `max_trade_pct`); Cash nach
+    Kauf ≥ 18 % + Index-Kern-Lücke.
+  - **Code:**
+    - `bot/core/analyst_strategy.py` (Regeln/Exits), `quality_screen.py`
+      (SEC companyfacts ⇒ E8-Kennzahlen, Cache `data/sec_cache/facts/`),
+      `earnings_catalyst.py` (Nasdaq-Kalender + yfinance `get_earnings_dates`);
+    - `workers/analyst_worker.py`, Cron Mo–Fr 09:05 `--screen` und 15:50
+      Handel, nur bei offener US-Börse;
+    - Universum `config/analyst_universe.json` (statisch, Stand 17.10.);
+      Picks in `data/analyst_q2_picks.json`.
+  - **Positionen** (Signaltypen SCREEN_Q2/EARN_S1) sind wie der Index-Kern von
+    allen generischen Exits ausgenommen (`risk_worker._exclude_core_positions`,
+    `llm_execution._protected_ids`, Netz in `client.close_position`). Nur der
+    `analyst_worker` schließt sie (`execute_sell_exits(allow_core=True)`).
+    Ausnahme vom Edge-Gate; das Pre-Trade-Veto gilt voll.
+  - **Rückweg:** `analyst_strategy.mode: "off"`. Alle Werte sind geldwirksam
+    (VoLLi).
+  - **US-Aktien:** `instruments.yfinance_symbol` ist systematisch falsch (z. B.
+    DPZ → 'DPI'). Für Yahoo gilt bei US-Titeln der eToro-Ticker
+    (`buy_veto.yahoo_symbol`).
+- **Signal-Trades A/C/D/E: seit 2026-10-17 aus** (`signal_trades.enabled: false`,
+  VoLLi). Offene laufen mit den alten Regeln aus.
+- **Long-Signal-Forschung E4–E8 (Stand 2026-10-17): kein Vorsprung gegen den
+  Markt.** Nach VoLLis Ziel „Gewinnzone“ gingen Q2 + S1 mit Ausstieg X0 aus E9
+  live (siehe Analysten-Strategie). Getestet wurden Trend-Familien, Signal-Exits,
   Earnings-Katalysator, Insider-Cluster (SEC Form 4) und Qualität/Wachstum/
   Momentum (SEC FSDS), jeweils 30–126 Tage. Nach Kosten schlägt keiner das
   gleichgewichtete Universum im Holdout (`docs/e4…e8-ergebnis-*.md`). Ein neuer
   Signaltest wird VOR dem Lauf vorregistriert und committet, mit genau einem
-  Lauf. Ergebnisse aus E4–E8 begründen keinen Live-Schalter.
+  Lauf. Live-Schalter nur nach VoLLi-Entscheid (wie E9 → Analysten-Strategie).
   Datencaches liegen in `data/e6_cache`, `e7_cache`, `e8_cache` (nicht im Git).
 - **Pre-Trade-Veto auf ALLEN Kaufwegen (VoLLi 2026-10-17, `bot/core/buy_veto.py`).**
   Gekauft wird nur im `execution_worker`. Gate c1 (nach dem Markt-Gate) kauft nur

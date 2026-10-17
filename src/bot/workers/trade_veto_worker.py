@@ -343,7 +343,7 @@ def _trade_context(trade: dict, posts: list[dict]) -> dict:
     """Frische Quellen je Trade: Headlines, SEC-Meldungen (US), relevante Truth-Posts."""
     from bot.core import buy_veto as bv
     ctx = {"headlines": [], "sec": [], "truth": []}
-    yf_sym = trade.get("yfinance_symbol") or trade["symbol"]
+    yf_sym = bv.yahoo_symbol(trade)
     if str(trade.get("asset_class") or "") in ("stock", "etf"):
         ctx["headlines"] = bv.fresh_headlines(yf_sym, name=trade.get("name"))
     if bv.is_us_stock(trade["symbol"], trade.get("asset_class")):
@@ -427,7 +427,7 @@ def main() -> int:
                 _record_verdict(db, t["id"], "RULE_VETO", reason)
                 vetoed.append((t["symbol"], f"Regel: {reason[:110]}"))
                 log_entries.append({"ts": now_iso, "trade_id": t["id"], "symbol": t["symbol"],
-                                    "yf_symbol": t.get("yfinance_symbol"), "decision": "VETO",
+                                    "yf_symbol": bv.yahoo_symbol(t), "decision": "VETO",
                                     "rule": True, "reason": f"Regel: {reason}"[:180],
                                     "signal_price": t.get("signal_price"),
                                     "signal_type": t.get("signal_type")})
@@ -563,7 +563,7 @@ Antworte NUR mit JSON, ein Eintrag je trade_id:
                         )
                         log_entries.append({
                             "ts": now_iso, "trade_id": trade["id"],
-                            "symbol": trade["symbol"], "yf_symbol": trade.get("yfinance_symbol"),
+                            "symbol": trade["symbol"], "yf_symbol": bv.yahoo_symbol(trade),
                             "decision": outcome, "reason": _v_reason[:180],
                             "signal_price": trade.get("signal_price"),
                             "signal_type": trade.get("signal_type"),
