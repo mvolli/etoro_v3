@@ -64,6 +64,10 @@ def load_earn(t):
         # sonst (nach Schluss / unbekannt) -> day0 = naechster Handelstag
         bmo = (ts.hour, ts.minute) != (0, 0) and ts.hour < 16
         out.append((ts.strftime("%Y-%m-%d"), bmo, (rep - est) / abs(est) * 100.0))
+    # yfinance liefert neueste zuerst; die Simulation (eine Position je Titel)
+    # braucht chronologische Reihenfolge. Fix 17.10. nach Lauf 1 (Umsetzungsfehler:
+    # busy_until vom neuesten Ereignis sperrte alle aelteren).
+    out.sort(key=lambda x: x[0])
     return out
 
 
