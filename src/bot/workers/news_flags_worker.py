@@ -90,15 +90,17 @@ def _gather_symbols(db) -> list[dict]:
     rows: list[dict] = []
     seen: set[str] = set()
     for idx, sql in enumerate((
-        """SELECT DISTINCT i.symbol, i.yfinance_symbol, i.name
+        """SELECT DISTINCT i.symbol, i.yfinance_symbol, i.name, i.asset_class
            FROM portfolio_snapshot ps
            JOIN instruments i ON i.instrument_id = ps.instrument_id
-           WHERE i.yfinance_symbol IS NOT NULL AND i.yfinance_symbol != ''""",
-        """SELECT DISTINCT i.symbol, i.yfinance_symbol, i.name
+           WHERE (i.yfinance_symbol IS NOT NULL AND i.yfinance_symbol != '')
+              OR (i.asset_class = 'stock' AND i.symbol NOT LIKE '%.%')""",
+        """SELECT DISTINCT i.symbol, i.yfinance_symbol, i.name, i.asset_class
            FROM signals s
            JOIN instruments i ON i.instrument_id = s.instrument_id
            WHERE s.status = 'FRESH' AND s.expires_at > datetime('now')
-             AND i.yfinance_symbol IS NOT NULL AND i.yfinance_symbol != ''""",
+             AND ((i.yfinance_symbol IS NOT NULL AND i.yfinance_symbol != '')
+                  OR (i.asset_class = 'stock' AND i.symbol NOT LIKE '%.%'))""",
     )):
         try:
             for r in db.fetchall(sql):
@@ -106,7 +108,14 @@ def _gather_symbols(db) -> list[dict]:
                 if sym not in seen:
                     seen.add(sym)
                     # idx 0 = offene Position (immer pruefen), 1 = Kandidat
-                    rows.append({"symbol": sym, "yf": r["yfinance_symbol"],
+                    # fix/yf-us-ticker (2026-10-17): fuer US-Aktien den eToro-
+                    # Ticker statt instruments.yfinance_symbol (dort oft eine
+                    # ANDERE Firma, z. B. CI -> 'CG'). Ein AVOID aus fremden
+                    # Headlines blockt Kaeufe und verkauft Strategie-Positionen.
+                    from bot.core.buy_veto import yahoo_symbol as _ysym
+                    _yf = _ysym({"symbol": sym, "yfinance_symbol": r["yfinance_symbol"],
+                                 "asset_class": r["asset_class"] if "asset_class" in r.keys() else None})
+                    rows.append({"symbol": sym, "yf": _yf,
                                  "name": r["name"] if "name" in r.keys() else None,
                                  "held": idx == 0})
         except Exception as exc:
