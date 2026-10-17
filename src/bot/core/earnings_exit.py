@@ -108,12 +108,13 @@ def run_earnings_exit(db, state_repo, client, positions: list[dict], cfg: dict) 
     })
     ph = ",".join("?" for _ in iids)
     rows = db.execute(
-        f"SELECT instrument_id, symbol, asset_class, "
-        f"COALESCE(yfinance_symbol, symbol) AS yf "
+        f"SELECT instrument_id, symbol, asset_class, yfinance_symbol "
         f"FROM instruments WHERE instrument_id IN ({ph})",
         iids,
     ).fetchall()
-    meta = {int(r["instrument_id"]): dict(r) for r in rows}
+    # fix/yahoo-symbols (2026-10-17): zentrale Aufloesung (US-Aktie -> Ticker).
+    from bot.core.yahoo_symbols import resolve_row as _yf_row
+    meta = {int(r["instrument_id"]): dict(dict(r), yf=_yf_row(r)) for r in rows}
 
     from bot.core.sell_exits import SellExitAction, execute_sell_exits
     from bot.db.repo import SignalRepo

@@ -42,7 +42,11 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   der Ticker, teils eine ANDERE Firma (CLPT → CNI, CI → CG). Ein gültiges
   Fremdsymbol fällt nie auf den Ticker zurück. 951 belegte Fälle korrigiert
   (`scripts/fix_yf_symbols.py`, Backup `data/backup/trading.db.pre-yf-fix-*`);
-  Rest ungeprüft. Neue Leser für US-Aktien nutzen `buy_veto.yahoo_symbol`.
+  Rest ungeprüft. **Jeder Leser** löst das Yahoo-Symbol über
+  `bot/core/yahoo_symbols.resolve` auf (US-Aktie → Ticker, belegte Ausnahmen
+  in `US_OVERRIDES`, z. B. BP → BP.L); nie `instruments.yfinance_symbol` direkt
+  lesen. Ausnahmen: Schreiber/Korrekturpfade und die Kollisionssuche der
+  Discovery (sucht bewusst nach dem gespeicherten Wert, Preis-Check danach).
   Prüfung aktiver Instrumente: `scripts/check_yf_symbol_identity.py`.
   Analyse: `docs/ANALYSE-yfinance-symbole-2026-10-17.md`.
 - **`.env`-Ladung der Worker nur über `bot.config.load_hermes_env()`**
@@ -300,9 +304,8 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
     Ausnahme vom Edge-Gate; das Pre-Trade-Veto gilt voll.
   - **Rückweg:** `analyst_strategy.mode: "off"`. Alle Werte sind geldwirksam
     (VoLLi).
-  - **US-Aktien:** `instruments.yfinance_symbol` ist systematisch falsch (z. B.
-    DPZ → 'DPI'). Für Yahoo gilt bei US-Titeln der eToro-Ticker
-    (`buy_veto.yahoo_symbol`).
+  - **US-Aktien:** Yahoo-Symbol über `bot/core/yahoo_symbols.resolve` (siehe
+    „Zwei Symbol-Namespaces“).
 - **Signal-Trades A/C/D/E: seit 2026-10-17 aus** (`signal_trades.enabled: false`,
   VoLLi). Offene laufen mit den alten Regeln aus.
 - **Long-Signal-Forschung E4–E8 (Stand 2026-10-17): kein Vorsprung gegen den

@@ -660,7 +660,12 @@ def bulk_ensure_ohlcv(conn, instruments: list, required_days: int = 50, batch_si
             # `get(key, default)`) — a NULLed yfinance_symbol (key present,
             # value None) must fall back to the raw eToro symbol so the
             # contamination-guard self-heal re-resolves via candidates.
-            yf_sym = inst.get('yfinance_symbol') or inst.get('symbol')
+            # fix/yahoo-symbols (2026-10-17): zentrale Aufloesung, wenn die
+            # Klasse bekannt ist (US-Aktie -> Ticker).
+            from bot.core.yahoo_symbols import resolve as _resolve_yahoo
+            yf_sym = (_resolve_yahoo(inst.get('symbol'), inst.get('yfinance_symbol'), inst.get('asset_class'))
+                      if inst.get('asset_class') and inst.get('symbol') else None) \
+                or inst.get('yfinance_symbol') or inst.get('symbol')
 
             if not yf_sym:
                 results[iid] = {'has_data': False, 'days': 0, 'error': 'no_yf_symbol'}

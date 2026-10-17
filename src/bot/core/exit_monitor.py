@@ -104,11 +104,13 @@ def run_exit_monitor(db, state_repo, positions: list[dict], cfg: dict, client=No
         return stats
     ph = ",".join("?" for _ in iids)
     rows = db.execute(
-        f"SELECT instrument_id, symbol, COALESCE(yfinance_symbol, symbol) AS yf "
+        f"SELECT instrument_id, symbol, yfinance_symbol, asset_class "
         f"FROM instruments WHERE instrument_id IN ({ph})",
         iids,
     ).fetchall()
-    sym_map = {int(r["instrument_id"]): (str(r["symbol"]), str(r["yf"])) for r in rows}
+    # fix/yahoo-symbols (2026-10-17): zentrale Aufloesung (US-Aktie -> Ticker).
+    from bot.core.yahoo_symbols import resolve_row as _yf_row
+    sym_map = {int(r["instrument_id"]): (str(r["symbol"]), str(_yf_row(r))) for r in rows}
     if not sym_map:
         return stats
 

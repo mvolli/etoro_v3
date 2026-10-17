@@ -180,9 +180,11 @@ def test_widerspruechliches_yfinance_symbol_wird_verworfen():
         2: {"symbol": "00285.HK", "yfinance_symbol": "TRX-USD", "asset_class": "stock"},
         3: {"symbol": "SPY", "yfinance_symbol": "^GSPC", "asset_class": "etf"},
     })
-    for iid, erwarteter_key in ((1, "US"), (2, "APAC_HK_GROUP"), (3, "US")):
+    # fix/yahoo-symbols (2026-10-17): US-Aktien bekommen ihren Ticker (FNMA),
+    # sonstige kaputte Werte werden weiter verworfen.
+    for iid, erwarteter_key, erwartet_yf in ((1, "US", "FNMA"), (2, "APAC_HK_GROUP", ""), (3, "US", "")):
         fields = mh.resolve_market_fields(db, iid)
-        assert fields[1] == "", f"kaputtes yf_symbol bei iid={iid} nicht verworfen"
+        assert fields[1] == erwartet_yf, f"kaputtes yf_symbol bei iid={iid} nicht verworfen"
         assert mh.get_instrument_market_key(*fields) == erwarteter_key
 
 
@@ -234,3 +236,12 @@ def test_apac_ae_handelt_montags_bis_freitags():
     # Mo 2026-08-17, 03:00 UTC = 07:00 GST → vor Eröffnung
     assert mh.is_market_key_open_at(
         "APAC_AE", datetime(2026, 8, 17, 3, 0, tzinfo=timezone.utc)) is False
+
+
+def test_us_aktie_mit_auslandssuffix_im_yf_symbol_bekommt_us_zeiten():
+    """fix/yahoo-symbols (2026-10-17): SONY trug '6758.T' -> Tokioter Zeiten."""
+    db = _FakeDB({1: {"symbol": "SONY", "yfinance_symbol": "6758.T", "asset_class": "stock"},
+                  2: {"symbol": "BP", "yfinance_symbol": "BP.L", "asset_class": "stock"}})
+    assert mh.resolve_market_fields(db, 1)[1] == "SONY"
+    assert mh.get_instrument_market_key(*mh.resolve_market_fields(db, 1)) == "US"
+    assert mh.resolve_market_fields(db, 2)[1] == "BP.L"          # belegte Ausnahme: London

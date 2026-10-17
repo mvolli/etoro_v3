@@ -101,14 +101,23 @@ def _resolve_yf_symbols(conn, symbols: list[str]) -> dict[str, str]:
     mapping = {s: s for s in symbols}
     try:
         placeholders = ",".join("?" * len(symbols))
-        rows = conn.execute(
-            f"SELECT symbol, yfinance_symbol FROM instruments "
-            f"WHERE symbol IN ({placeholders}) "
-            f"AND yfinance_symbol IS NOT NULL AND yfinance_symbol != ''",
-            symbols,
-        ).fetchall()
+        # fix/yahoo-symbols (2026-10-17): zentrale Aufloesung (US-Aktie -> Ticker).
+        from bot.core.yahoo_symbols import resolve as _resolve_yahoo
+        try:
+            rows = conn.execute(
+                f"SELECT symbol, yfinance_symbol, asset_class FROM instruments "
+                f"WHERE symbol IN ({placeholders})",
+                symbols,
+            ).fetchall()
+        except Exception:  # noqa: BLE001 — Alt-Schema ohne asset_class
+            rows = [(r[0], r[1], None) for r in conn.execute(
+                f"SELECT symbol, yfinance_symbol FROM instruments WHERE symbol IN ({placeholders})",
+                symbols,
+            ).fetchall()]
         for row in rows:
-            mapping[row[0]] = row[1]
+            yf = _resolve_yahoo(row[0], row[1], row[2])
+            if yf:
+                mapping[row[0]] = yf
     except Exception as exc:
         logger.debug("yf-Symbol-Aufloesung fehlgeschlagen (%s) — Rohsymbole", exc)
     return mapping

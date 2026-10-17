@@ -248,12 +248,9 @@ def _append_stale_outcome(db: Any, action: 'TrailingAction') -> None:
         yf_symbol = None
         try:
             if db is not None:
-                row = db.fetchone(
-                    "SELECT yfinance_symbol FROM instruments WHERE instrument_id=?",
-                    (action.instrument_id,),
-                )
-                if row:
-                    yf_symbol = row["yfinance_symbol"]
+                # fix/yahoo-symbols (2026-10-17): zentrale Aufloesung.
+                from bot.core.yahoo_symbols import for_instrument as _yf_for
+                yf_symbol = _yf_for(db, action.instrument_id)
         except Exception:
             pass
         path = (Path(__file__).resolve().parent.parent.parent.parent

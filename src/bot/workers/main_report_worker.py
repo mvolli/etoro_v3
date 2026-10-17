@@ -147,10 +147,12 @@ def _instrument_meta(instrument_ids: list[int]) -> dict[int, dict]:
         conn.row_factory = sqlite3.Row
         ph = ",".join("?" * len(ids))
         rows = conn.execute(
-            f"SELECT instrument_id, symbol, name, yfinance_symbol, sector "
+            f"SELECT instrument_id, symbol, name, yfinance_symbol, sector, asset_class "
             f"FROM instruments WHERE instrument_id IN ({ph})", tuple(ids)).fetchall()
         conn.close()
-        return {int(r["instrument_id"]): dict(r) for r in rows}
+        # fix/yahoo-symbols (2026-10-17): yfinance_symbol zentral aufgeloest.
+        from bot.core.yahoo_symbols import resolve_row as _yf_row
+        return {int(r["instrument_id"]): dict(dict(r), yfinance_symbol=_yf_row(r)) for r in rows}
     except Exception as exc:
         logger.warning("[%s] Instrument-Aufloesung fehlgeschlagen: %s", WORKER_NAME, exc)
         return {}
@@ -167,23 +169,19 @@ def _fetch_news(symbols_yf: list[tuple[str, str]]) -> list[tuple[str, list[str]]
     """
     import time as _t
     out: list[tuple[str, list[str]]] = []
+    # fix/news-rss (2026-10-17): yfinance `.news` liefert leere Listen —
+    # dieselbe RSS-Quelle wie Pre-Trade-Veto und News-Flags.
     try:
-        import yfinance as yf
-        from bot.workers.news_flags_worker import _extract_headline
+        from bot.core.buy_veto import fresh_headlines
     except Exception as exc:
         logger.warning("[%s] News-Modul nicht verfuegbar: %s", WORKER_NAME, exc)
         return out
-    cutoff = _t.time() - NEWS_MAX_AGE_H * 3600
     for display, yf_sym in symbols_yf:
         if not yf_sym:
             continue
         try:
-            items = yf.Ticker(yf_sym).news or []
-            heads = []
-            for it in items[:8]:
-                title, ts = _extract_headline(it)
-                if title and (ts == 0 or ts >= cutoff):
-                    heads.append(title[:150])
+            heads = [h[:150] for h in fresh_headlines(yf_sym, max_age_h=NEWS_MAX_AGE_H, n=3)]
+            _t.sleep(0.2)
             if heads:
                 out.append((display, heads[:3]))
         except Exception:

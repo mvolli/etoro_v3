@@ -80,7 +80,13 @@ def is_corpse_candidate(row: dict) -> tuple[bool, str]:
     """
     iid = int(row.get("instrument_id") or 0)
     status = (row.get("yahoo_status") or "").strip().lower()
-    yf_sym = (row.get("yfinance_symbol") or "").strip()
+    # fix/yahoo-symbols (2026-10-17): US-Aktien liefern auch ohne gespeichertes
+    # Symbol Daten (Ticker) — kein Leichen-Kandidat.
+    from bot.core.yahoo_symbols import resolve as _resolve_yahoo
+    _stored = (row.get("yfinance_symbol") or "").strip()
+    _res = _resolve_yahoo(row.get("symbol"), _stored, row.get("asset_class"))
+    yf_sym = _stored or (_res if _res != (row.get("symbol") or "") or
+                         str(row.get("asset_class") or "") == "stock" else "")
 
     if is_placeholder_id(iid):
         return True, f"Placeholder-ID {iid} (fabrizierter Bereich {PLACEHOLDER_ID_MIN}–{PLACEHOLDER_ID_MAX})"

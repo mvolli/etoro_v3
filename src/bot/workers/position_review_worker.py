@@ -127,11 +127,14 @@ def _backfill_outcomes(current_positions: list, db_path) -> list:
                     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
                     conn.row_factory = sqlite3.Row
                     r = conn.execute(
-                        "SELECT yfinance_symbol FROM instruments WHERE symbol=? LIMIT 1",
+                        "SELECT symbol, yfinance_symbol, asset_class FROM instruments "
+                        "WHERE symbol=? LIMIT 1",
                         (symbol,)
                     ).fetchone()
                     conn.close()
-                    yf_sym = r["yfinance_symbol"] if r else None
+                    # fix/yahoo-symbols (2026-10-17): zentrale Aufloesung.
+                    from bot.core.yahoo_symbols import resolve_row as _yf_row
+                    yf_sym = _yf_row(r) if r else None
                     if yf_sym:
                         td = yf.download(yf_sym, period="2d", interval="1d",
                                          auto_adjust=True, progress=False)
@@ -515,12 +518,18 @@ def _fetch_live_indicators(positions: list[dict], db_path: Path) -> dict[int, di
         cur = conn.cursor()
         placeholders = ",".join("?" * len(instrument_ids))
         cur.execute(
-            f"SELECT instrument_id, yfinance_symbol FROM instruments "
-            f"WHERE instrument_id IN ({placeholders}) "
-            f"  AND yfinance_symbol IS NOT NULL AND yfinance_symbol != ''",
+            f"SELECT instrument_id, symbol, yfinance_symbol, asset_class FROM instruments "
+            f"WHERE instrument_id IN ({placeholders})",
             instrument_ids,
         )
-        id_to_yf: dict[int, str] = {row["instrument_id"]: row["yfinance_symbol"] for row in cur.fetchall()}
+        # fix/yahoo-symbols (2026-10-17): zentrale Aufloesung (US-Aktie -> Ticker).
+        from bot.core.yahoo_symbols import resolve_row as _yf_row
+        id_to_yf: dict[int, str] = {}
+        for row in cur.fetchall():
+            # wie bisher nur mit gespeichertem Symbol — US-Aktien auch ohne
+            _y = _yf_row(row)
+            if _y and (row["yfinance_symbol"] or str(row["asset_class"] or "") == "stock"):
+                id_to_yf[row["instrument_id"]] = _y
         conn.close()
     except Exception as e:
         print(f"[position_review] DB-Fehler bei yfinance_symbol-Lookup: {e}")

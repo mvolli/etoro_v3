@@ -513,6 +513,9 @@ def _batch_fetch(
     return result
 
 
+from bot.core.yahoo_symbols import resolve as resolve_yahoo  # noqa: E402
+
+
 def _persist_frames(db, price_data: dict, items: list[dict]) -> int:
     """Geladene Frames in ohlcv_daily schreiben (fix/ohlcv-from-data-worker, 2026-10-17).
 
@@ -557,16 +560,27 @@ def _get_portfolio_symbols(db: DB) -> list[dict]:
     Returns: [{symbol, yf_symbol, instrument_id}, ...]
     """
     try:
-        rows = db.fetchall("""
-            SELECT DISTINCT ps.symbol, ps.instrument_id, i.yfinance_symbol
-            FROM portfolio_snapshot ps
-            LEFT JOIN instruments i ON i.instrument_id = ps.instrument_id
-            WHERE ps.symbol IS NOT NULL AND ps.symbol != ''
-        """)
+        try:
+            rows = db.fetchall("""
+                SELECT DISTINCT ps.symbol, ps.instrument_id, i.yfinance_symbol,
+                       i.symbol AS i_symbol, i.asset_class
+                FROM portfolio_snapshot ps
+                LEFT JOIN instruments i ON i.instrument_id = ps.instrument_id
+                WHERE ps.symbol IS NOT NULL AND ps.symbol != ''
+            """)
+        except Exception:  # noqa: BLE001 — Alt-Schema ohne asset_class
+            rows = [dict(dict(r), i_symbol=None, asset_class=None) for r in db.fetchall("""
+                SELECT DISTINCT ps.symbol, ps.instrument_id, i.yfinance_symbol
+                FROM portfolio_snapshot ps
+                LEFT JOIN instruments i ON i.instrument_id = ps.instrument_id
+                WHERE ps.symbol IS NOT NULL AND ps.symbol != ''
+            """)]
         items: list[dict] = []
         for r in rows:
             sym = r["symbol"]
-            yf_sym = r["yfinance_symbol"] or _apply_alias(sym)
+            # fix/yahoo-symbols (2026-10-17): zentrale Aufloesung (US-Aktie -> Ticker).
+            yf_sym = (resolve_yahoo(r["i_symbol"], r["yfinance_symbol"], r["asset_class"])
+                      if r["i_symbol"] else r["yfinance_symbol"]) or _apply_alias(sym)
             items.append({
                 "symbol": sym,
                 "yf_symbol": yf_sym,
@@ -608,7 +622,8 @@ def _get_watchlist_from_db(db: DB) -> list[dict]:
         # (locally migrated) is_active column working.
         try:
             rows = db.fetchall("""
-                SELECT w.symbol, i.yfinance_symbol, w.category, w.instrument_id
+                SELECT w.symbol, i.yfinance_symbol, w.category, w.instrument_id,
+                       i.symbol AS i_symbol, i.asset_class
                 FROM watchlist w
                 LEFT JOIN instruments i ON w.instrument_id = i.instrument_id
                 WHERE COALESCE(i.is_active, 1) = 1
@@ -616,17 +631,20 @@ def _get_watchlist_from_db(db: DB) -> list[dict]:
             """)
         except Exception:
             rows = db.fetchall("""
-                SELECT w.symbol, i.yfinance_symbol, w.category, w.instrument_id
+                SELECT w.symbol, i.yfinance_symbol, w.category, w.instrument_id,
+                       i.symbol AS i_symbol, i.asset_class
                 FROM watchlist w
                 LEFT JOIN instruments i ON w.instrument_id = i.instrument_id
             """)
 
         watchlist = []
-        for symbol, yf_symbol, category, instrument_id in rows:
+        for symbol, yf_symbol, category, instrument_id, i_symbol, asset_class in rows:
             if not symbol:
                 continue
-            # Use yfinance_symbol as primary fetch target, fall back to symbol
-            effective_yf = yf_symbol or symbol
+            # fix/yahoo-symbols (2026-10-17): zentrale Aufloesung (US-Aktie ->
+            # Ticker), sonst yfinance_symbol, sonst symbol.
+            effective_yf = (resolve_yahoo(i_symbol, yf_symbol, asset_class) if i_symbol else None) \
+                or yf_symbol or symbol
             watchlist.append({
                 'symbol': symbol,
                 'yf_symbol': effective_yf,

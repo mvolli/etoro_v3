@@ -578,8 +578,16 @@ def resolve_market_fields(db: object, instrument_id: object) -> tuple[str, str, 
         return None
     try:
         sym = row["symbol"] or ''
-        yf = row["yfinance_symbol"] or ''
         asset_class = (row["asset_class"] or '').lower()
+        # fix/yahoo-symbols (2026-10-17): zentrale Aufloesung. Ein fremdes
+        # yfinance_symbol mit Boersen-Suffix (SONY -> '6758.T') haette sonst die
+        # Tokioter Handelszeiten auf eine US-Aktie gelegt.
+        from bot.core.yahoo_symbols import resolve as _resolve_yahoo
+        stored = row["yfinance_symbol"] or ''
+        resolved = _resolve_yahoo(sym, stored, asset_class)
+        # Nur ersetzen, wenn die Regel etwas anderes liefert; ein leeres
+        # gespeichertes Symbol bleibt leer (Suffix von `symbol` traegt dann).
+        yf = resolved if resolved != (stored or sym) else stored
     except Exception:
         return None
 

@@ -240,20 +240,28 @@ def _get_region_discovery_chunk(
         placeholders = ",".join("?" * len(regions))
         rows = db.fetchall(
             f"""
-            SELECT instrument_id, symbol, yfinance_symbol
+            SELECT instrument_id, symbol, yfinance_symbol, asset_class
             FROM instruments
             WHERE market_region IN ({placeholders})
               AND is_active = 1
               AND (is_tradable IS NULL OR is_tradable = 1)
               AND asset_class IN ('stock', 'etf')
-              AND yfinance_symbol IS NOT NULL
-              AND yfinance_symbol != ''
+              AND ((yfinance_symbol IS NOT NULL AND yfinance_symbol != '')
+                   OR (asset_class = 'stock' AND symbol NOT LIKE '%.%'))
               AND instrument_id % ? = ?
             ORDER BY instrument_id
             """,
             (*regions, chunk_count, chunk_idx),
         )
-        return [(row["yfinance_symbol"], row["instrument_id"], row["symbol"]) for row in rows]
+        # fix/yahoo-symbols (2026-10-17): zentrale Aufloesung (US-Aktie -> Ticker);
+        # vorher scannte die Discovery z. B. CLPT mit den Kursen von CNI.
+        from bot.core.yahoo_symbols import resolve_row as _yf_row
+        out = []
+        for row in rows:
+            y = _yf_row(row)
+            if y:
+                out.append((y, row["instrument_id"], row["symbol"]))
+        return out
     except Exception as exc:
         logger.warning("[%s] _get_region_discovery_chunk %s failed: %s", WORKER_NAME, regions, exc)
         return []
