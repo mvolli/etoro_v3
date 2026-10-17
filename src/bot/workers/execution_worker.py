@@ -1074,7 +1074,74 @@ def main() -> None:
                 trade_repo.update_status(trade_id, "APPROVED")
                 processed_count -= 1
                 continue  # retry im nächsten Zyklus (15min)
-    
+
+            # c1. Veto-Pflicht auf ALLEN Kaufwegen (VoLLi 2026-10-17,
+            #     bot/core/buy_veto.py). Ohne gueltiges Urteil des
+            #     trade_veto_worker (APPROVE/REDUCE, <= 60 min) wartet der Kauf
+            #     einen Zyklus. Danach Fallback: harte Regel-Sperren (AVOID,
+            #     Earnings, 8-K 1.03/3.01/4.02), sonst Kauf mit Urteil NO_LLM.
+            #     Nach Markt-Gate: Urteile entstehen fuer handelbare Trades.
+            #     Ausgenommen: Trades mit frueherer Order (a2, REPOST) — die
+            #     Kaufentscheidung ist dort bereits gefallen.
+            if not _prev_order_id.isdigit():
+                try:
+                    from bot.core import buy_veto as _bv
+                    _bv_action, _bv_info = _bv.execution_gate(db, trade_id)
+                except Exception as _bv_exc:  # noqa: BLE001
+                    # Gate-Fehler: Regeln unbekannt -> nicht blind kaufen,
+                    # Trade bleibt APPROVED und wird im naechsten Zyklus neu
+                    # geprueft (Market-closed-TTL begrenzt das Warten).
+                    _bv_action, _bv_info = "WAIT", {"error": str(_bv_exc)}
+                    log_repo.write("WARN", "execution_worker",
+                                   f"Veto-Gate Fehler trade #{trade_id} {symbol}: {_bv_exc} — wartet",
+                                   {"trade_id": trade_id, "symbol": symbol})
+                    _bv_max_h = float(cfg.get("execution", {}).get("market_closed_max_hours", 4.0))
+                    if market_closed_too_old(trade, _bv_max_h):
+                        _bv_action, _bv_info = "BLOCK", {
+                            "reason": f"Veto-Gate seit >{_bv_max_h:.0f}h fehlerhaft — Signal veraltet"}
+                if _bv_action == "WAIT":
+                    logger.info("ExecutionWorker: trade #%d (%s) wartet auf Veto-Urteil (%s)",
+                                trade_id, symbol, _bv_info)
+                    trade_repo.update_status(trade_id, "APPROVED")
+                    processed_count -= 1
+                    continue
+                if _bv_action == "BLOCK":
+                    trade_repo.update_status(
+                        trade_id, "REJECTED",
+                        rejection_reason=f"Regel-Veto: {_bv_info['reason']}"[:200],
+                    )
+                    if trade.get("signal_id"):
+                        try:
+                            db.execute("UPDATE signals SET status='REJECTED' WHERE id=?",
+                                       (trade["signal_id"],))
+                        except Exception:  # noqa: BLE001
+                            pass
+                    log_repo.write("WARN", "execution_worker",
+                                   f"Trade #{trade_id} REJECTED — Regel-Veto (ohne LLM-Urteil): "
+                                   f"{symbol}: {_bv_info['reason']}",
+                                   {"trade_id": trade_id, "symbol": symbol})
+                    _post('post_alert_embed',
+                          title=f"🛑 Regel-Veto — {symbol}",
+                          description=f"{_bv_info['reason']}\n(kein LLM-Urteil, Fallback-Prüfung)",
+                          severity="WARNING", channel="trades")
+                    failed_count += 1
+                    continue
+                if _bv_info.get("decision") == "NO_LLM":
+                    log_repo.write("WARN", "execution_worker",
+                                   f"Trade #{trade_id} {symbol}: kein LLM-Urteil nach "
+                                   f"{_bv_info.get('waited_min', 0):.0f} min — nur Regeln, Kauf läuft",
+                                   {"trade_id": trade_id, "symbol": symbol})
+                    _post('post_alert_embed',
+                          title=f"⚠️ Kauf ohne LLM-Urteil — {symbol}",
+                          description=("Das Pre-Trade-Veto hat nicht rechtzeitig geantwortet. "
+                                       "Regel-Sperren geprüft (AVOID, Earnings, 8-K): keine. "
+                                       "Kauf läuft (VoLLi 17.10.: Regeln hart, LLM weich)."),
+                          severity="WARNING", channel="trades")
+                # REDUCE wurde in die DB geschrieben, nachdem der Trade gelesen war.
+                _bv_amt = float(_bv_info.get("amount_usd") or 0.0)
+                if 0 < _bv_amt < amount_usd:
+                    amount_usd = _bv_amt
+
             # c2. Slippage gate (fix/autonomy-hardening) — the signal price is
             #     stored at approval time but was previously never used. Block
             #     execution when the live price has drifted too far from it.

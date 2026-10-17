@@ -72,6 +72,10 @@ class TradeRepo:
         self._ensure_requeue_column()
         self._ensure_verification_status_column()
         self._ensure_verify_attempts_column()
+        # feat/veto-alle-kaufwege (VoLLi 2026-10-17): Urteils-Spalten
+        # veto_decision/veto_reason/veto_at/veto_wait_since.
+        from bot.core.buy_veto import ensure_columns as _ensure_veto_columns
+        _ensure_veto_columns(self.db)
 
     def _ensure_requeue_column(self) -> None:
         """Idempotent migration: trades.requeue_count (fix/failed-trade-requeue)."""

@@ -232,8 +232,8 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   `bot/core/core_index.py`, Config `core_index` (Code-Default `mode: "off"`;
   LIVE seit 2026-10-16, VoLLi: ISAC.L/15428 (echter UCITS-ETF; ACWI/4002 wäre
   nur CFD), Ziel 30 % Equity, SL 25 %, eine Tranche/Tag ≤ 98 % `max_trade_pct`,
-  nur bei offener Börse). Vom Edge-Gate UND vom Pre-Trade-Veto
-  ausgenommen (wie CORE_SWEEP).
+  nur bei offener Börse). Vom Edge-Gate ausgenommen (wie CORE_SWEEP); durchs
+  Pre-Trade-Veto läuft er seit 2026-10-17, aber nur mit hartem VETO (kein REDUCE).
   Kern-Positionen werden in `risk_worker._exclude_core_positions` vor allen
   Exit-Schritten herausgefiltert; `client.close_position` verweigert sie als
   Sicherheitsnetz (Rückgabe `{}`), bewusster Verkauf nur mit `allow_core=True`.
@@ -270,9 +270,27 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   Signaltest wird VOR dem Lauf vorregistriert und committet, mit genau einem
   Lauf. Ergebnisse aus E4–E8 begründen keinen Live-Schalter.
   Datencaches liegen in `data/e6_cache`, `e7_cache`, `e8_cache` (nicht im Git).
-- **Pre-Trade-Veto REDUCE unter $200 ⇒ Veto** (VoLLi 2026-10-16,
-  `trade_veto_worker._reduce_floor` = `signal_floor_usd`). Der $200-Floor in
-  `execution_worker` b4 darf eine LLM-Verkleinerung nie wieder hochrunden.
+- **Pre-Trade-Veto auf ALLEN Kaufwegen (VoLLi 2026-10-17, `bot/core/buy_veto.py`).**
+  Gekauft wird nur im `execution_worker`. Gate c1 (nach dem Markt-Gate) kauft nur
+  mit gültigem Urteil in `trades.veto_decision` (APPROVE/REDUCE/NO_LLM, ≤ 60 min
+  alt, `veto_at`). Ohne Urteil wartet der Kauf einen Zyklus (`veto_wait_since`).
+  Danach greift der Fallback „Regeln hart, LLM weich“: Regel-Sperren, sonst Kauf
+  mit NO_LLM plus WARN und Embed. Trades mit früherer Order (a2/REPOST) sind
+  ausgenommen.
+  - **Regel-Sperren (fail-closed, ohne LLM):** News-Flag AVOID, Earnings binnen
+    2 Tagen, SEC-8-K der letzten 10 Tage mit Item 1.03/3.01/4.02 (nur US-Aktien).
+  - **`trade_veto_worker`:** prüft alle APPROVED-Käufe ohne gültiges Urteil bei
+    offenem Markt, auch CORE_SWEEP, CORE_INDEX und Trades ohne Signal. Erst die
+    Regeln, dann das LLM mit frischen Headlines (Yahoo-RSS + Google News, weil
+    yfinance `.news` leer ist), SEC-Meldungen und relevanten Truth-Social-Posts
+    (trumpstruth.org-RSS, Cache `data/truth_social_cache.json`).
+  - **Kern-Käufe:** nur VETO; REDUCE wird APPROVE.
+  - **Kein LLM-Urteil:** kein Urteil schreiben, nie APPROVE vortäuschen.
+  - **SEC-User-Agent mit VoLLi-Kontakt:** live freigegeben 17.10.
+  - **Bewertung:** `delta_28d_pct` im Veto-Log, Wochenbericht.
+  - **REDUCE unter $200 ⇒ Veto** (VoLLi 2026-10-16,
+    `trade_veto_worker._reduce_floor` = `signal_floor_usd`). Der $200-Floor in
+    `execution_worker` b4 darf eine LLM-Verkleinerung nie wieder hochrunden.
 - **Edge-Gate (`bot/core/edge_gate.py`, LIVE seit 2026-10-09) prüft ZWEIMAL.**
   Vorfilter in `signal_worker._filter_eligible` (seit 2026-10-16): geblockter Typ
   ⇒ Signal REJECTED, kein Trade, kein Veto-LLM, kein Block-Embed (Skip-Key

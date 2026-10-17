@@ -90,11 +90,11 @@ def _gather_symbols(db) -> list[dict]:
     rows: list[dict] = []
     seen: set[str] = set()
     for idx, sql in enumerate((
-        """SELECT DISTINCT i.symbol, i.yfinance_symbol
+        """SELECT DISTINCT i.symbol, i.yfinance_symbol, i.name
            FROM portfolio_snapshot ps
            JOIN instruments i ON i.instrument_id = ps.instrument_id
            WHERE i.yfinance_symbol IS NOT NULL AND i.yfinance_symbol != ''""",
-        """SELECT DISTINCT i.symbol, i.yfinance_symbol
+        """SELECT DISTINCT i.symbol, i.yfinance_symbol, i.name
            FROM signals s
            JOIN instruments i ON i.instrument_id = s.instrument_id
            WHERE s.status = 'FRESH' AND s.expires_at > datetime('now')
@@ -107,6 +107,7 @@ def _gather_symbols(db) -> list[dict]:
                     seen.add(sym)
                     # idx 0 = offene Position (immer pruefen), 1 = Kandidat
                     rows.append({"symbol": sym, "yf": r["yfinance_symbol"],
+                                 "name": r["name"] if "name" in r.keys() else None,
                                  "held": idx == 0})
         except Exception as exc:
             logger.warning("[%s] Symbol-Query fehlgeschlagen: %s", WORKER_NAME, exc)
@@ -128,20 +129,20 @@ def _extract_headline(item: dict) -> tuple[str, float]:
 
 
 def _fetch_news(symbols: list[dict]) -> dict[str, list[str]]:
-    """{symbol: [headline, ...]} — nur Headlines juenger als NEWS_MAX_AGE_H."""
-    import yfinance as yf
-    cutoff = time.time() - NEWS_MAX_AGE_H * 3600
+    """{symbol: [headline, ...]} — nur Headlines juenger als NEWS_MAX_AGE_H.
+
+    fix/news-rss (2026-10-17): yfinance `Ticker.news` liefert leere Listen
+    (NVDA 0 Items) — das Headline-LLM sah seither nichts, Flags kamen nur noch
+    aus Earnings und Kurszielen. Quelle jetzt Yahoo-Finance-RSS + Google News
+    (bot/core/buy_veto.fresh_headlines, dieselbe Quelle wie das Pre-Trade-Veto).
+    """
+    from bot.core.buy_veto import fresh_headlines
     out: dict[str, list[str]] = {}
     for entry in _capped(symbols, NEWS_SYMBOL_CAP):
         try:
-            items = yf.Ticker(entry["yf"]).news or []
-            heads = []
-            for item in items[:8]:
-                title, ts = _extract_headline(item)
-                if title and (ts == 0 or ts >= cutoff):
-                    heads.append(title[:160])
+            heads = fresh_headlines(entry["yf"], name=entry.get("name"), max_age_h=NEWS_MAX_AGE_H, n=5)
             if heads:
-                out[entry["symbol"]] = heads[:5]
+                out[entry["symbol"]] = heads
         except Exception:
             pass
     return out

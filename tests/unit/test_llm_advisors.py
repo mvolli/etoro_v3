@@ -210,24 +210,6 @@ def test_category_unknown_and_empty():
 
 from datetime import datetime, timedelta, timezone
 
-from bot.workers.trade_veto_worker import _seconds_until_execution
-
-
-def test_deadline_at_04_is_120s():
-    now = datetime(2026, 7, 14, 10, 4, 0, tzinfo=timezone.utc)
-    assert _seconds_until_execution(now) == 120.0
-
-
-def test_deadline_at_19_30_is_90s():
-    now = datetime(2026, 7, 14, 10, 19, 30, tzinfo=timezone.utc)
-    assert _seconds_until_execution(now) == 90.0
-
-
-def test_deadline_exactly_at_slot_rolls_to_next():
-    now = datetime(2026, 7, 14, 10, 6, 0, tzinfo=timezone.utc)
-    assert _seconds_until_execution(now) == 900.0
-
-
 def test_read_config_value_rejects_duplicate_key(fake_config):
     fake_config.write_text(
         fake_config.read_text(encoding='utf-8') + 'extra:\n  default_pct: 9.9\n',

@@ -25,7 +25,17 @@ unverwaltet ohne Stop-Loss. Geld schon committed = LLM hat kein Wort mehr.
 
 Lernschleife: jede Entscheidung landet in data/llm_veto_log.json; Vetos
 werden nach >=24h gegen den Live-Preis bewertet (GOOD/MISSED_UPSIDE) und die
-letzten 5 Grades in den naechsten Prompt injiziert.
+letzten 5 Grades in den naechsten Prompt injiziert. Seit 2026-10-17 zusaetzlich
+`delta_28d_pct` fuer VETO und REDUCE (Zeitstopp der Kaeufe), Wochenbericht.
+
+ALLE KAUFWEGE (VoLLi 2026-10-17, bot/core/buy_veto.py): geprueft werden alle
+APPROVED-Kaeufe ohne gueltiges Urteil bei offenem Markt, auch CORE_SWEEP und
+CORE_INDEX (dort nur VETO, kein REDUCE). Zuerst harte Regel-Sperren (AVOID,
+Earnings, 8-K 1.03/3.01/4.02), dann das LLM mit frischen Headlines,
+SEC-Meldungen und Truth-Social-Posts. Das Urteil steht in trades.veto_*; der
+execution_worker kauft ohne Urteil nicht (wartet einen Zyklus, dann nur
+Regeln + NO_LLM). Die fruehere :06-Deadline entfaellt: ein spaetes Urteil
+gilt im naechsten Execution-Slot.
 """
 from __future__ import annotations
 
@@ -48,25 +58,9 @@ logger = logging.getLogger("trade_veto_worker")
 WORKER_NAME = "trade_veto_worker"
 VETO_LOG_PATH = PROJECT_ROOT / "data" / "llm_veto_log.json"
 FLAGS_PATH = PROJECT_ROOT / "data" / "llm_news_flags.json"
-LLM_TIMEOUT_S = 75.0    # :04 + 75s < :06-Execution; darueber fail-open
+LLM_TIMEOUT_S = 75.0    # kein Urteil -> execution_worker wartet, dann Fallback
 MIN_BUY_FALLBACK = 50.0
 REDUCE_MIN_PCT, REDUCE_MAX_PCT = 25, 75
-
-
-def _seconds_until_execution(now: datetime | None = None) -> float:
-    """Sekunden bis zum naechsten execution_worker-Slot (:06/:21/:36/:51).
-
-    fix/veto-deadline (Review 2026-07-14): der LLM-Timeout wird hierauf
-    gekappt — ein Veto, das erst NACH der Execution ankaeme, ist wertlos
-    (der Race-Guard macht es zum NOOP). Bei zu knappem Fenster (<25s, z.B.
-    Cron-Verzoegerung oder langsamer yfinance) wird der LLM-Call komplett
-    uebersprungen: fail-open ist besser als ein totes Rennen."""
-    now = now or datetime.now(timezone.utc)
-    mins_ahead = (6 - now.minute) % 15
-    secs = mins_ahead * 60 - now.second - now.microsecond / 1e6
-    if secs <= 0:
-        secs += 15 * 60
-    return secs
 
 
 def _load_json(path: Path) -> dict:
@@ -134,6 +128,19 @@ def _backfill_outcomes(entries: list[dict]) -> None:
                 to_check.append(e)
         except Exception:
             pass
+    # feat/veto-alle-kaufwege (2026-10-17): zusaetzlich nach 28 Tagen (= Zeitstopp
+    # der Kaeufe) fuer VETO UND REDUCE. 24 h sagt bei Wochen-Haltedauer wenig.
+    due_28 = []
+    for e in entries:
+        if (e.get("decision") in ("VETO", "REDUCE") and "delta_28d_pct" not in e
+                and e.get("yf_symbol") and e.get("signal_price")):
+            try:
+                if (now - datetime.fromisoformat(e["ts"])).total_seconds() >= 28 * 86400:
+                    due_28.append(e)
+            except Exception:
+                pass
+    if due_28:
+        _grade_28d(due_28)
     if not to_check:
         return
     try:
@@ -153,6 +160,23 @@ def _backfill_outcomes(entries: list[dict]) -> None:
                 pass
     except Exception as exc:
         logger.debug("[%s] Outcome-Backfill uebersprungen: %s", WORKER_NAME, exc)
+
+
+def _grade_28d(entries: list[dict]) -> None:
+    """Kursveraenderung 28 Tage nach Veto/Reduce (negativ = Veto lag richtig). In-place."""
+    try:
+        import yfinance as yf
+        syms = sorted({e["yf_symbol"] for e in entries})
+        data = yf.download(syms, period="5d", interval="1d", group_by="ticker",
+                           auto_adjust=True, progress=False, threads=True)
+        for e in entries:
+            try:
+                closes = (data[e["yf_symbol"]]["Close"] if len(syms) > 1 else data["Close"]).dropna()
+                e["delta_28d_pct"] = round((float(closes.iloc[-1]) / float(e["signal_price"]) - 1) * 100, 2)
+            except Exception:
+                pass
+    except Exception as exc:
+        logger.debug("[%s] 28d-Bewertung uebersprungen: %s", WORKER_NAME, exc)
 
 
 def _signal_rejected(db, trade: dict) -> None:
@@ -287,6 +311,52 @@ def _fetch_market_context() -> dict:
     return ctx
 
 
+MAX_TRADES_PER_RUN = 8   # Kontext je Trade kostet Netz-Calls; Rest im naechsten Lauf
+
+
+def _record_verdict(db, trade_id: int, decision: str, reason: str) -> None:
+    """Urteil an einen bereits abgelehnten Trade schreiben (VETO/RULE_VETO)."""
+    try:
+        from bot.core.buy_veto import _iso, _now
+        db.execute("UPDATE trades SET veto_decision=?, veto_reason=?, veto_at=? WHERE id=?",
+                   (decision, str(reason)[:200], _iso(_now()), trade_id))
+    except Exception:  # noqa: BLE001
+        logger.debug("[%s] Urteil #%s nicht geschrieben", WORKER_NAME, trade_id, exc_info=True)
+
+
+def _is_core(trade: dict) -> bool:
+    from bot.core.buy_veto import CORE_TYPES
+    return str(trade.get("signal_type") or "") in CORE_TYPES
+
+
+def _market_open(db, trade: dict) -> bool:
+    try:
+        from bot.core.market_hours import is_market_open, resolve_market_fields
+        mf = resolve_market_fields(db, trade["instrument_id"])
+        sym, yf_sym, cat = mf if mf else (trade["symbol"], "", "")
+        return bool(is_market_open(sym or trade["symbol"], yf_sym, cat, fail_open=False))
+    except Exception:  # noqa: BLE001
+        return True   # im Zweifel pruefen (kostet nur einen LLM-Call)
+
+
+def _trade_context(trade: dict, posts: list[dict]) -> dict:
+    """Frische Quellen je Trade: Headlines, SEC-Meldungen (US), relevante Truth-Posts."""
+    from bot.core import buy_veto as bv
+    ctx = {"headlines": [], "sec": [], "truth": []}
+    yf_sym = trade.get("yfinance_symbol") or trade["symbol"]
+    if str(trade.get("asset_class") or "") in ("stock", "etf"):
+        ctx["headlines"] = bv.fresh_headlines(yf_sym, name=trade.get("name"))
+    if bv.is_us_stock(trade["symbol"], trade.get("asset_class")):
+        cik = bv.sec_cik(trade["symbol"])
+        fl = bv.sec_recent_filings(cik) if cik else None
+        if fl:
+            ctx["sec"] = [f"{f['date']} {f['form']}" + (f" Items {f['items']}" if f.get("items") else "")
+                          for f in fl if not str(f["form"]).startswith(("4", "144", "3", "5"))][:8]
+    kws = [] if _is_core(trade) else bv.trade_keywords(trade)
+    ctx["truth"] = bv.relevant_posts(posts, kws, limit=5)
+    return ctx
+
+
 def main() -> int:
     from bot.core.worker_lock import worker_lock
 
@@ -304,6 +374,7 @@ def main() -> int:
         from bot.db.repo import StateRepo
         from bot.core.heartbeat import record_heartbeat
         from bot.core.llm_client import call_llm_json
+        from bot.core import buy_veto as bv
 
         cfg = {}
         try:
@@ -313,6 +384,7 @@ def main() -> int:
         min_buy = _reduce_floor(cfg)
 
         db = DB(db_path=PROJECT_ROOT / "data" / "trading.db")
+        bv.ensure_columns(db)
         try:
             record_heartbeat(StateRepo(db), WORKER_NAME)
         except Exception:
@@ -320,164 +392,203 @@ def main() -> int:
 
         log_entries = _veto_log_read()
 
-        trades = [dict(r) for r in db.fetchall("""
-            SELECT t.id, t.symbol, t.instrument_id, t.amount_usd, t.signal_price,
-                   t.signal_id,
-                   s.signal_type, s.conviction, s.score, s.rsi, s.bb_pct,
-                   i.yfinance_symbol
-            FROM trades t
-            LEFT JOIN signals s ON s.id = t.signal_id
-            LEFT JOIN instruments i ON i.instrument_id = t.instrument_id
-            WHERE t.status = 'APPROVED'
-              AND s.signal_type NOT IN ('CORE_SWEEP', 'CORE_INDEX')
-              AND (t.order_id IS NULL OR t.order_id = '')
-        """)]
+        # feat/veto-alle-kaufwege (VoLLi 2026-10-17): ALLE Kauf-Trades, auch
+        # CORE_SWEEP/CORE_INDEX und Trades ohne Signal. Geprueft wird, was kein
+        # gueltiges Urteil hat und jetzt handelbar ist; der execution_worker
+        # kauft ohne Urteil nicht (bot/core/buy_veto.execution_gate).
+        rows = [dict(r) for r in db.fetchall(
+            bv.TRADE_CTX_SQL + " WHERE t.status = 'APPROVED' "
+            "AND (t.order_id IS NULL OR t.order_id = '') "
+            "AND COALESCE(t.direction, 'BUY') = 'BUY' ORDER BY t.id")]
+        trades = [t for t in rows if bv.needs_verdict(t) and _market_open(db, t)][:MAX_TRADES_PER_RUN]
         if not trades:
-            # Trade-freier Zyklus = kein Zeitdruck → hier laeuft der
-            # Outcome-Backfill (fix/veto-deadline: vor dem LLM-Call kostete
-            # er yfinance-Sekunden, die im :04→:06-Fenster fehlen).
             _backfill_outcomes(log_entries)
             _veto_log_write(log_entries)
-            logger.debug("[%s] keine APPROVED-Trades — nur Backfill", WORKER_NAME)
+            logger.debug("[%s] keine Trades ohne Urteil — nur Backfill", WORKER_NAME)
             return 0
 
-        deadline_s = _seconds_until_execution()
-        if deadline_s < 25:
-            logger.warning(
-                "[%s] Nur %.0fs bis zum Execution-Slot — LLM-Veto uebersprungen "
-                "(fail-open, %d Trades laufen mechanisch)",
-                WORKER_NAME, deadline_s, len(trades),
-            )
-            print(f"{WORKER_NAME}: Zeitfenster zu knapp ({deadline_s:.0f}s) — fail-open")
-            return 0
+        now_iso = datetime.now(timezone.utc).isoformat()
+        vetoed, reduced = [], []
 
-        market = _fetch_market_context()
+        # ── 1. Harte Regel-Sperren (ohne LLM) ────────────────────────────────
         flags = _load_news_flags()
-        positions = [dict(r) for r in db.fetchall(
-            "SELECT symbol, unrealized_pnl_pct FROM portfolio_snapshot LIMIT 25")]
+        remaining = []
+        for t in trades:
+            reason = bv.rule_block_reason(t, flags=flags)
+            if not reason:
+                remaining.append(t)
+                continue
+            cur = db.execute(
+                "UPDATE trades SET status='REJECTED', rejection_reason=? WHERE id=? "
+                "AND status='APPROVED' AND (order_id IS NULL OR order_id = '')",
+                (f"Regel-Veto: {reason}"[:200], t["id"]))
+            if cur.rowcount:
+                _signal_rejected(db, t)
+                _record_verdict(db, t["id"], "RULE_VETO", reason)
+                vetoed.append((t["symbol"], f"Regel: {reason[:110]}"))
+                log_entries.append({"ts": now_iso, "trade_id": t["id"], "symbol": t["symbol"],
+                                    "yf_symbol": t.get("yfinance_symbol"), "decision": "VETO",
+                                    "rule": True, "reason": f"Regel: {reason}"[:180],
+                                    "signal_price": t.get("signal_price"),
+                                    "signal_type": t.get("signal_type")})
+                logger.info("[%s] REGEL-VETO %s — %s", WORKER_NAME, t["symbol"], reason)
 
-        recent_outcomes = [e for e in log_entries
-                           if e.get("outcome") in ("GOOD", "MISSED_UPSIDE")][-5:]
-        outcomes_block = "\n".join(
-            f"- {e['symbol']}: VETO → {e['outcome']} ({e.get('outcome_delta_pct', '?')}% seither)"
-            for e in recent_outcomes
-        ) or "- noch keine bewerteten Vetos"
+        # ── 2. LLM-Urteil mit frischen Quellen ───────────────────────────────
+        result = None
+        if remaining:
+            market = _fetch_market_context()
+            posts = bv.truth_posts()
+            ctxs = {t["id"]: _trade_context(t, posts) for t in remaining}
+            positions = [dict(r) for r in db.fetchall(
+                "SELECT symbol, unrealized_pnl_pct FROM portfolio_snapshot LIMIT 25")]
 
-        trades_block = "\n".join(
-            f"- trade_id={t['id']} {t['symbol']}: ${t['amount_usd']:.0f}, "
-            f"Signal={t['signal_type'] or '?'} ({t['conviction'] or '?'}, Score {t['score'] or 0:.0f}), "
-            f"RSI={t['rsi'] if t['rsi'] is not None else '?'}"
-            + (f", NEWS-FLAG: {flags[t['symbol']]['flag']} ({flags[t['symbol']]['reason'][:80]})"
-               if t["symbol"] in flags else "")
-            for t in trades
-        )
-        pos_block = ", ".join(
-            f"{p['symbol']} {p.get('unrealized_pnl_pct') or 0:+.1f}%" for p in positions
-        ) or "keine"
+            recent_outcomes = [e for e in log_entries
+                               if e.get("outcome") in ("GOOD", "MISSED_UPSIDE")][-5:]
+            outcomes_block = "\n".join(
+                f"- {e['symbol']}: VETO → {e['outcome']} ({e.get('outcome_delta_pct', '?')}% seither)"
+                for e in recent_outcomes
+            ) or "- noch keine bewerteten Vetos"
 
-        # feat/signal-scorecard: 30d-DB-Bilanz der Signal-Kombos der
-        # Kandidaten — die LLM sieht Fakten statt zu raten. Datei wird
-        # vom llm_review_worker taeglich refresht; fail-open.
-        scorecard_block = "- keine Scorecard-Daten"
-        try:
-            _sc = json.loads(
-                (PROJECT_ROOT / "data" / "signal_scorecard.json").read_text(encoding="utf-8")
-            )
-            _by_combo = {c["signal"]: c for c in _sc.get("combos", [])}
-            _sc_lines = []
-            for _st in sorted({t.get("signal_type") or "" for t in trades if t.get("signal_type")}):
-                _c = _by_combo.get(_st)
-                if _c:
-                    _sc_lines.append(
-                        f"- {_st}: WR {_c['win_rate_pct']}% (n={_c['n']}, "
-                        f"{_c['pnl_usd']:+.0f}$, {_c['sl_kills']} SL-Kills)"
-                    )
-                else:
-                    _sc_lines.append(f"- {_st}: keine 30d-Historie — konservativ pruefen")
-            _ms = _sc.get("macd_split", {})
-            # fix/scorecard-macd-split-scope (2026-09-14): Merksatz gilt
-            # NUR fuer die Dip-Buy-Familie (Scope-Label in der Datei).
-            # n=0-Seite ausblenden (sonst "WR 0.0%"-Muehlenflick).
-            if _ms.get("with", {}).get("n", 0) > 0 and _ms.get("without", {}).get("n", 0) > 0:
-                _sc_lines.append(
-                    f"- Merksatz (Dip-Buys NUR): MIT MACD-Wende WR {_ms['with']['win_rate_pct']}% "
-                    f"(n={_ms['with']['n']}) vs OHNE MACD-Wende WR {_ms['without']['win_rate_pct']}% "
-                    f"(n={_ms['without']['n']}) — Oversold ohne MACD-Wende ist ein Messer. "
-                    f"Gilt NICHT fuer trend-folgende Signale (TREND_PULLBACK, GOLDEN_CROSS)."
+            def _trade_line(t: dict) -> str:
+                c = ctxs[t["id"]]
+                kern = _is_core(t)
+                s = (f"- trade_id={t['id']} {t['symbol']} ({t.get('name') or '?'}; "
+                     f"{t.get('sector') or t.get('asset_class') or '?'}): ${float(t['amount_usd'] or 0):.0f}, "
+                     f"Signal={t.get('signal_type') or '?'} ({t.get('conviction') or '?'}, "
+                     f"Score {float(t.get('score') or 0):.0f}), RSI={t['rsi'] if t.get('rsi') is not None else '?'}")
+                if kern:
+                    s += ("\n  [KERN-KAUF: nur VETO bei konkretem System- oder Firmenereignis; "
+                          "KEIN REDUCE; im Zweifel APPROVE]")
+                if t["symbol"] in flags:
+                    s += f"\n  News-Flag: {flags[t['symbol']]['flag']} ({str(flags[t['symbol']].get('reason', ''))[:80]})"
+                if c["headlines"]:
+                    s += "\n  Headlines 48h: " + " | ".join(c["headlines"])
+                if c["sec"]:
+                    s += "\n  SEC-Meldungen 10 Tage: " + "; ".join(c["sec"])
+                if c["truth"]:
+                    s += "\n  Truth-Social-Posts dazu: " + " | ".join(
+                        f"[{p['ts'][5:16]}] {p['text'][:220]}" for p in c["truth"])
+                return s
+
+            trades_block = "\n".join(_trade_line(t) for t in remaining)
+            pos_block = ", ".join(
+                f"{p['symbol']} {p.get('unrealized_pnl_pct') or 0:+.1f}%" for p in positions
+            ) or "keine"
+
+            scorecard_block = "- keine Scorecard-Daten"
+            try:
+                _sc = json.loads(
+                    (PROJECT_ROOT / "data" / "signal_scorecard.json").read_text(encoding="utf-8")
                 )
-            if _sc_lines:
-                scorecard_block = "\n".join(_sc_lines)
-        except Exception:
-            pass
+                _by_combo = {c["signal"]: c for c in _sc.get("combos", [])}
+                _sc_lines = []
+                for _st in sorted({t.get("signal_type") or "" for t in remaining if t.get("signal_type")}):
+                    if _st in bv.CORE_TYPES:
+                        continue
+                    _c = _by_combo.get(_st)
+                    if _c:
+                        _sc_lines.append(
+                            f"- {_st}: WR {_c['win_rate_pct']}% (n={_c['n']}, "
+                            f"{_c['pnl_usd']:+.0f}$, {_c['sl_kills']} SL-Kills)"
+                        )
+                    else:
+                        _sc_lines.append(f"- {_st}: keine 30d-Historie")
+                if _sc_lines:
+                    scorecard_block = "\n".join(_sc_lines)
+            except Exception:
+                pass
 
-        prompt = f"""/no_think
-Du bist die letzte Pruefinstanz vor der Order-Ausfuehrung eines autonomen
-eToro-Bots. Die Trades unten haben alle mechanischen Gates bereits bestanden.
-Deine Rechte sind ASYMMETRISCH: du darfst verhindern oder verkleinern, NIE
-vergroessern. Vetoe nur bei konkretem Grund (News-Flag, klar feindliches
-Marktumfeld fuer diesen Trade-Typ, offensichtliche Haeufung). Im Zweifel: APPROVE.
+            prompt = f"""/no_think
+Du bist die letzte Pruefinstanz vor dem Kauf eines autonomen eToro-Bots. Die
+Trades unten haben alle mechanischen Gates bestanden; harte Regel-Sperren
+(News-AVOID, Earnings binnen 2 Tagen, 8-K Insolvenz/Delisting/Bilanzkorrektur)
+sind bereits geprueft. Deine Rechte sind ASYMMETRISCH: verhindern oder
+verkleinern, NIE vergroessern. Haltedauer der Kaeufe: Wochen bis Monate.
+
+Vetoe nur bei KONKRETEM Warnsignal in den Quellen: Prognose gesenkt,
+Bilanz-/Buchhaltungsproblem, Klage/Ermittlung, CEO-/CFO-Abgang, Uebernahme
+gescheitert, Zoll-/Sanktionsrisiko fuer genau diese Firma, Branche oder dieses
+Land (z. B. aus Truth-Social-Posts), Kurssturz-Ausloeser. Allgemeine
+Marktstimmung, Bewertung oder fehlende News sind KEIN Grund. Im Zweifel: APPROVE.
 
 ## Markt
 SPY {market['spy_1d_pct']}% | QQQ {market['qqq_1d_pct']}% | VIX {market['vix']} ({market['vix_label']})
 
-## Signal-Scorecard (30d, DB-verifiziert — Kombos mit WR < 25% bei n >= 5 brauchen einen konkreten Grund fuer APPROVE)
+## Signal-Scorecard (30d, DB-verifiziert)
 {scorecard_block}
 
 ## Offene Positionen
 {pos_block}
 
-## Deine letzten Veto-Outcomes (daraus lernen!)
+## Deine letzten Veto-Outcomes
 {outcomes_block}
 
-## Zu pruefende Trades
+## Zu pruefende Kaeufe (mit frischen Quellen)
 {trades_block}
 
-Antworte NUR mit JSON:
+Antworte NUR mit JSON, ein Eintrag je trade_id:
 {{"decisions": [{{"trade_id": N, "decision": "APPROVE|REDUCE|VETO",
-  "reduce_to_pct": 50, "reason": "kurz, deutsch"}}]}}"""
+  "reduce_to_pct": 50, "reason": "kurz, deutsch, mit Quelle"}}]}}"""
 
-        # Timeout dynamisch: Restzeit bis :06 minus 15s Sicherheitsmarge fuer
-        # Anwendung + Log. Bei fruehem Start bleibt es bei LLM_TIMEOUT_S.
-        _remaining = max(10.0, _seconds_until_execution() - 15.0)
-        result = call_llm_json(prompt, max_tokens=768, temperature=0.05,
-                               timeout_s=min(LLM_TIMEOUT_S, _remaining),
-                               label=WORKER_NAME)
+            result = call_llm_json(prompt, max_tokens=1024, temperature=0.05,
+                                   timeout_s=LLM_TIMEOUT_S, label=WORKER_NAME)
 
-        vetoed, reduced = [], []
-        if result and isinstance(result.get("decisions"), list):
-            by_id = {t["id"]: t for t in trades}
-            now_iso = datetime.now(timezone.utc).isoformat()
-            for dec in result["decisions"]:
-                try:
-                    trade = by_id.get(int(dec.get("trade_id", -1)))
-                except (TypeError, ValueError):
-                    trade = None
-                if trade is None:
-                    continue
-                outcome = _apply_decision(db, trade, dec, min_buy)
-                if outcome in ("VETO", "REDUCE"):
-                    # fix/veto-reason (2026-07-20): den LLM-Grund je Symbol
-                    # mitfuehren — das Embed zeigte bisher nur Symbolnamen,
-                    # die eigentliche Aussage ("warum verkleinert?") fehlte.
+            if result and isinstance(result.get("decisions"), list):
+                by_id = {t["id"]: t for t in remaining}
+                decided = set()
+                for dec in result["decisions"]:
+                    try:
+                        trade = by_id.get(int(dec.get("trade_id", -1)))
+                    except (TypeError, ValueError):
+                        trade = None
+                    if trade is None or trade["id"] in decided:
+                        continue
+                    decided.add(trade["id"])
+                    action = str(dec.get("decision", "APPROVE")).upper()
                     _v_reason = str(dec.get("reason", "")).strip() or "kein Grund angegeben"
-                    (vetoed if outcome == "VETO" else reduced).append(
-                        (trade["symbol"], _v_reason[:120])
-                    )
-                    log_entries.append({
-                        "ts": now_iso, "trade_id": trade["id"],
-                        "symbol": trade["symbol"], "yf_symbol": trade.get("yfinance_symbol"),
-                        "decision": outcome, "reason": _v_reason[:180],
-                        "signal_price": trade.get("signal_price"),
-                    })
-                    logger.info("[%s] %s %s — %s", WORKER_NAME, outcome,
-                                trade["symbol"], _v_reason[:120])
-            _veto_log_write(log_entries)
-        elif result is None:
-            logger.warning("[%s] LLM nicht verfuegbar — fail-open, %d Trades unveraendert",
-                           WORKER_NAME, len(trades))
+                    if action == "REDUCE" and _is_core(trade):
+                        # VoLLi 17.10.: Kern-Kaeufe nur hartes Veto, kein REDUCE.
+                        action, _v_reason = "APPROVE", f"REDUCE bei Kern ignoriert: {_v_reason}"
+                    if action not in ("VETO", "REDUCE"):
+                        bv.set_verdict(db, trade["id"], "APPROVE", _v_reason)
+                        continue
+                    outcome = _apply_decision(db, trade, dict(dec, decision=action), min_buy)
+                    if outcome == "VETO":
+                        _record_verdict(db, trade["id"], "VETO", _v_reason)
+                    elif outcome == "REDUCE":
+                        bv.set_verdict(db, trade["id"], "REDUCE", _v_reason)
+                    if outcome in ("VETO", "REDUCE"):
+                        (vetoed if outcome == "VETO" else reduced).append(
+                            (trade["symbol"], _v_reason[:120])
+                        )
+                        log_entries.append({
+                            "ts": now_iso, "trade_id": trade["id"],
+                            "symbol": trade["symbol"], "yf_symbol": trade.get("yfinance_symbol"),
+                            "decision": outcome, "reason": _v_reason[:180],
+                            "signal_price": trade.get("signal_price"),
+                            "signal_type": trade.get("signal_type"),
+                        })
+                        logger.info("[%s] %s %s — %s", WORKER_NAME, outcome,
+                                    trade["symbol"], _v_reason[:120])
+                # Vom LLM nicht erwaehnte Trades: kein Einwand.
+                for t in remaining:
+                    if t["id"] not in decided:
+                        bv.set_verdict(db, t["id"], "APPROVE", "LLM ohne Einwand (nicht erwaehnt)")
+            else:
+                # Kein Urteil: der execution_worker wartet einen Zyklus und
+                # faellt dann auf die Regel-Pruefung zurueck (NO_LLM).
+                logger.warning("[%s] LLM nicht verfuegbar — kein Urteil, %d Kaeufe warten",
+                               WORKER_NAME, len(remaining))
+                try:
+                    from bot.db.repo import LogRepo
+                    LogRepo(db).write("WARN", WORKER_NAME,
+                                      f"LLM ohne Urteil — {len(remaining)} Kauf/Kaeufe warten "
+                                      f"(Fallback NO_LLM nach {bv.WAIT_MAX_MIN} min)",
+                                      {"trade_ids": [t["id"] for t in remaining]})
+                except Exception:
+                    pass
+        _veto_log_write(log_entries)
 
-        # Entscheidungen sind angewendet — jetzt ohne Zeitdruck den
-        # Outcome-Backfill nachziehen (Lernschleife aktuell halten).
         _backfill_outcomes(log_entries)
         _veto_log_write(log_entries)
 
@@ -505,14 +616,10 @@ Antworte NUR mit JSON:
                 )
             except Exception:
                 pass
-        elif trades:
-            # feat/result-embeds (2026-07-16): auch die Freigabe ist ein
-            # Ergebnis — sonst ist ein pruefender LLM-Lauf unsichtbar.
-            # fix/veto-allclear-dedup (2026-07-22): NUR posten wenn sich das
-            # Set der APPROVED-Trades geaendert hat. Ein bei geschlossenem
-            # Markt haengender Trade (BTC #472) erzeugte sonst alle 15min
-            # dasselbe "alle freigegeben"-Embed (User-Beschwerde 2x).
-            _ac_key = ",".join(sorted(str(t.get("id")) for t in trades))
+        elif remaining and result:
+            # feat/result-embeds (2026-07-16) + fix/veto-allclear-dedup
+            # (2026-07-22): Freigabe nur posten, wenn sich das Set geaendert hat.
+            _ac_key = ",".join(sorted(str(t.get("id")) for t in remaining))
             _ac_post = True
             try:
                 from bot.db.repo import StateRepo as _SR_ac
@@ -522,15 +629,15 @@ Antworte NUR mit JSON:
                 else:
                     _ac_sr.set("VETO_ALLCLEAR_IDS", _ac_key)
             except Exception:
-                _ac_post = True  # fail-open: lieber ein Embed zu viel
+                _ac_post = True
             if _ac_post:
                 try:
                     sys.path.insert(0, str(SRC_DIR / "bot"))
                     import discord_embeds as _DE
                     _DE.post_alert_embed(
-                        title=f"🟢 Pre-Trade-Veto: {len(trades)} geprueft — alle freigegeben",
+                        title=f"🟢 Pre-Trade-Veto: {len(remaining)} geprueft — alle freigegeben",
                         description=", ".join(
-                            str(t.get("symbol") or t.get("instrument_id")) for t in trades
+                            str(t.get("symbol") or t.get("instrument_id")) for t in remaining
                         )[:1000],
                         severity="INFO",
                         channel="trades",

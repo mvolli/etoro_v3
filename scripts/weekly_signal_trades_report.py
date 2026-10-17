@@ -131,6 +131,26 @@ def _summary(rows):
             + (f"\nGegen ACWI (gleiche Haltetage): **{vs:+.2f} $**" if b else ""))
 
 
+def veto_summary(path=ROOT / "data" / "llm_veto_log.json") -> str:
+    """Pre-Trade-Veto nach 28 Tagen (Zeitstopp der Kaeufe): Kurs seit Ablehnung.
+
+    Negativ = Veto/Verkleinerung lag richtig (Kurs fiel). Seit 17.10. mit
+    Regel-Vetos und allen Kaufwegen; Bewertung `delta_28d_pct` im Veto-Worker.
+    """
+    import json
+    try:
+        entries = json.loads(path.read_text()).get("entries", [])
+    except Exception:  # noqa: BLE001
+        return "Veto-Log nicht lesbar"
+    out = []
+    for dec in ("VETO", "REDUCE"):
+        d = [e["delta_28d_pct"] for e in entries if e.get("decision") == dec and "delta_28d_pct" in e]
+        if d:
+            good = sum(1 for x in d if x < 0)
+            out.append(f"{dec}: n={len(d)}, Kurs danach Ø {sum(d) / len(d):+.1f} %, richtig {good}/{len(d)}")
+    return " · ".join(out) or "noch keine 28-Tage-Bewertungen"
+
+
 def embed(rep: dict, today: datetime) -> dict:
     lines = [f"`{r['sym'][:10]:10s} {r['net']:+7.2f} $  {r['d0'][5:]}→{r['d1'][5:]}`"
              for r in sorted(rep["week"], key=lambda r: r["d1"])][:20]
@@ -138,7 +158,8 @@ def embed(rep: dict, today: datetime) -> dict:
         "title": f"📈 Signal-Trades — Woche bis {today:%d.%m.%Y}",
         "description": (f"**Diese Woche:** {_summary(rep['week'])}\n"
                         f"**Seit Start {START[8:10]}.{START[5:7]}.:** {_summary(rep['all'])}\n"
-                        f"Offen: {rep['open_n']}/{rep['max_open']}"),
+                        f"Offen: {rep['open_n']}/{rep['max_open']}\n"
+                        f"**Pre-Trade-Veto (28 Tage):** {veto_summary()}"),
         "color": 0x2ECC71 if sum(r["net"] for r in rep["week"]) >= 0 else 0xE67E22,
         "fields": [{"name": "Geschlossen diese Woche", "value": "\n".join(lines) or "—", "inline": False}],
         "footer": {"text": "Broker-netProfit minus Provision $1/$2 je Order · VoLLi 17.10.: keine Abbruchregel"},
