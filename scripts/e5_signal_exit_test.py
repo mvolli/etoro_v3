@@ -182,7 +182,12 @@ def trimmed(v, frac=TRIM):
 
 def main() -> int:
     files = sorted(glob.glob(os.path.join(BARS, "*.csv")))
-    _, spy = load(os.path.join(BARS, "SPY.csv"))
+    # --bench ACWI: beschreibende Gegenprobe gegen den Index, den der Bot kauft
+    # (ISAC.L = MSCI ACWI). Entscheidung laut Vorregistrierung: SPY.
+    bench = os.path.join(ROOT, "data", "e5_bench", "ACWI.csv") if "--bench-acwi" in sys.argv \
+        else os.path.join(BARS, "SPY.csv")
+    print(f"Vergleich: {os.path.basename(bench)[:-4]}")
+    _, spy = load(bench)
     spy_d = spy.date.tolist(); spy_o = spy.open.to_numpy(); spy_c = spy.close.to_numpy()
 
     def spy_ret(d0, d1):
