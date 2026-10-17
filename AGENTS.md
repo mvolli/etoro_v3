@@ -38,6 +38,13 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   Spot-Incident. Discovery/Watchlist arbeiten im yfinance-Namespace —
   Schreiber Richtung Trading-Pfad (z.B. `core_sweep_whitelist`) muessen
   vorher kanonisieren.
+  **US-Aktien (2026-10-17):** `yfinance_symbol` war bei 5 777 von 6 266 nicht
+  der Ticker, teils eine ANDERE Firma (CLPT → CNI, CI → CG). Ein gültiges
+  Fremdsymbol fällt nie auf den Ticker zurück. 951 belegte Fälle korrigiert
+  (`scripts/fix_yf_symbols.py`, Backup `data/backup/trading.db.pre-yf-fix-*`);
+  Rest ungeprüft. Neue Leser für US-Aktien nutzen `buy_veto.yahoo_symbol`.
+  Prüfung aktiver Instrumente: `scripts/check_yf_symbol_identity.py`.
+  Analyse: `docs/ANALYSE-yfinance-symbole-2026-10-17.md`.
 - **`.env`-Ladung der Worker nur über `bot.config.load_hermes_env()`**
   (refactor/dedupe-load-env 2026-09-25): ersetzte 10 identische `_load_env()`-
   Kopien. Semantik unverändert: `os.environ.setdefault`, Werte nur whitespace-
@@ -763,6 +770,11 @@ fuer sein ganzes Scan-Universum und warf die Frames weg. `store_scan_frames`
 schreibt sie jetzt weg — kein zusaetzlicher Netzabruf, kein angefasster Cron.
 Erster Lauf: 17.230 -> 28.036 Zeilen, 299 -> 403 Instrumente, max date
 2026-07-01 -> 2026-09-12.
+
+fix/ohlcv-from-data-worker (2026-10-17): auch der `data_worker` schreibt
+seine Frames (`_persist_frames`; aktuelle Reihen nur die letzten 10 Zeilen).
+Vorher standen Devisen, Futures und Rohstoffe der Watchlist seit 25.06. still,
+weil der Discovery-Scan nur Aktien erfasst.
 
 Die Live-Grader holen ihre Kurse weiterhin direkt via yfinance; `ohlcv_daily`
 ist Analyse-Historie, nicht der Preis-Pfad. Alt-Zeilen vor 2026-09-12 haben

@@ -513,6 +513,37 @@ def _batch_fetch(
     return result
 
 
+def _persist_frames(db, price_data: dict, items: list[dict]) -> int:
+    """Geladene Frames in ohlcv_daily schreiben (fix/ohlcv-from-data-worker, 2026-10-17).
+
+    Bisher schrieb nur der discovery_worker-Scan (Aktien). Devisen, Futures und
+    Rohstoffe der Watchlist wurden hier alle 15 min frisch geladen, aber nie
+    gespeichert: ihre Tagesreihe stand seit 25.06. still (EURNOK, USDTRY,
+    NQ=F, ^RUT, CT=F …). Leser: outcome_refresh (Signal-Outcomes/Edge-Gate),
+    Charts, Korrelation. Kein zusaetzlicher Netzabruf. Fail-open.
+    """
+    try:
+        by_yf = {it.get("yf_symbol"): it.get("instrument_id") for it in items if it.get("instrument_id")}
+        frames = {int(by_yf[sym]): (sym, df) for sym, df in price_data.items() if by_yf.get(sym)}
+        if not frames:
+            return 0
+        # Schreiblast begrenzen (Lauf alle 15 min): aktuelle Reihen nur die
+        # letzten 10 Zeilen, leere/veraltete Reihen den ganzen 3-Monats-Frame.
+        ids = list(frames)
+        ph = ",".join("?" * len(ids))
+        fresh = {int(r[0]) for r in db.fetchall(
+            f"SELECT instrument_id FROM ohlcv_daily WHERE instrument_id IN ({ph}) "
+            f"GROUP BY instrument_id HAVING MAX(date) >= date('now', '-10 days')", ids) or []}
+        frames = {iid: (sym, df.tail(10) if iid in fresh else df) for iid, (sym, df) in frames.items()}
+        from bot.core.ohlcv_cache import store_scan_frames
+        n_inst, n_rows = store_scan_frames(db._get_persistent(), frames)
+        logger.info("[%s] ohlcv_daily: %d Instrumente / %d Zeilen persistiert", WORKER_NAME, n_inst, n_rows)
+        return n_rows
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[%s] ohlcv_daily-Persistenz uebersprungen: %s", WORKER_NAME, exc)
+        return 0
+
+
 def _get_portfolio_symbols(db: DB) -> list[dict]:
     """Return portfolio positions with resolved yfinance symbols (Tier 1).
 
@@ -800,6 +831,7 @@ def run(project_root: Path | None = None) -> dict:
     # 3. Batch fetch OHLCV data -----------------------------------------------
     price_data = _batch_fetch(all_yf_symbols, sym_to_original=alias_to_original)
     n_fetched = len(price_data)
+    _persist_frames(db, price_data, all_items)
 
     # 4–6. Compute indicators + generate signals per symbol -------------------
     instrument_map = get_instrument_map()           # {instrument_id: symbol}
