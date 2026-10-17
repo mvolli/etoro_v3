@@ -7,7 +7,8 @@ Liest data/llm_position_recommendations.json und fuehrt aus:
 
 Safety:
   - MAX_REC_AGE_MIN: Aeltere Empfehlungen ignoriert (Stale-Data-Schutz)
-  - is_market_open(...): EXIT nur bei offenem Markt; TIGHTEN immer.
+  - is_market_open(...): EXIT und TIGHTEN mit close_pct nur bei offenem Markt;
+    TIGHTEN ohne close_pct (nur momentum_faded-Flag) immer.
     Boersenfelder kommen aus instruments (resolve_market_fields) — das
     blosse rec-Symbol trifft sonst die falsche Boerse.
   - executed: True verhindert Doppel-Ausfuehrung
@@ -246,6 +247,19 @@ def execute_llm_recommendations(
                         stats["errors"].append("TIGHTEN %s: %s" % (symbol, exc))
                 else:
                     stats["tighten_count"] += 1
+                continue
+
+            # fix/llm-tighten-market-hours (2026-10-17): TIGHTEN MIT close_pct
+            # sendet eine echte Order — bisher auch bei geschlossenem Markt
+            # (nur EXIT war geprueft). BOQ.ASX/ORG.ASX 16.10. 13:31 UTC: ASX zu,
+            # Close-Orders liegen beim Broker bis zur Montagseroeffnung (Gap-
+            # Fill zu stalem Preis), Ledger + Discord meldeten sofort CLOSED.
+            # Gleiche Regel wie EXIT und trailing (fix/stale-price-trailing):
+            # retry im naechsten Zyklus mit frischen Preisen.
+            if not market_open:
+                logger.info("[llm_execution] TIGHTEN %s %.0f%%: Markt geschlossen — retry",
+                            symbol, rec_close_pct)
+                stats["skip_count"] += 1
                 continue
 
             # fix/llm-tighten-remaining (2026-09-05): Dieser Pfad hat die

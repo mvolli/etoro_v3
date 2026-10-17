@@ -90,6 +90,10 @@ def _isolate(tmp_path, monkeypatch):
     # aendert, statt still nichts zu tun.
     monkeypatch.setattr(LE, "_discord", lambda *a, **k: None)
     monkeypatch.setattr(LE, "_append_outcome_entry", lambda *a, **k: None)
+    # fix/llm-tighten-market-hours (2026-10-17): TIGHTEN mit close_pct braucht
+    # jetzt offenen Markt. Ohne Patch hingen diese Tests an der echten Uhrzeit.
+    import bot.core.market_hours as _mh
+    monkeypatch.setattr(_mh, "is_market_open", lambda *a, **k: True)
     return tmp_path
 
 
@@ -196,3 +200,17 @@ def test_fehlgeschlagene_fortschreibung_bricht_nicht_ab(tmp_path, monkeypatch):
     client, db, log = _Client(), _DB(), _Log()
     stats = LE.execute_llm_recommendations(client, db, {"P1"}, log)
     assert stats["tighten_count"] == 1, "Order gilt trotzdem als ausgefuehrt"
+
+
+# ── fix/llm-tighten-market-hours (2026-10-17) ────────────────────────────────
+
+def test_tighten_mit_order_wartet_bei_geschlossenem_markt(tmp_path, monkeypatch):
+    """BOQ.ASX/ORG.ASX 16.10.: TIGHTEN 100 % bei geschlossener ASX ging als
+    Order raus und wurde sofort als CLOSED gebucht. Jetzt: keine Order, retry."""
+    import bot.core.market_hours as _mh
+    monkeypatch.setattr(_mh, "is_market_open", lambda *a, **k: False)
+    client, stats, _ = _run(tmp_path, 1.0, monkeypatch, close_pct=25.0)
+    assert client.calls == []
+    assert stats["skip_count"] == 1
+    recs = json.loads((tmp_path / "recs.json").read_text())
+    assert not any(r.get("executed") for r in recs)
