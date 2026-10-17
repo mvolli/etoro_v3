@@ -316,6 +316,8 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   ausgenommen.
   - **Regel-Sperren (fail-closed, ohne LLM):** News-Flag AVOID, Earnings binnen
     2 Tagen, SEC-8-K der letzten 10 Tage mit Item 1.03/3.01/4.02 (nur US-Aktien).
+    Die Earnings-Sperre gilt auch für SCREEN_Q2/EARN_S1 (VoLLi 2026-10-17: so
+    lassen; trifft ~7 % der Q2-Käufe, der nächste Pick rückt nach).
   - **`trade_veto_worker`:** prüft alle APPROVED-Käufe ohne gültiges Urteil bei
     offenem Markt, auch CORE_SWEEP, CORE_INDEX und Trades ohne Signal. Erst die
     Regeln, dann das LLM mit frischen Headlines (Yahoo-RSS + Google News, weil
