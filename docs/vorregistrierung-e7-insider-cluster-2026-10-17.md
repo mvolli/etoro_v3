@@ -70,6 +70,26 @@ letzte 40 % **Holdout**.
 **Angenommen = alle.** Bestehen mehrere, gilt die mit dem höchsten t. Ergebnisse
 aus E6 ändern diese Regeln nicht.
 
+## Nachtrag vor dem Lauf (17.10., Daten geprüft, noch kein Ergebnis gesehen)
+
+Die Signal- und Entscheidungsregeln oben bleiben unverändert. Ergänzt wurden nur
+zwei Bereinigungen und eine Datenquelle:
+
+1. **Ticker-Wiederverwendung:** 132 Kürzel im Universum wurden über die Jahre von
+   mehr als einem Emittenten (CIK) gemeldet, zusammen 1 820 von 44 839 Käufen.
+   Es zählen nur Meldungen des CIK, der das Kürzel zuletzt gemeldet hat.
+   Dadurch fallen auch einige echte CIK-Wechsel weg, etwa Abspaltungen und
+   Umgründungen. Das wirkt konservativ, weil es weniger Auslöser gibt.
+2. **Unmögliche Werte:** Transaktionen über $100 Mio. werden ausgeschlossen
+   (35 Zeilen). Sie sind überwiegend Preisfehler, etwa $44 394 je Aktie.
+3. **Kurse:** Sie kommen aus `data/e7_cache/bars/` ab 2006
+   (`scripts/e7_fetch_bars.py`), nicht aus `e6_cache`, weil dieser erst 2011
+   beginnt. Quelle und Einstellungen sind dieselben.
+
+Bekannt und nicht korrigiert: `e7_fetch_insider.py` übernimmt je Meldung nur den
+ersten meldenden Insider. Bei gemeinsamen Meldungen zählt das weniger
+verschiedene Insider, wirkt also ebenfalls konservativ.
+
 ## Grenzen (vorab)
 
 Survivorship (Universum heute); Ticker aus der Meldung (Umbenennungen gehen
