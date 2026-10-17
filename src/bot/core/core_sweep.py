@@ -338,6 +338,18 @@ def plan_core_sweep(
             if sym not in whitelist:  # config hat Vorrang
                 whitelist[sym] = iid
 
+    # feat/sweep-fee-markets (VoLLi 2026-10-17): $2-Boersen raus. eToro bucht
+    # $2 statt $1 je Order (Oeffnen UND Schliessen) fuer AUD/HKD/AED-Titel und
+    # Tokio — bei $200 sind das 2 % Runde statt 1 %.
+    _excl = tuple(str(x).upper() for x in (cs.get("exclude_suffixes") or []))
+    if _excl:
+        _dropped = [sym for sym in whitelist if str(sym).upper().endswith(_excl)]
+        for sym in _dropped:
+            whitelist.pop(sym, None)
+        if _dropped:
+            reasons.append(f"Core-Sweep: {len(_dropped)} Titel an $2-Boersen ausgelassen "
+                           f"({', '.join(sorted(_dropped)[:6])})")
+
     reserve_target = equity * reserve_target_pct / 100.0
     reserve_floor = equity * reserve_floor_pct / 100.0
     target_size = round(equity * per_position_pct / 100.0, 2)

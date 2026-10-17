@@ -180,6 +180,11 @@ def _market_open(monkeypatch):
     monkeypatch.setattr(ts, "_get_discord_embeds", lambda: None)
     monkeypatch.setattr(ts, "_verify_partial_close",
                         lambda *a, **k: (True, "test: verified"))
+    # Diese Tests pruefen MIN_PARTIAL_CLOSE_USD, nicht die Gebuehren-Schwelle
+    # partial_close.min_tranche_usd aus der LIVE-Config (seit 17.10. $100).
+    from bot.core import partial_close_policy as _pcp
+    monkeypatch.setattr(_pcp, "_min_tranche_usd",
+                        lambda override=None: 0.0 if override is None else float(override))
 
 
 def test_mini_teilverkauf_sendet_keine_order(_market_open):

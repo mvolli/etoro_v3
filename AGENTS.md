@@ -230,8 +230,9 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   `docs/PLAN-marktregime-limits-2026-10-16.md`.
 - **Index-Kern (`CORE_INDEX`, seit 2026-10-16) ist für JEDEN Ausstiegspfad tabu.**
   `bot/core/core_index.py`, Config `core_index` (Code-Default `mode: "off"`;
-  LIVE seit 2026-10-16, VoLLi: ACWI/4002, Ziel 30 % Equity, SL 25 %, eine
-  Tranche/Tag ≤ `max_trade_pct`). Vom Edge-Gate UND vom Pre-Trade-Veto
+  LIVE seit 2026-10-16, VoLLi: ISAC.L/15428 (echter UCITS-ETF; ACWI/4002 wäre
+  nur CFD), Ziel 30 % Equity, SL 25 %, eine Tranche/Tag ≤ 98 % `max_trade_pct`,
+  nur bei offener Börse). Vom Edge-Gate UND vom Pre-Trade-Veto
   ausgenommen (wie CORE_SWEEP).
   Kern-Positionen werden in `risk_worker._exclude_core_positions` vor allen
   Exit-Schritten herausgefiltert; `client.close_position` verweigert sie als
@@ -427,8 +428,13 @@ Mai 2025, Gebührenseite, Konto-API, Cash-Messung 16.10.):**
   Short/gehebelt (SPY x1: `totalFees` 0 nach 7 Nächten), CFD-BUY-Satz sonst
   6,4 % + Benchmark p. a.
 - Krypto: 1 % je Seite.
-- Edge-Gate/Outcomes rechnen pauschal 1,1 % Runde: passt für $1-Aktien bei
-  $200, zu niedrig für $2-Märkte und Krypto (~2,1 %), zu hoch für echte ETFs.
+- Edge-Gate/Outcomes rechnen seit 2026-10-17 **Kosten je Markt** (VoLLi,
+  `outcome_refresh.market_cost`, bezogen auf $200): $1-Aktien 1,1 %, $2-Märkte
+  und Krypto 2,1 %, US-ETF-CFD 0,4 %, echter ETF 0,2 %. Spalte `cost` je Zeile.
+- CORE_SWEEP kauft keine $2-Börsen (`core_sweep.exclude_suffixes`, VoLLi 17.10.).
+- Teilverkäufe < `partial_close.min_tranche_usd` ($100, VoLLi 17.10.) werden
+  unterdrückt. Broker-Abgleich 10.09.–16.10.: 136 Positionen mit Teilverkauf
+  netto −$265; ohne Teilverkäufe −$115; beim ersten Teilverkauf ganz schließen −$8.
 P&L je Familie nur gegen Broker-`netProfit` minus Gebühren, nie gegen Ledger
 allein. Beleg: `docs/ANALYSE-gewinnzone-2026-10-16.md`.
 

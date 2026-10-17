@@ -163,6 +163,7 @@ trading:
     regimes: ["NORMAL", "CAUTION", "DEFENSIVE"]  # D4 (2026-10-09, VoLLi): DEFENSIVE frei (0.25x via entry_quality)
     max_open_positions: 3    # D4 (2026-10-09): hartes Cap max. 3 offene CORE_SWEEP-Positionen
     fixed_tranche_usd: 200.0  # VoLLi 2026-10-16: jeder Sweep-Kauf fix $200 (0 = aus)
+    exclude_suffixes: [".ASX", ".AX", ".HK", ".T", ".AE", ".DH"]  # VoLLi 2026-10-17: $2-Boersen (Provision $2 je Order) nicht sweepen
     whitelist:                # symbol -> instrument_id (validiert: tradable+aktiv, ATR vorhanden)
       SPY:  3000              # Index-Anker, ATR 1.1% (niedrigste Vola)
       AAPL: 1001
@@ -500,6 +501,9 @@ partial_close:                # feat/partial-close-policy (2026-10-01) — Teils
   mode: current               # current | no_partials | loss_only
   ledger: true                # Always record decisions (shadow evidence). false = off.
   partial_threshold_pct: 99.5 # close_pct strictly below this = "partial" (else full).
+  min_tranche_usd: 100.0      # VoLLi 2026-10-17: Teilverkauf kostet $1/$2 je Order (eToro-PDF +
+                              # Cash-Messung 16.10.) -> Tranche < $100 wird unterdrueckt, Position
+                              # laeuft bis zum vollen Exit. 0 = aus. Geldwirksam -> VoLLi.
 
 trailing:                     # Dynamic profit-taking (runs each risk_worker cycle on LIVE PnL)
   min_hold_hours: 24          # fix/fee-churn-minhold (2026-09-20): Schonfrist — keine
@@ -688,18 +692,14 @@ execution:
 # ALLE Werte geldwirksam -> nur VoLLi. Nicht in BIBLE_HARD_LIMITS (LLM-sicher).
 core_index:
   mode: "live"         # "off" | "shadow" (plant + loggt, kein Trade) | "live" — Anfuehrungszeichen noetig (YAML: off = false)
-                       # VoLLi 2026-10-16: live mit ACWI, Ziel 30 %, SL 25 % (4002 per API geprueft: ACWI, handelbar)
-  symbol: "ACWI"       # USD-gelistetes Breit-ETF, z. B. ACWI (4002) / VTI (4237) — nicht SPY (CORE_SWEEP)
-  instrument_id: 4002
+                       # VoLLi 2026-10-16: live, Ziel 30 %, SL 25 %. VoLLi 2026-10-17: ISAC.L statt ACWI —
+                       # ACWI (4002) ist fuer dieses Konto nur CFD (0,15 %/Seite); ISAC.L (iShares MSCI ACWI
+                       # UCITS, LSE, USD) ist echter ETF ohne Provision (eToro Cost&Charges-PDF), SL 0-100 %.
+  symbol: "ISAC.L"     # breiter Welt-ETF, echt (settlementTypeID 1) — nicht SPY (CORE_SWEEP)
+  instrument_id: 15428
   target_pct: 30.0     # Zielgroesse in % Equity
   band_pct: 2.0        # Nachkauf erst bei Luecke > band_pct der Equity
   sl_pct: 25.0         # Broker-Stop beim Kauf (Broker erlaubt 0-100 %, Bot-Gate < 50 %)
   min_order_usd: 200.0
   min_cash_pct: 18.0   # Cash-Reserve nach dem Kauf
 
-# ── Teilschliessungen (feat/partial-min-tranche, 2026-10-16) ──
-# Teilverkaeufe mit Tranche < min_tranche_usd werden unterdrueckt (Position laeuft
-# bis zum vollen Exit). 0 = aus. Bleibt 0, bis fee_probe klaert, ob Schliessungen
-# ueberhaupt Gebuehren kosten. Wert geldwirksam -> VoLLi.
-partial_close:
-  min_tranche_usd: 0.0

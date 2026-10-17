@@ -31,7 +31,28 @@ from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger("outcome_refresh")
 
-COST = 0.011                  # identisch zu signal_forward_returns.COST
+COST = 0.011                  # Standard: $1-Aktie bei $200 ($1 + $1 + ~0,1 % Spread)
+
+# feat/gate-market-costs (VoLLi 2026-10-17): Rundenkosten je Markt, bezogen auf
+# einen $200-Trade. Quelle: eToro Cost&Charges-PDF + Gebuehrenseite.
+TWO_DOLLAR_SUFFIXES = (".ASX", ".AX", ".HK", ".T", ".AE", ".DH")   # $2 je Order
+COST_TWO_DOLLAR = 0.021       # $2 + $2 auf $200 + Spread
+COST_CRYPTO = 0.021           # 1 % je Seite + Spread
+COST_US_ETF_CFD = 0.004       # US-ETF nur als CFD: 0,15 % je Seite + Spread
+COST_REAL_ETF = 0.002         # echter (UCITS-)ETF: keine Provision, nur Spread
+
+
+def market_cost(symbol: str | None, asset_class: str | None) -> float:
+    """Rundenkosten (Anteil) fuer ein Instrument, bezogen auf $200."""
+    s = (symbol or "").upper()
+    ac = (asset_class or "").lower()
+    if ac == "crypto" or s.endswith("-USD"):
+        return COST_CRYPTO
+    if ac == "etf":
+        return COST_US_ETF_CFD if "." not in s else COST_REAL_ETF
+    if s.endswith(TWO_DOLLAR_SUFFIXES):
+        return COST_TWO_DOLLAR
+    return COST
 HORIZONS = (1, 3, 5, 10)
 WINDOW_DAYS = 30              # Signale dieses Alters werden neu berechnet
 SELL_MARKERS = ("SELL", "OVERBOUGHT")   # identisch zu signal_hygiene
@@ -48,11 +69,11 @@ def _today_utc() -> str:
 
 def load_signals(con, since: str) -> list[tuple]:
     """(instrument_id, signal_date, signal_type, symbol, conviction, score, rsi,
-    status) — dedupliziert pro (instrument_id, Tag, Typ), erstes Signal zaehlt."""
+    status, asset_class) — dedupliziert pro (instrument_id, Tag, Typ), erstes Signal zaehlt."""
     rows = con.execute(
         """
         SELECT s.instrument_id, substr(s.generated_at, 1, 10) AS d, s.signal_type,
-               i.symbol, s.conviction, s.score, s.rsi, s.status
+               i.symbol, s.conviction, s.score, s.rsi, s.status, i.asset_class
         FROM signals s LEFT JOIN instruments i ON i.instrument_id = s.instrument_id
         WHERE s.generated_at >= ? AND s.signal_type IS NOT NULL AND s.signal_type != ''
         ORDER BY s.generated_at
@@ -89,7 +110,8 @@ def load_closes(con, instrument_ids, since: str, before: str) -> dict[int, tuple
     return out
 
 
-def forward_returns(dates: list, closes: list, signal_date: str) -> dict | None:
+def forward_returns(dates: list, closes: list, signal_date: str,
+                    cost: float = COST) -> dict | None:
     """Netto-Forward-Returns ab der Kerze des Signaltags; None ohne diese Kerze."""
     try:
         i = dates.index(signal_date)
@@ -97,7 +119,7 @@ def forward_returns(dates: list, closes: list, signal_date: str) -> dict | None:
         return None
     n = len(closes)
     return {
-        f"fwd_{h}d": (closes[i + h] / closes[i] - 1 - COST) if i + h < n else None
+        f"fwd_{h}d": (closes[i + h] / closes[i] - 1 - cost) if i + h < n else None
         for h in HORIZONS
     }
 
@@ -109,9 +131,10 @@ def compute(con, *, window_days: int = WINDOW_DAYS, today: str | None = None) ->
     sigs = load_signals(con, since)
     closes = load_closes(con, [s[0] for s in sigs], since, today)
     rows, no_bar = [], defaultdict(int)
-    for iid, d, st, sym, conv, score, rsi, status in sigs:
+    for iid, d, st, sym, conv, score, rsi, status, ac in sigs:
+        cost = market_cost(sym, ac)
         bar = closes.get(iid)
-        fwd = forward_returns(*bar, d) if bar else None
+        fwd = forward_returns(*bar, d, cost) if bar else None
         if fwd is None:
             no_bar[st] += 1
             continue
@@ -119,13 +142,13 @@ def compute(con, *, window_days: int = WINDOW_DAYS, today: str | None = None) ->
         row = {
             "signal_date": d, "instrument_id": iid, "symbol": sym,
             "signal_type": st, "conviction": conv, "score": score,
-            "rsi_signal": rsi, "status": status, "cost": COST,
+            "rsi_signal": rsi, "status": status, "cost": cost,
             "direction": "SELL" if sell else "BUY",
         }
         for h in HORIZONS:
             v = fwd[f"fwd_{h}d"]
             row[f"fwd_{h}d"] = v
-            row[f"fwd_{h}d_pnl"] = None if v is None else ((-v - 2 * COST) if sell else v)
+            row[f"fwd_{h}d_pnl"] = None if v is None else ((-v - 2 * cost) if sell else v)
         rows.append(row)
     return {"since": since, "today": today, "signals": len(sigs),
             "rows": rows, "no_bar": dict(no_bar)}
@@ -149,3 +172,35 @@ def write(con, rows: list[dict]) -> int:
     con.executemany(sql, [tuple(r[c] for c in _COLS) for r in rows])
     con.commit()
     return len(rows)
+
+
+def recost_all(con) -> int:
+    """Einmalige Umrechnung ALLER Zeilen auf die Marktkosten (feat/gate-market-costs).
+
+    fwd_Nd ist netto (roh - cost). Neue Kosten: fwd + alt - neu; SELL-pnl wie
+    signal_hygiene (-fwd - 2*cost). Zeilen, deren cost schon stimmt, bleiben.
+    Schreibt nicht selbst committed — Aufrufer committet.
+    """
+    rows = con.execute(
+        "SELECT so.id, so.symbol, i.symbol, i.asset_class, COALESCE(so.cost, ?), "
+        "so.direction, so.fwd_1d, so.fwd_3d, so.fwd_5d, so.fwd_10d "
+        "FROM signal_outcomes so LEFT JOIN instruments i ON i.instrument_id = so.instrument_id",
+        (COST,),
+    ).fetchall()
+    n = 0
+    for rid, so_sym, i_sym, ac, old, direction, *fwd in rows:
+        new = market_cost(i_sym or so_sym, ac)
+        if abs(new - float(old)) < 1e-12:
+            continue
+        sell = (direction or "").upper() == "SELL"
+        vals = []
+        for v in fwd:
+            nv = None if v is None else float(v) + float(old) - new
+            vals.append(nv)
+        pnl = [None if v is None else ((-v - 2 * new) if sell else v) for v in vals]
+        con.execute(
+            "UPDATE signal_outcomes SET cost=?, fwd_1d=?, fwd_3d=?, fwd_5d=?, fwd_10d=?, "
+            "fwd_1d_pnl=?, fwd_3d_pnl=?, fwd_5d_pnl=?, fwd_10d_pnl=? WHERE id=?",
+            (new, *vals, *pnl, rid))
+        n += 1
+    return n

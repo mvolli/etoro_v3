@@ -717,3 +717,21 @@ class TestD4Abort:
         # Kein Abort (zu wenig Trades), Sweep laeuft.
         assert len(orders) >= 1
         assert any("min. 5" in r for r in reasons)
+
+
+# ── feat/sweep-fee-markets (VoLLi 2026-10-17): keine $2-Boersen ─────────────
+
+def test_zwei_dollar_boersen_werden_nicht_gesweept():
+    cfg = _make_cfg(whitelist={"AAPL": 1001, "BHP.ASX": 9001, "0700.HK": 9002,
+                               "7203.T": 9003, "AAF.L": 9004})
+    cfg["trading"]["core_sweep"]["exclude_suffixes"] = [".ASX", ".AX", ".HK", ".T", ".AE", ".DH"]
+    orders, reasons = plan_core_sweep(cfg, equity=10000, cash=8000, regime="NORMAL")
+    syms = {o.symbol for o in orders}
+    assert syms <= {"AAPL", "AAF.L"} and "AAF.L" in syms and "AAPL" in syms
+    assert any("$2-Boersen" in r for r in reasons)
+
+
+def test_ohne_ausschlussliste_unveraendert():
+    cfg = _make_cfg(whitelist={"AAPL": 1001, "BHP.ASX": 9001})
+    orders, _ = plan_core_sweep(cfg, equity=10000, cash=8000, regime="NORMAL")
+    assert {o.symbol for o in orders} == {"AAPL", "BHP.ASX"}

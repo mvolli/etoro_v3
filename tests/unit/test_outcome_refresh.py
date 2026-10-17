@@ -10,7 +10,7 @@ import pytest
 from bot.core import outcome_refresh as orf
 
 _SCHEMA = """
-CREATE TABLE instruments (instrument_id INTEGER PRIMARY KEY, symbol TEXT);
+CREATE TABLE instruments (instrument_id INTEGER PRIMARY KEY, symbol TEXT, asset_class TEXT);
 CREATE TABLE signals (id INTEGER PRIMARY KEY, instrument_id INTEGER, generated_at TEXT,
     signal_type TEXT, conviction TEXT, score REAL, rsi REAL, status TEXT);
 CREATE TABLE ohlcv_daily (instrument_id INTEGER, date TEXT, close REAL,
@@ -35,7 +35,7 @@ def _days(n_back: int) -> list[str]:
 def con():
     c = sqlite3.connect(":memory:")
     c.executescript(_SCHEMA)
-    c.execute("INSERT INTO instruments VALUES (1,'AAA'), (2,'BBB')")
+    c.execute("INSERT INTO instruments VALUES (1,'AAA','stock'), (2,'BBB','stock')")
     days = _days(20)
     # AAA steigt jeden Tag um 1 %, inkl. einer laufenden Kerze HEUTE mit Ausreisser.
     px = 100.0
@@ -111,3 +111,37 @@ def test_ohne_kurs_wird_gezaehlt_nicht_geschrieben(con):
     res = orf.compute(con, today=TODAY)
     assert res["no_bar"] == {"NOBAR": 1}
     assert all(r["signal_type"] != "NOBAR" for r in res["rows"])
+
+
+# ── feat/gate-market-costs (VoLLi 2026-10-17) ────────────────────────────────
+
+def test_market_cost_je_markt():
+    assert orf.market_cost("AAPL", "stock") == 0.011
+    assert orf.market_cost("BHP.ASX", "stock") == 0.021
+    assert orf.market_cost("0700.HK", "stock") == 0.021
+    assert orf.market_cost("7203.T", "stock") == 0.021
+    assert orf.market_cost("BTC", "crypto") == 0.021
+    assert orf.market_cost("SPY", "etf") == 0.004      # US-ETF = CFD
+    assert orf.market_cost("ISAC.L", "etf") == 0.002   # echter UCITS-ETF
+    assert orf.market_cost("VOLV-B.ST", "stock") == 0.011
+
+
+def test_compute_nutzt_marktkosten(con):
+    con.execute("UPDATE instruments SET symbol='AAA.ASX' WHERE instrument_id=1")
+    r = [x for x in orf.compute(con, today=TODAY)["rows"] if x["instrument_id"] == 1][0]
+    assert r["cost"] == 0.021
+    assert r["fwd_5d"] == pytest.approx(1.01 ** 5 - 1 - 0.021)
+
+
+def test_recost_all_rechnet_alte_zeilen_um(con):
+    con.execute("INSERT INTO instruments VALUES (3, 'CCC.HK', 'stock')")
+    con.execute("INSERT INTO signal_outcomes (signal_date, instrument_id, signal_type, cost, direction,"
+                " fwd_5d, fwd_5d_pnl) VALUES ('2026-07-01', 3, 'X', 0.011, 'BUY', 0.02, 0.02)")
+    con.execute("INSERT INTO signal_outcomes (signal_date, instrument_id, signal_type, cost, direction,"
+                " fwd_5d, fwd_5d_pnl) VALUES ('2026-07-01', 3, 'Y,SELL', 0.011, 'SELL', 0.02, -0.042)")
+    assert orf.recost_all(con) == 2
+    buy = con.execute("SELECT cost, fwd_5d, fwd_5d_pnl FROM signal_outcomes WHERE signal_type='X'").fetchone()
+    assert buy[0] == 0.021 and buy[1] == pytest.approx(0.01) and buy[2] == pytest.approx(0.01)
+    sell = con.execute("SELECT fwd_5d, fwd_5d_pnl FROM signal_outcomes WHERE signal_type='Y,SELL'").fetchone()
+    assert sell[0] == pytest.approx(0.01) and sell[1] == pytest.approx(-0.01 - 0.042)
+    assert orf.recost_all(con) == 0                    # idempotent

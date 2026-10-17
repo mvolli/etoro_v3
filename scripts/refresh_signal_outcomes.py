@@ -55,6 +55,8 @@ def _print_table(title, tab):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--write", action="store_true")
+    ap.add_argument("--recost", action="store_true",
+                    help="einmalig ALLE Zeilen auf Marktkosten umrechnen (feat/gate-market-costs)")
     args = ap.parse_args()
 
     con = sqlite3.connect(f"file:{DB}?mode=ro", uri=True, timeout=30)
@@ -78,7 +80,10 @@ def main() -> int:
         dst = sqlite3.connect(copy)
         src.backup(dst)
         src.close()
+        if args.recost:
+            print(f"  Umrechnung auf Marktkosten: {outcome_refresh.recost_all(dst)} Zeilen")
         outcome_refresh.write(dst, rows)
+        dst.commit()
         after = gate_table(dst)
         dst.close()
 
@@ -96,6 +101,8 @@ def main() -> int:
 
     con = sqlite3.connect(DB, timeout=30)
     con.execute("PRAGMA busy_timeout = 30000")
+    if args.recost:
+        outcome_refresh.recost_all(con)
     n = outcome_refresh.write(con, rows)
     try:
         import json
