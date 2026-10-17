@@ -486,6 +486,7 @@ sizing:                       # Position size as % of portfolio equity
   kelly_shrink_k0: 50.0
 
 llm_execution:                # LLM-Positions-Empfehlungen (bot/core/llm_execution.py)
+  tighten_orders: false       # VoLLi 2026-10-17 (E5, laufen lassen): keine TIGHTEN-Orders mehr
   tighten_min_pnl_pct: 3.0    # VoLLi 2026-10-17: TIGHTEN mit Order erst ab +3 % Gewinn (0 = aus).
                               # 10.09.-16.10.: 173 KI-Tighten-Ausstiege bei Ø +1,16 %, Verlierer bis SL -4 %.
                               # Gilt bis zum E5-Ergebnis; EXIT nicht betroffen.
@@ -543,8 +544,16 @@ trailing:                     # Dynamic profit-taking (runs each risk_worker cyc
                               # Durchschnittsgewinner also nicht ab, und 17.9%
                               # bleibt im beobachteten Peak-Bereich (max 22.7%).
                               # Der LLM-Review-Worker darf 0.2..1.0 nachjustieren.
+  # feat/let-run-exits (VoLLi 2026-10-17, E5): Ausstiege nur noch Stop-Loss,
+  # SELL-Signale und Zeitstopp. E5 (786 Titel, 2019-2026): "laufen lassen" in allen
+  # fuenf Familien besser als BE-Lock + Momentum-Fade. Rueckweg: die vier Schalter
+  # unten wieder auf true / time_stop.days 0, llm_execution.tighten_orders true.
+  break_even:
+    enabled: false            # keine BE-Armierung, kein BE_CLOSE (Hard-SL bleibt)
+  time_stop:
+    days: 28                  # Kalendertage (~20 Handelstage, E5 X2/X3); 0 = aus
   stale_exit:                 # fix/stale-exit (2026-07-15): totes Kapital freisetzen
-    enabled: true             # SCHARF seit 2026-07-15 (User-Entscheid: sofort live, engmaschige Beobachtung)
+    enabled: false            # VoLLi 2026-10-17: aus (Zeitstopp ersetzt ihn); vorher true
     min_days: 10              # Kalendertage seit openDateTime (~7 Handelstage)
     pnl_band_pct: 1.5         # |PnL| < Band = seitwaerts (disjunkt zu BE 3.0 / SL)
     min_peak_pct: 2.0         # Peak < Momentum-Fade-Arm-Schwelle: Position lief nie
@@ -577,7 +586,7 @@ trailing:                     # Dynamic profit-taking (runs each risk_worker cyc
     max_pct: 10.0             # Obergrenze (volatile Titel)
 
   momentum_fade:              # Universal quick-profit lock — protects a gain that starts fading
-    enabled: true             # false → disable momentum-fade entirely (ladder/BE unchanged)
+    enabled: false            # VoLLi 2026-10-17 (E5, laufen lassen): aus; vorher true
     # 2026-08-24: 2.0 -> 5.0. Bei 2 % Peak feuerte der Fade auf normalem
     # Rauschen — ein Rueckgang von 0.6 Prozentpunkten genuegte fuer einen
     # Teilverkauf, und er hatte auf 86 % aller offenen Positionen ausgeloest.
@@ -592,7 +601,7 @@ trailing:                     # Dynamic profit-taking (runs each risk_worker cyc
     close_pct: 25.0           # % Default-Fade-Close (KI kalibriert live; war 50%)
     max_retrace_abs_pct: 4.0  # Absoluter Cap: max. Profit-pp vor Fade (bei Peaks >13% bindend)
   scalp:                      # Early first profit rung — only for positions tagged strategy='scalp'
-    enabled: true             # false → tagged positions behave like swing (no early rung)
+    enabled: false            # VoLLi 2026-10-17 (E5, laufen lassen): aus; vorher true
     atr_mult: 2.0             # First rung = atr_mult × ATR%, clamped to [min_pct, max_pct]
     min_pct: 2.0              # Floor for the scalp rung (%)
     max_pct: 5.0              # Cap for the scalp rung (%)

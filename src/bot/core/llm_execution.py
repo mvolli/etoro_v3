@@ -142,6 +142,23 @@ def _tighten_min_pnl_pct() -> float:
     return _TIGHTEN_MIN_CACHE
 
 
+_TIGHTEN_ORDERS_CACHE: bool | None = None
+
+
+def _tighten_orders_enabled() -> bool:
+    """config.yaml llm_execution.tighten_orders (Default True). Fail-open True."""
+    global _TIGHTEN_ORDERS_CACHE
+    if _TIGHTEN_ORDERS_CACHE is None:
+        try:
+            import yaml
+            from bot.config import _PROJECT_ROOT
+            raw = yaml.safe_load((_PROJECT_ROOT / "config" / "config.yaml").read_text()) or {}
+            _TIGHTEN_ORDERS_CACHE = bool((raw.get("llm_execution") or {}).get("tighten_orders", True))
+        except Exception:  # noqa: BLE001
+            _TIGHTEN_ORDERS_CACHE = True
+    return _TIGHTEN_ORDERS_CACHE
+
+
 def _snapshot_pnl_pct(db, position_id) -> float | None:
     """Unrealisierter PnL % der Position aus portfolio_snapshot (None = unbekannt)."""
     try:
@@ -299,6 +316,19 @@ def execute_llm_recommendations(
             # (-4 %) — Gewinner wurden zu frueh abgeschnitten. Unter der Schwelle
             # bleibt die Empfehlung offen (retry, solange sie frisch ist).
             # EXIT ist nicht betroffen; PnL unbekannt -> fail-open.
+            # feat/let-run-exits (VoLLi 2026-10-17): TIGHTEN-Orders ganz aus
+            # (llm_execution.tighten_orders: false) — Gewinne laufen bis SL,
+            # SELL-Signal oder Zeitstopp. Empfehlung wird verbraucht.
+            if recommendation == "TIGHTEN" and not _tighten_orders_enabled():
+                logger.info("[llm_execution] TIGHTEN %s %.0f%%: Tighten-Orders aus "
+                            "(laufen lassen) — verworfen", symbol, rec_close_pct)
+                rec["executed"]        = True
+                rec["executed_at"]     = now.isoformat()[:19]
+                rec["executed_reason"] = "tighten_orders_disabled"
+                changed = True
+                stats["skip_count"] += 1
+                continue
+
             _min_gain = _tighten_min_pnl_pct()
             if recommendation == "TIGHTEN" and _min_gain > 0:
                 _tg_pnl = _snapshot_pnl_pct(db, position_id)

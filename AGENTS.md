@@ -242,9 +242,14 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   als Handels-Exposure (Exposure, Positionszahl, Diversität, Sweep-Headroom),
   aber in Equity/Regime/Verlustlimits. Alle `core_index`-Werte sind
   geldwirksam (VoLLi) und NICHT in `BIBLE_HARD_LIMITS`.
-- **LLM-TIGHTEN mit Order erst ab `llm_execution.tighten_min_pnl_pct` (+3 %)**
-  Gewinn (VoLLi 2026-10-17, bis E5-Ergebnis). Darunter bleibt die Empfehlung offen
-  (Retry, solange frisch); EXIT unberührt; PnL unbekannt ⇒ fail-open.
+- **Ausstiege „laufen lassen“ (VoLLi 2026-10-17, E5):** nur noch Stop-Loss,
+  SELL-Signale und Zeitstopp (`trailing.time_stop.days` 28 Kalendertage ⇒
+  FULL_EXIT). Aus: `trailing.break_even`, `momentum_fade`, `scalp`, `stale_exit`,
+  Leiter, Full-Exit-Ziel und `llm_execution.tighten_orders` (TIGHTEN-Empfehlungen
+  werden verbraucht, keine Order). Bleiben: Hard-SL, risk_sl, SELL-/Earnings-Exits,
+  Exposure-Trim, LLM-EXIT. Beleg `docs/e5-ergebnis-2026-10-17.md`. Rückweg: die
+  Schalter in `config/config.yaml` (Kommentar dort). `tighten_min_pnl_pct` (+3 %)
+  wirkt nur, wenn `tighten_orders` wieder true ist.
 - **Pre-Trade-Veto REDUCE unter $200 ⇒ Veto** (VoLLi 2026-10-16,
   `trade_veto_worker._reduce_floor` = `signal_floor_usd`). Der $200-Floor in
   `execution_worker` b4 darf eine LLM-Verkleinerung nie wieder hochrunden.

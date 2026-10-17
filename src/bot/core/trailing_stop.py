@@ -32,6 +32,13 @@ BREAK_EVEN_TRIGGER_PCT = 3.0    # +3% PnL → move SL to entry (software trackin
 # in einen Mini-Verlust drehen. eToro hat kein SL-Update-Endpoint, daher
 # Software-Enforcement: BE aktiv + PnL ≤ Floor → Full Close.
 BREAK_EVEN_FLOOR_PCT = 0.3
+# feat/let-run-exits (VoLLi 2026-10-17): E5 — "laufen lassen" (SL + SELL +
+# Zeitstopp) schlug die heutigen Ausstiege in allen fuenf Familien. False =
+# keine BE-Armierung, kein BE_CLOSE (der Hard-SL bleibt Verlustschutz).
+BREAK_EVEN_ENABLED = True
+# Zeitstopp: Position nach TIME_STOP_DAYS Kalendertagen ganz schliessen
+# (E5 X2/X3: 20 Handelstage ~ 28 Kalendertage). 0 = aus.
+TIME_STOP_DAYS = 0
 
 # Fixed fallback ladder — used when an instrument has no ATR% on file yet
 # (fresh instrument, data_worker hasn't run a cycle for it). Same values as
@@ -287,7 +294,15 @@ def apply_config(cfg: dict) -> None:
     global FULL_EXIT_ENABLED, FULL_EXIT_ATR_MULT, FULL_EXIT_MIN_PCT, FULL_EXIT_MAX_PCT
     global MIN_REMAINING_PCT
     global MIN_HOLD_HOURS
+    global BREAK_EVEN_ENABLED, TIME_STOP_DAYS
     t = ((cfg or {}).get('trailing') or {})
+    _be = (t.get('break_even') or {})
+    if 'enabled' in _be:
+        BREAK_EVEN_ENABLED = bool(_be['enabled'])
+    try:
+        TIME_STOP_DAYS = max(0, int((t.get('time_stop') or {}).get('days', TIME_STOP_DAYS) or 0))
+    except (TypeError, ValueError):
+        pass
     try:
         MIN_PARTIAL_CLOSE_USD = float(t.get('min_partial_close_usd', MIN_PARTIAL_CLOSE_USD))
     except (TypeError, ValueError):
@@ -931,6 +946,29 @@ def evaluate_trailing(
                 )
                 continue
 
+        # feat/let-run-exits: Zeitstopp — nach TIME_STOP_DAYS ganz raus,
+        # unabhaengig vom PnL (E5 X2/X3). Fail-open: kaputtes openDateTime ->
+        # kein Zeitstopp. Laeuft als FULL_EXIT (verifizierter Vollausstieg).
+        if TIME_STOP_DAYS > 0:
+            try:
+                from bot.core.position_meta import days_held_from
+                _ts_days = days_held_from(pos.get('openDateTime'))
+            except Exception:
+                _ts_days = None
+            if _ts_days is not None and _ts_days >= TIME_STOP_DAYS:
+                actions.append(TrailingAction(
+                    action='FULL_EXIT',
+                    symbol=symbol,
+                    position_id=pos_id,
+                    pnl_pct=pnl_pct,
+                    reason=(f"Zeitstopp: {_ts_days} Tage gehalten (>= {TIME_STOP_DAYS}) "
+                            f"— PnL {pnl_pct:+.1f}%"),
+                    instrument_id=instrument_id,
+                    amount_usd=amount,
+                    open_rate=open_rate,
+                ))
+                continue
+
         def _fade_action() -> TrailingAction:
             return TrailingAction(
                 action='MOMENTUM_FADE',
@@ -952,7 +990,7 @@ def evaluate_trailing(
             # fix/break-even-enforcement: eine BE-armierte Position (war
             # schon ≥ BREAK_EVEN_TRIGGER_PCT) darf nicht zurück unter Entry
             # fallen — Full Close am Floor, statt bis zum Hard-SL durchzurutschen.
-            if pos_id in be_armed and pnl_pct <= BREAK_EVEN_FLOOR_PCT:
+            if BREAK_EVEN_ENABLED and pos_id in be_armed and pnl_pct <= BREAK_EVEN_FLOOR_PCT:
                 actions.append(TrailingAction(
                     action='BE_CLOSE',
                     symbol=symbol,
@@ -1126,7 +1164,7 @@ def evaluate_trailing(
                 )
                 continue
             actions.append(_fr)
-        elif pnl_pct >= BREAK_EVEN_TRIGGER_PCT:
+        elif BREAK_EVEN_ENABLED and pnl_pct >= BREAK_EVEN_TRIGGER_PCT:
             # Only break-even (BE-trigger..first-rung range, or all due levels taken)
             actions.append(TrailingAction(
                 action='BREAK_EVEN',

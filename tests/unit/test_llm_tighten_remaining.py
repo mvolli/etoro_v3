@@ -94,6 +94,9 @@ def _isolate(tmp_path, monkeypatch):
     # jetzt offenen Markt. Ohne Patch hingen diese Tests an der echten Uhrzeit.
     import bot.core.market_hours as _mh
     monkeypatch.setattr(_mh, "is_market_open", lambda *a, **k: True)
+    # feat/let-run-exits: LIVE-Config hat tighten_orders false; diese Tests pruefen
+    # den Order-Pfad selbst.
+    monkeypatch.setattr(LE, "_TIGHTEN_ORDERS_CACHE", True)
     return tmp_path
 
 
@@ -254,3 +257,12 @@ def test_tighten_ab_mindestgewinn_laeuft(tmp_path, monkeypatch):
 def test_exit_ignoriert_mindestgewinn(tmp_path, monkeypatch):
     client, _ = _run_pnl(tmp_path, monkeypatch, pnl=-2.0, recommendation="EXIT", close_pct=100.0)
     assert len(client.calls) == 1 and client.calls[0]["full"]
+
+
+def test_tighten_orders_aus_verbraucht_empfehlung(tmp_path, monkeypatch):
+    """feat/let-run-exits: llm_execution.tighten_orders false -> keine Order."""
+    monkeypatch.setattr(LE, "_TIGHTEN_ORDERS_CACHE", False)
+    client, stats, _ = _run(tmp_path, 1.0, monkeypatch, close_pct=25.0)
+    assert client.calls == []
+    recs = json.loads((tmp_path / "recs.json").read_text())
+    assert recs[0]["executed"] and recs[0]["executed_reason"] == "tighten_orders_disabled"
