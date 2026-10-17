@@ -1984,6 +1984,19 @@ def post_signal_worker_embed(
         "llm_exchange_blacklist":       "Exchange",
         "nicht bewertet (Slots belegt)": "kein Slot",
         "bewertet, kein Trade":         "kein Trade",
+        # Skip-Schluessel aus signal_worker._skip (17.10.: markt_gebuehr wurde
+        # auf "markt_gebue" abgeschnitten).
+        "markt_gebuehr":                "Gebühr (Krypto/$2-Markt)",
+        "signal_max_open":              "Signal-Trades voll",
+        "signal_reserve":               "Cash-Reserve",
+        "bereits_approved":             "schon genehmigt",
+        "commodity_aus":                "Rohstoff aus",
+        "commodity_limit":              "Rohstoff-Limit",
+        "entry_quote":                  "Kurs fehlt",
+        "ghost_blacklist":              "Ghost-Liste",
+        "llm_signaltyp_gesperrt":       "LLM-Sperre Typ",
+        "nachkauf_cooldown":            "Nachkauf-Cooldown",
+        "signaltyp_cooldown":           "Typ-Cooldown",
     }
 
     def _kurz_typ(st: str) -> str:
@@ -2009,7 +2022,7 @@ def post_signal_worker_embed(
             return "Region"
         if "Cooldown" in o:
             return "Cooldown"
-        return o[:11]
+        return o if len(o) <= 24 else o[:23] + "…"
 
     def _lines(rows, ansi_code=None, mit_ergebnis=True, limit=10):
         """Eine Zeile je Signal in normaler Embed-Schrift.
