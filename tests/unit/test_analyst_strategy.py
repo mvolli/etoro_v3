@@ -128,6 +128,11 @@ def test_kein_ausstieg_vor_earnings_nur_bei_news_avoid():
     assert "AVOID" in an.exit_reason(ROW, CFG, date(2026, 10, 15), news)
 
 
+def test_stop_software_netz():
+    assert an.exit_reason(ROW, CFG, date(2026, 10, 15), {}, pnl_pct=-14.9) is None
+    assert "Stop" in an.exit_reason(ROW, CFG, date(2026, 10, 15), {}, pnl_pct=-15.2)
+
+
 def test_8k_nur_seit_einstieg():
     old = [{"form": "8-K", "date": "2026-04-20", "items": "4.02"}]
     assert an.exit_reason(ROW, CFG, date(2026, 10, 15), {}, old) is None

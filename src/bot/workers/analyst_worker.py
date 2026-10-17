@@ -217,11 +217,12 @@ def main() -> int:
                     continue
                 cik = bv.sec_cik(row["symbol"])
                 fl = bv.sec_recent_filings(cik) if cik else None
-                reason = an.exit_reason(row, acfg, today, flags, fl)
-                if not reason:
-                    continue
                 amount = float(p.get("amount") or row.get("amount_usd") or 0.0)
                 pnl = float((p.get("unrealizedPnL") or {}).get("pnL") or 0.0)
+                reason = an.exit_reason(row, acfg, today, flags, fl,
+                                        pnl_pct=(pnl / amount * 100.0) if amount else None)
+                if not reason:
+                    continue
                 actions.append(SellExitAction(
                     signal_id=0, symbol=row["symbol"], position_id=pid,
                     instrument_id=int(row["instrument_id"]), amount_usd=amount,
@@ -314,7 +315,7 @@ def main() -> int:
                 if not live:
                     log_repo.write("INFO", WORKER_NAME, f"SHADOW Kauf {t} ${amt:.2f} — {why}")
                     summary.append(f"👁 SHADOW {t} ${amt:.0f} — {why}")
-                    slots -= 1; held.add(t)
+                    slots -= 1; cash -= amt; held.add(t)
                     continue
                 sig_id = signal_repo.create(instrument_id=int(inst["instrument_id"]), signal_type=sig_type,
                                             conviction="MEDIUM", score=0.0, rsi=None, ttl_minutes=5)

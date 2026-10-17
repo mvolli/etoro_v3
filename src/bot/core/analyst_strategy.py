@@ -124,11 +124,17 @@ def _entry_date(row: dict) -> date | None:
         return None
 
 
-def exit_reason(row: dict, cfg: dict, today: date, flags: dict, sec_filings=None) -> str | None:
+def exit_reason(row: dict, cfg: dict, today: date, flags: dict, sec_filings=None,
+                pnl_pct: float | None = None) -> str | None:
     """Grund fuer den Ausstieg einer Strategie-Position, sonst None. Rein.
 
     sec_filings: [{form, date, items}] der letzten Tage (US-Titel) oder None.
+    pnl_pct: unrealisierter Broker-P&L in %. Software-Netz fuer den Stop -15 %
+    (X0-Regel): die Positionen sind von allen risk_worker-SL-Pfaden ausgenommen,
+    und open_position laesst den Broker-SL bei manchen Instrumenten weg.
     """
+    if pnl_pct is not None and pnl_pct <= -float(cfg["stop_pct"]):
+        return f"Stop −{float(cfg['stop_pct']):.0f} % erreicht ({pnl_pct:+.1f} %, Software-Netz)"
     entry = _entry_date(row)
     if entry is not None:
         n = trading_days_held(entry, today)
