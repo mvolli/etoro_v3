@@ -1138,8 +1138,10 @@ def main() -> None:
                                        "Kauf läuft (VoLLi 17.10.: Regeln hart, LLM weich)."),
                           severity="WARNING", channel="trades")
                 # REDUCE wurde in die DB geschrieben, nachdem der Trade gelesen war.
+                # Nur bei REDUCE uebernehmen (>= $200 garantiert _reduce_floor);
+                # so kann kein alter Betrag den b4-Floor unterlaufen.
                 _bv_amt = float(_bv_info.get("amount_usd") or 0.0)
-                if 0 < _bv_amt < amount_usd:
+                if _bv_info.get("decision") == "REDUCE" and 0 < _bv_amt < amount_usd:
                     amount_usd = _bv_amt
 
             # c2. Slippage gate (fix/autonomy-hardening) — the signal price is
