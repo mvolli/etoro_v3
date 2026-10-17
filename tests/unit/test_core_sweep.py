@@ -735,3 +735,40 @@ def test_ohne_ausschlussliste_unveraendert():
     cfg = _make_cfg(whitelist={"AAPL": 1001, "BHP.ASX": 9001})
     orders, _ = plan_core_sweep(cfg, equity=10000, cash=8000, regime="NORMAL")
     assert {o.symbol for o in orders} == {"AAPL", "BHP.ASX"}
+
+
+# ── feat/sweep-no-crypto (VoLLi 2026-10-17) ─────────────────────────────────
+
+class _AcDB:
+    def __init__(self, classes):
+        self.classes = classes
+
+    def fetchall(self, q, p=()):
+        if "FROM instruments" in q:
+            return [{"instrument_id": i, "asset_class": self.classes.get(i)} for i in p]
+        return []
+
+    def fetchone(self, *a, **k):
+        return None
+
+    def execute(self, *a, **k):
+        return None
+
+
+def test_krypto_wird_nicht_gesweept(monkeypatch):
+    import bot.core.core_sweep as cs_mod
+    monkeypatch.setattr(cs_mod, "_prune_expired_db_whitelist", lambda db: 0)
+    monkeypatch.setattr(cs_mod, "_load_db_whitelist", lambda db: {})
+    cfg = _make_cfg(whitelist={"AAPL": 1001, "SOL": 100063})
+    cfg["trading"]["core_sweep"]["exclude_asset_classes"] = ["crypto"]
+    orders, reasons = plan_core_sweep(cfg, equity=10000, cash=8000, regime="NORMAL",
+                                      db=_AcDB({1001: "stock", 100063: "crypto"}))
+    assert {o.symbol for o in orders} == {"AAPL"}
+    assert any("crypto" in r for r in reasons)
+
+
+def test_krypto_fallback_ohne_db_ueber_usd_suffix():
+    cfg = _make_cfg(whitelist={"AAPL": 1001, "BTC-USD": 100000})
+    cfg["trading"]["core_sweep"]["exclude_asset_classes"] = ["crypto"]
+    orders, _ = plan_core_sweep(cfg, equity=10000, cash=8000, regime="NORMAL")
+    assert {o.symbol for o in orders} == {"AAPL"}

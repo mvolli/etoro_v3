@@ -350,6 +350,32 @@ def plan_core_sweep(
             reasons.append(f"Core-Sweep: {len(_dropped)} Titel an $2-Boersen ausgelassen "
                            f"({', '.join(sorted(_dropped)[:6])})")
 
+    # feat/sweep-no-crypto (VoLLi 2026-10-17): Krypto kostet 1 % je Seite
+    # (2 % Runde) und traegt kein Boersen-Suffix — deshalb ueber asset_class.
+    _excl_ac = {str(x).lower() for x in (cs.get("exclude_asset_classes") or [])}
+    if _excl_ac and whitelist:
+        _ac_by_id: dict[int, str] = {}
+        if db is not None:
+            try:
+                _ids = sorted({int(i) for i in whitelist.values()})
+                _ph = ",".join("?" * len(_ids))
+                for _r in db.fetchall(
+                        f"SELECT instrument_id, asset_class FROM instruments "
+                        f"WHERE instrument_id IN ({_ph})", tuple(_ids)):
+                    _ac_by_id[int(_r["instrument_id"])] = str(_r["asset_class"] or "").lower()
+            except Exception:  # noqa: BLE001 — Fallback unten
+                _ac_by_id = {}
+        _dropped_ac = [
+            sym for sym, iid in whitelist.items()
+            if _ac_by_id.get(int(iid), "crypto" if str(sym).upper().endswith("-USD") else "")
+            in _excl_ac
+        ]
+        for sym in _dropped_ac:
+            whitelist.pop(sym, None)
+        if _dropped_ac:
+            reasons.append(f"Core-Sweep: {len(_dropped_ac)} Titel der Klasse "
+                           f"{'/'.join(sorted(_excl_ac))} ausgelassen ({', '.join(sorted(_dropped_ac)[:6])})")
+
     reserve_target = equity * reserve_target_pct / 100.0
     reserve_floor = equity * reserve_floor_pct / 100.0
     target_size = round(equity * per_position_pct / 100.0, 2)

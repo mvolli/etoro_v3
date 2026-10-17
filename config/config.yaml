@@ -164,6 +164,7 @@ trading:
     max_open_positions: 3    # D4 (2026-10-09): hartes Cap max. 3 offene CORE_SWEEP-Positionen
     fixed_tranche_usd: 200.0  # VoLLi 2026-10-16: jeder Sweep-Kauf fix $200 (0 = aus)
     exclude_suffixes: [".ASX", ".AX", ".HK", ".T", ".AE", ".DH"]  # VoLLi 2026-10-17: $2-Boersen (Provision $2 je Order) nicht sweepen
+    exclude_asset_classes: ["crypto"]  # VoLLi 2026-10-17: Krypto 1 %/Seite = 2 % Runde, nicht sweepen
     whitelist:                # symbol -> instrument_id (validiert: tradable+aktiv, ATR vorhanden)
       SPY:  3000              # Index-Anker, ATR 1.1% (niedrigste Vola)
       AAPL: 1001

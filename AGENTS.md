@@ -431,7 +431,9 @@ Mai 2025, Gebührenseite, Konto-API, Cash-Messung 16.10.):**
 - Edge-Gate/Outcomes rechnen seit 2026-10-17 **Kosten je Markt** (VoLLi,
   `outcome_refresh.market_cost`, bezogen auf $200): $1-Aktien 1,1 %, $2-Märkte
   und Krypto 2,1 %, US-ETF-CFD 0,4 %, echter ETF 0,2 %. Spalte `cost` je Zeile.
-- CORE_SWEEP kauft keine $2-Börsen (`core_sweep.exclude_suffixes`, VoLLi 17.10.).
+- CORE_SWEEP kauft keine $2-Börsen (`core_sweep.exclude_suffixes`) und kein
+  Krypto (`core_sweep.exclude_asset_classes`, über `instruments.asset_class`),
+  VoLLi 17.10.
 - Teilverkauf mit Tranche < `partial_close.min_tranche_usd` ($100) ⇒ **ganze
   Position schließen** (`small_tranche_action: full_close`, VoLLi 17.10.;
   `suppress` = nur unterdrücken). Umgewandelt wird erst in der Ausführung
