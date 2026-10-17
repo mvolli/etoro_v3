@@ -163,13 +163,24 @@ def company_filings(cik: int, refresh: bool = False,
             return [tuple(x) for x in json.loads(p.read_text())]
         except Exception:  # noqa: BLE001
             pass
-    try:
-        fl = facts_to_filings(_http_json(f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik:010d}.json"))
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("companyfacts CIK %s nicht verfuegbar: %s", cik, exc)
+    fl = None
+    for attempt in range(3):                 # vereinzelt "No route to host" (17.10.)
+        try:
+            fl = facts_to_filings(_http_json(f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik:010d}.json"))
+            break
+        except Exception as exc:  # noqa: BLE001
+            if attempt == 2:
+                logger.warning("companyfacts CIK %s nicht verfuegbar: %s", cik, exc)
+            time.sleep(2 * (attempt + 1))
+        finally:
+            time.sleep(0.12)                 # SEC: hoechstens 10 Anfragen/s
+    if fl is None:
+        if p.exists():                       # lieber alter Stand als Luecke in der Rangmenge
+            try:
+                return [tuple(x) for x in json.loads(p.read_text())]
+            except Exception:  # noqa: BLE001
+                return None
         return None
-    finally:
-        time.sleep(0.12)                     # SEC: hoechstens 10 Anfragen/s
     p.write_text(json.dumps(fl))
     return fl
 
