@@ -411,16 +411,23 @@ bleibt sie 0.0 — und 0.0 ist nicht > 0, ein Fehler führt also nie zu einer
 Freigabe. Belege: `workspace/references/ratschen-mass-2026-09-12.md`,
 Regression `tests/unit/test_ratsche_beide_masse.py`.
 
-**Gebühren (Stand 2026-10-16, teils HYPOTHESE):** Gesichert: eToro bucht beim
-Kauf eine Fee (`totalExternalFees`, meist $1, $2 an .ASX/.HK/.T/.AX/.AE, SPY
-$0,30). Broker-`netProfit` enthält sie nicht, das History-Feld `fees` ist leer.
-OFFEN: ob auch Schließungen/Teilschließungen kosten — oder ob der Rest des
-Residuums (~$588 seit 10.09.) aus Währungsumrechnung o. ä. stammt. Messung
-läuft (`workspace/fee_probe.py`, Cash-Delta je Ereignis). Bis dahin nicht als
-Tatsache verwenden. P&L je Familie nur gegen Broker-`netProfit`, nie gegen
-Ledger allein (Ledger hatte CORE_SWEEP +$192, Broker brutto −$118).
-`partial_close.min_tranche_usd` (Default 0 = aus) bleibt 0 bis zur Klärung.
-Beleg: `docs/ANALYSE-gewinnzone-2026-10-16.md`.
+**Gebühren (Stand 2026-10-17, eToro-Gebührenseite + Konto-API):**
+- Echte Aktien (`settlementTypeID 1`): Provision **$1 bzw. $2 beim Öffnen UND
+  Schließen** („when opening and closing a stock position“; $2 an
+  ASX/HK/Tokio/Dubai/Abu Dhabi). Teilschließungen kosten nach Broker-Abgleich
+  ebenso (Fee auf jede Order erklärt das Residuum 10.09.–15.10. zu 101,5 %).
+  Kaufgebühr steht in `totalExternalFees`; Broker-`netProfit` enthält keine
+  Gebühr, das History-Feld `fees` ist leer.
+- Nicht-USD-Titel: zusätzlich Umrechnungsgebühr (Satz je Club-Stufe, nicht
+  veröffentlicht; im Residuum nicht nachweisbar).
+- US-ETFs (SPY, ACWI, QQQ …) gibt es für dieses Konto nur als **CFD**
+  (`settlementTypeID 0`): 0,15 % je Seite statt Provision; Übernachtgebühr laut
+  Seite nur für Short/gehebelt (SPY x1: `totalFees` 0 nach 7 Nächten).
+- Krypto: 1 % je Seite.
+- Edge-Gate/Outcomes rechnen pauschal 1,1 % Runde: passt für $1-Märkte bei
+  $200, zu niedrig für $2-Märkte und Krypto (~2,1 %).
+P&L je Familie nur gegen Broker-`netProfit` minus Gebühren, nie gegen Ledger
+allein. Beleg: `docs/ANALYSE-gewinnzone-2026-10-16.md`.
 
 **Interpreter-Regel:** die Suite IMMER mit `/usr/bin/python3` (System-Python,
 hat matplotlib 3.10.8) ausführen — die Cron-Worker laufen exakt darauf. Das bare

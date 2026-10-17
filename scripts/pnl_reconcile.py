@@ -73,16 +73,17 @@ def _bericht(db, since: str | None = None) -> dict:
     print(f"  tatsaechliche Equity                      ${r['equity']:>12,.2f}")
     print(f"  RESIDUUM (kein Trade-Datensatz)           ${r['residual_usd']:>+12,.2f}")
 
-    # fix/reconcile-fee-line (2026-10-16): eToro bucht die Flat-Fee auch auf
+    # fix/reconcile-fee-line (2026-10-16), bestaetigt 2026-10-17 durch die
+    # eToro-Gebuehrenseite ("when opening and closing"): eToro bucht die Flat-Fee auch auf
     # jede Schliessung und Teilschliessung (Broker-Abgleich 10.09.-15.10.:
     # Fee auf jede Order erklaert das Residuum auf 1,5 % genau, Fee nur auf
     # Kaeufe nur 40 %). reconcile() kennt nur Kaufgebuehren — hier die
     # Schaetzung fuer die Schliessungen, damit das Residuum lesbar wird.
     cf = _close_fee_estimate(db, since)
     if cf["orders"] and r["residual_usd"] is not None:
-        print(f"    falls Schliessgebuehr ({cf['orders']:>4} Orders, HYPOTHESE)    "
+        print(f"    Schliessgebuehren ({cf['orders']:>4} Orders, geschaetzt)    "
               f"${-cf['fee_usd']:>+12,.2f}")
-        print(f"    Rest bei dieser Hypothese                "
+        print(f"    Rest nach Schliessgebuehren              "
               f"${r['residual_usd'] + cf['fee_usd']:>+12,.2f}")
 
     fills = _fill_count(db, since)
@@ -102,8 +103,9 @@ def _bericht(db, since: str | None = None) -> dict:
 
     print("\n  Das Residuum ist alles, was kein Trade-Datensatz erklaert. Kauf-")
     print("  gebuehren stehen in trade_events.fee_usd; Schliessgebuehren sind")
-    print("  oben nur HYPOTHESE (Flat $1 / $2 je Schliess-Order) — offen, ob")
-    print("  Schliessungen kosten oder der Rest aus Waehrungsumrechnung stammt.")
+    print("  oben geschaetzt (Flat $1 / $2 je Schliess-Order). eToro-Gebuehren-")
+    print("  seite (17.10. gelesen): Provision 'when opening and closing a stock")
+    print("  position'. Teilschliessungen: per Broker-Abgleich mitgezaehlt.")
     return r
 
 
