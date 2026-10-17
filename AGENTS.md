@@ -270,7 +270,8 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
       Rangmenge = Nicht-Finanzwerte S&P 1500, kaufbar nur S&P 500/400);
     - S1 = Earnings-Katalysator (Überraschung ≥ 5 %, Reaktion ≥ +2 % gegen SPY,
       über SMA200; Einstieg day0+2).
-  - **Ausstieg X0:** 126 Handelstage, Broker-SL −15 %, sonst nur harte
+  - **Ausstieg X0:** 126 Handelstage, Broker-SL −15 % (dazu täglich ein
+    Software-Netz bei P&L ≤ −15 %), sonst nur harte
     News-Ausstiege: 8-K 1.03/3.01/4.02 seit Einstieg oder AVOID mit
     `source=news_llm`. Kein Earnings-Exit, kein Trailing, kein LLM-EXIT, **kein
     Broker-TP** (`execution_worker.NO_TP_SIGNAL_TYPES`, gilt auch für
@@ -281,7 +282,7 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
     - `bot/core/analyst_strategy.py` (Regeln/Exits), `quality_screen.py`
       (SEC companyfacts ⇒ E8-Kennzahlen, Cache `data/sec_cache/facts/`),
       `earnings_catalyst.py` (Nasdaq-Kalender + yfinance `get_earnings_dates`);
-    - `workers/analyst_worker.py`, Cron Mo–Fr 09:05 `--screen` und 15:50
+    - `workers/analyst_worker.py`, Cron Mo–Fr 09:05 `--screen` und 15:53
       Handel, nur bei offener US-Börse;
     - Universum `config/analyst_universe.json` (statisch, Stand 17.10.);
       Picks in `data/analyst_q2_picks.json`.
