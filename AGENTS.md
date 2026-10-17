@@ -411,21 +411,24 @@ bleibt sie 0.0 — und 0.0 ist nicht > 0, ein Fehler führt also nie zu einer
 Freigabe. Belege: `workspace/references/ratschen-mass-2026-09-12.md`,
 Regression `tests/unit/test_ratsche_beide_masse.py`.
 
-**Gebühren (Stand 2026-10-17, eToro-Gebührenseite + Konto-API):**
-- Echte Aktien (`settlementTypeID 1`): Provision **$1 bzw. $2 beim Öffnen UND
-  Schließen** („when opening and closing a stock position“; $2 an
-  ASX/HK/Tokio/Dubai/Abu Dhabi). Teilschließungen kosten nach Broker-Abgleich
-  ebenso (Fee auf jede Order erklärt das Residuum 10.09.–15.10. zu 101,5 %).
-  Kaufgebühr steht in `totalExternalFees`; Broker-`netProfit` enthält keine
-  Gebühr, das History-Feld `fees` ist leer.
-- Nicht-USD-Titel: zusätzlich Umrechnungsgebühr (Satz je Club-Stufe, nicht
-  veröffentlicht; im Residuum nicht nachweisbar).
+**Gebühren (Stand 2026-10-17; Quellen: eToro „Cost & Charges examples“ PDF
+Mai 2025, Gebührenseite, Konto-API, Cash-Messung 16.10.):**
+- Echte Aktien (`settlementTypeID 1`), Kunde DE (Liste 3, seit 02.03.2025):
+  Provision **beim Öffnen UND Schließen**, $2 für AUD/HKD/AED-Titel (laut
+  Gebührenseite auch Tokio), sonst $1. Teilschließungen ebenso — gemessen
+  16.10.: MCD-Schließung + VOLV-B-Teilverkauf, Cash −$2,00 gegen Broker-Wert.
+  Kaufgebühr steht in `totalExternalFees`; Broker-`netProfit` und History-`fees`
+  enthalten KEINE Gebühr.
+- **Keine Umrechnungsgebühr beim Handel** („No FX mark up applies when converting
+  non-USD denominated assets“); Umrechnung kostet nur bei Ein-/Auszahlung.
+- **Echte ETFs** (z. B. UCITS an LSE/Xetra): **keine Provision**, nur Marktspread.
 - US-ETFs (SPY, ACWI, QQQ …) gibt es für dieses Konto nur als **CFD**
-  (`settlementTypeID 0`): 0,15 % je Seite statt Provision; Übernachtgebühr laut
-  Seite nur für Short/gehebelt (SPY x1: `totalFees` 0 nach 7 Nächten).
+  (`settlementTypeID 0`): 0,15 % je Seite; Übernachtgebühr laut Seite nur
+  Short/gehebelt (SPY x1: `totalFees` 0 nach 7 Nächten), CFD-BUY-Satz sonst
+  6,4 % + Benchmark p. a.
 - Krypto: 1 % je Seite.
-- Edge-Gate/Outcomes rechnen pauschal 1,1 % Runde: passt für $1-Märkte bei
-  $200, zu niedrig für $2-Märkte und Krypto (~2,1 %).
+- Edge-Gate/Outcomes rechnen pauschal 1,1 % Runde: passt für $1-Aktien bei
+  $200, zu niedrig für $2-Märkte und Krypto (~2,1 %), zu hoch für echte ETFs.
 P&L je Familie nur gegen Broker-`netProfit` minus Gebühren, nie gegen Ledger
 allein. Beleg: `docs/ANALYSE-gewinnzone-2026-10-16.md`.
 
