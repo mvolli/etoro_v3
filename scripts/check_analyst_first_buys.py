@@ -96,6 +96,17 @@ def main() -> int:
             s += f"\n  Veto-Grund: {t['veto_reason'][:120]}"
         lines.append(s)
 
+    # Nachkontrolle yfinance-Korrektur / ohlcv-Persistenz (17.10.): Reihen muessen
+    # nach Marktoeffnung wieder bis gestern/heute reichen.
+    chk = []
+    for sym in ("CLPT", "BRBI", "ALX.ASX", "EURNOK", "USDTRY", "NSDQ100.FUT", "US2000"):
+        r = con.execute("SELECT COUNT(o.id), MAX(o.date) FROM instruments i LEFT JOIN ohlcv_daily o "
+                        "USING(instrument_id) WHERE i.symbol = ?", (sym,)).fetchone()
+        fresh = bool(r and r[1] and r[1] >= args.since)
+        ok = ok and fresh
+        chk.append(f"{sym} {r[0] if r else 0} Tage bis {r[1] if r else '—'} {'✅' if fresh else '⚠️'}")
+    lines.append("**Kursreihen nach Symbol-Korrektur:** " + " · ".join(chk))
+
     title = f"{'✅' if ok else '⚠️'} Prüfung Analysten-Strategie — erste Käufe seit {args.since}"
     body = "\n".join(lines)
     print(title); print(body)
