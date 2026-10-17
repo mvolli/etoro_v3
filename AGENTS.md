@@ -262,6 +262,14 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   Wochenbericht Sa 10:00 → #reports (`v3_weekly_signal_trades.sh` →
   `scripts/weekly_signal_trades_report.py`, Broker-netProfit minus $1/$2 je Order,
   gegen ACWI). Rückweg: `enabled: false`. Plan `docs/PLAN-aktienhandel-laufen-lassen-2026-10-17.md`.
+- **Long-Signal-Forschung E4–E8 (Stand 2026-10-17): alle verworfen, nichts
+  davon ist live.** Getestet wurden Trend-Familien, Signal-Exits,
+  Earnings-Katalysator, Insider-Cluster (SEC Form 4) und Qualität/Wachstum/
+  Momentum (SEC FSDS), jeweils 30–126 Tage. Nach Kosten schlägt keiner das
+  gleichgewichtete Universum im Holdout (`docs/e4…e8-ergebnis-*.md`). Ein neuer
+  Signaltest wird VOR dem Lauf vorregistriert und committet, mit genau einem
+  Lauf. Ergebnisse aus E4–E8 begründen keinen Live-Schalter.
+  Datencaches liegen in `data/e6_cache`, `e7_cache`, `e8_cache` (nicht im Git).
 - **Pre-Trade-Veto REDUCE unter $200 ⇒ Veto** (VoLLi 2026-10-16,
   `trade_veto_worker._reduce_floor` = `signal_floor_usd`). Der $200-Floor in
   `execution_worker` b4 darf eine LLM-Verkleinerung nie wieder hochrunden.
