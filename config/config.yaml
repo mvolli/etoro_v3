@@ -504,6 +504,9 @@ partial_close:                # feat/partial-close-policy (2026-10-01) — Teils
   min_tranche_usd: 100.0      # VoLLi 2026-10-17: Teilverkauf kostet $1/$2 je Order (eToro-PDF +
                               # Cash-Messung 16.10.) -> Tranche < $100 wird unterdrueckt, Position
                               # laeuft bis zum vollen Exit. 0 = aus. Geldwirksam -> VoLLi.
+  small_tranche_action: full_close  # VoLLi 2026-10-17: Tranche < min -> GANZE Position schliessen
+                              # statt Teilverkauf (Broker 10.09.-16.10.: -$8 statt -$265 bzw.
+                              # -$115 bei reinem Unterdruecken). "suppress" = alter Weg.
 
 trailing:                     # Dynamic profit-taking (runs each risk_worker cycle on LIVE PnL)
   min_hold_hours: 24          # fix/fee-churn-minhold (2026-09-20): Schonfrist — keine

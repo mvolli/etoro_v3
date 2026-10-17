@@ -735,6 +735,22 @@ def _as_full_exit(a: 'TrailingAction', remaining_frac: float) -> 'TrailingAction
     )
 
 
+def _as_fee_full_exit(a: 'TrailingAction', why: "str | None") -> 'TrailingAction':
+    """Teilverkauf unter partial_close.min_tranche_usd -> ganze Position
+    schliessen (feat/small-tranche-full-close, VoLLi 2026-10-17)."""
+    return TrailingAction(
+        action='FULL_EXIT',
+        symbol=a.symbol,
+        position_id=a.position_id,
+        pnl_pct=a.pnl_pct,
+        reason=(f"{a.reason} | Teilverkauf {a.close_pct:.0f}% unter Mindest-Tranche "
+                f"({why}) — ganz schliessen statt Teilverkauf (Gebuehr je Order)"),
+        instrument_id=a.instrument_id,
+        amount_usd=a.amount_usd,
+        open_rate=a.open_rate,
+    )
+
+
 def apply_partial_to_remaining(db: Any, position_id: str, symbol: str,
                                close_pct: float) -> None:
     """Schreibt den verbleibenden Anteil nach einem Teilverkauf fort.
@@ -1448,6 +1464,36 @@ def execute_trailing_actions(
                         action.symbol, action.action)
             continue
 
+        # feat/partial-close-policy (2026-10-01) + feat/small-tranche-full-close
+        # (2026-10-17): Policy EINMAL je Teilverkauf pruefen (Ledger-Eintrag),
+        # VOR den Zweigen — eine zu kleine Tranche wird hier in FULL_EXIT
+        # umgewandelt und laeuft dann durch den Vollausstieg-Zweig darunter.
+        _pc_dec = None
+        if action.action in ('PARTIAL_CLOSE', 'MOMENTUM_FADE'):
+            try:
+                _pc_dec = _pcp.check(
+                    db, path='trailing',
+                    symbol=action.symbol,
+                    position_id=action.position_id,
+                    instrument_id=action.instrument_id or None,
+                    pnl_pct=action.pnl_pct,
+                    close_pct=action.close_pct,
+                    amount_usd=action.amount_usd,
+                    record=not dry_run,   # dry-run simulation: no ledger
+                )
+                if _pc_dec.convert_to_full:
+                    logger.info('[trailing] %s: %s %.0f%% -> ganz schliessen (%s)',
+                                action.symbol, action.action, action.close_pct,
+                                _pc_dec.suppressed_reason)
+                    stats['small_tranche_full_closes'] = (
+                        stats.get('small_tranche_full_closes', 0) + 1)
+                    action = _as_fee_full_exit(action, _pc_dec.suppressed_reason)
+                    _pc_dec = None
+            except Exception as _pc_exc:
+                logger.debug('[trailing] partial-close policy check failed '
+                             '(fail-open, allow): %s', _pc_exc)
+                _pc_dec = None
+
         if action.action == 'BREAK_EVEN':
             # fix/break-even-enforcement: persist armed state — the next
             # cycles enforce the entry floor via BE_CLOSE (eToro has no
@@ -1527,18 +1573,9 @@ def execute_trailing_actions(
             # the trims the policy says so. Full closes / BE / SL / STALE /
             # FULL_EXIT are untouched (handled in the branch above).
             # Fail-open: any policy/ledger error allows the partial.
+            # (Entscheidung oben am Schleifenanfang gefallen, hier nur angewandt.)
             try:
-                _pc_dec = _pcp.check(
-                    db, path='trailing',
-                    symbol=action.symbol,
-                    position_id=action.position_id,
-                    instrument_id=action.instrument_id or None,
-                    pnl_pct=action.pnl_pct,
-                    close_pct=action.close_pct,
-                    amount_usd=action.amount_usd,
-                    record=not dry_run,   # dry-run simulation: no ledger
-                )
-                if not _pc_dec.allowed:
+                if _pc_dec is not None and not _pc_dec.allowed:
                     stats['partial_closes_suppressed'] = (
                         stats.get('partial_closes_suppressed', 0) + 1)
                     logger.info(

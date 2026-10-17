@@ -432,9 +432,13 @@ Mai 2025, Gebührenseite, Konto-API, Cash-Messung 16.10.):**
   `outcome_refresh.market_cost`, bezogen auf $200): $1-Aktien 1,1 %, $2-Märkte
   und Krypto 2,1 %, US-ETF-CFD 0,4 %, echter ETF 0,2 %. Spalte `cost` je Zeile.
 - CORE_SWEEP kauft keine $2-Börsen (`core_sweep.exclude_suffixes`, VoLLi 17.10.).
-- Teilverkäufe < `partial_close.min_tranche_usd` ($100, VoLLi 17.10.) werden
-  unterdrückt. Broker-Abgleich 10.09.–16.10.: 136 Positionen mit Teilverkauf
-  netto −$265; ohne Teilverkäufe −$115; beim ersten Teilverkauf ganz schließen −$8.
+- Teilverkauf mit Tranche < `partial_close.min_tranche_usd` ($100) ⇒ **ganze
+  Position schließen** (`small_tranche_action: full_close`, VoLLi 17.10.;
+  `suppress` = nur unterdrücken). Umgewandelt wird erst in der Ausführung
+  (`PolicyDecision.convert_to_full`) in allen drei Pfaden — trailing (→ FULL_EXIT),
+  sell_exits (`is_full`), llm_execution (100 %) —, damit der KI-Profit-Advisor das
+  Signal vorher noch verwerfen kann. Broker-Abgleich 10.09.–16.10. (136 Positionen
+  mit Teilverkauf): tatsächlich −$265, nur unterdrücken −$115, ganz schließen −$8.
 P&L je Familie nur gegen Broker-`netProfit` minus Gebühren, nie gegen Ledger
 allein. Beleg: `docs/ANALYSE-gewinnzone-2026-10-16.md`.
 

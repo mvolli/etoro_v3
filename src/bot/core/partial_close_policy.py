@@ -64,7 +64,17 @@ DEFAULT_CONFIG: dict = {
     # Modus unterdrueckt; die Position laeuft bis zum vollen Exit weiter.
     # 0 = aus (Verhalten wie bisher). Wert ist geldwirksam -> VoLLi-Entscheid.
     "min_tranche_usd": 0.0,
+    # feat/small-tranche-full-close (VoLLi 2026-10-17): was mit einer Tranche
+    # unter min_tranche_usd passiert. "suppress" = Teilverkauf entfaellt,
+    # Position laeuft weiter (Stand 16.10.). "full_close" = statt des
+    # Teilverkaufs wird die GANZE Position geschlossen. Broker-Abgleich
+    # 10.09.-16.10. (136 Positionen mit Teilverkauf): tatsaechlich -$265,
+    # suppress -$115, full_close -$8 — das Teilverkauf-Signal trifft meist den
+    # Gipfel, der Rest bröckelt danach ab, und jede Order kostet $1/$2.
+    "small_tranche_action": "suppress",
 }
+
+SMALL_TRANCHE_ACTIONS = ("suppress", "full_close")
 
 VALID_MODES = ("current", "no_partials", "loss_only")
 
@@ -112,6 +122,9 @@ class PolicyDecision:
     allowed: bool                            # should the partial execute?
     mode: str                                # the mode this was decided under
     suppressed_reason: Optional[str] = None  # set when not allowed (else None)
+    # feat/small-tranche-full-close: True -> statt des Teilverkaufs die ganze
+    # Position schliessen (allowed ist dann False: der TEILverkauf entfaellt).
+    convert_to_full: bool = False
 
 
 def _min_tranche_usd(override: Optional[float]) -> float:
@@ -124,6 +137,12 @@ def _min_tranche_usd(override: Optional[float]) -> float:
         return 0.0
 
 
+def small_tranche_action() -> str:
+    """'suppress' | 'full_close' (unbekannt -> 'suppress', fail-safe)."""
+    a = str(load_config().get("small_tranche_action", "suppress"))
+    return a if a in SMALL_TRANCHE_ACTIONS else "suppress"
+
+
 def below_min_tranche(amount_usd: Optional[float], close_pct: Optional[float],
                       min_tranche_usd: Optional[float] = None) -> bool:
     """True, wenn eine TEILschliessung unter der Mindest-Tranche liegt.
@@ -133,7 +152,14 @@ def below_min_tranche(amount_usd: Optional[float], close_pct: Optional[float],
     sonst feuert die unterdrueckte Stufe jeden 5-min-Zyklus einen Call ohne
     Order (vgl. fix/ladder-regime-decision-stage: 191 Calls fuer eine Stufe).
     Fail-open: Regel aus, Wert/Anteil unbekannt oder volle Schliessung -> False.
+
+    Bei small_tranche_action == 'full_close' immer False: die Entscheidungs-
+    stufe darf dann nicht unterdruecken — der KI-Profit-Advisor soll das
+    Signal sehen (er kann es verwerfen), umgewandelt wird erst in der
+    Ausfuehrung (evaluate -> convert_to_full).
     """
+    if small_tranche_action() == "full_close":
+        return False
     min_tr = _min_tranche_usd(min_tranche_usd)
     if min_tr <= 0 or amount_usd is None or amount_usd <= 0 or close_pct is None:
         return False
@@ -169,6 +195,10 @@ def evaluate(pnl_pct: Optional[float], close_pct: Optional[float],
     if min_tr > 0 and amount_usd is not None and amount_usd > 0:
         tranche = amount_usd * close_pct / 100.0
         if tranche < min_tr:
+            if small_tranche_action() == "full_close":
+                return PolicyDecision(
+                    False, m, f"min_tranche_full_close:{tranche:.2f}<{min_tr:.2f}",
+                    convert_to_full=True)
             return PolicyDecision(
                 False, m, f"min_tranche:{tranche:.2f}<{min_tr:.2f}")
     if pnl_pct is None:

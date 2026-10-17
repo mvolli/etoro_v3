@@ -329,7 +329,16 @@ def execute_llm_recommendations(
                         pnl_pct=_pc_pnl, close_pct=rec_close_pct,
                         amount_usd=_pc_amt, record=not dry_run,
                     )
-                    if not _pc_dec.allowed:
+                    if _pc_dec.convert_to_full:
+                        # feat/small-tranche-full-close (VoLLi 2026-10-17):
+                        # Tranche unter min_tranche_usd -> ganze Position.
+                        logger.info(
+                            "[llm_execution] %s: Teilverkauf %.0f%% unter Mindest-"
+                            "Tranche -> ganz schliessen (%s)",
+                            symbol, rec_close_pct, _pc_dec.suppressed_reason,
+                        )
+                        rec_close_pct = 100.0
+                    elif not _pc_dec.allowed:
                         logger.info(
                             "[llm_execution] %s: Teilverkauf %.0f%% unterdrueckt "
                             "(mode=%s, pnl %s) — Position wird gehalten. (%s)",

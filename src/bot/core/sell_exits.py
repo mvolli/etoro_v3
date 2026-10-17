@@ -319,7 +319,17 @@ def execute_sell_exits(
                     pnl_pct=action.pnl_pct, close_pct=action.close_pct,
                     amount_usd=action.amount_usd, record=not dry_run,
                 )
-                if not _pc_dec.allowed:
+                if _pc_dec.convert_to_full:
+                    # feat/small-tranche-full-close (VoLLi 2026-10-17): Tranche
+                    # unter min_tranche_usd -> ganze Position statt Teilverkauf.
+                    logger.info(
+                        "[sell_exits] %s: Teilverkauf %.0f%% unter Mindest-Tranche "
+                        "-> ganz schliessen (%s)",
+                        action.symbol, action.close_pct, _pc_dec.suppressed_reason,
+                    )
+                    is_full = True
+                    units_to_deduct = None
+                elif not _pc_dec.allowed:
                     logger.info(
                         "[sell_exits] %s: Teilverkauf %.0f%% unterdrueckt "
                         "(mode=%s, pnl %+.1f%%) — Position wird gehalten. (%s)",

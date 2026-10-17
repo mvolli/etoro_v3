@@ -115,7 +115,9 @@ def test_fade_in_stressregime_ebenfalls_gefiltert(db, monkeypatch, regime):
 
 
 # ── Hilfsfunktion ────────────────────────────────────────────────────────────
-def test_below_min_tranche_fail_open():
+def test_below_min_tranche_fail_open(monkeypatch):
+    # Suppress-Semantik pruefen, unabhaengig von der LIVE-Config (seit 17.10. full_close).
+    monkeypatch.setattr(pcp, "_config_cache", dict(pcp.DEFAULT_CONFIG))
     assert pcp.below_min_tranche(None, 25.0, min_tranche_usd=100.0) is False
     assert pcp.below_min_tranche(200.0, None, min_tranche_usd=100.0) is False
     assert pcp.below_min_tranche(200.0, 100.0, min_tranche_usd=1_000.0) is False
