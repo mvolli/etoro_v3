@@ -44,7 +44,8 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   (`scripts/fix_yf_symbols.py`, Backup `data/backup/trading.db.pre-yf-fix-*`);
   Rest ungeprüft. **Jeder Leser** löst das Yahoo-Symbol über
   `bot/core/yahoo_symbols.resolve` auf (US-Aktie → Ticker, belegte Ausnahmen
-  in `US_OVERRIDES`, z. B. BP → BP.L); nie `instruments.yfinance_symbol` direkt
+  in `US_OVERRIDES`, z. B. BP → BP.L; dieselbe Liste legt in `market_hours`
+  die Börsenzeiten fest, BP = London); nie `instruments.yfinance_symbol` direkt
   lesen. Ausnahmen: Schreiber/Korrekturpfade und die Kollisionssuche der
   Discovery (sucht bewusst nach dem gespeicherten Wert, Preis-Check danach).
   Prüfung aktiver Instrumente: `scripts/check_yf_symbol_identity.py`.

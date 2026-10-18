@@ -312,6 +312,19 @@ def _get_market_key(symbol: str, yf_symbol: str = '', category: str = '') -> str
     if sym_upper in CRYPTO_SYMBOLS or sym_upper.endswith('-USD') or yf_upper.endswith('-USD'):
         return 'CRYPTO'
 
+    # ── Tier 1b: belegte Auslandsnotiz unter US-artigem eToro-Symbol ─────
+    # fix/bp-london (VoLLi 2026-10-18): eToro handelt BP als London-Notiz
+    # (615 Pence, nicht die NYSE-ADR). Dieselbe Ausnahmeliste wie der
+    # Yahoo-Resolver, damit Symbol und Boersenzeiten nie auseinanderlaufen.
+    try:
+        from bot.core.yahoo_symbols import US_OVERRIDES as _US_OVERRIDES
+        if sym_upper in _US_OVERRIDES:
+            _key = _suffix_market(_US_OVERRIDES[sym_upper].upper())
+            if _key:
+                return _key
+    except Exception:  # noqa: BLE001
+        pass
+
     # ── Tier 2: Suffix-based lookup ──────────────────────────────────────
     # Traegt das Symbol einen Boersen-Suffix, entscheidet der — und zwar
     # zuerst im eToro-Namespace. Ist DESSEN Suffix ungemappt (BHP.ASX,

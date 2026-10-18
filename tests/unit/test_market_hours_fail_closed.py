@@ -245,3 +245,6 @@ def test_us_aktie_mit_auslandssuffix_im_yf_symbol_bekommt_us_zeiten():
     assert mh.resolve_market_fields(db, 1)[1] == "SONY"
     assert mh.get_instrument_market_key(*mh.resolve_market_fields(db, 1)) == "US"
     assert mh.resolve_market_fields(db, 2)[1] == "BP.L"          # belegte Ausnahme: London
+    assert mh.get_instrument_market_key(*mh.resolve_market_fields(db, 2)) == mh.get_instrument_market_key("AAF.L")
+    assert mh.get_instrument_market_key("BP") == mh.get_instrument_market_key("VOD.L")  # auch ohne yf_symbol
+    assert mh.get_instrument_market_key("HSBC") == "US"          # ADR bleibt US
