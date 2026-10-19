@@ -745,6 +745,7 @@ analyst_strategy:
   q2: true
   s1: true
   q2_buy_window_days: 7
+  q2_mode: "event"            # VoLLi 19.10. (E11): A = Kauf bei Einreichung (Top-Dezil-Eintritt) statt Monats-Screen; Rueckweg "monthly"
 
 core_index:
   mode: "live"         # "off" | "shadow" (plant + loggt, kein Trade) | "live" — Anfuehrungszeichen noetig (YAML: off = false)

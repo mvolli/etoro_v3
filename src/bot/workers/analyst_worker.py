@@ -38,6 +38,7 @@ logger = logging.getLogger("analyst_worker")
 
 WORKER_NAME = "analyst_worker"
 PICKS_PATH = PROJECT_ROOT / "data" / "analyst_q2_picks.json"
+EVENT_PICKS_PATH = PROJECT_ROOT / "data" / "analyst_a_picks.json"   # Variante A (E11)
 
 
 def _ny_today() -> date:
@@ -121,6 +122,62 @@ def compute_q2(M: str, universe: dict) -> dict:
     return res
 
 
+def _load_event_picks() -> dict:
+    try:
+        return json.loads(EVENT_PICKS_PATH.read_text())
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def compute_event(today: date, universe: dict) -> dict:
+    """Variante A (E11): Einreichungen, die an d1 (letzter Handelstag vor heute) den
+    Eintritt ins Top-Dezil ausloesen. Nur die Einreicher werden bei der SEC neu
+    geladen (EDGAR-Tagesindex), alle anderen kommen aus dem companyfacts-Cache.
+    """
+    from bot.core import quality_screen as qs
+    nonfin = {t: v for t, v in universe.items() if v.get("cik") and not qs.is_fin(v.get("sic"))}
+    buyable = {t for t, v in universe.items() if v.get("seg") == "large_mid"}
+    start = (today - timedelta(days=560)).isoformat()
+    spy = _download_closes(["SPY"], start).get("SPY")
+    cal = [d for d in (spy[0] if spy else []) if d < today.isoformat()]
+    if len(cal) < 2:
+        raise RuntimeError("SPY-Kalender fehlt")
+    d1, prev = cal[-1], cal[-2]
+    filers: set[int] = set()
+    incomplete = []
+    day = date.fromisoformat(prev)
+    while day < date.fromisoformat(d1):                     # Einreichungen mit d1 als erstem Handelstag danach
+        got = qs.daily_filers(day)
+        if got is None:
+            incomplete.append(day.isoformat())
+        else:
+            filers |= got
+        day += timedelta(days=1)
+    raw = _download_closes(sorted({v.get("yf") or t for t, v in nonfin.items()}), start)
+    closes = {}
+    for t, v in nonfin.items():
+        c = raw.get(v.get("yf") or t)
+        if c:
+            n = sum(1 for d in c[0] if d < today.isoformat())
+            closes[t] = (c[0][:n], c[1][:n])
+    filings = {}
+    for t, v in nonfin.items():
+        cik = int(v["cik"])
+        fl = qs.company_filings(cik, refresh=cik in filers, max_age_days=3650)
+        if fl:
+            filings[t] = fl
+    ranker = qs.Ranker(filings, closes, [t for t in nonfin if t in closes])
+    picks = qs.event_candidates(ranker, cal, d1, buyable)
+    score, _, _, _ = ranker.at(d1)
+    res = {"date": today.isoformat(), "d1": d1, "generated_at": datetime.now(timezone.utc).isoformat()[:19],
+           "filers": len(filers), "n_rank": len(score), "index_missing": incomplete,
+           "picks": [[round(s, 4), t] for s, t in picks], "bought": []}
+    EVENT_PICKS_PATH.write_text(json.dumps(res, indent=1))
+    logger.info("Q2-A %s (d1 %s): %d Einreicher, Rangmenge %d, %d Picks%s", today, d1, len(filers),
+                len(score), len(picks), f", Index fehlt: {incomplete}" if incomplete else "")
+    return res
+
+
 def _instrument(db, ticker: str) -> dict | None:
     row = db.fetchone(
         "SELECT instrument_id, symbol, yfinance_symbol FROM instruments "
@@ -179,6 +236,14 @@ def main() -> int:
             return 0
         live = acfg["mode"] == "live"
         today = _ny_today()
+        if screen_only and acfg.get("q2_mode") == "event":
+            if acfg["q2"] and _load_event_picks().get("date") != today.isoformat():
+                res = compute_event(today, qs.load_universe())
+                print(f"{WORKER_NAME}: Q2-A {today} (d1 {res['d1']}): {res['filers']} Einreicher, "
+                      f"{len(res['picks'])} Picks")
+            else:
+                print(f"{WORKER_NAME}: Q2-A {today} schon gerechnet")
+            return 0
         if screen_only:
             M = _last_month_end(today)
             in_window = bool(M) and (date.fromisoformat(M) + timedelta(
@@ -245,7 +310,25 @@ def main() -> int:
         universe = qs.load_universe()
         q2_list: list[tuple[str, str]] = []
         picks = _load_picks()
-        if acfg["q2"]:
+        picks_path = PICKS_PATH
+        q2_why = None
+        if acfg["q2"] and acfg.get("q2_mode") == "event":
+            # Variante A (E11, VoLLi 19.10.: A + S1): Kaufliste vom Morgenlauf.
+            try:
+                picks_path = EVENT_PICKS_PATH
+                picks = _load_event_picks()
+                if picks.get("date") != today.isoformat():
+                    picks = compute_event(today, universe)
+                q2_why = f"Q2 bei Einreichung (Top-Dezil-Eintritt, d1 {picks.get('d1')})"
+                if picks.get("picks"):
+                    summary.append(f"📊 Q2-A: {len(picks['picks'])} Picks aus {picks.get('filers')} Einreichungen "
+                                   f"(d1 {picks.get('d1')})")
+                bought = set(picks.get("bought") or [])
+                q2_list = [("Q2", t) for _, t in picks.get("picks", []) if t not in bought]
+            except Exception as exc:  # noqa: BLE001
+                logger.exception("Q2-A-Schritt fehlgeschlagen: %s", exc)
+                log_repo.write("WARN", WORKER_NAME, f"Q2-A fehlgeschlagen: {exc}")
+        elif acfg["q2"]:
             try:
                 M = _last_month_end(today)
                 if M and (date.fromisoformat(M) + timedelta(days=int(acfg["q2_buy_window_days"]))
@@ -309,7 +392,7 @@ def main() -> int:
                 if not inst:
                     continue
                 sig_type = an.SIGNAL_Q2 if kind == "Q2" else an.SIGNAL_S1
-                why = (f"Q2-Screen {picks.get('M')}" if kind == "Q2" else
+                why = ((q2_why or f"Q2-Screen {picks.get('M')}") if kind == "Q2" else
                        f"S1 Earnings {s1_info.get(t, {}).get('ed')}: +{s1_info.get(t, {}).get('surprise', 0):.0f} % "
                        f"Überraschung, +{s1_info.get(t, {}).get('ear', 0):.1f} % Reaktion")
                 if not live:
@@ -333,8 +416,8 @@ def main() -> int:
                 slots -= 1; cash -= amt; held.add(t)
                 if kind == "Q2":
                     picks.setdefault("bought", []).append(t)
-            if bought_now and picks.get("M"):
-                PICKS_PATH.write_text(json.dumps(picks, indent=1))
+            if bought_now and (picks.get("M") or picks.get("date")):
+                picks_path.write_text(json.dumps(picks, indent=1))
 
         elapsed = time.monotonic() - t0
         print(f"{WORKER_NAME}: {len(bought_now)} Kauf/Käufe, {elapsed:.0f}s")

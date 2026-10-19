@@ -147,7 +147,8 @@ def _http_json(url: str) -> dict:
 
 
 def company_filings(cik: int, refresh: bool = False,
-                    fresh_after: float | None = None) -> list[tuple[str, dict]] | None:
+                    fresh_after: float | None = None,
+                    max_age_days: float = FACTS_MAX_AGE_DAYS) -> list[tuple[str, dict]] | None:
     """Kennzahl-Historie einer Firma (Cache data/sec_cache/facts/<cik>.json, 7 Tage).
 
     fresh_after (epoch): Cache nur gueltig, wenn danach geschrieben (Screen zum
@@ -155,7 +156,7 @@ def company_filings(cik: int, refresh: bool = False,
     """
     FACTS_DIR.mkdir(parents=True, exist_ok=True)
     p = FACTS_DIR / f"{cik}.json"
-    ok = p.exists() and not refresh and time.time() - p.stat().st_mtime < FACTS_MAX_AGE_DAYS * 86400
+    ok = p.exists() and not refresh and time.time() - p.stat().st_mtime < max_age_days * 86400
     if ok and fresh_after is not None and p.stat().st_mtime < fresh_after:
         ok = False
     if ok:
@@ -245,3 +246,133 @@ def momentum_12_1(closes) -> float | None:
     if closes is None or len(closes) < 253:
         return None
     return float(closes[-22]) / float(closes[-253]) - 1
+
+
+# ── Variante A: Kauf bei Einreichung (E11, VoLLi 2026-10-19) ─────────────────
+# Regel (docs/vorregistrierung-e11-ereignisgetrieben-2026-10-19.md, Ergebnis
+# docs/e11-ergebnis-2026-10-19.md): Reicht ein Titel 10-Q/10-K ein (Tag F) und
+# liegt er am ersten Handelstag d1 nach F mit den neuen Kennzahlen im Top-Dezil
+# der Rangmenge, Momentum > Median, und lag seine VORHERIGE Meldung an ihrem
+# eigenen d1 nicht im Top-Dezil (Eintritt), wird zum Open d1+1 gekauft.
+
+EDGAR_DAILY = "https://www.sec.gov/Archives/edgar/daily-index/{y}/QTR{q}/form.{ymd}.idx"
+_IDX_LINE = __import__("re").compile(r"^(10-K|10-Q)\s+.*?\s(\d{1,10})\s+(\d{8})\s+edgar/")
+
+
+def parse_daily_index(text: str) -> set[int]:
+    """CIKs mit 10-K/10-Q (ohne /A) aus einem EDGAR-Tagesindex (form.YYYYMMDD.idx)."""
+    out = set()
+    for line in text.splitlines():
+        m = _IDX_LINE.match(line)
+        if m:
+            out.add(int(m.group(2)))
+    return out
+
+
+def daily_filers(day: date) -> set[int] | None:
+    """CIKs mit 10-K/10-Q an `day`. Leere Menge an Tagen ohne Index (Wochenende,
+    Feiertag, 404); None bei anderem Fehler (dann ist der Lauf unvollstaendig)."""
+    import urllib.error
+    q = (day.month - 1) // 3 + 1
+    url = EDGAR_DAILY.format(y=day.year, q=q, ymd=day.strftime("%Y%m%d"))
+    req = urllib.request.Request(url, headers={"User-Agent": SEC_UA, "Accept-Encoding": "identity"})
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            return parse_daily_index(r.read().decode("latin-1", "ignore"))
+    except urllib.error.HTTPError as exc:
+        if exc.code in (403, 404):
+            return set()
+        logger.warning("EDGAR-Tagesindex %s: %s", day, exc)
+        return None
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("EDGAR-Tagesindex %s: %s", day, exc)
+        return None
+    finally:
+        time.sleep(0.12)
+
+
+class Ranker:
+    """Rangmenge zu beliebigen Handelstagen D (E8/E11-Regeln), mit Cache.
+
+    filings: {ticker: [(filed YYYY-MM-DD, metrics), ...]} chronologisch
+    closes:  {ticker: (dates[], closes[])}  abgeschlossene Tageskurse
+    nonfin:  Ticker der Rangmenge (Nicht-Finanzwerte)
+    """
+
+    def __init__(self, filings: dict, closes: dict, nonfin) -> None:
+        self.filings, self.closes, self.nonfin = filings, closes, list(nonfin)
+        self._idx = {t: {d: i for i, d in enumerate(c[0])} for t, c in closes.items()}
+        self._cache: dict[str, tuple] = {}
+
+    def at(self, D: str) -> tuple[dict, float, dict, float | None]:
+        if D in self._cache:
+            return self._cache[D]
+        lo = (date.fromisoformat(D) - timedelta(days=MAX_AGE_DAYS)).isoformat()
+        snap = {}
+        for t in self.nonfin:
+            ix = self._idx.get(t)
+            if not ix or D not in ix:
+                continue
+            best = None
+            for filed, m in self.filings.get(t) or []:
+                if filed < D:
+                    best = (filed, m)
+                else:
+                    break
+            if best and best[0] >= lo:
+                snap[t] = best[1]
+        if len(snap) < 50:
+            self._cache[D] = ({}, 1.0, {}, None)
+            return self._cache[D]
+
+        def pr(key, inv=False):
+            items = sorted(snap.items(), key=lambda kv: kv[1][key]); n = len(items)
+            r = {t: (k + 1) / n for k, (t, _) in enumerate(items)}
+            return {t: 1 - v + 1 / n for t, v in r.items()} if inv else r
+        r1, r2, r3 = pr("gpa"), pr("acc", True), pr("growth")
+        score = {t: (r1[t] + r2[t] + r3[t]) / 3 for t in snap}
+        vals = sorted(score.values()); pos = 0.9 * (len(vals) - 1); lo_i = int(pos)
+        thr = vals[lo_i] + (vals[min(lo_i + 1, len(vals) - 1)] - vals[lo_i]) * (pos - lo_i)
+        mom = {}
+        for t in snap:
+            k = self._idx[t][D]
+            if k >= 252:
+                c = self.closes[t][1]
+                mom[t] = float(c[k - 21]) / float(c[k - 252]) - 1
+        mv = sorted(mom.values()); n = len(mv)
+        med = (mv[n // 2] if n % 2 else (mv[n // 2 - 1] + mv[n // 2]) / 2) if n else None
+        self._cache[D] = (score, thr, mom, med)
+        return self._cache[D]
+
+
+def next_trading_day(dates: list[str], d: str) -> str | None:
+    import bisect
+    k = bisect.bisect_right(dates, d)
+    return dates[k] if k < len(dates) else None
+
+
+def event_candidates(ranker: Ranker, cal: list[str], d1: str, buyable: set[str]) -> list[tuple[float, str]]:
+    """Variante A: Titel, deren neue Meldung an d1 den Eintritt ins Top-Dezil ausloest.
+
+    cal: Handelstage (z. B. SPY), d1 = Entscheidungstag. Eine Meldung gehoert zu d1,
+    wenn der erste Handelstag nach ihrem Einreichungsdatum d1 ist.
+    """
+    score, thr, mom, med = ranker.at(d1)
+    if med is None:
+        return []
+    out = []
+    for t in buyable:
+        fl = ranker.filings.get(t) or []
+        new = [i for i, (filed, _) in enumerate(fl) if next_trading_day(cal, filed) == d1]
+        if not new or t not in score or score[t] < thr or t not in mom or mom[t] <= med:
+            continue
+        i = new[-1]
+        prev_top = False
+        if i > 0:
+            pd1 = next_trading_day(cal, fl[i - 1][0])
+            if pd1:
+                ps, pthr, _, _ = ranker.at(pd1)
+                prev_top = t in ps and ps[t] >= pthr
+        if not prev_top:
+            out.append((score[t], t))
+    return sorted(out, reverse=True)

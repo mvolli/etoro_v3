@@ -37,6 +37,7 @@ DEFAULTS = {
     "q2": True,
     "s1": True,
     "q2_buy_window_days": 7,    # Kalendertage nach dem Stichtag
+    "q2_mode": "monthly",       # monthly (M, E9) | event (A, E11: Kauf bei Einreichung)
 }
 
 

@@ -179,3 +179,52 @@ def test_risk_worker_nimmt_strategie_positionen_heraus(monkeypatch):
     monkeypatch.setattr(an, "position_ids", lambda db: {"2"})
     kept = risk_worker._exclude_core_positions(None, [{"positionID": 1}, {"positionID": 2}, {"positionID": 3}])
     assert [p["positionID"] for p in kept] == [3]
+
+
+# ── Variante A: Kauf bei Einreichung (E11, VoLLi 19.10.: A + S1) ─────────────
+
+IDX = """Form Type   Company Name                                                  CIK         Date Filed  File Name
+---------------------------------------------------------------------------------------------------------------------------------------------
+10-K             ATLANTIC AMERICAN CORP                                        8177        20261016    edgar/data/8177/0001140361-26-039933.txt
+10-K/A           SOME CORP                                                     1234        20261016    edgar/data/1234/x.txt
+10-Q             NVIDIA CORP                                                   1045810     20261016    edgar/data/1045810/y.txt
+8-K              OTHER                                                         999         20261016    edgar/data/999/z.txt
+"""
+
+
+def test_tagesindex_nur_10k_10q_ohne_amendments():
+    assert qs.parse_daily_index(IDX) == {8177, 1045810}
+
+
+def _setup_ranker(prev_top_score):
+    """60 Titel; T0 reicht am 2026-08-05 neu ein. Vorherige Meldung (2026-05-05) mit
+    gpa=prev_top_score. Kurse: 300 Handelstage, T0 mit starkem Momentum."""
+    import pandas as pd
+    cal = [d.strftime("%Y-%m-%d") for d in pd.bdate_range("2025-06-02", periods=320)]
+    closes, filings = {}, {}
+    for i in range(60):
+        t = f"T{i}"
+        px = [100.0 + (j * (0.5 if t == "T0" else 0.01)) for j in range(len(cal))]
+        closes[t] = (cal, px)
+        filings[t] = [("2026-05-05", {"gpa": i / 60, "acc": -i / 60, "growth": i / 60})]
+    filings["T0"] = [("2026-05-05", {"gpa": prev_top_score, "acc": -prev_top_score, "growth": prev_top_score}),
+                     ("2026-08-05", {"gpa": 2.0, "acc": -2.0, "growth": 2.0})]
+    return qs.Ranker(filings, closes, list(closes)), cal
+
+
+def test_eintritt_ins_top_dezil_loest_aus():
+    rk, cal = _setup_ranker(prev_top_score=0.0)          # vorher unten -> Eintritt
+    d1 = qs.next_trading_day(cal, "2026-08-05")
+    assert [t for _, t in qs.event_candidates(rk, cal, d1, {"T0"})] == ["T0"]
+
+
+def test_schon_im_top_dezil_kein_neuer_kauf():
+    rk, cal = _setup_ranker(prev_top_score=5.0)          # vorher schon oben -> kein Eintritt
+    d1 = qs.next_trading_day(cal, "2026-08-05")
+    assert qs.event_candidates(rk, cal, d1, {"T0"}) == []
+
+
+def test_falscher_tag_kein_kauf():
+    rk, cal = _setup_ranker(prev_top_score=0.0)
+    d1 = qs.next_trading_day(cal, "2026-08-10")
+    assert qs.event_candidates(rk, cal, d1, {"T0"}) == []

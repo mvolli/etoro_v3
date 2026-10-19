@@ -278,8 +278,16 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
   Der Bot wählt Aktien selbst; Ziel ist die Gewinnzone, nicht den Markt zu
   schlagen. Belege: `docs/e8-`, `e6-`, `e9-ergebnis-2026-10-17.md`.
   - **Kandidaten:**
-    - Q2 = monatlicher Screen (GP/A, Accruals, Umsatzwachstum, 12-1-Momentum;
-      Rangmenge = Nicht-Finanzwerte S&P 1500, kaufbar nur S&P 500/400);
+    - Q2 (GP/A, Accruals, Umsatzwachstum, 12-1-Momentum; Rangmenge =
+      Nicht-Finanzwerte S&P 1500, kaufbar nur S&P 500/400). **Seit 2026-10-19
+      Variante A (`q2_mode: "event"`, E11):** Kauf, wenn ein Titel mit seiner
+      neuen 10-Q/10-K-Einreichung NEU ins Top-Dezil kommt (Momentum > Median).
+      - Der Morgenlauf (09:05, `--screen`) liest den EDGAR-Tagesindex.
+      - Er lädt nur die Einreicher neu von der SEC.
+      - Er schreibt `data/analyst_a_picks.json`.
+      - Rückweg: `"monthly"` (Monats-Screen M, E9).
+      - Parität Live/Backtest am 5.–7.8.2026 exakt (LLY 0,755).
+    - Bisher galt der monatliche Screen M;
     - S1 = Earnings-Katalysator (Überraschung ≥ 5 %, Reaktion ≥ +2 % gegen SPY,
       über SMA200; Einstieg day0+2).
   - **Ausstieg X0:** 126 Handelstage, Broker-SL −15 % (dazu täglich ein
