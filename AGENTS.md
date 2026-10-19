@@ -9,9 +9,18 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
 ## Ownership
 
 - Code/Tests/Docs in diesem Repo: der Agent (Commits auf `main`, Push nach Test-Grün).
-- Alle Trading-Parameter (SL, Sizing, Regime-Thresholds, Loss-Limits) werden autonom vom
-  LLM Review Worker optimiert (taeglich 20:00 UTC, src/bot/workers/llm_review_worker.py).
-  Unveraenderliche Grenzen: BIBLE_HARD_LIMITS im Quellcode — diese ueberschreitet keine LLM.
+- Trading-Parameter (SL, Sizing, Regime-Thresholds, Loss-Limits) ändert nur VoLLi.
+  **Seit 2026-10-19 sind alle autonomen Optimierer pausiert:**
+  - LLM-Review `3e8465bb6051`;
+  - Config-Experiment-Loop `02c3634520f8`;
+  - Self-Improvement-Agent `a7f2c91d3b84` (sein Prompt beschreibt einen veralteten Stand);
+  - doppelter Makro-Advisor-Cron `6d23c9d78542` (die Logik läuft im News-Flag-Worker).
+
+  Das letzte Experiment (`sl.default_pct` 3,5) ist auf 3,0 zurückgerollt. Diese Jobs
+  nur nach VoLLi-Entscheid wieder aktivieren (NIEMALS-Liste). Gelöscht: Monitor-Worker,
+  alte Discovery-Pipeline, LLM-Position-Review (`b1c2d3e4f5a6`), Montags-Prüfjob
+  (Backup `~/.hermes/cron/jobs.json.bak-20261019-cleanup`). Unveränderliche Grenzen:
+  BIBLE_HARD_LIMITS im Quellcode.
 - Cron-Zeitpläne: `~/.hermes/cron/jobs.json` (Root-Scope), gespiegelt in `crontab.txt` hier.
 
 ## Local Contracts (Invarianten)

@@ -391,7 +391,7 @@ diversity:
     "MACD_TURN_BELOW_SMA20,BB_LOW_MACD_IMPROVING": 2
 
 sl:                           # Stop-loss configuration
-  default_pct: 3.5            # Default stop-loss distance from entry (%) — AKTIVES Experiment (2.5->3.0, 14d seit 2026-07-19)
+  default_pct: 3.0            # Default stop-loss distance from entry (%). VoLLi 2026-10-19: Experiment 3.5 zurueckgerollt, Config-Experiment-Loop pausiert
   emergency_pct: 4.0          # Widened SL used in high-volatility / emergency mode
   warning_pct: 2.0            # SL proximity warning threshold (% from current price)
   safety_tp_pct: 25.0         # feat/tp-safety-net: weites Broker-TP als Crash-Netz (Trailing bleibt primaer)
