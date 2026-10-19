@@ -57,6 +57,30 @@ def main() -> int:
     for lg in logs[-6:]:
         lines.append(f"`{lg['ts'][11:16]}` {lg['level']} {lg['m']}")
 
+    # Variante A (Q2 bei Einreichung, seit 19.10.): Morgenlauf 09:05 + Kaufliste
+    import json as _json
+    scr = sorted((CRON_OUT / "15aae898069b").glob(f"{args.since}*")) if (CRON_OUT / "15aae898069b").exists() else []
+    if scr:
+        txt = scr[-1].read_text(errors="ignore")
+        tail = [ln for ln in txt.splitlines() if "analyst_worker:" in ln or "Traceback" in ln]
+        lines.append(f"**Morgenlauf Q2-A:** {scr[-1].name[:16]} — " + (" | ".join(tail[-2:]) or "ohne Ausgabe"))
+        if any("Traceback" in ln for ln in tail):
+            ok = False
+    else:
+        lines.append("**Morgenlauf Q2-A:** keine Cron-Ausgabe gefunden ⚠️")
+        ok = False
+    try:
+        ap = _json.loads((ROOT / "data" / "analyst_a_picks.json").read_text())
+        if ap.get("date", "") >= args.since:
+            lines.append(f"**Kaufliste A** ({ap.get('date')}, d1 {ap.get('d1')}): {ap.get('filers')} Einreicher, "
+                         f"Rangmenge {ap.get('n_rank')}, Picks {[t for _, t in ap.get('picks', [])] or 'keine'}"
+                         + (f", Index fehlte: {ap.get('index_missing')} ⚠️" if ap.get("index_missing") else ""))
+            ok = ok and not ap.get("index_missing")
+        else:
+            lines.append(f"**Kaufliste A:** veraltet (Stand {ap.get('date')}) ⚠️"); ok = False
+    except Exception:  # noqa: BLE001
+        lines.append("**Kaufliste A:** Datei fehlt ⚠️"); ok = False
+
     pos = {}
     try:
         import yaml
@@ -99,10 +123,13 @@ def main() -> int:
     # Nachkontrolle yfinance-Korrektur / ohlcv-Persistenz (17.10.): Reihen muessen
     # nach Marktoeffnung wieder bis gestern/heute reichen.
     chk = []
-    for sym in ("CLPT", "BRBI", "ALX.ASX", "EURNOK", "USDTRY", "NSDQ100.FUT", "US2000"):
+    # NSDQ100.FUT/US2000 sind bei eToro nicht handelbar -> werden nicht geladen, nicht pruefen
+    for sym in ("CLPT", "BRBI", "ALX.ASX", "EURNOK", "USDTRY"):
         r = con.execute("SELECT COUNT(o.id), MAX(o.date) FROM instruments i LEFT JOIN ohlcv_daily o "
                         "USING(instrument_id) WHERE i.symbol = ?", (sym,)).fetchone()
-        fresh = bool(r and r[1] and r[1] >= args.since)
+        # hoechstens 5 Kalendertage alt: illiquide Titel (BRBI: Tage mit 0 Stueck) haben nicht jeden Tag einen Kurs
+        from datetime import date as _d, timedelta as _td
+        fresh = bool(r and r[1] and r[1] >= (_d.fromisoformat(args.since) - _td(days=5)).isoformat())
         ok = ok and fresh
         chk.append(f"{sym} {r[0] if r else 0} Tage bis {r[1] if r else '—'} {'✅' if fresh else '⚠️'}")
     lines.append("**Kursreihen nach Symbol-Korrektur:** " + " · ".join(chk))
