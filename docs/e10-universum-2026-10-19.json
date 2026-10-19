@@ -1,0 +1,4405 @@
+{
+"3IN.L": {
+"country": "UK",
+"etoro": "3IN.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2753,
+"name": "3i Infrastructure PLC"
+},
+"8TRA.DE": {
+"country": "DE",
+"etoro": "8TRA.DE",
+"index": "MDAX",
+"instrument_id": 3664,
+"name": "TRATON SE"
+},
+"A2A.MI": {
+"country": "IT",
+"etoro": "A2A.MI",
+"index": "FTSE_MIB",
+"instrument_id": 1271,
+"name": "A2A Group"
+},
+"AAF.L": {
+"country": "UK",
+"etoro": "AAF.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2120,
+"name": "Airtel Africa Plc"
+},
+"AAL.L": {
+"country": "UK",
+"etoro": "AAL.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2000,
+"name": "Anglo American"
+},
+"AALB.AS": {
+"country": "NL",
+"etoro": "AALB.NV",
+"index": "AMX_index",
+"instrument_id": 4500,
+"name": "Aalberts NV"
+},
+"ABB.ST": {
+"country": "SE",
+"etoro": "ABB.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 1014564,
+"name": "ABB Ltd"
+},
+"ABBN.SW": {
+"country": "CH",
+"etoro": "ABBN.ZU",
+"index": "Swiss_Market_Index",
+"instrument_id": 1404,
+"name": "ABB LTD"
+},
+"ABDN.L": {
+"country": "UK",
+"etoro": "ABDN.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2081,
+"name": "abrdn PLC"
+},
+"ABF.L": {
+"country": "UK",
+"etoro": "ABF.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2001,
+"name": "Associated British Foods"
+},
+"ABI.BR": {
+"country": "BE",
+"etoro": "ABI.BR",
+"index": "BEL_20",
+"instrument_id": 5737,
+"name": "Anheuser Busch InBev"
+},
+"ABN.AS": {
+"country": "NL",
+"etoro": "ABN.NV",
+"index": "AEX_index",
+"instrument_id": 4501,
+"name": "ABN AMRO Group NV"
+},
+"AC.PA": {
+"country": "FR",
+"etoro": "AC.PA",
+"index": "CAC_40",
+"instrument_id": 1231,
+"name": "Accor S.A."
+},
+"ACA.PA": {
+"country": "FR",
+"etoro": "ACA.PA",
+"index": "CAC_40",
+"instrument_id": 1232,
+"name": "Credit Agricole S.A."
+},
+"ACKB.BR": {
+"country": "BE",
+"etoro": "ACKB.BR",
+"index": "BEL_20",
+"instrument_id": 5735,
+"name": "Ackermans & Van Haaren NV"
+},
+"ACS.MC": {
+"country": "ES",
+"etoro": "ACS.MC",
+"index": "IBEX_35",
+"instrument_id": 1313,
+"name": "ACS"
+},
+"ACX.MC": {
+"country": "ES",
+"etoro": "ACX.MC",
+"index": "IBEX_35",
+"instrument_id": 5508,
+"name": "Acerinox SA"
+},
+"AD.AS": {
+"country": "NL",
+"etoro": "AD.NV",
+"index": "AEX_index",
+"instrument_id": 4546,
+"name": "Koninklijke Ahold NV"
+},
+"ADDT-B.ST": {
+"country": "SE",
+"etoro": "ADDTb.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 13762,
+"name": "Addtech AB"
+},
+"ADM.L": {
+"country": "UK",
+"etoro": "ADM.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2002,
+"name": "Admiral Group"
+},
+"ADS.DE": {
+"country": "DE",
+"etoro": "ADS.DE",
+"index": "DAX",
+"instrument_id": 1215,
+"name": "Adidas AG"
+},
+"ADYEN.AS": {
+"country": "NL",
+"etoro": "ADYEN.NV",
+"index": "AEX_index",
+"instrument_id": 4502,
+"name": "Adyen NV"
+},
+"AED.BR": {
+"country": "BE",
+"etoro": "AED.BR",
+"index": "BEL_20",
+"instrument_id": 5749,
+"name": "Aedifica SA"
+},
+"AENA.MC": {
+"country": "ES",
+"etoro": "AENA.MC",
+"index": "IBEX_35",
+"instrument_id": 5509,
+"name": "Aena SME"
+},
+"AEP.L": {
+"country": "UK",
+"etoro": "AEP.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11762,
+"name": "AEP Plantations Plc"
+},
+"AFX.DE": {
+"country": "DE",
+"etoro": "AFX.DE",
+"index": "MDAX",
+"instrument_id": 2560,
+"name": "Carl Zeiss Meditec AG"
+},
+"AGFB.BR": {
+"country": "BE",
+"etoro": "AGFB.BR",
+"index": "BEL_20",
+"instrument_id": 12693,
+"name": "AGFA Gevaert NV"
+},
+"AGN.AS": {
+"country": "NL",
+"etoro": "AGN.NV",
+"index": "AEX_index",
+"instrument_id": 4503,
+"name": "Aegon Ltd"
+},
+"AGS.BR": {
+"country": "BE",
+"etoro": "AGS.BR",
+"index": "BEL_20",
+"instrument_id": 5736,
+"name": "Ageas NV"
+},
+"AI.PA": {
+"country": "FR",
+"etoro": "AI.PA",
+"index": "CAC_40",
+"instrument_id": 1233,
+"name": "Air Liquide SA"
+},
+"AIR.PA": {
+"country": "FR",
+"etoro": "AIR.PA",
+"index": "DAX",
+"instrument_id": 1234,
+"name": "AIRBUS SE"
+},
+"AIXA.DE": {
+"country": "DE",
+"etoro": "AIXA.DE",
+"index": "MDAX",
+"instrument_id": 2501,
+"name": "AIXTRON"
+},
+"AJB.L": {
+"country": "UK",
+"etoro": "AJB.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2130,
+"name": "AJ Bell plc"
+},
+"AKRBP.OL": {
+"country": "NO",
+"etoro": "AKRBP.OL",
+"index": "OBX_Index",
+"instrument_id": 5797,
+"name": "Aker BP ASA"
+},
+"AKZA.AS": {
+"country": "NL",
+"etoro": "AKZA.NV",
+"index": "AEX_index",
+"instrument_id": 4504,
+"name": "Akzo Nobel NV"
+},
+"ALC.SW": {
+"country": "CH",
+"etoro": "ALC.ZU",
+"index": "Swiss_Market_Index",
+"instrument_id": 5804,
+"name": "Alcon Inc."
+},
+"ALFA.L": {
+"country": "UK",
+"etoro": "ALFA.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11336,
+"name": "Alfa Financial Software Holdings Pl"
+},
+"ALFA.ST": {
+"country": "SE",
+"etoro": "ALFA.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 2246,
+"name": "Alfa Laval AB"
+},
+"ALFEN.AS": {
+"country": "NL",
+"etoro": "ALFEN.NV",
+"index": "AMX_index",
+"instrument_id": 3047,
+"name": "Alfen N.V"
+},
+"ALSYDB.CO": {
+"country": "DK",
+"etoro": "ALSYDB.CO",
+"index": "OMX_Copenhagen_25",
+"instrument_id": 3262,
+"name": "AL Sydbank"
+},
+"ALV.DE": {
+"country": "DE",
+"etoro": "ALV.DE",
+"index": "DAX",
+"instrument_id": 1204,
+"name": "Allianz SE"
+},
+"ALW.L": {
+"country": "UK",
+"etoro": "ALW.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2667,
+"name": "Alliance Witan PLC"
+},
+"AMBU-B.CO": {
+"country": "DK",
+"etoro": "AMBUB.CO",
+"index": "OMX_Copenhagen_25",
+"instrument_id": 5724,
+"name": "Ambu A/S"
+},
+"AMG.AS": {
+"country": "NL",
+"etoro": "AMG.NV",
+"index": "AMX_index",
+"instrument_id": 4506,
+"name": "AMG Advanced Metallurgical Group NV"
+},
+"AMP.MI": {
+"country": "IT",
+"etoro": "AMP.MI",
+"index": "FTSE_MIB",
+"instrument_id": 4218,
+"name": "Amplifon"
+},
+"AMRQ.L": {
+"country": "UK",
+"etoro": "AMRQ.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11458,
+"name": "Amaroq Minerals Ltd."
+},
+"AMRZ.SW": {
+"country": "CH",
+"etoro": "AMRZ.ZU",
+"index": "Swiss_Market_Index",
+"instrument_id": 2947,
+"name": "AMRIZE LTD"
+},
+"AMS.MC": {
+"country": "ES",
+"etoro": "AMS.MC",
+"index": "IBEX_35",
+"instrument_id": 1314,
+"name": "Amadeus IT Hold -A-"
+},
+"ANA.MC": {
+"country": "ES",
+"etoro": "ANA.MC",
+"index": "IBEX_35",
+"instrument_id": 1315,
+"name": "Acciona"
+},
+"ANE.MC": {
+"country": "ES",
+"etoro": "ANE.MC",
+"index": "IBEX_35",
+"instrument_id": 3709,
+"name": "Corporaci\u00f3n Acciona Energ\u00edas Renovables S.A."
+},
+"ANTO.L": {
+"country": "UK",
+"etoro": "ANTO.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2007,
+"name": "Antofagasta"
+},
+"AO.L": {
+"country": "UK",
+"etoro": "AO.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11284,
+"name": "Ao World Plc"
+},
+"APAM.AS": {
+"country": "NL",
+"etoro": "APAM.NV",
+"index": "AMX_index",
+"instrument_id": 3046,
+"name": "Aperam S.A"
+},
+"ARCAD.AS": {
+"country": "NL",
+"etoro": "ARCAD.NV",
+"index": "AMX_index",
+"instrument_id": 4507,
+"name": "Arcadis NV"
+},
+"ARGX.BR": {
+"country": "BE",
+"etoro": "ARGX.BR",
+"index": "BEL_20",
+"instrument_id": 5738,
+"name": "Argenx Se"
+},
+"ASC.L": {
+"country": "UK",
+"etoro": "ASC.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2169,
+"name": "ASOS PLC"
+},
+"ASHM.L": {
+"country": "UK",
+"etoro": "ASHM.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2801,
+"name": "Ashmore Group PLC"
+},
+"ASM.AS": {
+"country": "NL",
+"etoro": "ASM.NV",
+"index": "AEX_index",
+"instrument_id": 4508,
+"name": "ASM International NV"
+},
+"ASML.AS": {
+"country": "NL",
+"etoro": "ASML.NV",
+"index": "AEX_index",
+"instrument_id": 4509,
+"name": "ASML Holding NV"
+},
+"ASRNL.AS": {
+"country": "NL",
+"etoro": "ASRNL.NV",
+"index": "AEX_index",
+"instrument_id": 4510,
+"name": "ASR Nederland NV"
+},
+"ASSA-B.ST": {
+"country": "SE",
+"etoro": "ASSA-B.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 2242,
+"name": "ASSA ABLOY AB ser. B"
+},
+"AT1.DE": {
+"country": "DE",
+"etoro": "AT1.DE",
+"index": "MDAX",
+"instrument_id": 2559,
+"name": "Aroundtown SA"
+},
+"ATCO-A.ST": {
+"country": "SE",
+"etoro": "ATCO-A.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 2243,
+"name": "Atlas Copco AB ser. A"
+},
+"ATG.L": {
+"country": "UK",
+"etoro": "ATG.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2144,
+"name": "Auction Technology Group plc"
+},
+"ATYM.L": {
+"country": "UK",
+"etoro": "ATYM.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11308,
+"name": "Atalaya Mining Plc"
+},
+"AUTO.L": {
+"country": "UK",
+"etoro": "AUTO.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2666,
+"name": "Autotrader Group PLC"
+},
+"AV.L": {
+"country": "UK",
+"etoro": "AV.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2009,
+"name": "Aviva"
+},
+"AVIO.MI": {
+"country": "IT",
+"etoro": "AVIO.MI",
+"index": "FTSE_MIB",
+"instrument_id": 3290,
+"name": "Avio SpA"
+},
+"AVON.L": {
+"country": "UK",
+"etoro": "AVON.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11351,
+"name": "Avon Protection Plc"
+},
+"AZE.BR": {
+"country": "BE",
+"etoro": "AZE.BR",
+"index": "BEL_20",
+"instrument_id": 12662,
+"name": "Azelis Group NV"
+},
+"AZM.MI": {
+"country": "IT",
+"etoro": "AZM.MI",
+"index": "FTSE_MIB",
+"instrument_id": 1274,
+"name": "Azimut Holding"
+},
+"AZN.L": {
+"country": "UK",
+"etoro": "AZN.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2010,
+"name": "AstraZeneca"
+},
+"AZN.ST": {
+"country": "SE",
+"etoro": "AZN.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 1014489,
+"name": "AstraZeneca PLC"
+},
+"BA.L": {
+"country": "UK",
+"etoro": "BA.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2110,
+"name": "BAE Systems plc "
+},
+"BAB.L": {
+"country": "UK",
+"etoro": "BAB.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2012,
+"name": "Babcock International"
+},
+"BAG.L": {
+"country": "UK",
+"etoro": "BAG.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2780,
+"name": "A.G. Barr PLC"
+},
+"BAMI.MI": {
+"country": "IT",
+"etoro": "BAMI.MI",
+"index": "FTSE_MIB",
+"instrument_id": 4220,
+"name": "Banco Bpm"
+},
+"BAR.BR": {
+"country": "BE",
+"etoro": "BAR.BR",
+"index": "BEL_20",
+"instrument_id": 12667,
+"name": "Barco NV"
+},
+"BARC.L": {
+"country": "UK",
+"etoro": "BARC.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2013,
+"name": "Barclays"
+},
+"BAS.DE": {
+"country": "DE",
+"etoro": "BAS.DE",
+"index": "DAX",
+"instrument_id": 1201,
+"name": "BASF SE"
+},
+"BATS.L": {
+"country": "UK",
+"etoro": "BATS.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2014,
+"name": "British American Tobacco"
+},
+"BAYN.DE": {
+"country": "DE",
+"etoro": "BAYN.DE",
+"index": "DAX",
+"instrument_id": 1203,
+"name": "Bayer AG"
+},
+"BBOX.L": {
+"country": "UK",
+"etoro": "BBOX.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2717,
+"name": "Tritax Big Box REIT Plc"
+},
+"BBVA.MC": {
+"country": "ES",
+"etoro": "BBVA.MC",
+"index": "IBEX_35",
+"instrument_id": 1316,
+"name": "BBVA"
+},
+"BBY.L": {
+"country": "UK",
+"etoro": "BBY.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2614,
+"name": "Balfour Beatty PLC"
+},
+"BC.MI": {
+"country": "IT",
+"etoro": "BC.MI",
+"index": "FTSE_MIB",
+"instrument_id": 3032,
+"name": "Brunello Cucinelli S.p.A."
+},
+"BC8.DE": {
+"country": "DE",
+"etoro": "BC8.DE",
+"index": "MDAX",
+"instrument_id": 2575,
+"name": "Bechtle AG"
+},
+"BEI.DE": {
+"country": "DE",
+"etoro": "BEI.DE",
+"index": "DAX",
+"instrument_id": 1225,
+"name": "Beiersdorf AG"
+},
+"BEKB.BR": {
+"country": "BE",
+"etoro": "BEKB.BR",
+"index": "BEL_20",
+"instrument_id": 12669,
+"name": "NV Bekaert SA"
+},
+"BESI.AS": {
+"country": "NL",
+"etoro": "BESI.NV",
+"index": "AEX_index",
+"instrument_id": 4513,
+"name": "BE Semiconductor Industries NV"
+},
+"BFIT.AS": {
+"country": "NL",
+"etoro": "BFIT.NV",
+"index": "AMX_index",
+"instrument_id": 3045,
+"name": "Basic-Fit N.V"
+},
+"BFSA.DE": {
+"country": "DE",
+"etoro": "BFSA.DE",
+"index": "MDAX",
+"instrument_id": 3665,
+"name": "Befesa S.A."
+},
+"BGEO.L": {
+"country": "UK",
+"etoro": "BGEO.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2740,
+"name": "Bank of Georgia Group PLC"
+},
+"BKG.L": {
+"country": "UK",
+"etoro": "BKG.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2685,
+"name": "Berkeley Group Holdings PLC"
+},
+"BKT.MC": {
+"country": "ES",
+"etoro": "BKT.MC",
+"index": "IBEX_35",
+"instrument_id": 1318,
+"name": "Bankinter"
+},
+"BLND.L": {
+"country": "UK",
+"etoro": "BLND.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2016,
+"name": "British Land"
+},
+"BME.L": {
+"country": "UK",
+"etoro": "BME.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2739,
+"name": "B&M European Value Retail SA"
+},
+"BMED.MI": {
+"country": "IT",
+"etoro": "BMED.MI",
+"index": "FTSE_MIB",
+"instrument_id": 2998,
+"name": "Banca Mediolanum S.P.A"
+},
+"BMPS.MI": {
+"country": "IT",
+"etoro": "BMPS.MI",
+"index": "FTSE_MIB",
+"instrument_id": 2996,
+"name": "Banca Monte Dei Paschi Di Siena S.P.A"
+},
+"BMW.DE": {
+"country": "DE",
+"etoro": "BMW.DE",
+"index": "DAX",
+"instrument_id": 1211,
+"name": "Bayerische Motoren Werke Aktiengesellschaft"
+},
+"BMY.L": {
+"country": "UK",
+"etoro": "BMY.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11385,
+"name": "Bloomsbury Publishing Plc"
+},
+"BN.PA": {
+"country": "FR",
+"etoro": "BN.PA",
+"index": "CAC_40",
+"instrument_id": 1237,
+"name": "Danone S.A"
+},
+"BNP.PA": {
+"country": "FR",
+"etoro": "BNP.PA",
+"index": "CAC_40",
+"instrument_id": 1238,
+"name": "BNP Paribas SA"
+},
+"BNR.DE": {
+"country": "DE",
+"etoro": "BNR.DE",
+"index": "DAX",
+"instrument_id": 2530,
+"name": "Brenntag"
+},
+"BNZL.L": {
+"country": "UK",
+"etoro": "BNZL.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2018,
+"name": "Bunzl"
+},
+"BOL.ST": {
+"country": "SE",
+"etoro": "BOL.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 2244,
+"name": "Boliden AB"
+},
+"BOSS.DE": {
+"country": "DE",
+"etoro": "BOSS.DE",
+"index": "MDAX",
+"instrument_id": 2545,
+"name": "HUGO BOSS"
+},
+"BOWL.L": {
+"country": "UK",
+"etoro": "BOWL.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11198,
+"name": "Hollywood Bowl Group Plc"
+},
+"BOY.L": {
+"country": "UK",
+"etoro": "BOY.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2626,
+"name": "Bodycote PLC"
+},
+"BPE.MI": {
+"country": "IT",
+"etoro": "BPE.MI",
+"index": "FTSE_MIB",
+"instrument_id": 1277,
+"name": "BPER Banca"
+},
+"BPOST.BR": {
+"country": "BE",
+"etoro": "BPOST.BR",
+"index": "BEL_20",
+"instrument_id": 12683,
+"name": "Bpost SA"
+},
+"BPT.L": {
+"country": "UK",
+"etoro": "BPT.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2137,
+"name": "Bridgepoint Group plc"
+},
+"BRBY.L": {
+"country": "UK",
+"etoro": "BRBY.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2020,
+"name": "Burberry Group"
+},
+"BREE.L": {
+"country": "UK",
+"etoro": "BREE.L",
+"index": "FTSE_250_Index",
+"instrument_id": 3594,
+"name": "Breedon Group plc"
+},
+"BTRW.L": {
+"country": "UK",
+"etoro": "BTRW.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2151,
+"name": "Barratt Redrow PLC"
+},
+"BVI.PA": {
+"country": "FR",
+"etoro": "BVI.PA",
+"index": "CAC_40",
+"instrument_id": 5011,
+"name": "Bureau Veritas SA"
+},
+"BWLPG.OL": {
+"country": "NO",
+"etoro": "BWLPG.OL",
+"index": "OBX_Index",
+"instrument_id": 2212,
+"name": "BW LPG"
+},
+"BWY.L": {
+"country": "UK",
+"etoro": "BWY.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2778,
+"name": "Bellway PLC"
+},
+"BYG.L": {
+"country": "UK",
+"etoro": "BYG.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2742,
+"name": "Big Yellow Group PLC"
+},
+"BYIT.L": {
+"country": "UK",
+"etoro": "BYIT.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2139,
+"name": "Bytes Technology Group plc"
+},
+"BZU.MI": {
+"country": "IT",
+"etoro": "BZU.MI",
+"index": "FTSE_MIB",
+"instrument_id": 1278,
+"name": "Buzzi Spa"
+},
+"CA.PA": {
+"country": "FR",
+"etoro": "CA.PA",
+"index": "CAC_40",
+"instrument_id": 1239,
+"name": "Carrefour SA"
+},
+"CABK.MC": {
+"country": "ES",
+"etoro": "CABK.MC",
+"index": "IBEX_35",
+"instrument_id": 1320,
+"name": "Caixabank"
+},
+"CAP.PA": {
+"country": "FR",
+"etoro": "CAP.PA",
+"index": "CAC_40",
+"instrument_id": 1240,
+"name": "Capgemini SE"
+},
+"CARL-B.CO": {
+"country": "DK",
+"etoro": "CARLB.CO",
+"index": "OMX_Copenhagen_25",
+"instrument_id": 1996,
+"name": "Carlsberg A/S Class B"
+},
+"CBG.L": {
+"country": "UK",
+"etoro": "CBG.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2795,
+"name": "Close Brothers Group PLC"
+},
+"CBK.DE": {
+"country": "DE",
+"etoro": "CBK.DE",
+"index": "DAX",
+"instrument_id": 1223,
+"name": "Commerzbank AG"
+},
+"CCC.L": {
+"country": "UK",
+"etoro": "CCC.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2639,
+"name": "Computacenter PLC"
+},
+"CCH.L": {
+"country": "UK",
+"etoro": "CCH.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2023,
+"name": "Coca Cola Hellenic"
+},
+"CFR.SW": {
+"country": "CH",
+"etoro": "CFR.ZU",
+"index": "Swiss_Market_Index",
+"instrument_id": 1408,
+"name": "Compagnie Financiere Richemont SA"
+},
+"CKN.L": {
+"country": "UK",
+"etoro": "CKN.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2653,
+"name": "Clarkson PLC"
+},
+"CLNX.MC": {
+"country": "ES",
+"etoro": "CLNX.MC",
+"index": "IBEX_35",
+"instrument_id": 5838,
+"name": "Cellnex Telecom SA"
+},
+"CNA.L": {
+"country": "UK",
+"etoro": "CNA.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2025,
+"name": "Centrica"
+},
+"COA.L": {
+"country": "UK",
+"etoro": "COA.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2602,
+"name": "Coats Group PLC"
+},
+"COL.MC": {
+"country": "ES",
+"etoro": "COL.MC",
+"index": "IBEX_35",
+"instrument_id": 5839,
+"name": "Colonial SFL Socimi SA"
+},
+"COLO-B.CO": {
+"country": "DK",
+"etoro": "COLO-B.CO",
+"index": "OMX_Copenhagen_25",
+"instrument_id": 2272,
+"name": "Coloplast B A/S"
+},
+"CON.DE": {
+"country": "DE",
+"etoro": "CON.DE",
+"index": "DAX",
+"instrument_id": 1228,
+"name": "Continental AG"
+},
+"COST.L": {
+"country": "UK",
+"etoro": "COST.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11388,
+"name": "Costain Group Plc"
+},
+"CPR.MI": {
+"country": "IT",
+"etoro": "CPR.MI",
+"index": "FTSE_MIB",
+"instrument_id": 1280,
+"name": "Davide Campari - Milano Beverage"
+},
+"CRBN.AS": {
+"country": "NL",
+"etoro": "CRBN.NV",
+"index": "AMX_index",
+"instrument_id": 12612,
+"name": "Corbion NV"
+},
+"CRDA.L": {
+"country": "UK",
+"etoro": "CRDA.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2152,
+"name": "Croda International"
+},
+"CSN.L": {
+"country": "UK",
+"etoro": "CSN.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11401,
+"name": "Chesnara Plc"
+},
+"CTEC.L": {
+"country": "UK",
+"etoro": "CTEC.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2850,
+"name": "ConvaTec"
+},
+"CTY.L": {
+"country": "UK",
+"etoro": "CTY.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2714,
+"name": "City of London Investment Trust PLC"
+},
+"CURY.L": {
+"country": "UK",
+"etoro": "CURY.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2679,
+"name": "Currys PLC"
+},
+"CWK.L": {
+"country": "UK",
+"etoro": "CWK.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2738,
+"name": "Cranswick PLC"
+},
+"DANSKE.CO": {
+"country": "DK",
+"etoro": "DANSKE.CO",
+"index": "OMX_Copenhagen_25",
+"instrument_id": 2261,
+"name": "Danske Bank A/S"
+},
+"DB1.DE": {
+"country": "DE",
+"etoro": "DB1.DE",
+"index": "DAX",
+"instrument_id": 1219,
+"name": "Deutsche Boerse AG"
+},
+"DBK.DE": {
+"country": "DE",
+"etoro": "DBK.DE",
+"index": "DAX",
+"instrument_id": 1995,
+"name": "Deutsche Bank Aktiengesellschaft"
+},
+"DCC.L": {
+"country": "UK",
+"etoro": "DCC.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2153,
+"name": "DCC PLC"
+},
+"DEMANT.CO": {
+"country": "DK",
+"etoro": "DEMANT.CO",
+"index": "OMX_Copenhagen_25",
+"instrument_id": 2268,
+"name": " Demant A/S"
+},
+"DG.PA": {
+"country": "FR",
+"etoro": "DG.PA",
+"index": "CAC_40",
+"instrument_id": 1242,
+"name": "Vinci S.A"
+},
+"DGE.L": {
+"country": "UK",
+"etoro": "DGE.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2029,
+"name": "Diageo"
+},
+"DHER.DE": {
+"country": "DE",
+"etoro": "DHER.DE",
+"index": "MDAX",
+"instrument_id": 2564,
+"name": "Delivery Hero SE"
+},
+"DHL.DE": {
+"country": "DE",
+"etoro": "DHL.DE",
+"index": "DAX",
+"instrument_id": 1216,
+"name": "Deutsche Post AG"
+},
+"DIA.MI": {
+"country": "IT",
+"etoro": "DIA.MI",
+"index": "FTSE_MIB",
+"instrument_id": 4222,
+"name": "Diasorin"
+},
+"DIE.BR": {
+"country": "BE",
+"etoro": "DIE.BR",
+"index": "BEL_20",
+"instrument_id": 12658,
+"name": "DIeteren Group SA"
+},
+"DLN.L": {
+"country": "UK",
+"etoro": "DLN.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2643,
+"name": "Derwent London PLC"
+},
+"DNB.OL": {
+"country": "NO",
+"etoro": "DNB.OL",
+"index": "OBX_Index",
+"instrument_id": 2213,
+"name": "DNB Bank ASA"
+},
+"DNLM.L": {
+"country": "UK",
+"etoro": "DNLM.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2798,
+"name": "Dunelm Group PLC"
+},
+"DOCS.L": {
+"country": "UK",
+"etoro": "DOCS.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2123,
+"name": "Dr. Martens plc"
+},
+"DOM.L": {
+"country": "UK",
+"etoro": "DOM.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2705,
+"name": "Domino's Pizza Group PLC"
+},
+"DPLM.L": {
+"country": "UK",
+"etoro": "DPLM.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2773,
+"name": "Diploma PLC"
+},
+"DRX.L": {
+"country": "UK",
+"etoro": "DRX.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2637,
+"name": "Drax Group PLC"
+},
+"DSCV.L": {
+"country": "UK",
+"etoro": "DSCV.L",
+"index": "FTSE_250_Index",
+"instrument_id": 3626,
+"name": "DISCOVERIE GROUP PLC"
+},
+"DSFIR.AS": {
+"country": "NL",
+"etoro": "DSFIR.NV",
+"index": "AEX_index",
+"instrument_id": 3044,
+"name": "DSM-FIRMENICH AG"
+},
+"DSV.CO": {
+"country": "DK",
+"etoro": "DSV.CO",
+"index": "OMX_Copenhagen_25",
+"instrument_id": 2267,
+"name": "DSV A/S"
+},
+"DSY.PA": {
+"country": "FR",
+"etoro": "DSY.PA",
+"index": "CAC_40",
+"instrument_id": 5001,
+"name": "Dassault Systemes"
+},
+"DTE.DE": {
+"country": "DE",
+"etoro": "DTE.DE",
+"index": "DAX",
+"instrument_id": 1207,
+"name": "Deutsche Telekom AG"
+},
+"DTG.DE": {
+"country": "DE",
+"etoro": "DTG.DE",
+"index": "DAX",
+"instrument_id": 2203,
+"name": "Daimler Truck Holding AG"
+},
+"ECMPA.AS": {
+"country": "NL",
+"etoro": "ECMPA.NV",
+"index": "AMX_index",
+"instrument_id": 12614,
+"name": "Eurocommercial Properties NV"
+},
+"EDV.L": {
+"country": "UK",
+"etoro": "EDV.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2136,
+"name": "Endeavour Mining plc"
+},
+"EL.PA": {
+"country": "FR",
+"etoro": "EL.PA",
+"index": "CAC_40",
+"instrument_id": 1244,
+"name": "EssilorLuxottica SA"
+},
+"ELE.MC": {
+"country": "ES",
+"etoro": "ELE.MC",
+"index": "IBEX_35",
+"instrument_id": 1322,
+"name": "Endesa"
+},
+"ELI.BR": {
+"country": "BE",
+"etoro": "ELI.BR",
+"index": "BEL_20",
+"instrument_id": 12661,
+"name": "Elia Group SA"
+},
+"ELISA.HE": {
+"country": "FI",
+"etoro": "ELISA.HE",
+"index": "OMX_Helsinki_25",
+"instrument_id": 2285,
+"name": "Elisa Oyj"
+},
+"ELM.L": {
+"country": "UK",
+"etoro": "ELM.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2655,
+"name": "Elementis PLC"
+},
+"EMG.L": {
+"country": "UK",
+"etoro": "EMG.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2689,
+"name": "Man Group PLC"
+},
+"EN.PA": {
+"country": "FR",
+"etoro": "EN.PA",
+"index": "CAC_40",
+"instrument_id": 1245,
+"name": "Bouygues SA"
+},
+"ENEL.MI": {
+"country": "IT",
+"etoro": "ENEL.MI",
+"index": "FTSE_MIB",
+"instrument_id": 1282,
+"name": "Enel Power Company"
+},
+"ENG.MC": {
+"country": "ES",
+"etoro": "ENG.MC",
+"index": "IBEX_35",
+"instrument_id": 1323,
+"name": "Enagas"
+},
+"ENGI.PA": {
+"country": "FR",
+"etoro": "ENGI.PA",
+"index": "CAC_40",
+"instrument_id": 1249,
+"name": "Engie SA"
+},
+"ENI.MI": {
+"country": "IT",
+"etoro": "ENI.MI",
+"index": "FTSE_MIB",
+"instrument_id": 1283,
+"name": "Eni Energy Company"
+},
+"ENOG.L": {
+"country": "UK",
+"etoro": "ENOG.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2135,
+"name": "Energean plc"
+},
+"ENR.DE": {
+"country": "DE",
+"etoro": "ENR.DE",
+"index": "DAX",
+"instrument_id": 8537,
+"name": "Siemens Energy AG"
+},
+"ENT.L": {
+"country": "UK",
+"etoro": "ENT.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2791,
+"name": "Entain PLC"
+},
+"ENX.PA": {
+"country": "FR",
+"etoro": "ENX.PA",
+"index": "CAC_40",
+"instrument_id": 5018,
+"name": "Euronext NV"
+},
+"EOAN.DE": {
+"country": "DE",
+"etoro": "EOAN.DE",
+"index": "DAX",
+"instrument_id": 1205,
+"name": "E.ON SE"
+},
+"EPI-A.ST": {
+"country": "SE",
+"etoro": "EPIA.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 5847,
+"name": "Epiroc AB"
+},
+"EQNR.OL": {
+"country": "NO",
+"etoro": "EQNR.OL",
+"index": "OBX_Index",
+"instrument_id": 5798,
+"name": "Equinor ASA"
+},
+"EQT.ST": {
+"country": "SE",
+"etoro": "EQT.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 2966,
+"name": "EQT AB"
+},
+"ERF.PA": {
+"country": "FR",
+"etoro": "ERF.PA",
+"index": "CAC_40",
+"instrument_id": 5017,
+"name": "Eurofins Scientific SE"
+},
+"ERIC-B.ST": {
+"country": "SE",
+"etoro": "ERIC-B.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 2963,
+"name": "Telefonaktiebolaget LM Ericsson"
+},
+"ESSITY-B.ST": {
+"country": "SE",
+"etoro": "ESSITYB.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 5848,
+"name": "Essity AB ser. B"
+},
+"EVD.DE": {
+"country": "DE",
+"etoro": "EVD.DE",
+"index": "MDAX",
+"instrument_id": 2548,
+"name": "CTS Eventim"
+},
+"EVK.DE": {
+"country": "DE",
+"etoro": "EVK.DE",
+"index": "MDAX",
+"instrument_id": 2511,
+"name": "Evonik"
+},
+"EVO.ST": {
+"country": "SE",
+"etoro": "EVO.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 1980,
+"name": "Evolution AB "
+},
+"EVT.DE": {
+"country": "DE",
+"etoro": "EVT.DE",
+"index": "MDAX",
+"instrument_id": 2504,
+"name": "EVOTEC"
+},
+"EXO.AS": {
+"country": "NL",
+"etoro": "EXO.NV",
+"index": "AEX_index",
+"instrument_id": 3055,
+"name": "Exor NV"
+},
+"EXPN.L": {
+"country": "UK",
+"etoro": "EXPN.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2030,
+"name": "Experian"
+},
+"EZJ.L": {
+"country": "UK",
+"etoro": "EZJ.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2031,
+"name": "easyJet"
+},
+"FAN.L": {
+"country": "UK",
+"etoro": "FAN.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2125,
+"name": "Volution Group plc"
+},
+"FBK.MI": {
+"country": "IT",
+"etoro": "FBK.MI",
+"index": "FTSE_MIB",
+"instrument_id": 4223,
+"name": "FinecoBank"
+},
+"FCH.L": {
+"country": "UK",
+"etoro": "FCH.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11363,
+"name": "Funding Circle Holdings Plc"
+},
+"FCIT.L": {
+"country": "UK",
+"etoro": "FCIT.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2732,
+"name": "Foreign & Colonial Investment Trust PLC"
+},
+"FCT.MI": {
+"country": "IT",
+"etoro": "FCT.MI",
+"index": "FTSE_MIB",
+"instrument_id": 3542,
+"name": "Fincantieri S.p.A"
+},
+"FDR.MC": {
+"country": "ES",
+"etoro": "FDR.MC",
+"index": "IBEX_35",
+"instrument_id": 3708,
+"name": "Fluidra S.A"
+},
+"FEML.L": {
+"country": "UK",
+"etoro": "FEML.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2815,
+"name": "Fidelity Emerging Markets Limited "
+},
+"FER.MC": {
+"country": "ES",
+"etoro": "FER.MC",
+"index": "IBEX_35",
+"instrument_id": 1325,
+"name": "Ferrovial NV"
+},
+"FGP.L": {
+"country": "UK",
+"etoro": "FGP.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2810,
+"name": "Firstgroup PLC"
+},
+"FGR.PA": {
+"country": "FR",
+"etoro": "FGR.PA",
+"index": "CAC_40",
+"instrument_id": 5015,
+"name": "Eiffage SA"
+},
+"FLOW.AS": {
+"country": "NL",
+"etoro": "FLOW.NV",
+"index": "AMX_index",
+"instrument_id": 4517,
+"name": "Flow Traders Cooperatief UA"
+},
+"FLS.CO": {
+"country": "DK",
+"etoro": "FLS.CO",
+"index": "OMX_Copenhagen_25",
+"instrument_id": 5726,
+"name": "FLSmidth & Co. A/S"
+},
+"FME.DE": {
+"country": "DE",
+"etoro": "FME.DE",
+"index": "DAX",
+"instrument_id": 1214,
+"name": "Fresenius Medical Care AG & Co. KGAA"
+},
+"FNTN.DE": {
+"country": "DE",
+"etoro": "FNTN.DE",
+"index": "MDAX",
+"instrument_id": 2526,
+"name": "freenet"
+},
+"FORTUM.HE": {
+"country": "FI",
+"etoro": "FORTUM.HE",
+"index": "OMX_Helsinki_25",
+"instrument_id": 2280,
+"name": "Fortum Oyj"
+},
+"FPE3.DE": {
+"country": "DE",
+"etoro": "FPE3.DE",
+"index": "MDAX",
+"instrument_id": 12238,
+"name": "Fuchs Se"
+},
+"FRA.DE": {
+"country": "DE",
+"etoro": "FRA.DE",
+"index": "MDAX",
+"instrument_id": 2562,
+"name": "Fraport AG Frankfurt Airport S"
+},
+"FRE.DE": {
+"country": "DE",
+"etoro": "FRE.DE",
+"index": "DAX",
+"instrument_id": 1217,
+"name": "Fresenius SE & Co KGaA"
+},
+"FRES.L": {
+"country": "UK",
+"etoro": "FRES.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2032,
+"name": "Fresnillo"
+},
+"FRO.OL": {
+"country": "NO",
+"etoro": "FRO.OL",
+"index": "OBX_Index",
+"instrument_id": 12760,
+"name": "Frontline Plc"
+},
+"FSG.L": {
+"country": "UK",
+"etoro": "FSG.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11276,
+"name": "Foresight Group Holdings Limited"
+},
+"FUR.AS": {
+"country": "NL",
+"etoro": "FUR.NV",
+"index": "AMX_index",
+"instrument_id": 12604,
+"name": "Fugro NV"
+},
+"G.MI": {
+"country": "IT",
+"etoro": "G.MI",
+"index": "FTSE_MIB",
+"instrument_id": 1287,
+"name": "Assicurazioni Generali SpA"
+},
+"G1A.DE": {
+"country": "DE",
+"etoro": "G1A.DE",
+"index": "DAX",
+"instrument_id": 2518,
+"name": "GEA"
+},
+"G24.DE": {
+"country": "DE",
+"etoro": "G24.DE",
+"index": "DAX",
+"instrument_id": 2569,
+"name": "Scout24 AG"
+},
+"GALD.SW": {
+"country": "CH",
+"etoro": "GALD.ZU",
+"index": "Swiss_Market_Index",
+"instrument_id": 2949,
+"name": "Galderma Group AG"
+},
+"GAW.L": {
+"country": "UK",
+"etoro": "GAW.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2845,
+"name": "Games Workshop"
+},
+"GBF.DE": {
+"country": "DE",
+"etoro": "GBF.DE",
+"index": "MDAX",
+"instrument_id": 2527,
+"name": "Bilfinger"
+},
+"GBLB.BR": {
+"country": "BE",
+"etoro": "GBLB.BR",
+"index": "BEL_20",
+"instrument_id": 5741,
+"name": "Groupe Bruxelles Lambert"
+},
+"GDWN.L": {
+"country": "UK",
+"etoro": "GDWN.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11549,
+"name": "Goodwin Plc"
+},
+"GEBN.SW": {
+"country": "CH",
+"etoro": "GEBN.ZU",
+"index": "Swiss_Market_Index",
+"instrument_id": 1409,
+"name": "Geberit AG"
+},
+"GEN.L": {
+"country": "UK",
+"etoro": "GEN.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2674,
+"name": "Genuit Group PLC"
+},
+"GFRD.L": {
+"country": "UK",
+"etoro": "GFRD.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2800,
+"name": "Galliford Try PLC"
+},
+"GFTU.L": {
+"country": "UK",
+"etoro": "GFTU.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2651,
+"name": "Grafton Group PLC"
+},
+"GIVN.SW": {
+"country": "CH",
+"etoro": "GIVN.ZU",
+"index": "Swiss_Market_Index",
+"instrument_id": 1410,
+"name": "Givaudan S.A"
+},
+"GJF.OL": {
+"country": "NO",
+"etoro": "GJF.OL",
+"index": "OBX_Index",
+"instrument_id": 2216,
+"name": "Gjensidige Forsikring"
+},
+"GLE.PA": {
+"country": "FR",
+"etoro": "GLE.PA",
+"index": "CAC_40",
+"instrument_id": 1248,
+"name": "Societe Generale Group"
+},
+"GLEN.L": {
+"country": "UK",
+"etoro": "GLEN.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2035,
+"name": "Glencore Plc"
+},
+"GMAB.CO": {
+"country": "DK",
+"etoro": "GMAB.CO",
+"index": "OMX_Copenhagen_25",
+"instrument_id": 2271,
+"name": "Genmab A/S"
+},
+"GN.CO": {
+"country": "DK",
+"etoro": "GN.CO",
+"index": "OMX_Copenhagen_25",
+"instrument_id": 5727,
+"name": "GN Store Nord A/S"
+},
+"GNC.L": {
+"country": "UK",
+"etoro": "GNC.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2769,
+"name": "Greencore Group PLC"
+},
+"GNS.L": {
+"country": "UK",
+"etoro": "GNS.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2803,
+"name": "Genus PLC"
+},
+"GPE.L": {
+"country": "UK",
+"etoro": "GPE.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2768,
+"name": "Great Portland Estates PLC"
+},
+"GRF.MC": {
+"country": "ES",
+"etoro": "GRF.MC",
+"index": "IBEX_35",
+"instrument_id": 1328,
+"name": "Grifols SA"
+},
+"GRG.L": {
+"country": "UK",
+"etoro": "GRG.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2654,
+"name": "Greggs PLC"
+},
+"GRI.L": {
+"country": "UK",
+"etoro": "GRI.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2764,
+"name": "Grainger PLC"
+},
+"GROW.L": {
+"country": "UK",
+"etoro": "GROW.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2129,
+"name": "Molten Ventures Plc"
+},
+"GSK.L": {
+"country": "UK",
+"etoro": "GSK.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2036,
+"name": "GlaxoSmithKline"
+},
+"GXI.DE": {
+"country": "DE",
+"etoro": "GXI.DE",
+"index": "MDAX",
+"instrument_id": 2525,
+"name": "Gerresheimer"
+},
+"HAFNI.OL": {
+"country": "NO",
+"etoro": "HAFNI.OL",
+"index": "OBX_Index",
+"instrument_id": 12763,
+"name": "Hafnia Ltd"
+},
+"HAG.DE": {
+"country": "DE",
+"etoro": "HAG.DE",
+"index": "MDAX",
+"instrument_id": 3655,
+"name": "HENSOLDT AG"
+},
+"HAS.L": {
+"country": "UK",
+"etoro": "HAS.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2619,
+"name": "Hays PLC"
+},
+"HAUTO.OL": {
+"country": "NO",
+"etoro": "HAUTO.OL",
+"index": "OBX_Index",
+"instrument_id": 12764,
+"name": "Hoegh Autoliners ASA"
+},
+"HBR.L": {
+"country": "UK",
+"etoro": "HBR.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2122,
+"name": "Harbour Energy plc"
+},
+"HEI.DE": {
+"country": "DE",
+"etoro": "HEI.DE",
+"index": "DAX",
+"instrument_id": 1226,
+"name": "Heidelberg Materials AG"
+},
+"HEIA.AS": {
+"country": "NL",
+"etoro": "HEIA.NV",
+"index": "AEX_index",
+"instrument_id": 4521,
+"name": "Heineken"
+},
+"HEN3.DE": {
+"country": "DE",
+"etoro": "HEN3.DE",
+"index": "DAX",
+"instrument_id": 1218,
+"name": "Henkel AG & Co. KGaA"
+},
+"HER.MI": {
+"country": "IT",
+"etoro": "HER.MI",
+"index": "FTSE_MIB",
+"instrument_id": 5721,
+"name": "Hera SPA"
+},
+"HEXA-B.ST": {
+"country": "SE",
+"etoro": "HEXA-B.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 2254,
+"name": "Hexagon AB ser. B"
+},
+"HFD.L": {
+"country": "UK",
+"etoro": "HFD.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2706,
+"name": "Halfords Group PLC"
+},
+"HFG.DE": {
+"country": "DE",
+"etoro": "HFG.DE",
+"index": "MDAX",
+"instrument_id": 7688,
+"name": "HelloFresh SE"
+},
+"HIAB.HE": {
+"country": "FI",
+"etoro": "HIAB.HE",
+"index": "OMX_Helsinki_25",
+"instrument_id": 5571,
+"name": "Hiab Oyj"
+},
+"HICL.L": {
+"country": "UK",
+"etoro": "HICL.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2680,
+"name": "HICL Infrastructure Co Ltd"
+},
+"HIK.L": {
+"country": "UK",
+"etoro": "HIK.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2676,
+"name": "Hikma Pharmaceuticals PLC"
+},
+"HILS.L": {
+"country": "UK",
+"etoro": "HILS.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2600,
+"name": "Hill & Smith PLC"
+},
+"HLE.DE": {
+"country": "DE",
+"etoro": "HLE.DE",
+"index": "MDAX",
+"instrument_id": 2541,
+"name": "Hella"
+},
+"HLMA.L": {
+"country": "UK",
+"etoro": "HLMA.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2720,
+"name": "Halma PLC"
+},
+"HLN.L": {
+"country": "UK",
+"etoro": "HLN.L",
+"index": "FTSE_100_Index",
+"instrument_id": 3651,
+"name": "HALEON PLC"
+},
+"HM-B.ST": {
+"country": "SE",
+"etoro": "HM-B.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 2237,
+"name": "Hennes & Mauritz AB, H & M ser. B"
+},
+"HMSO.L": {
+"country": "UK",
+"etoro": "HMSO.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2038,
+"name": "Hammerson"
+},
+"HNR1.DE": {
+"country": "DE",
+"etoro": "HNR1.DE",
+"index": "DAX",
+"instrument_id": 2553,
+"name": "Hannover Rueck SE"
+},
+"HO.PA": {
+"country": "FR",
+"etoro": "HO.PA",
+"index": "CAC_40",
+"instrument_id": 5040,
+"name": "Thales Group"
+},
+"HOC.L": {
+"country": "UK",
+"etoro": "HOC.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2670,
+"name": "Hochschild Mining PLC"
+},
+"HOLN.SW": {
+"country": "CH",
+"etoro": "HOLN.ZU",
+"index": "Swiss_Market_Index",
+"instrument_id": 1411,
+"name": "Holcim Ltd"
+},
+"HOT.DE": {
+"country": "DE",
+"etoro": "HOT.DE",
+"index": "MDAX",
+"instrument_id": 2557,
+"name": "HOCHTIEF AG"
+},
+"HSBA.L": {
+"country": "UK",
+"etoro": "HSBA.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2039,
+"name": "HSBC Holdings"
+},
+"HSX.L": {
+"country": "UK",
+"etoro": "HSX.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2693,
+"name": "Hiscox Ltd"
+},
+"HTG.L": {
+"country": "UK",
+"etoro": "HTG.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2624,
+"name": "Hunting PLC"
+},
+"HTWS.L": {
+"country": "UK",
+"etoro": "HTWS.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2145,
+"name": "Helios Towers plc"
+},
+"HUH1V.HE": {
+"country": "FI",
+"etoro": "HUH1V.HE",
+"index": "OMX_Helsinki_25",
+"instrument_id": 5573,
+"name": "Huhtamaki Oyj"
+},
+"HVPE.L": {
+"country": "UK",
+"etoro": "HVPE.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2808,
+"name": "HarbourVest Global Private Equity Ltd"
+},
+"HWDN.L": {
+"country": "UK",
+"etoro": "HWDN.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2605,
+"name": "Howden Joinery Group PLC"
+},
+"HWG.L": {
+"country": "UK",
+"etoro": "HWG.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11291,
+"name": "Harworth Group Plc"
+},
+"IAG.L": {
+"country": "UK",
+"etoro": "IAG.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2040,
+"name": "International Consolidated Airlines"
+},
+"IBE.MC": {
+"country": "ES",
+"etoro": "IBE.MC",
+"index": "IBEX_35",
+"instrument_id": 1330,
+"name": "Iberdrola"
+},
+"ICG.L": {
+"country": "UK",
+"etoro": "ICG.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2754,
+"name": "Intermediate Capital Group PLC"
+},
+"IDR.MC": {
+"country": "ES",
+"etoro": "IDR.MC",
+"index": "IBEX_35",
+"instrument_id": 1331,
+"name": "Indra Sistemas SA"
+},
+"IFX.DE": {
+"country": "DE",
+"etoro": "IFX.DE",
+"index": "DAX",
+"instrument_id": 1221,
+"name": "Infineon Technologies AG"
+},
+"IG.MI": {
+"country": "IT",
+"etoro": "IG.MI",
+"index": "FTSE_MIB",
+"instrument_id": 4224,
+"name": "Italgas"
+},
+"IGG.L": {
+"country": "UK",
+"etoro": "IGG.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2630,
+"name": "IG Group Holdings PLC"
+},
+"IHP.L": {
+"country": "UK",
+"etoro": "IHP.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2133,
+"name": "IntegraFin Holdings plc"
+},
+"III.L": {
+"country": "UK",
+"etoro": "III.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2102,
+"name": "3i Group PLC"
+},
+"IMB.L": {
+"country": "UK",
+"etoro": "IMB.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2043,
+"name": "Imperial Brands PLC"
+},
+"IMCD.AS": {
+"country": "NL",
+"etoro": "IMCD.NV",
+"index": "AEX_index",
+"instrument_id": 4524,
+"name": "IMCD NV"
+},
+"IMI.L": {
+"country": "UK",
+"etoro": "IMI.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2042,
+"name": "IMI"
+},
+"INCH.L": {
+"country": "UK",
+"etoro": "INCH.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2704,
+"name": "Inchcape PLC"
+},
+"INDU-C.ST": {
+"country": "SE",
+"etoro": "INDUC.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 1012983,
+"name": "Industrivarden AB"
+},
+"INF.L": {
+"country": "UK",
+"etoro": "INF.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2155,
+"name": "Informa"
+},
+"INGA.AS": {
+"country": "NL",
+"etoro": "INGA.NV",
+"index": "AEX_index",
+"instrument_id": 5733,
+"name": "ING Groep NV"
+},
+"INPP.L": {
+"country": "UK",
+"etoro": "INPP.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2788,
+"name": "International Public Partnerships Ltd"
+},
+"INPST.AS": {
+"country": "NL",
+"etoro": "INPST.NV",
+"index": "AMX_index",
+"instrument_id": 12603,
+"name": "InPost SA"
+},
+"INVE-B.ST": {
+"country": "SE",
+"etoro": "INVEB.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 5854,
+"name": "Investor AB ser. B"
+},
+"INVP.L": {
+"country": "UK",
+"etoro": "INVP.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2713,
+"name": "Investec PLC"
+},
+"INW.MI": {
+"country": "IT",
+"etoro": "INW.MI",
+"index": "FTSE_MIB",
+"instrument_id": 2999,
+"name": "Infrastrutture Wireless Italiane S.P.A"
+},
+"IPO.L": {
+"country": "UK",
+"etoro": "IPO.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2827,
+"name": "IP Group PLC"
+},
+"ISP.MI": {
+"country": "IT",
+"etoro": "ISP.MI",
+"index": "FTSE_MIB",
+"instrument_id": 1288,
+"name": "Intesa Sanpaolo Group"
+},
+"ISS.CO": {
+"country": "DK",
+"etoro": "ISS.CO",
+"index": "OMX_Copenhagen_25",
+"instrument_id": 2269,
+"name": "ISS A/S"
+},
+"ITRK.L": {
+"country": "UK",
+"etoro": "ITRK.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2044,
+"name": "Intertek Group"
+},
+"ITV.L": {
+"country": "UK",
+"etoro": "ITV.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2045,
+"name": "ITV"
+},
+"ITX.MC": {
+"country": "ES",
+"etoro": "ITX.MC",
+"index": "IBEX_35",
+"instrument_id": 1332,
+"name": "Industria de Diseno Textil SA"
+},
+"IVG.MI": {
+"country": "IT",
+"etoro": "IVG.MI",
+"index": "FTSE_MIB",
+"instrument_id": 2995,
+"name": "Iveco Group N.V"
+},
+"IWG.L": {
+"country": "UK",
+"etoro": "IWG.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2648,
+"name": "IWG PLC"
+},
+"JD.L": {
+"country": "UK",
+"etoro": "JD.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2745,
+"name": "JD Sports Fashion PLC"
+},
+"JDW.L": {
+"country": "UK",
+"etoro": "JDW.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2786,
+"name": "J D Wetherspoon PLC"
+},
+"JEN.DE": {
+"country": "DE",
+"etoro": "JEN.DE",
+"index": "MDAX",
+"instrument_id": 2590,
+"name": "Jenoptik"
+},
+"JMAT.L": {
+"country": "UK",
+"etoro": "JMAT.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2046,
+"name": "Johnson Matthey"
+},
+"JUN3.DE": {
+"country": "DE",
+"etoro": "JUN3.DE",
+"index": "MDAX",
+"instrument_id": 2591,
+"name": "Jungheinrich Aktie"
+},
+"JUP.L": {
+"country": "UK",
+"etoro": "JUP.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2711,
+"name": "Jupiter Fund Management PLC"
+},
+"JYSK.CO": {
+"country": "DK",
+"etoro": "JYSK.CO",
+"index": "OMX_Copenhagen_25",
+"instrument_id": 5728,
+"name": "Jyske Bank A/S"
+},
+"KALMAR.HE": {
+"country": "FI",
+"etoro": "KALMAR.HE",
+"index": "OMX_Helsinki_25",
+"instrument_id": 3282,
+"name": "Kalmar Oyj-B Share"
+},
+"KBC.BR": {
+"country": "BE",
+"etoro": "KBC.BR",
+"index": "BEL_20",
+"instrument_id": 5742,
+"name": "KBC Groep"
+},
+"KBX.DE": {
+"country": "DE",
+"etoro": "KBX.DE",
+"index": "MDAX",
+"instrument_id": 2554,
+"name": "Knorr-Bremse AG"
+},
+"KCR.HE": {
+"country": "FI",
+"etoro": "KCR.HE",
+"index": "OMX_Helsinki_25",
+"instrument_id": 5782,
+"name": "Konecranes Oyj"
+},
+"KEMIRA.HE": {
+"country": "FI",
+"etoro": "KEMIRA.HE",
+"index": "OMX_Helsinki_25",
+"instrument_id": 13860,
+"name": "Kemira Oyj"
+},
+"KER.PA": {
+"country": "FR",
+"etoro": "KER.PA",
+"index": "CAC_40",
+"instrument_id": 1250,
+"name": "Kering SA"
+},
+"KESKOB.HE": {
+"country": "FI",
+"etoro": "KESKOB.HE",
+"index": "OMX_Helsinki_25",
+"instrument_id": 5781,
+"name": "Kesko Oyj B"
+},
+"KGF.L": {
+"country": "UK",
+"etoro": "KGF.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2047,
+"name": "Kingfisher"
+},
+"KGX.DE": {
+"country": "DE",
+"etoro": "KGX.DE",
+"index": "MDAX",
+"instrument_id": 2505,
+"name": "KION GROUP"
+},
+"KIE.L": {
+"country": "UK",
+"etoro": "KIE.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2792,
+"name": "Kier Group PLC"
+},
+"KLR.L": {
+"country": "UK",
+"etoro": "KLR.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11245,
+"name": "Keller Group Plc"
+},
+"KNEBV.HE": {
+"country": "FI",
+"etoro": "KNEBV.HE",
+"index": "OMX_Helsinki_25",
+"instrument_id": 2283,
+"name": "KONE Oyj"
+},
+"KNOS.L": {
+"country": "UK",
+"etoro": "KNOS.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2128,
+"name": "Kainos Group plc"
+},
+"KOG.OL": {
+"country": "NO",
+"etoro": "KOG.OL",
+"index": "OBX_Index",
+"instrument_id": 12758,
+"name": "Kongsberg Gruppen ASA"
+},
+"KPN.AS": {
+"country": "NL",
+"etoro": "KPN.NV",
+"index": "AEX_index",
+"instrument_id": 4526,
+"name": "KPN"
+},
+"KRN.DE": {
+"country": "DE",
+"etoro": "KRN.DE",
+"index": "MDAX",
+"instrument_id": 2581,
+"name": "Krones AG"
+},
+"LAND.L": {
+"country": "UK",
+"etoro": "LAND.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2048,
+"name": "Land Securities"
+},
+"LDO.MI": {
+"country": "IT",
+"etoro": "LDO.MI",
+"index": "FTSE_MIB",
+"instrument_id": 1286,
+"name": "Leonardo SpA"
+},
+"LEG.DE": {
+"country": "DE",
+"etoro": "LEG.DE",
+"index": "MDAX",
+"instrument_id": 2561,
+"name": "LEG Immobilien AG"
+},
+"LGEN.L": {
+"country": "UK",
+"etoro": "LGEN.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2049,
+"name": "Legal & General"
+},
+"LHA.DE": {
+"country": "DE",
+"etoro": "LHA.DE",
+"index": "MDAX",
+"instrument_id": 1227,
+"name": "Deutsche Lufthansa Aktiengesellschaft"
+},
+"LIFCO-B.ST": {
+"country": "SE",
+"etoro": "LIFCOb.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 13761,
+"name": "Lifco AB (publ)"
+},
+"LLOY.L": {
+"country": "UK",
+"etoro": "LLOY.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2050,
+"name": "Lloyd's Banking Group PLC"
+},
+"LMP.L": {
+"country": "UK",
+"etoro": "LMP.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2665,
+"name": "LondonMetric Property PLC"
+},
+"LOG.MC": {
+"country": "ES",
+"etoro": "LOG.MC",
+"index": "IBEX_35",
+"instrument_id": 5526,
+"name": "Compania de Distribucion Integral Logista Holdings"
+},
+"LOGN.SW": {
+"country": "CH",
+"etoro": "LOGN.ZU",
+"index": "Swiss_Market_Index",
+"instrument_id": 5820,
+"name": "Logitech International SA"
+},
+"LONN.SW": {
+"country": "CH",
+"etoro": "LONN.ZU",
+"index": "Swiss_Market_Index",
+"instrument_id": 5821,
+"name": "Lonza Group Ltd"
+},
+"LOTB.BR": {
+"country": "BE",
+"etoro": "LOTB.BR",
+"index": "BEL_20",
+"instrument_id": 12660,
+"name": "Lotus Bakeries NV"
+},
+"LR.PA": {
+"country": "FR",
+"etoro": "LR.PA",
+"index": "CAC_40",
+"instrument_id": 1252,
+"name": "Legrand SA"
+},
+"LRE.L": {
+"country": "UK",
+"etoro": "LRE.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2698,
+"name": "Lancashire Holdings Ltd"
+},
+"LSEG.L": {
+"country": "UK",
+"etoro": "LSEG.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2051,
+"name": "London Stock Exchange"
+},
+"LTMC.MI": {
+"country": "IT",
+"etoro": "LTMC.MI",
+"index": "FTSE_MIB",
+"instrument_id": 2992,
+"name": "Lottomatica Group Spa"
+},
+"LXS.DE": {
+"country": "DE",
+"etoro": "LXS.DE",
+"index": "MDAX",
+"instrument_id": 2513,
+"name": "LANXESS"
+},
+"MAB.L": {
+"country": "UK",
+"etoro": "MAB.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2772,
+"name": "Mitchells & Butlers PLC"
+},
+"MAERSK-A.CO": {
+"country": "DK",
+"etoro": "MAERSKA.CO",
+"index": "OMX_Copenhagen_25",
+"instrument_id": 1013820,
+"name": "AP Moller - Maersk A/S"
+},
+"MAERSK-B.CO": {
+"country": "DK",
+"etoro": "MAERSKB.CO",
+"index": "OMX_Copenhagen_25",
+"instrument_id": 5569,
+"name": "A P Moller Maersk"
+},
+"MANTA.HE": {
+"country": "FI",
+"etoro": "MANTA.HE",
+"index": "OMX_Helsinki_25",
+"instrument_id": 3272,
+"name": "Mandatum Holding Oy"
+},
+"MAP.MC": {
+"country": "ES",
+"etoro": "MAP.MC",
+"index": "IBEX_35",
+"instrument_id": 1334,
+"name": "Mapfre"
+},
+"MB.MI": {
+"country": "IT",
+"etoro": "MB.MI",
+"index": "FTSE_MIB",
+"instrument_id": 1290,
+"name": "Mediobanca Banca Di Credito Fnnzr SpA"
+},
+"MBG.DE": {
+"country": "DE",
+"etoro": "MBG.DE",
+"index": "DAX",
+"instrument_id": 1206,
+"name": "Mercedes-Benz Group AG"
+},
+"MC.PA": {
+"country": "FR",
+"etoro": "MC.PA",
+"index": "CAC_40",
+"instrument_id": 1253,
+"name": "LVMH Moet Hennessy Louis Vuitton SA"
+},
+"MELE.BR": {
+"country": "BE",
+"etoro": "MELE.BR",
+"index": "BEL_20",
+"instrument_id": 12664,
+"name": "Melexis NV"
+},
+"METSO.HE": {
+"country": "FI",
+"etoro": "METSO.HE",
+"index": "OMX_Helsinki_25",
+"instrument_id": 5581,
+"name": "Metso Corporation"
+},
+"MGAM.L": {
+"country": "UK",
+"etoro": "MGAM.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2601,
+"name": "Morgan Advanced Materials PLC"
+},
+"MKS.L": {
+"country": "UK",
+"etoro": "MKS.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2053,
+"name": "Marks & Spencer"
+},
+"ML.PA": {
+"country": "FR",
+"etoro": "ML.PA",
+"index": "CAC_40",
+"instrument_id": 1254,
+"name": "Compagnie Generale DES Etablissements Michelin SCA"
+},
+"MNDI.L": {
+"country": "UK",
+"etoro": "MNDI.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2054,
+"name": "Mondi"
+},
+"MNG.L": {
+"country": "UK",
+"etoro": "MNG.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2115,
+"name": "M&G plc"
+},
+"MNKS.L": {
+"country": "UK",
+"etoro": "MNKS.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2730,
+"name": "Monks Investment Trust PLC"
+},
+"MONC.MI": {
+"country": "IT",
+"etoro": "MONC.MI",
+"index": "FTSE_MIB",
+"instrument_id": 1292,
+"name": "Moncler"
+},
+"MONT.BR": {
+"country": "BE",
+"etoro": "MONT.BR",
+"index": "BEL_20",
+"instrument_id": 12672,
+"name": "Montea NV"
+},
+"MONY.L": {
+"country": "UK",
+"etoro": "MONY.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2707,
+"name": "Moneysupermarket.com Group PLC"
+},
+"MOWI.OL": {
+"country": "NO",
+"etoro": "MOWI.OL",
+"index": "OBX_Index",
+"instrument_id": 2218,
+"name": "Mowi ASA"
+},
+"MPCC.OL": {
+"country": "NO",
+"etoro": "MPCC.OL",
+"index": "OBX_Index",
+"instrument_id": 1998,
+"name": "MPC Container Ships ASA"
+},
+"MRC.L": {
+"country": "UK",
+"etoro": "MRC.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2746,
+"name": "Mercantile Investment Trust PLC"
+},
+"MRK.DE": {
+"country": "DE",
+"etoro": "MRK.DE",
+"index": "DAX",
+"instrument_id": 3653,
+"name": "MERCK KGAA"
+},
+"MRL.MC": {
+"country": "ES",
+"etoro": "MRL.MC",
+"index": "IBEX_35",
+"instrument_id": 5840,
+"name": "Merlin Properties SOCIMI SA"
+},
+"MRO.L": {
+"country": "UK",
+"etoro": "MRO.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2055,
+"name": "Melrose Industries"
+},
+"MT.AS": {
+"country": "NL",
+"etoro": "MT.NV",
+"index": "CAC_40",
+"instrument_id": 12601,
+"name": "ArcelorMittal SA"
+},
+"MTO.L": {
+"country": "UK",
+"etoro": "MTO.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2744,
+"name": "Mitie Group PLC"
+},
+"MTRO.L": {
+"country": "UK",
+"etoro": "MTRO.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2820,
+"name": "Metro Bank PLC"
+},
+"MTS.MC": {
+"country": "ES",
+"etoro": "MTS.MC",
+"index": "IBEX_35",
+"instrument_id": 1255,
+"name": "ArcelorMittal"
+},
+"MTX.DE": {
+"country": "DE",
+"etoro": "MTX.DE",
+"index": "DAX",
+"instrument_id": 2556,
+"name": "MTU Aero Engines AG"
+},
+"MUV2.DE": {
+"country": "DE",
+"etoro": "MUV2.DE",
+"index": "DAX",
+"instrument_id": 1212,
+"name": "Muenchener Rueck AG"
+},
+"N91.L": {
+"country": "UK",
+"etoro": "N91.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2147,
+"name": "Ninety One Group"
+},
+"NAS.OL": {
+"country": "NO",
+"etoro": "NAS.OL",
+"index": "OBX_Index",
+"instrument_id": 2220,
+"name": "Norwegian Air Shuttle"
+},
+"NCC.L": {
+"country": "UK",
+"etoro": "NCC.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11299,
+"name": "Ncc Group Plc"
+},
+"NDX1.DE": {
+"country": "DE",
+"etoro": "NDX1.DE",
+"index": "MDAX",
+"instrument_id": 2509,
+"name": "Nordex"
+},
+"NEM.DE": {
+"country": "DE",
+"etoro": "NEM.DE",
+"index": "MDAX",
+"instrument_id": 2566,
+"name": "Nemetschek SE"
+},
+"NESN.SW": {
+"country": "CH",
+"etoro": "NESN.ZU",
+"index": "Swiss_Market_Index",
+"instrument_id": 1400,
+"name": "Nestle SA"
+},
+"NESTE.HE": {
+"country": "FI",
+"etoro": "NESTE.HE",
+"index": "OMX_Helsinki_25",
+"instrument_id": 2282,
+"name": "Neste Oyj"
+},
+"NEXI.MI": {
+"country": "IT",
+"etoro": "NEXI.MI",
+"index": "FTSE_MIB",
+"instrument_id": 2994,
+"name": "Nexi S.P.A"
+},
+"NG.L": {
+"country": "UK",
+"etoro": "NG.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2057,
+"name": "National Grid"
+},
+"NHY.OL": {
+"country": "NO",
+"etoro": "NHY.OL",
+"index": "OBX_Index",
+"instrument_id": 2219,
+"name": "Norsk Hydro"
+},
+"NIBE-B.ST": {
+"country": "SE",
+"etoro": "NIBEB.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 5858,
+"name": "Nibe Industrier AB Ser. B"
+},
+"NKT.CO": {
+"country": "DK",
+"etoro": "NKT.CO",
+"index": "OMX_Copenhagen_25",
+"instrument_id": 3222,
+"name": "Nkt A/S"
+},
+"NN.AS": {
+"country": "NL",
+"etoro": "NN.NV",
+"index": "AEX_index",
+"instrument_id": 4528,
+"name": "NN Group NV"
+},
+"NOD.OL": {
+"country": "NO",
+"etoro": "NOD.OL",
+"index": "OBX_Index",
+"instrument_id": 1997,
+"name": "Nordic Semiconductor ASA"
+},
+"NOKIA.HE": {
+"country": "FI",
+"etoro": "NOKIA.HE",
+"index": "OMX_Helsinki_25",
+"instrument_id": 5578,
+"name": "Nokia Corp."
+},
+"NOVN.SW": {
+"country": "CH",
+"etoro": "NOVN.ZU",
+"index": "Swiss_Market_Index",
+"instrument_id": 2948,
+"name": "Novartis AG"
+},
+"NOVO-B.CO": {
+"country": "DK",
+"etoro": "NOVO-B.CO",
+"index": "OMX_Copenhagen_25",
+"instrument_id": 2260,
+"name": "Novo Nordisk B A/S"
+},
+"NSIS-B.CO": {
+"country": "DK",
+"etoro": "NSIS-B.CO",
+"index": "OMX_Copenhagen_25",
+"instrument_id": 2264,
+"name": "Novonesis B"
+},
+"NTGY.MC": {
+"country": "ES",
+"etoro": "NTGY.MC",
+"index": "IBEX_35",
+"instrument_id": 1327,
+"name": "Naturgy Energy Group, S.A."
+},
+"NWG.L": {
+"country": "UK",
+"etoro": "NWG.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2065,
+"name": "Natwest Group PLC"
+},
+"NXT.L": {
+"country": "UK",
+"etoro": "NXT.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2058,
+"name": "Next PLC"
+},
+"OBEL.BR": {
+"country": "BE",
+"etoro": "OBEL.BR",
+"index": "BEL_20",
+"instrument_id": 12707,
+"name": "Orange Belgium NV"
+},
+"OCDO.L": {
+"country": "UK",
+"etoro": "OCDO.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2817,
+"name": "Ocado Group PLC"
+},
+"OCI.AS": {
+"country": "NL",
+"etoro": "OCI.NV",
+"index": "AMX_index",
+"instrument_id": 4529,
+"name": "OCI NV"
+},
+"ONT.L": {
+"country": "UK",
+"etoro": "ONT.L",
+"index": "FTSE_250_Index",
+"instrument_id": 3353,
+"name": "Oxford Nanopore Technologies plc"
+},
+"ONTEX.BR": {
+"country": "BE",
+"etoro": "ONTEX.BR",
+"index": "BEL_20",
+"instrument_id": 12675,
+"name": "Ontex Group NV"
+},
+"OR.PA": {
+"country": "FR",
+"etoro": "OR.PA",
+"index": "CAC_40",
+"instrument_id": 1256,
+"name": "LOreal SA"
+},
+"ORA.PA": {
+"country": "FR",
+"etoro": "ORA.PA",
+"index": "CAC_40",
+"instrument_id": 1257,
+"name": "Orange"
+},
+"ORK.OL": {
+"country": "NO",
+"etoro": "ORK.OL",
+"index": "OBX_Index",
+"instrument_id": 2222,
+"name": "Orkla"
+},
+"ORNBV.HE": {
+"country": "FI",
+"etoro": "ORNBV.HE",
+"index": "OMX_Helsinki_25",
+"instrument_id": 5785,
+"name": "Orion Oyj Class B"
+},
+"ORSTED.CO": {
+"country": "DK",
+"etoro": "ORSTED.CO",
+"index": "OMX_Copenhagen_25",
+"instrument_id": 2262,
+"name": "Orsted A/S"
+},
+"OSB.L": {
+"country": "UK",
+"etoro": "OSB.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2609,
+"name": "OSB Group PLC"
+},
+"OUT1V.HE": {
+"country": "FI",
+"etoro": "OUT1V.HE",
+"index": "OMX_Helsinki_25",
+"instrument_id": 5580,
+"name": "Outokumpu Oyj"
+},
+"OXB.L": {
+"country": "UK",
+"etoro": "OXB.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11353,
+"name": "OXB"
+},
+"OXIG.L": {
+"country": "UK",
+"etoro": "OXIG.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2142,
+"name": "Oxford Instruments plc"
+},
+"PAF.L": {
+"country": "UK",
+"etoro": "PAF.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11307,
+"name": "Pan African Resources Plc"
+},
+"PAG.L": {
+"country": "UK",
+"etoro": "PAG.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2733,
+"name": "Paragon Group of Cos PLC"
+},
+"PAGE.L": {
+"country": "UK",
+"etoro": "PAGE.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2657,
+"name": "Pagegroup PLC"
+},
+"PAH3.DE": {
+"country": "DE",
+"etoro": "PAH3.DE",
+"index": "DAX",
+"instrument_id": 5882,
+"name": "Porsche Automobil Holding SE"
+},
+"PETS.L": {
+"country": "UK",
+"etoro": "PETS.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2756,
+"name": "Pets at Home Group Plc"
+},
+"PFD.L": {
+"country": "UK",
+"etoro": "PFD.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2143,
+"name": "Premier Foods plc"
+},
+"PGHN.SW": {
+"country": "CH",
+"etoro": "PGHN.ZU",
+"index": "Swiss_Market_Index",
+"instrument_id": 5824,
+"name": "Partners Group Holding AG"
+},
+"PHIA.AS": {
+"country": "NL",
+"etoro": "PHIA.NV",
+"index": "AEX_index",
+"instrument_id": 4531,
+"name": "Koninklijke Philips N.V."
+},
+"PHP.L": {
+"country": "UK",
+"etoro": "PHP.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2840,
+"name": "Primary Health Properties"
+},
+"PIN.L": {
+"country": "UK",
+"etoro": "PIN.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2841,
+"name": "Pantheon International"
+},
+"PLUS.L": {
+"country": "UK",
+"etoro": "PLUS.L",
+"index": "FTSE_250_Index",
+"instrument_id": 5500,
+"name": "PLUS 500 LTD"
+},
+"PNDORA.CO": {
+"country": "DK",
+"etoro": "PNDORA.CO",
+"index": "OMX_Copenhagen_25",
+"instrument_id": 2265,
+"name": "Pandora A/S"
+},
+"PNL.AS": {
+"country": "NL",
+"etoro": "PNL.NV",
+"index": "AMX_index",
+"instrument_id": 4532,
+"name": "PostNL NV"
+},
+"PNN.L": {
+"country": "UK",
+"etoro": "PNN.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2725,
+"name": "Pennon Group PLC"
+},
+"POLN.L": {
+"country": "UK",
+"etoro": "POLN.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11248,
+"name": "Pollen Street Group Limited"
+},
+"PPH.L": {
+"country": "UK",
+"etoro": "PPH.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11396,
+"name": "Pphe Hotel Group Ld"
+},
+"PRU.L": {
+"country": "UK",
+"etoro": "PRU.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2061,
+"name": "Prudential"
+},
+"PRX.AS": {
+"country": "NL",
+"etoro": "PRX.NV",
+"index": "AEX_index",
+"instrument_id": 7528,
+"name": "Prosus NV"
+},
+"PRY.MI": {
+"country": "IT",
+"etoro": "PRY.MI",
+"index": "FTSE_MIB",
+"instrument_id": 1296,
+"name": "Prysmian Group"
+},
+"PSH.L": {
+"country": "UK",
+"etoro": "PSH.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2823,
+"name": "Pershing Square Holdings Ltd"
+},
+"PSN.L": {
+"country": "UK",
+"etoro": "PSN.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2062,
+"name": "Persimmon"
+},
+"PSON.L": {
+"country": "UK",
+"etoro": "PSON.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2063,
+"name": "Pearson"
+},
+"PST.MI": {
+"country": "IT",
+"etoro": "PST.MI",
+"index": "FTSE_MIB",
+"instrument_id": 4227,
+"name": "Poste Italiane"
+},
+"PTEC.L": {
+"country": "UK",
+"etoro": "PTEC.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2634,
+"name": "Playtech Plc"
+},
+"PUB.PA": {
+"country": "FR",
+"etoro": "PUB.PA",
+"index": "CAC_40",
+"instrument_id": 1258,
+"name": "Publicis Groupe"
+},
+"PUM.DE": {
+"country": "DE",
+"etoro": "PUM.DE",
+"index": "MDAX",
+"instrument_id": 2586,
+"name": "PUMA AG"
+},
+"QIA.DE": {
+"country": "DE",
+"etoro": "QIA.DE",
+"index": "DAX",
+"instrument_id": 2514,
+"name": "QIAGEN"
+},
+"QLT.L": {
+"country": "UK",
+"etoro": "QLT.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2165,
+"name": "Quilter PLC"
+},
+"QQ.L": {
+"country": "UK",
+"etoro": "QQ.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2709,
+"name": "QinetiQ Group PLC"
+},
+"RAA.DE": {
+"country": "DE",
+"etoro": "RAA.DE",
+"index": "MDAX",
+"instrument_id": 2563,
+"name": "Rational AG"
+},
+"RACE.MI": {
+"country": "IT",
+"etoro": "RACE.MI",
+"index": "FTSE_MIB",
+"instrument_id": 14266,
+"name": "Ferrari NV"
+},
+"RAND.AS": {
+"country": "NL",
+"etoro": "RAND.NV",
+"index": "AEX_index",
+"instrument_id": 4533,
+"name": "Randstad Holding NV"
+},
+"RAT.L": {
+"country": "UK",
+"etoro": "RAT.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2656,
+"name": "Rathbone Brothers PLC"
+},
+"RBREW.CO": {
+"country": "DK",
+"etoro": "RBREW.CO",
+"index": "OMX_Copenhagen_25",
+"instrument_id": 5730,
+"name": "Royal Unibrew A/S"
+},
+"RCP.L": {
+"country": "UK",
+"etoro": "RCP.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2621,
+"name": "RIT Capital Partners PLC"
+},
+"REC.MI": {
+"country": "IT",
+"etoro": "REC.MI",
+"index": "FTSE_MIB",
+"instrument_id": 4228,
+"name": "Recordati"
+},
+"RED.MC": {
+"country": "ES",
+"etoro": "RED.MC",
+"index": "IBEX_35",
+"instrument_id": 1338,
+"name": "Red Electrica Corp"
+},
+"REL.L": {
+"country": "UK",
+"etoro": "REL.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2068,
+"name": "RELX PLC"
+},
+"REN.AS": {
+"country": "NL",
+"etoro": "REN.NV",
+"index": "AEX_index",
+"instrument_id": 12602,
+"name": "RELX PLC"
+},
+"REP.MC": {
+"country": "ES",
+"etoro": "REP.MC",
+"index": "IBEX_35",
+"instrument_id": 1339,
+"name": "Repsol"
+},
+"RHIM.L": {
+"country": "UK",
+"etoro": "RHIM.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2835,
+"name": "RHI Magnesita"
+},
+"RHM.DE": {
+"country": "DE",
+"etoro": "RHM.DE",
+"index": "DAX",
+"instrument_id": 2587,
+"name": "Rheinmetall AG"
+},
+"RI.PA": {
+"country": "FR",
+"etoro": "RI.PA",
+"index": "CAC_40",
+"instrument_id": 1259,
+"name": "Pernod-Ricard SA"
+},
+"RIO.L": {
+"country": "UK",
+"etoro": "RIO.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2070,
+"name": "Rio Tinto"
+},
+"RKT.L": {
+"country": "UK",
+"etoro": "RKT.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2064,
+"name": "Reckitt Benckiser"
+},
+"RMS.PA": {
+"country": "FR",
+"etoro": "RMS.PA",
+"index": "CAC_40",
+"instrument_id": 1978,
+"name": "Hermes International"
+},
+"RMV.L": {
+"country": "UK",
+"etoro": "RMV.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2616,
+"name": "Rightmove PLC"
+},
+"RNK.L": {
+"country": "UK",
+"etoro": "RNK.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2632,
+"name": "Rank Group PLC"
+},
+"RNO.PA": {
+"country": "FR",
+"etoro": "RNO.PA",
+"index": "CAC_40",
+"instrument_id": 1260,
+"name": "Renault "
+},
+"ROCK-B.CO": {
+"country": "DK",
+"etoro": "ROCKB.CO",
+"index": "OMX_Copenhagen_25",
+"instrument_id": 5729,
+"name": "Rockwool International B A/S"
+},
+"ROP.SW": {
+"country": "CH",
+"etoro": "ROP.ZU",
+"index": "Swiss_Market_Index",
+"instrument_id": 1402,
+"name": "Roche Holding Ltd"
+},
+"ROR.L": {
+"country": "UK",
+"etoro": "ROR.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2684,
+"name": "Rotork PLC"
+},
+"ROVI.MC": {
+"country": "ES",
+"etoro": "ROVI.MC",
+"index": "IBEX_35",
+"instrument_id": 3713,
+"name": "Laboratorios Farmaceuticos Rovi S.A."
+},
+"RPI.L": {
+"country": "UK",
+"etoro": "RPI.L",
+"index": "FTSE_250_Index",
+"instrument_id": 8621,
+"name": "Raspberry Pi Ltd"
+},
+"RR.L": {
+"country": "UK",
+"etoro": "RR.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2072,
+"name": "Rolls-Royce"
+},
+"RRTL.DE": {
+"country": "DE",
+"etoro": "RRTL.DE",
+"index": "MDAX",
+"instrument_id": 2537,
+"name": "RTL Group"
+},
+"RS1.L": {
+"country": "UK",
+"etoro": "RS1.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2748,
+"name": "Electrocomponents PLC"
+},
+"RSW.L": {
+"country": "UK",
+"etoro": "RSW.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2633,
+"name": "Renishaw PLC"
+},
+"RTO.L": {
+"country": "UK",
+"etoro": "RTO.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2158,
+"name": "Rentokil Initial PLC"
+},
+"RWE.DE": {
+"country": "DE",
+"etoro": "RWE.DE",
+"index": "DAX",
+"instrument_id": 1213,
+"name": "RWE AG"
+},
+"SAAB-B.ST": {
+"country": "SE",
+"etoro": "SAABB.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 5860,
+"name": "Saab AB Ser. B"
+},
+"SAB.MC": {
+"country": "ES",
+"etoro": "SAB.MC",
+"index": "IBEX_35",
+"instrument_id": 1340,
+"name": "Banco Sabadell"
+},
+"SAF.PA": {
+"country": "FR",
+"etoro": "SAF.PA",
+"index": "CAC_40",
+"instrument_id": 1261,
+"name": "SAFRAN"
+},
+"SAFE.L": {
+"country": "UK",
+"etoro": "SAFE.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2719,
+"name": "Safestore Holdings PLC"
+},
+"SAGA.L": {
+"country": "UK",
+"etoro": "SAGA.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2781,
+"name": "Saga PLC"
+},
+"SALM.OL": {
+"country": "NO",
+"etoro": "SALM.OL",
+"index": "OBX_Index",
+"instrument_id": 5800,
+"name": "SalMar ASA"
+},
+"SAMPO.HE": {
+"country": "FI",
+"etoro": "SAMPO.HE",
+"index": "OMX_Helsinki_25",
+"instrument_id": 2284,
+"name": "Sampo Oyj A"
+},
+"SAN.MC": {
+"country": "ES",
+"etoro": "SAN.MC",
+"index": "IBEX_35",
+"instrument_id": 7615,
+"name": "Banco Santander SA"
+},
+"SAN.PA": {
+"country": "FR",
+"etoro": "SAN.PA",
+"index": "CAC_40",
+"instrument_id": 1262,
+"name": "Sanofi"
+},
+"SAND.ST": {
+"country": "SE",
+"etoro": "SAND.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 2236,
+"name": "Sandvik AB"
+},
+"SAP.DE": {
+"country": "DE",
+"etoro": "SAP.DE",
+"index": "DAX",
+"instrument_id": 1202,
+"name": "SAP SE"
+},
+"SAX.DE": {
+"country": "DE",
+"etoro": "SAX.DE",
+"index": "MDAX",
+"instrument_id": 2578,
+"name": "Stroeer SE & Co KGaA"
+},
+"SBMO.AS": {
+"country": "NL",
+"etoro": "SBMO.NV",
+"index": "AMX_index",
+"instrument_id": 4534,
+"name": "SBM Offshore NV"
+},
+"SBRY.L": {
+"country": "UK",
+"etoro": "SBRY.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2077,
+"name": "J Sainsbury PLC"
+},
+"SCA-B.ST": {
+"country": "SE",
+"etoro": "SCAB.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 1985,
+"name": "  Svenska Cellulosa Aktiebolaget SCA"
+},
+"SCT.L": {
+"country": "UK",
+"etoro": "SCT.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2793,
+"name": "Softcat PLC"
+},
+"SCYR.MC": {
+"country": "ES",
+"etoro": "SCYR.MC",
+"index": "IBEX_35",
+"instrument_id": 1342,
+"name": "Sacyr"
+},
+"SDF.DE": {
+"country": "DE",
+"etoro": "SDF.DE",
+"index": "MDAX",
+"instrument_id": 1222,
+"name": "K+S Aktiengesellschaft"
+},
+"SDLF.L": {
+"country": "UK",
+"etoro": "SDLF.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2659,
+"name": "Standard Life PLC"
+},
+"SDP.L": {
+"country": "UK",
+"etoro": "SDP.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2834,
+"name": "Schroder AsiaPacific Fund"
+},
+"SDZ.SW": {
+"country": "CH",
+"etoro": "SDZ.ZU",
+"index": "Swiss_Market_Index",
+"instrument_id": 2950,
+"name": "Sandoz Group AG"
+},
+"SEB-A.ST": {
+"country": "SE",
+"etoro": "SEB-A.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 2235,
+"name": "Skandinaviska Enskilda Banken ser. A"
+},
+"SEIT.L": {
+"country": "UK",
+"etoro": "SEIT.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2149,
+"name": "SDCL Efficiency Income Trust Plc"
+},
+"SEQI.L": {
+"country": "UK",
+"etoro": "SEQI.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2833,
+"name": "Sequoia Economic Infrastructure Income Fund"
+},
+"SGE.L": {
+"country": "UK",
+"etoro": "SGE.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2113,
+"name": "The Sage Group plc "
+},
+"SGO.PA": {
+"country": "FR",
+"etoro": "SGO.PA",
+"index": "CAC_40",
+"instrument_id": 1263,
+"name": "Compagnie de Saint-Gobain S.A."
+},
+"SGRO.L": {
+"country": "UK",
+"etoro": "SGRO.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2159,
+"name": "Segro"
+},
+"SHB-A.ST": {
+"country": "SE",
+"etoro": "SHB-A.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 2239,
+"name": "Svenska Handelsbanken ser. A"
+},
+"SHC.L": {
+"country": "UK",
+"etoro": "SHC.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2650,
+"name": "Shaftesbury Capital PLC"
+},
+"SHEL.L": {
+"country": "UK",
+"etoro": "SHEL.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2171,
+"name": "Shell PLC"
+},
+"SHELL.AS": {
+"country": "NL",
+"etoro": "SHELL.NV",
+"index": "AEX_index",
+"instrument_id": 3291,
+"name": "Shell PLC"
+},
+"SHL.DE": {
+"country": "DE",
+"etoro": "SHL.DE",
+"index": "DAX",
+"instrument_id": 2550,
+"name": "Siemens Healthineers AG"
+},
+"SIE.DE": {
+"country": "DE",
+"etoro": "SIE.DE",
+"index": "DAX",
+"instrument_id": 1200,
+"name": "Siemens Aktiengesellschaft"
+},
+"SIKA.SW": {
+"country": "CH",
+"etoro": "SIKA.ZU",
+"index": "Swiss_Market_Index",
+"instrument_id": 5827,
+"name": "Sika Ltd"
+},
+"SKA-B.ST": {
+"country": "SE",
+"etoro": "SKA-B.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 2249,
+"name": "Skanska AB ser. B"
+},
+"SKF-B.ST": {
+"country": "SE",
+"etoro": "SKF-B.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 1983,
+"name": "SKF AB Class B"
+},
+"SLHN.SW": {
+"country": "CH",
+"etoro": "SLHN.ZU",
+"index": "Swiss_Market_Index",
+"instrument_id": 1414,
+"name": "Swiss Life Holding AG"
+},
+"SMIN.L": {
+"country": "UK",
+"etoro": "SMIN.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2082,
+"name": "Smiths Group"
+},
+"SMT.L": {
+"country": "UK",
+"etoro": "SMT.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2161,
+"name": "Scottish Mortgage Investment Trust"
+},
+"SMWH.L": {
+"country": "UK",
+"etoro": "SMWH.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2721,
+"name": "WH Smith PLC"
+},
+"SN.L": {
+"country": "UK",
+"etoro": "SN.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2083,
+"name": "Smith & Nephew"
+},
+"SOF.BR": {
+"country": "BE",
+"etoro": "SOF.BR",
+"index": "BEL_20",
+"instrument_id": 5744,
+"name": "Sofina SA"
+},
+"SOLB.BR": {
+"country": "BE",
+"etoro": "SOLB.BR",
+"index": "BEL_20",
+"instrument_id": 1264,
+"name": "SOLVAY"
+},
+"SPI.L": {
+"country": "UK",
+"etoro": "SPI.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2763,
+"name": "Spire Healthcare Group PLC"
+},
+"SPM.MI": {
+"country": "IT",
+"etoro": "SPM.MI",
+"index": "FTSE_MIB",
+"instrument_id": 2993,
+"name": "Saipem Spa"
+},
+"SPX.L": {
+"country": "UK",
+"etoro": "SPX.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2611,
+"name": "Spirax-Sarco Engineering PLC"
+},
+"SRE.L": {
+"country": "UK",
+"etoro": "SRE.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2131,
+"name": "Sirius Real Estate Limited"
+},
+"SREN.SW": {
+"country": "CH",
+"etoro": "SREN.ZU",
+"index": "Swiss_Market_Index",
+"instrument_id": 1415,
+"name": "Swiss Re AG"
+},
+"SRG.MI": {
+"country": "IT",
+"etoro": "SRG.MI",
+"index": "FTSE_MIB",
+"instrument_id": 1299,
+"name": "Snam Group"
+},
+"SRP.L": {
+"country": "UK",
+"etoro": "SRP.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2805,
+"name": "Serco Group PLC"
+},
+"SSE.L": {
+"country": "UK",
+"etoro": "SSE.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2085,
+"name": "SSE"
+},
+"SSIT.L": {
+"country": "UK",
+"etoro": "SSIT.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11466,
+"name": "Seraphim Space Investment Trust Plc"
+},
+"SSPG.L": {
+"country": "UK",
+"etoro": "SSPG.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2770,
+"name": "SSP Group Plc"
+},
+"STAN.L": {
+"country": "UK",
+"etoro": "STAN.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2086,
+"name": "Standard Chartered"
+},
+"STB.OL": {
+"country": "NO",
+"etoro": "STB.OL",
+"index": "OBX_Index",
+"instrument_id": 2226,
+"name": "Storebrand"
+},
+"STERV.HE": {
+"country": "FI",
+"etoro": "STERV.HE",
+"index": "OMX_Helsinki_25",
+"instrument_id": 2458,
+"name": "Stora Enso Oyj"
+},
+"STJ.L": {
+"country": "UK",
+"etoro": "STJ.L",
+"index": "FTSE_100_Index",
+"instrument_id": 9293,
+"name": "St.James's Place Capital Plc"
+},
+"STLAM.MI": {
+"country": "IT",
+"etoro": "STLAM.MI",
+"index": "FTSE_MIB",
+"instrument_id": 1285,
+"name": "Stellantis NV"
+},
+"STLAP.PA": {
+"country": "FR",
+"etoro": "STLAP.PA",
+"index": "CAC_40",
+"instrument_id": 13011,
+"name": "Stellantis NV"
+},
+"STM.DE": {
+"country": "DE",
+"etoro": "STM.DE",
+"index": "MDAX",
+"instrument_id": 3674,
+"name": "STABILUS SE"
+},
+"STMMI.MI": {
+"country": "IT",
+"etoro": "STMMI.MI",
+"index": "FTSE_MIB",
+"instrument_id": 1300,
+"name": "STMicroelectronics Company"
+},
+"STMPA.PA": {
+"country": "FR",
+"etoro": "STMPA.PA",
+"index": "CAC_40",
+"instrument_id": 5003,
+"name": "STMicroelectronics NV"
+},
+"SU.PA": {
+"country": "FR",
+"etoro": "SU.PA",
+"index": "CAC_40",
+"instrument_id": 1265,
+"name": "Schneider Electric SE"
+},
+"SUBC.OL": {
+"country": "NO",
+"etoro": "SUBC.OL",
+"index": "OBX_Index",
+"instrument_id": 2227,
+"name": "Subsea 7"
+},
+"SVS.L": {
+"country": "UK",
+"etoro": "SVS.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2658,
+"name": "Savills PLC"
+},
+"SVT.L": {
+"country": "UK",
+"etoro": "SVT.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2087,
+"name": "Severn Trent"
+},
+"SWED-A.ST": {
+"country": "SE",
+"etoro": "SWED-A.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 2241,
+"name": "Swedbank AB ser A"
+},
+"SY1.DE": {
+"country": "DE",
+"etoro": "SY1.DE",
+"index": "DAX",
+"instrument_id": 2536,
+"name": "Symrise"
+},
+"SYENS.BR": {
+"country": "BE",
+"etoro": "SYENS.BR",
+"index": "BEL_20",
+"instrument_id": 3287,
+"name": "Syensqo SA"
+},
+"TATE.L": {
+"country": "UK",
+"etoro": "TATE.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2088,
+"name": "Tate & Lyle"
+},
+"TBCG.L": {
+"country": "UK",
+"etoro": "TBCG.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2758,
+"name": "TBC Bank Group PLC"
+},
+"TCAP.L": {
+"country": "UK",
+"etoro": "TCAP.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2612,
+"name": "TP ICAP PLC"
+},
+"TEF.MC": {
+"country": "ES",
+"etoro": "TEF.MC",
+"index": "IBEX_35",
+"instrument_id": 7622,
+"name": "Telefonica SA"
+},
+"TEG.DE": {
+"country": "DE",
+"etoro": "TEG.DE",
+"index": "MDAX",
+"instrument_id": 2524,
+"name": "TAG Immobilien"
+},
+"TEL.OL": {
+"country": "NO",
+"etoro": "TEL.OL",
+"index": "OBX_Index",
+"instrument_id": 2228,
+"name": "Telenor"
+},
+"TEL2-B.ST": {
+"country": "SE",
+"etoro": "TEL2B.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 5863,
+"name": "Tele2 AB Ser. B"
+},
+"TELIA.ST": {
+"country": "SE",
+"etoro": "TELIA.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 2232,
+"name": "Telia Company AB"
+},
+"TEM.L": {
+"country": "UK",
+"etoro": "TEM.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2750,
+"name": "Templeton Emerging Markets Investment Tr"
+},
+"TEN.MI": {
+"country": "IT",
+"etoro": "TEN.MI",
+"index": "FTSE_MIB",
+"instrument_id": 1302,
+"name": "Tenaris Group"
+},
+"TEP.L": {
+"country": "UK",
+"etoro": "TEP.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2727,
+"name": "Telecom Plus PLC"
+},
+"TESB.BR": {
+"country": "BE",
+"etoro": "TESB.BR",
+"index": "BEL_20",
+"instrument_id": 12679,
+"name": "Tessenderlo Group NV"
+},
+"TGS.OL": {
+"country": "NO",
+"etoro": "TGS.OL",
+"index": "OBX_Index",
+"instrument_id": 2229,
+"name": "TGS-NOPEC"
+},
+"THG.L": {
+"country": "UK",
+"etoro": "THG.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2116,
+"name": "THG Plc"
+},
+"THRL.L": {
+"country": "UK",
+"etoro": "THRL.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11278,
+"name": "Target Healthcare Reit Plc"
+},
+"TIETO.HE": {
+"country": "FI",
+"etoro": "TIETO.HE",
+"index": "OMX_Helsinki_25",
+"instrument_id": 1014600,
+"name": "Tieto Oyj"
+},
+"TKA.DE": {
+"country": "DE",
+"etoro": "TKA.DE",
+"index": "MDAX",
+"instrument_id": 1220,
+"name": "ThyssenKrupp AG"
+},
+"TLX.DE": {
+"country": "DE",
+"etoro": "TLX.DE",
+"index": "MDAX",
+"instrument_id": 2558,
+"name": "Talanx AG"
+},
+"TMPL.L": {
+"country": "UK",
+"etoro": "TMPL.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2652,
+"name": "Temple Bar Investment Trust PLC"
+},
+"TMV.DE": {
+"country": "DE",
+"etoro": "TMV.DE",
+"index": "MDAX",
+"instrument_id": 6153,
+"name": "TeamViewer AG"
+},
+"TOM.OL": {
+"country": "NO",
+"etoro": "TOM.OL",
+"index": "OBX_Index",
+"instrument_id": 5802,
+"name": "Tomra Systems"
+},
+"TPK.L": {
+"country": "UK",
+"etoro": "TPK.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2090,
+"name": "Travis Perkins"
+},
+"TRIG.L": {
+"country": "UK",
+"etoro": "TRIG.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2686,
+"name": "Renewables Infrastructure Group Ltd"
+},
+"TRN.L": {
+"country": "UK",
+"etoro": "TRN.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2176,
+"name": "Trainline PLC"
+},
+"TRN.MI": {
+"country": "IT",
+"etoro": "TRN.MI",
+"index": "FTSE_MIB",
+"instrument_id": 1305,
+"name": "Terna SPA"
+},
+"TRST.L": {
+"country": "UK",
+"etoro": "TRST.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11191,
+"name": "Trustpilot Group Plc"
+},
+"TRYG.CO": {
+"country": "DK",
+"etoro": "TRYG.CO",
+"index": "OMX_Copenhagen_25",
+"instrument_id": 2266,
+"name": "Tryg A/S"
+},
+"TSCO.L": {
+"country": "UK",
+"etoro": "TSCO.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2091,
+"name": "Tesco"
+},
+"TTE.PA": {
+"country": "FR",
+"etoro": "TTE.PA",
+"index": "CAC_40",
+"instrument_id": 1246,
+"name": "TotalEnergies SE"
+},
+"TUI1.DE": {
+"country": "DE",
+"etoro": "TUI1.DE",
+"index": "MDAX",
+"instrument_id": 12230,
+"name": "TUI AG"
+},
+"TW.L": {
+"country": "UK",
+"etoro": "TW.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2164,
+"name": "Taylor Wimpey"
+},
+"TWEKA.AS": {
+"country": "NL",
+"etoro": "TWEKA.NV",
+"index": "AMX_index",
+"instrument_id": 4539,
+"name": "TKH Group"
+},
+"TYRES.HE": {
+"country": "FI",
+"etoro": "TYRES.HE",
+"index": "OMX_Helsinki_25",
+"instrument_id": 2286,
+"name": "Nokian Renkaat Oyj"
+},
+"UBSG.SW": {
+"country": "CH",
+"etoro": "UBSG.ZU",
+"index": "Swiss_Market_Index",
+"instrument_id": 1417,
+"name": "UBS Group AG"
+},
+"UCB.BR": {
+"country": "BE",
+"etoro": "UCB.BR",
+"index": "BEL_20",
+"instrument_id": 5746,
+"name": "UCB SA"
+},
+"UCG.MI": {
+"country": "IT",
+"etoro": "UCG.MI",
+"index": "FTSE_MIB",
+"instrument_id": 1307,
+"name": "UniCredit Commercial Bank"
+},
+"ULVR.L": {
+"country": "UK",
+"etoro": "ULVR.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2093,
+"name": "Unilever"
+},
+"UMG.AS": {
+"country": "NL",
+"etoro": "UMG.NV",
+"index": "AEX_index",
+"instrument_id": 3049,
+"name": "Universal Music Group N.V"
+},
+"UMI.BR": {
+"country": "BE",
+"etoro": "UMI.BR",
+"index": "BEL_20",
+"instrument_id": 5747,
+"name": "Umicore"
+},
+"UNA.AS": {
+"country": "NL",
+"etoro": "UNA.NV",
+"index": "AEX_index",
+"instrument_id": 12600,
+"name": "Unilever PLC"
+},
+"UNI.MC": {
+"country": "ES",
+"etoro": "UNI.MC",
+"index": "IBEX_35",
+"instrument_id": 5542,
+"name": "Unicaja Banco SA"
+},
+"UNI.MI": {
+"country": "IT",
+"etoro": "UNI.MI",
+"index": "FTSE_MIB",
+"instrument_id": 4230,
+"name": "Unipol"
+},
+"UPM.HE": {
+"country": "FI",
+"etoro": "UPM.HE",
+"index": "OMX_Helsinki_25",
+"instrument_id": 2281,
+"name": "UPM-Kymmene Oyj"
+},
+"URW.PA": {
+"country": "FR",
+"etoro": "URW.PA",
+"index": "CAC_40",
+"instrument_id": 4548,
+"name": "Unibail-Rodamco-Westfield"
+},
+"UTDI.DE": {
+"country": "DE",
+"etoro": "UTDI.DE",
+"index": "MDAX",
+"instrument_id": 2533,
+"name": "United Internet"
+},
+"UTG.L": {
+"country": "UK",
+"etoro": "UTG.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2622,
+"name": "UNITE Group PLC"
+},
+"UU.L": {
+"country": "UK",
+"etoro": "UU.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2094,
+"name": "United Utilities"
+},
+"VALMT.HE": {
+"country": "FI",
+"etoro": "VALMT.HE",
+"index": "OMX_Helsinki_25",
+"instrument_id": 5787,
+"name": "Valmet Corporation"
+},
+"VAR.OL": {
+"country": "NO",
+"etoro": "VAR.OL",
+"index": "OBX_Index",
+"instrument_id": 12759,
+"name": "Var Energi ASA"
+},
+"VCT.L": {
+"country": "UK",
+"etoro": "VCT.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2760,
+"name": "Victrex PLC"
+},
+"VIE.PA": {
+"country": "FR",
+"etoro": "VIE.PA",
+"index": "CAC_40",
+"instrument_id": 1269,
+"name": "Veolia Environnement S.A."
+},
+"VLX.L": {
+"country": "UK",
+"etoro": "VLX.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11233,
+"name": "Volex Plc"
+},
+"VNA.DE": {
+"country": "DE",
+"etoro": "VNA.DE",
+"index": "DAX",
+"instrument_id": 2551,
+"name": "Vonovia SE"
+},
+"VOD.L": {
+"country": "UK",
+"etoro": "VOD.L",
+"index": "FTSE_100_Index",
+"instrument_id": 7078,
+"name": " Vodafone Group PLC"
+},
+"VOF.L": {
+"country": "UK",
+"etoro": "VOF.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2828,
+"name": "VinaCapital Vietnam Opportunity Fund"
+},
+"VOLV-B.ST": {
+"country": "SE",
+"etoro": "VOLV-B.ST",
+"index": "OMX_Stockholm_30",
+"instrument_id": 2964,
+"name": "Volvo AB ser. B"
+},
+"VOW3.DE": {
+"country": "DE",
+"etoro": "VOW3.DE",
+"index": "DAX",
+"instrument_id": 1210,
+"name": "Volkswagen AG"
+},
+"VPK.AS": {
+"country": "NL",
+"etoro": "VPK.NV",
+"index": "AMX_index",
+"instrument_id": 4543,
+"name": "Koninklijke Vopak NV"
+},
+"VSVS.L": {
+"country": "UK",
+"etoro": "VSVS.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2695,
+"name": "Vesuvius PLC"
+},
+"VTY.L": {
+"country": "UK",
+"etoro": "VTY.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2799,
+"name": "Vistry Group PLC"
+},
+"VWS.CO": {
+"country": "DK",
+"etoro": "VWS.CO",
+"index": "OMX_Copenhagen_25",
+"instrument_id": 2263,
+"name": "Vestas Wind Systems A/S"
+},
+"WAF.DE": {
+"country": "DE",
+"etoro": "WAF.DE",
+"index": "MDAX",
+"instrument_id": 2535,
+"name": "Siltronic"
+},
+"WAWI.OL": {
+"country": "NO",
+"etoro": "WAWI.OL",
+"index": "OBX_Index",
+"instrument_id": 12765,
+"name": "Wallenius Wilhelmsen ASA"
+},
+"WCH.DE": {
+"country": "DE",
+"etoro": "WCH.DE",
+"index": "MDAX",
+"instrument_id": 2571,
+"name": "Wacker Chemie AG"
+},
+"WDP.BR": {
+"country": "BE",
+"etoro": "WDP.BR",
+"index": "BEL_20",
+"instrument_id": 5748,
+"name": "Warehouses De Pauw NV"
+},
+"WEIR.L": {
+"country": "UK",
+"etoro": "WEIR.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2096,
+"name": "Weir Group"
+},
+"WIX.L": {
+"country": "UK",
+"etoro": "WIX.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11261,
+"name": "Wickes Group Plc"
+},
+"WIZZ.L": {
+"country": "UK",
+"etoro": "WIZZ.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2816,
+"name": "Wizz Air Holdings Plc"
+},
+"WKL.AS": {
+"country": "NL",
+"etoro": "WKL.NV",
+"index": "AEX_index",
+"instrument_id": 4545,
+"name": "Wolters Kluwer NV"
+},
+"WKP.L": {
+"country": "UK",
+"etoro": "WKP.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2723,
+"name": "Workspace Group PLC"
+},
+"WOSG.L": {
+"country": "UK",
+"etoro": "WOSG.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2121,
+"name": "Watches of Switzerland Group plc"
+},
+"WPP.L": {
+"country": "UK",
+"etoro": "WPP.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2099,
+"name": "WPP"
+},
+"WRT1V.HE": {
+"country": "FI",
+"etoro": "WRT1V.HE",
+"index": "OMX_Helsinki_25",
+"instrument_id": 2287,
+"name": "W\u00e4rtsil\u00e4 Oyj Abp"
+},
+"WTB.L": {
+"country": "UK",
+"etoro": "WTB.L",
+"index": "FTSE_100_Index",
+"instrument_id": 2100,
+"name": "Whitbread"
+},
+"XPP.L": {
+"country": "UK",
+"etoro": "XPP.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11239,
+"name": "Xp Power Ld"
+},
+"XPS.L": {
+"country": "UK",
+"etoro": "XPS.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11229,
+"name": "Xps Pensions Group Plc"
+},
+"YAR.OL": {
+"country": "NO",
+"etoro": "YAR.OL",
+"index": "OBX_Index",
+"instrument_id": 2230,
+"name": "Yara International"
+},
+"YNGA.L": {
+"country": "UK",
+"etoro": "YNGA.L",
+"index": "FTSE_250_Index",
+"instrument_id": 11371,
+"name": "Young & CoS Brewery Plc"
+},
+"ZAL.DE": {
+"country": "DE",
+"etoro": "ZAL.DE",
+"index": "DAX",
+"instrument_id": 2521,
+"name": "Zalando"
+},
+"ZEAL.CO": {
+"country": "DK",
+"etoro": "ZEAL.CO",
+"index": "OMX_Copenhagen_25",
+"instrument_id": 3211,
+"name": "Zealand Pharma A/S"
+},
+"ZIG.L": {
+"country": "UK",
+"etoro": "ZIG.L",
+"index": "FTSE_250_Index",
+"instrument_id": 2691,
+"name": "Zigup PLC"
+}
+}
