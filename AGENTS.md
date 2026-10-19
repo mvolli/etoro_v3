@@ -287,7 +287,7 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
       - Er schreibt `data/analyst_a_picks.json`.
       - Rückweg: `"monthly"` (Monats-Screen M, E9).
       - Parität Live/Backtest am 5.–7.8.2026 exakt (LLY 0,755).
-    - Bisher galt der monatliche Screen M;
+    - Vorher (bis 2026-10-19): monatlicher Screen M (E9), weiter als Rückweg im Code.
     - S1 = Earnings-Katalysator (Überraschung ≥ 5 %, Reaktion ≥ +2 % gegen SPY,
       über SMA200; Einstieg day0+2).
   - **Ausstieg X0:** 126 Handelstage, Broker-SL −15 % (dazu täglich ein
