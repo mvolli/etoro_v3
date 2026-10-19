@@ -307,6 +307,9 @@ ATR-Profit-Leiter, Momentum-Fade). Der Bot läuft während JEDER Änderung weite
     (VoLLi).
   - **US-Aktien:** Yahoo-Symbol über `bot/core/yahoo_symbols.resolve` (siehe
     „Zwei Symbol-Namespaces“).
+- **S1 USA bleibt live** (VoLLi 2026-10-19, Rat RoboCop), obwohl er unter der
+  E10-Hürde nur NW-t 1,82 erreicht (Europa 1,77, nicht live; Q2 3,53). E11 testet
+  ereignisgetriebene Varianten.
 - **Signal-Trades A/C/D/E: seit 2026-10-17 aus** (`signal_trades.enabled: false`,
   VoLLi). Offene laufen mit den alten Regeln aus.
 - **Long-Signal-Forschung E4–E8 (Stand 2026-10-17): kein Vorsprung gegen den
