@@ -17,6 +17,7 @@ um Datenstand).
 from __future__ import annotations
 
 import sys
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -109,7 +110,7 @@ def test_update_regime_agrees_after_config_load(tmp_path, monkeypatch):
     monkeypatch.setattr(
         R, "market_metrics",
         lambda db, instrument_id=None: {
-            "date": "2026-10-16", "close": 650.0, "sma200": 620.0,
+            "date": date.today().isoformat(), "close": 650.0, "sma200": 620.0,
             "dd_pct": 2.0, "n": 250,
         },
     )
@@ -152,7 +153,7 @@ def test_reconciler_without_config_would_diverge(tmp_path, monkeypatch):
     monkeypatch.setattr(
         R, "market_metrics",
         lambda db, instrument_id=None: {
-            "date": "2026-10-16", "close": 650.0, "sma200": 620.0,
+            "date": date.today().isoformat(), "close": 650.0, "sma200": 620.0,
             "dd_pct": 2.0, "n": 250,
         },
     )

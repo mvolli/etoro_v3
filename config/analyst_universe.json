@@ -5714,7 +5714,7 @@
 "OZK": {
 "cik": 1569650,
 "seg": "large_mid",
-"sic": null,
+"sic": 6022,
 "yf": "OZK"
 },
 "P": {
@@ -5882,7 +5882,7 @@
 "PFBC": {
 "cik": 1492165,
 "seg": "small",
-"sic": null,
+"sic": 6022,
 "yf": "PFBC"
 },
 "PFE": {

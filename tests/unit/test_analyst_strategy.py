@@ -228,3 +228,35 @@ def test_falscher_tag_kein_kauf():
     rk, cal = _setup_ranker(prev_top_score=0.0)
     d1 = qs.next_trading_day(cal, "2026-08-10")
     assert qs.event_candidates(rk, cal, d1, {"T0"}) == []
+
+
+def test_kursdownload_laedt_fehlende_titel_einmal_nach(monkeypatch):
+    """21.10.: Yahoo lieferte fuer XYZ einmalig nichts -> ein zweiter Versuch."""
+    import sys
+    import types
+
+    import pandas as pd
+
+    from bot.workers import analyst_worker as aw
+
+    calls = []
+
+    def download(chunk, **kw):
+        calls.append(list(chunk))
+        idx = pd.to_datetime(["2026-10-19", "2026-10-20"])
+        ok = [s for s in chunk if s != "XYZ" or len(calls) > 1]
+        cols = pd.MultiIndex.from_product([ok, ["Close"]])
+        return pd.DataFrame([[10.0] * len(ok), [11.0] * len(ok)], index=idx, columns=cols)
+
+    monkeypatch.setitem(sys.modules, "yfinance", types.SimpleNamespace(download=download))
+    monkeypatch.setattr(aw.time, "sleep", lambda s: None)
+    out = aw._download_closes(["AAPL", "XYZ"], "2026-10-01")
+    assert calls == [["AAPL", "XYZ"], ["XYZ"]]
+    assert out["XYZ"] == (["2026-10-19", "2026-10-20"], [10.0, 11.0])
+    assert set(out) == {"AAPL", "XYZ"}
+
+
+def test_banken_ohne_sec_abschluesse_sind_finanzwerte():
+    """OZK/PFBC reichen 10-K/10-Q bei der FDIC ein (SEC-SIC fehlt) -> keine companyfacts."""
+    u = qs.load_universe()
+    assert qs.is_fin(u["OZK"]["sic"]) and qs.is_fin(u["PFBC"]["sic"])

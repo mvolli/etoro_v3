@@ -46,8 +46,13 @@ def _ny_today() -> date:
     return datetime.now(ZoneInfo("America/New_York")).date()
 
 
-def _download_closes(symbols: list[str], start: str, end: str | None = None) -> dict:
-    """{yf_symbol: (dates, closes)} — Tagesschluss, auto_adjust wie im Backtest."""
+def _download_closes(symbols: list[str], start: str, end: str | None = None,
+                     retry: bool = True) -> dict:
+    """{yf_symbol: (dates, closes)} — Tagesschluss, auto_adjust wie im Backtest.
+
+    Fehlende Titel werden einmal nachgeladen: Yahoo liefert vereinzelt fuer einen
+    Titel nichts (21.10.: XYZ TypeError), der dann an seinem Einreichungstag fehlen wuerde.
+    """
     import yfinance as yf
     out: dict = {}
     for k in range(0, len(symbols), 100):
@@ -72,6 +77,13 @@ def _download_closes(symbols: list[str], start: str, end: str | None = None) -> 
             except Exception:  # noqa: BLE001
                 pass
         time.sleep(0.5)
+    missing = [s for s in symbols if s not in out]
+    if retry and missing:
+        time.sleep(2)
+        out.update(_download_closes(missing, start, end, retry=False))
+        still = [s for s in missing if s not in out]
+        if still:
+            logger.info("Keine Kurse fuer %d Titel: %s", len(still), ", ".join(still[:20]))
     return out
 
 
